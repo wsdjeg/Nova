@@ -3,6 +3,9 @@
 build/
 local.properties
 
+# Gradle Wrapper Jar (downloaded in CI)
+gradle/wrapper/gradle-wrapper.jar
+
 # IDE
 .idea/
 *.iml
