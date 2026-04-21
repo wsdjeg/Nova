@@ -16,18 +16,12 @@ public class SettingsManager {
         prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
     }
 
-    public void saveSettings(String url, String port, String apiKey, String session) {
+    public void saveSettings(String url, String port, String apiKey) {
         prefs.edit()
             .putString(KEY_URL, url)
             .putString(KEY_PORT, port)
             .putString(KEY_API_KEY, apiKey)
-            .putString(KEY_SESSION, session)
             .apply();
-    }
-
-    // Keep for backward compatibility
-    public void saveSettings(String url, String port, String apiKey) {
-        saveSettings(url, port, apiKey, getSession());
     }
     
     public void setSession(String session) {
@@ -76,7 +70,18 @@ public class SettingsManager {
         return url;
     }
 
+    /**
+     * 检查 API 设置是否有效（不检查 Session）
+     */
     public boolean hasValidSettings() {
-        return !getFullUrl().isEmpty() && !getApiKey().isEmpty() && !getSession().isEmpty();
+        return !getFullUrl().isEmpty() && !getApiKey().isEmpty();
+    }
+    
+    /**
+     * 检查 Session 是否已选择
+     */
+    public boolean hasSession() {
+        String session = getSession();
+        return session != null && !session.isEmpty();
     }
 }

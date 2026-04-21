@@ -6,20 +6,24 @@ import android.os.Handler;
 import android.os.Looper;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.View;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.Spinner;
 import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
     
     private static final int REFRESH_INTERVAL_MS = 5000; // 5秒刷新一次
     
+    private Spinner spinnerSession;
     private RecyclerView rvMessages;
     private EditText etMessage;
     private Button btnSend;
@@ -27,6 +31,11 @@ public class MainActivity extends AppCompatActivity {
     private List<Message> messages;
     private ApiClient apiClient;
     private SettingsManager settingsManager;
+    
+    // Session 下拉菜单
+    private ArrayAdapter<String> sessionAdapter;
+    private List<String> sessionList;
+    private boolean isSpinnerInitialized = false;
     
     // 自动刷新相关
     private Handler refreshHandler;
@@ -44,15 +53,16 @@ public class MainActivity extends AppCompatActivity {
         
         initViews();
         setupRecyclerView();
+        setupSessionSpinner();
         setupAutoRefresh();
         
         // Check if settings are configured
         if (settingsManager.hasValidSettings()) {
             addMessage("欢迎回来！正在加载消息...", false);
-            // 立即加载一次消息
-            refreshMessages();
+            // 加载 session 列表
+            loadSessions();
         } else {
-            addMessage("欢迎！点击右上角「Settings」配置 API。\n\n可用命令：\n• /sessions - 列出所有会话\n• /switch <session-id> - 切换会话\n• /refresh - 手动刷新\n• /pause - 暂停自动刷新\n• /resume - 恢复自动刷新\n• /clear - 清空消息\n• /help - 显示帮助", false);
+            addMessage("欢迎！点击右上角「Settings」配置 API。", false);
             isAutoRefreshEnabled = false;
         }
     }
@@ -67,6 +77,7 @@ public class MainActivity extends AppCompatActivity {
         // 如果配置有效，恢复自动刷新
         if (settingsManager.hasValidSettings() && isAutoRefreshEnabled) {
             startAutoRefresh();
+            loadSessions();
         }
     }
     
@@ -98,6 +109,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void initViews() {
+        spinnerSession = findViewById(R.id.spinner_session);
         rvMessages = findViewById(R.id.rv_messages);
         etMessage = findViewById(R.id.et_message);
         btnSend = findViewById(R.id.btn_send);
@@ -112,6 +124,94 @@ public class MainActivity extends AppCompatActivity {
         layoutManager.setStackFromEnd(true);
         rvMessages.setLayoutManager(layoutManager);
         rvMessages.setAdapter(adapter);
+    }
+    
+    private void setupSessionSpinner() {
+        sessionList = new ArrayList<>();
+        sessionAdapter = new ArrayAdapter<>(this, 
+                android.R.layout.simple_spinner_item, sessionList);
+        sessionAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spinnerSession.setAdapter(sessionAdapter);
+        
+        spinnerSession.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                if (!isSpinnerInitialized) {
+                    isSpinnerInitialized = true;
+                    return;
+                }
+                
+                String selectedSession = sessionList.get(position);
+                if (!selectedSession.equals(settingsManager.getSession())) {
+                    switchSession(selectedSession);
+                }
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {
+                // Do nothing
+            }
+        });
+    }
+    
+    private void loadSessions() {
+        if (!settingsManager.hasValidSettings()) {
+            return;
+        }
+        
+        apiClient.getSessions(new ApiClient.SessionsCallback() {
+            @Override
+            public void onSuccess(String[] sessions) {
+                runOnUiThread(() -> {
+                    sessionList.clear();
+                    
+                    if (sessions.length == 0) {
+                        sessionList.add("(无会话)");
+                    } else {
+                        for (String session : sessions) {
+                            sessionList.add(session);
+                        }
+                        
+                        // 设置当前选中的 session
+                        String currentSession = settingsManager.getSession();
+                        if (currentSession != null && !currentSession.isEmpty()) {
+                            int index = sessionList.indexOf(currentSession);
+                            if (index >= 0) {
+                                isSpinnerInitialized = false;
+                                spinnerSession.setSelection(index);
+                            }
+                        }
+                    }
+                    
+                    sessionAdapter.notifyDataSetChanged();
+                });
+            }
+
+            @Override
+            public void onError(String error) {
+                runOnUiThread(() -> {
+                    sessionList.clear();
+                    sessionList.add("(加载失败)");
+                    sessionAdapter.notifyDataSetChanged();
+                });
+            }
+        });
+    }
+    
+    private void switchSession(String sessionId) {
+        settingsManager.setSession(sessionId);
+        lastMessageCount = 0; // 重置计数，强制刷新
+        clearMessages();
+        addMessage("已切换到会话: " + sessionId + "\n正在加载消息...", false);
+        
+        // 立即刷新
+        refreshMessages();
+        
+        // 恢复自动刷新
+        if (!isAutoRefreshEnabled) {
+            isAutoRefreshEnabled = true;
+            startAutoRefresh();
+        }
     }
     
     private void setupAutoRefresh() {
@@ -191,13 +291,9 @@ public class MainActivity extends AppCompatActivity {
         messages.clear();
         
         for (ApiClient.ChatMessage msg : chatMessages) {
-            // role: "user" 或 "assistant"
-            // 显示格式: [角色]: 内容
-            String displayText = String.format("[%s]:\n%s", 
-                    msg.role, msg.content);
+            // 直接显示内容，不显示角色前缀（角色通过气泡样式区分）
             boolean isUser = "user".equals(msg.role);
-            
-            messages.add(new Message(displayText, isUser));
+            messages.add(new Message(msg.content, isUser));
         }
         
         // 通知适配器更新
@@ -218,7 +314,7 @@ public class MainActivity extends AppCompatActivity {
         }
         
         // Add user message to display
-        addMessage("[user]:\n" + messageText, true);
+        addMessage(messageText, true);
         etMessage.setText("");
         
         // Check if it's a command
@@ -229,23 +325,16 @@ public class MainActivity extends AppCompatActivity {
             sendChatMessage(messageText);
         }
     }
-
+    
     private void handleCommand(String command) {
-        String[] parts = command.split("\\s+");
+        String[] parts = command.split("\\s+", 2);
         String cmd = parts[0].toLowerCase();
-        String[] args = Arrays.copyOfRange(parts, 1, parts.length);
+        String[] args = parts.length > 1 ? parts[1].split("\\s+") : new String[0];
         
         switch (cmd) {
             case "/sessions":
-                handleSessionsCommand();
-                break;
-                
-            case "/switch":
-                if (args.length == 0) {
-                    addMessage("用法: /switch <session-id>\n示例: /switch 2024-01-15-10-30-00", false);
-                } else {
-                    handleSwitchSession(args[0]);
-                }
+                loadSessions();
+                addMessage("已刷新会话列表", false);
                 break;
                 
             case "/refresh":
@@ -282,68 +371,10 @@ public class MainActivity extends AppCompatActivity {
                 break;
         }
     }
-    
-    private void handleSwitchSession(String sessionId) {
-        settingsManager.setSession(sessionId);
-        lastMessageCount = 0; // 重置计数，强制刷新
-        addMessage("已切换到会话: " + sessionId + "\n正在加载消息...", false);
-        
-        // 立即刷新
-        refreshMessages();
-        
-        // 恢复自动刷新
-        if (!isAutoRefreshEnabled) {
-            isAutoRefreshEnabled = true;
-            startAutoRefresh();
-        }
-    }
-
-    private void handleSessionsCommand() {
-        if (!checkApiSettings()) {
-            addMessage("请先配置 API 设置（URL 和 API Key）", false);
-            return;
-        }
-        
-        btnSend.setEnabled(false);
-        addMessage("正在获取会话列表...", false);
-        
-        apiClient.getSessions(new ApiClient.SessionsCallback() {
-            @Override
-            public void onSuccess(String[] sessions) {
-                runOnUiThread(() -> {
-                    if (sessions.length == 0) {
-                        addMessage("当前没有活动的会话", false);
-                    } else {
-                        StringBuilder sb = new StringBuilder();
-                        sb.append("活动会话 (共 ").append(sessions.length).append(" 个):\n\n");
-                        for (int i = 0; i < sessions.length; i++) {
-                            sb.append("• ").append(sessions[i]);
-                            if (sessions[i].equals(settingsManager.getSession())) {
-                                sb.append(" ✓ (当前)");
-                            }
-                            sb.append("\n");
-                        }
-                        sb.append("\n使用 /switch <session-id> 切换会话");
-                        addMessage(sb.toString(), false);
-                    }
-                    btnSend.setEnabled(true);
-                });
-            }
-
-            @Override
-            public void onError(String error) {
-                runOnUiThread(() -> {
-                    addMessage("获取会话失败: " + error, false);
-                    btnSend.setEnabled(true);
-                });
-            }
-        });
-    }
 
     private void showHelp() {
         String helpText = "可用命令:\n\n" +
-                         "• /sessions - 列出所有活动会话\n" +
-                         "• /switch <id> - 切换到指定会话\n" +
+                         "• /sessions - 刷新会话列表\n" +
                          "• /refresh - 手动刷新消息\n" +
                          "• /pause - 暂停自动刷新\n" +
                          "• /resume - 恢复自动刷新\n" +
@@ -351,8 +382,8 @@ public class MainActivity extends AppCompatActivity {
                          "• /clear - 清空消息列表\n" +
                          "• /help - 显示此帮助信息\n\n" +
                          "提示:\n" +
-                         "• 界面每5秒自动刷新\n" +
-                         "• 普通消息会发送到当前 Session";
+                         "• 顶部下拉菜单可切换会话\n" +
+                         "• 界面每5秒自动刷新";
         addMessage(helpText, false);
     }
 
@@ -393,7 +424,7 @@ public class MainActivity extends AppCompatActivity {
         
         String session = settingsManager.getSession();
         if (session == null || session.isEmpty()) {
-            addMessage("请配置 Session ID（在设置中或使用 /switch 命令）", false);
+            addMessage("请选择一个 Session（顶部下拉菜单）", false);
             return;
         }
         

@@ -9,7 +9,7 @@ import androidx.appcompat.app.AppCompatActivity;
 
 public class SettingsActivity extends AppCompatActivity {
     
-    private EditText etUrl, etPort, etApiKey, etSession;
+    private EditText etUrl, etPort, etApiKey;
     private Button btnSave;
     private SettingsManager settingsManager;
 
@@ -31,7 +31,6 @@ public class SettingsActivity extends AppCompatActivity {
         etUrl = findViewById(R.id.et_url);
         etPort = findViewById(R.id.et_port);
         etApiKey = findViewById(R.id.et_api_key);
-        etSession = findViewById(R.id.et_session);
         btnSave = findViewById(R.id.btn_save);
         
         btnSave.setOnClickListener(v -> saveSettings());
@@ -41,16 +40,15 @@ public class SettingsActivity extends AppCompatActivity {
         etUrl.setText(settingsManager.getUrl());
         etPort.setText(settingsManager.getPort());
         etApiKey.setText(settingsManager.getApiKey());
-        etSession.setText(settingsManager.getSession());
     }
 
     private void saveSettings() {
         String url = etUrl.getText().toString().trim();
         String port = etPort.getText().toString().trim();
         String apiKey = etApiKey.getText().toString().trim();
-        String session = etSession.getText().toString().trim();
         
-        settingsManager.saveSettings(url, port, apiKey, session);
+        // Session 不在设置页面配置，使用主界面的下拉菜单选择
+        settingsManager.saveSettings(url, port, apiKey);
         Toast.makeText(this, "设置已保存", Toast.LENGTH_SHORT).show();
         finish();
     }

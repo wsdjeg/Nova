@@ -6,6 +6,11 @@ import android.view.ViewGroup;
 import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
+import io.noties.markwon.Markwon;
+import io.noties.markwon.ext.tables.TablePlugin;
+import io.noties.markwon.ext.tasklist.TaskListPlugin;
+import io.noties.markwon.ext.strikethrough.StrikethroughPlugin;
+import io.noties.markwon.html.HtmlPlugin;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
@@ -13,11 +18,18 @@ import java.util.Locale;
 
 public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageViewHolder> {
     private List<Message> messages;
+    private Markwon markwon;
     private static final int TYPE_USER = 1;
     private static final int TYPE_BOT = 2;
 
-    public MessageAdapter(List<Message> messages) {
+    public MessageAdapter(List<Message> messages, android.content.Context context) {
         this.messages = messages;
+        this.markwon = Markwon.builder(context)
+            .usePlugin(TablePlugin.create(context))
+            .usePlugin(TaskListPlugin.create(context))
+            .usePlugin(StrikethroughPlugin.create())
+            .usePlugin(HtmlPlugin.create())
+            .build();
     }
 
     @Override
@@ -38,7 +50,9 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
     @Override
     public void onBindViewHolder(@NonNull MessageViewHolder holder, int position) {
         Message message = messages.get(position);
-        holder.messageText.setText(message.getContent());
+        
+        // 使用 Markwon 渲染 Markdown
+        markwon.setMarkdown(holder.messageText, message.getContent());
         
         SimpleDateFormat sdf = new SimpleDateFormat("HH:mm", Locale.getDefault());
         String time = sdf.format(new Date(message.getTimestamp()));

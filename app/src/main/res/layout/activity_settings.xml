@@ -58,21 +58,15 @@
             android:layout_height="wrap_content"
             android:hint="输入你的 API Key"
             android:inputType="textPassword"
-            android:layout_marginBottom="16dp" />
+            android:layout_marginBottom="24dp" />
 
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Session ID"
-            android:textSize="16sp" />
-
-        <EditText
-            android:id="@+id/et_session"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="例如：2024-01-15-10-30-00"
-            android:inputType="text"
-            android:layout_marginBottom="24dp" />
+            android:text="提示：Session 在主界面顶部下拉菜单中选择"
+            android:textSize="14sp"
+            android:textColor="#757575"
+            android:layout_marginBottom="16dp" />
 
         <Button
             android:id="@+id/btn_save"

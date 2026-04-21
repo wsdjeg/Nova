@@ -3,12 +3,40 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
+    <!-- Session Selector -->
+    <LinearLayout
+        android:id="@+id/sessionSelectorLayout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentTop="true"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:padding="8dp"
+        android:background="#E0E0E0">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="会话: "
+            android:textSize="14sp"
+            android:textColor="#424242" />
+
+        <Spinner
+            android:id="@+id/spinner_session"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:spinnerMode="dropdown" />
+
+    </LinearLayout>
+
     <!-- Messages RecyclerView -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rv_messages"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:layout_above="@id/inputLayout"
+        android:layout_below="@id/sessionSelectorLayout"
         android:scrollbars="vertical"
         android:padding="8dp" />
 
