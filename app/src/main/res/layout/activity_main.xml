@@ -1,16 +1,44 @@
 <?xml version="1.0" encoding="utf-8"?>
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:padding="16dp">
+    android:layout_height="match_parent">
+
+    <!-- Toolbar with Settings Button -->
+    <LinearLayout
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentTop="true"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:padding="16dp"
+        android:background="#6200EE">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Chat App"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:textColor="#FFFFFF" />
+
+        <Button
+            android:id="@+id/btn_settings"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="设置"
+            android:textColor="#FFFFFF"
+            android:backgroundTint="#3700B3" />
+    </LinearLayout>
 
     <!-- Messages RecyclerView -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rv_messages"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:layout_below="@id/toolbar"
         android:layout_above="@id/inputLayout"
-        android:layout_alignParentTop="true"
         android:scrollbars="vertical"
         android:padding="8dp" />
 
@@ -22,25 +50,26 @@
         android:layout_alignParentBottom="true"
         android:orientation="horizontal"
         android:gravity="center_vertical"
-        android:paddingTop="8dp">
+        android:padding="12dp"
+        android:background="#F5F5F5">
 
         <EditText
             android:id="@+id/et_message"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:hint="Type a message..."
+            android:hint="输入消息..."
             android:inputType="textMultiLine"
             android:maxLines="4"
             android:padding="12dp"
-            android:background="@android:drawable/edit_text"
+            android:background="#FFFFFF"
             android:layout_marginEnd="8dp" />
 
         <Button
             android:id="@+id/btn_send"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Send"
+            android:text="发送"
             android:textSize="16sp"
             android:padding="12dp" />
     </LinearLayout>

@@ -2,8 +2,6 @@ package com.example.myandroidapp;
 
 import android.content.Intent;
 import android.os.Bundle;
-import android.view.Menu;
-import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
@@ -11,7 +9,6 @@ import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
-import org.json.JSONObject;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -20,6 +17,7 @@ public class MainActivity extends AppCompatActivity {
     private RecyclerView rvMessages;
     private EditText etMessage;
     private Button btnSend;
+    private Button btnSettings;
     private MessageAdapter adapter;
     private List<Message> messages;
     private ApiClient apiClient;
@@ -37,15 +35,19 @@ public class MainActivity extends AppCompatActivity {
         setupRecyclerView();
         
         // 添加欢迎消息
-        addMessage("欢迎！请在设置中配置API地址和密钥。", false);
+        addMessage("欢迎！点击右上角「设置」按钮配置API。", false);
     }
 
     private void initViews() {
         rvMessages = findViewById(R.id.rv_messages);
         etMessage = findViewById(R.id.et_message);
         btnSend = findViewById(R.id.btn_send);
+        btnSettings = findViewById(R.id.btn_settings);
         
         btnSend.setOnClickListener(v -> sendMessage());
+        btnSettings.setOnClickListener(v -> {
+            startActivity(new Intent(this, SettingsActivity.class));
+        });
     }
 
     private void setupRecyclerView() {
@@ -97,20 +99,5 @@ public class MainActivity extends AppCompatActivity {
         messages.add(new Message(text, isUser));
         adapter.notifyItemInserted(messages.size() - 1);
         rvMessages.smoothScrollToPosition(messages.size() - 1);
-    }
-
-    @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-        getMenuInflater().inflate(R.menu.main_menu, menu);
-        return true;
-    }
-
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        if (item.getItemId() == R.id.action_settings) {
-            startActivity(new Intent(this, SettingsActivity.class));
-            return true;
-        }
-        return super.onOptionsItemSelected(item);
     }
 }
