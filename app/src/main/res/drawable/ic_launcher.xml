@@ -1,6 +1,29 @@
 <?xml version="1.0" encoding="utf-8"?>
-<shape xmlns:android="http://schemas.android.com/apk/res/android"
-    android:shape="oval">
-    <solid android:color="@color/purple_500"/>
-    <size android:width="48dp" android:height="48dp"/>
-</shape>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+    
+    <!-- 背景 -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M0,0h48v48H0z"/>
+    
+    <!-- 钻石形状 -->
+    <path
+        android:fillColor="#2196F3"
+        android:pathData="M24,6 L40,20 L24,42 L8,20 Z"/>
+    
+    <!-- 钻石高光 -->
+    <path
+        android:fillColor="#64B5F6"
+        android:pathData="M24,6 L32,13 L24,20 L16,13 Z"/>
+    
+    <!-- 钻石内部线条 -->
+    <path
+        android:strokeColor="#1976D2"
+        android:strokeWidth="1"
+        android:fillColor="@android:color/transparent"
+        android:pathData="M16,13 L32,13 M24,6 L24,42"/>
+</vector>
