@@ -1,8 +1,8 @@
-# 项目指南 - Android Chat App
+# 项目指南 - Nova Android Chat App
 
 ## 项目概述
 
-这是一个 Android 聊天应用，支持 AI 对话功能。
+Nova 是一个 Android AI 聊天助手应用，作为 [chat.nvim](https://nvim.chat) 的移动端客户端。
 
 ### 技术栈
 - **语言**: Java
@@ -24,22 +24,36 @@
 │   ├── proguard-rules.pro            # ProGuard 规则
 │   └── src/main/
 │       ├── AndroidManifest.xml       # 应用清单
-│       ├── java/com/example/myandroidapp/
-│       │   ├── MainActivity.java     # 主界面
+│       ├── java/net/wsdjeg/nova/
+│       │   ├── ChatActivity.java     # 聊天界面
+│       │   ├── SessionListActivity.java # 会话列表界面
 │       │   ├── SettingsActivity.java # 设置界面
 │       │   ├── ApiClient.java        # API 客户端
 │       │   ├── SettingsManager.java  # 设置管理
+│       │   ├── SessionManager.java   # 会话管理
 │       │   ├── Message.java          # 消息模型
-│       │   └── MessageAdapter.java   # 消息列表适配器
+│       │   ├── MessageAdapter.java   # 消息列表适配器
+│       │   ├── Session.java          # 会话模型
+│       │   └── SessionAdapter.java   # 会话列表适配器
 │       └── res/
 │           ├── layout/               # 布局文件
-│           │   ├── activity_main.xml
+│           │   ├── activity_chat.xml
+│           │   ├── activity_session_list.xml
 │           │   ├── activity_settings.xml
-│           │   └── item_message.xml
+│           │   ├── item_message.xml
+│           │   ├── item_message_user.xml
+│           │   ├── item_message_bot.xml
+│           │   └── item_session.xml
 │           ├── drawable/              # drawable 资源
 │           │   ├── ai_message_bg.xml
 │           │   ├── user_message_bg.xml
-│           │   └── send_button_bg.xml
+│           │   ├── send_button_bg.xml
+│           │   ├── session_icon_bg.xml
+│           │   └── session_count_bg.xml
+│           ├── menu/                  # 菜单资源
+│           │   ├── chat_menu.xml
+│           │   ├── main_menu.xml
+│           │   └── session_list_menu.xml
 │           └── values/               # 值资源
 │               ├── colors.xml
 │               ├── strings.xml
@@ -127,15 +141,18 @@ GitHub Actions 自动构建：
 ## 功能模块
 
 ### 核心功能
-1. **消息展示** - MainActivity + MessageAdapter
-2. **设置管理** - SettingsActivity + SettingsManager
-3. **API 调用** - ApiClient (使用 OkHttp)
-4. **数据模型** - Message
+1. **会话列表** - SessionListActivity + SessionAdapter
+2. **聊天界面** - ChatActivity + MessageAdapter
+3. **设置管理** - SettingsActivity + SettingsManager
+4. **会话管理** - SessionManager + Session
+5. **API 调用** - ApiClient (使用 OkHttp)
+6. **数据模型** - Message, Session
 
 ### 资源文件
-- **布局**: activity_main.xml, activity_settings.xml, item_message.xml
+- **布局**: activity_chat.xml, activity_session_list.xml, activity_settings.xml, item_message*.xml, item_session.xml
 - **样式**: themes.xml, colors.xml
-- **背景**: ai_message_bg.xml, user_message_bg.xml
+- **背景**: ai_message_bg.xml, user_message_bg.xml, session_icon_bg.xml, session_count_bg.xml
+- **菜单**: chat_menu.xml, main_menu.xml, session_list_menu.xml
 
 ## 注意事项
 
@@ -143,6 +160,7 @@ GitHub Actions 自动构建：
 2. **版本管理**: versionCode 和 versionName 在 app/build.gradle
 3. **网络请求**: 使用 OkHttp，需要 INTERNET 权限
 4. **构建环境**: 需要 JDK 11+
+5. **包名**: net.wsdjeg.nova
 
 ## 常见问题
 
