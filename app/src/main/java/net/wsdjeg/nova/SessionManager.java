@@ -34,6 +34,7 @@ public class SessionManager {
             JSONObject json = new JSONObject();
             try {
                 json.put("sessionId", session.getSessionId());
+                json.put("firstMessage", session.getFirstMessage());
                 json.put("lastMessage", session.getLastMessage());
                 json.put("lastMessageTime", session.getLastMessageTime());
                 json.put("messageCount", session.getMessageCount());
@@ -62,6 +63,7 @@ public class SessionManager {
                 JSONObject json = jsonArray.getJSONObject(i);
                 Session session = new Session(
                     json.getString("sessionId"),
+                    json.optString("firstMessage", ""),  // 兼容旧版本
                     json.optString("lastMessage", ""),
                     json.optLong("lastMessageTime", System.currentTimeMillis()),
                     json.optInt("messageCount", 0)
@@ -103,14 +105,17 @@ public class SessionManager {
     }
     
     /**
-     * 更新会话的最后消息
+     * 更新会话的第一条和最后消息
      */
-    public void updateLastMessage(String sessionId, String message, int messageCount) {
+    public void updateMessages(String sessionId, String firstMessage, String lastMessage, int messageCount) {
         List<Session> sessions = loadSessions();
         
         for (Session session : sessions) {
             if (session.getSessionId().equals(sessionId)) {
-                session.setLastMessage(message);
+                if (firstMessage != null && !firstMessage.isEmpty()) {
+                    session.setFirstMessage(firstMessage);
+                }
+                session.setLastMessage(lastMessage);
                 session.setLastMessageTime(System.currentTimeMillis());
                 session.setMessageCount(messageCount);
                 break;
@@ -118,6 +123,13 @@ public class SessionManager {
         }
         
         saveSessions(sessions);
+    }
+    
+    /**
+     * 更新会话的最后消息（兼容旧版本）
+     */
+    public void updateLastMessage(String sessionId, String message, int messageCount) {
+        updateMessages(sessionId, null, message, messageCount);
     }
     
     /**

@@ -3,52 +3,13 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-    <!-- 标题栏 -->
-    <LinearLayout
-        android:id="@+id/titleBar"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_alignParentTop="true"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:padding="8dp"
-        android:background="#E0E0E0">
-
-        <ImageButton
-            android:id="@+id/btnBack"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:src="@android:drawable/ic_menu_revert"
-            android:background="?android:attr/selectableItemBackground"
-            android:contentDescription="返回" />
-
-        <TextView
-            android:id="@+id/textSessionTitle"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="聊天"
-            android:textSize="18sp"
-            android:textColor="#424242"
-            android:gravity="center" />
-
-        <ImageButton
-            android:id="@+id/btnSettings"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:src="@android:drawable/ic_menu_manage"
-            android:background="?android:attr/selectableItemBackground"
-            android:contentDescription="设置" />
-
-    </LinearLayout>
-
     <!-- Messages RecyclerView -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rv_messages"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:layout_above="@id/inputLayout"
-        android:layout_below="@id/titleBar"
+        android:layout_alignParentTop="true"
         android:scrollbars="vertical"
         android:padding="8dp" />
 

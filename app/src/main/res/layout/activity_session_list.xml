@@ -11,7 +11,7 @@
         android:layout_height="?attr/actionBarSize"
         android:background="?attr/colorPrimary"
         android:elevation="4dp"
-        app:title="Nova Chat"
+        app:title="Nova"
         app:titleTextColor="@android:color/white" />
 
     <!-- 会话列表 -->

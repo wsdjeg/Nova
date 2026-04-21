@@ -186,11 +186,20 @@ public class ChatActivity extends AppCompatActivity {
                         updateMessagesList(chatMessages);
                         lastMessageCount = chatMessages.size();
                         
-                        // 更新 SessionManager 中的最后消息
+                        // 更新 SessionManager 中的消息信息
                         if (!chatMessages.isEmpty()) {
                             ApiClient.ChatMessage lastMsg = chatMessages.get(chatMessages.size() - 1);
-                            sessionManager.updateLastMessage(
+                            // 查找第一条用户消息作为标题
+                            String firstUserMessage = null;
+                            for (ApiClient.ChatMessage msg : chatMessages) {
+                                if ("user".equals(msg.role)) {
+                                    firstUserMessage = msg.content;
+                                    break;
+                                }
+                            }
+                            sessionManager.updateMessages(
                                 currentSessionId, 
+                                firstUserMessage,  // 第一条用户消息作为标题
                                 lastMsg.content, 
                                 chatMessages.size()
                             );

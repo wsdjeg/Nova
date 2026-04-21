@@ -10,6 +10,7 @@ import java.util.Locale;
  */
 public class Session {
     private String sessionId;
+    private String firstMessage;  // 第一个消息（用于显示标题）
     private String lastMessage;
     private long lastMessageTime;
     private int messageCount;
@@ -17,18 +18,25 @@ public class Session {
     
     public Session(String sessionId) {
         this.sessionId = sessionId;
+        this.firstMessage = "";
         this.lastMessage = "";
         this.lastMessageTime = System.currentTimeMillis();
         this.messageCount = 0;
         this.preview = "";
     }
     
-    public Session(String sessionId, String lastMessage, long lastMessageTime, int messageCount) {
+    public Session(String sessionId, String firstMessage, String lastMessage, long lastMessageTime, int messageCount) {
         this.sessionId = sessionId;
+        this.firstMessage = firstMessage != null ? firstMessage : "";
         this.lastMessage = lastMessage;
         this.lastMessageTime = lastMessageTime;
         this.messageCount = messageCount;
         this.preview = generatePreview(lastMessage);
+    }
+    
+    // 兼容旧版本的构造函数
+    public Session(String sessionId, String lastMessage, long lastMessageTime, int messageCount) {
+        this(sessionId, "", lastMessage, lastMessageTime, messageCount);
     }
     
     /**
@@ -89,6 +97,14 @@ public class Session {
         this.sessionId = sessionId;
     }
     
+    public String getFirstMessage() {
+        return firstMessage;
+    }
+    
+    public void setFirstMessage(String firstMessage) {
+        this.firstMessage = firstMessage != null ? firstMessage : "";
+    }
+    
     public String getLastMessage() {
         return lastMessage;
     }
@@ -120,12 +136,18 @@ public class Session {
     
     /**
      * 获取显示标题
-     * 格式：Session {sessionId前8位}
+     * 显示第一个消息的第一行
+     * 如果没有消息，显示 "新会话"
      */
     public String getTitle() {
-        if (sessionId != null && sessionId.length() >= 8) {
-            return "Session " + sessionId.substring(0, 8);
+        if (firstMessage != null && !firstMessage.isEmpty()) {
+            // 获取第一行
+            String firstLine = firstMessage.split("\n")[0].trim();
+            if (firstLine.length() > 30) {
+                return firstLine.substring(0, 30) + "...";
+            }
+            return firstLine;
         }
-        return "Session " + (sessionId != null ? sessionId : "Unknown");
+        return "新会话";
     }
 }
