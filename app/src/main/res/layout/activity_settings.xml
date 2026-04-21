@@ -20,7 +20,7 @@
         android:textSize="16sp" />
 
     <EditText
-        android:id="@+id/urlEditText"
+        android:id="@+id/et_url"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:hint="例如：192.168.1.100 或 example.com"
@@ -34,7 +34,7 @@
         android:textSize="16sp" />
 
     <EditText
-        android:id="@+id/portEditText"
+        android:id="@+id/et_port"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:hint="例如：8080"
@@ -48,37 +48,21 @@
         android:textSize="16sp" />
 
     <EditText
-        android:id="@+id/apiKeyEditText"
+        android:id="@+id/et_api_key"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:hint="输入你的 API Key"
         android:inputType="textPassword"
         android:layout_marginBottom="24dp" />
 
-    <LinearLayout
+    <Button
+        android:id="@+id/btn_save"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal">
-
-        <Button
-            android:id="@+id/saveButton"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="保存"
-            android:layout_marginEnd="8dp" />
-
-        <Button
-            android:id="@+id/testButton"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="测试连接"
-            android:layout_marginStart="8dp" />
-    </LinearLayout>
+        android:text="保存" />
 
     <TextView
-        android:id="@+id/statusText"
+        android:id="@+id/tv_status"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
