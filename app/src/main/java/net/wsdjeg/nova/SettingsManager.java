@@ -29,6 +29,12 @@ public class SettingsManager {
     public void saveSettings(String url, String port, String apiKey) {
         saveSettings(url, port, apiKey, getSession());
     }
+    
+    public void setSession(String session) {
+        prefs.edit()
+            .putString(KEY_SESSION, session)
+            .apply();
+    }
 
     public String getUrl() {
         return prefs.getString(KEY_URL, "");

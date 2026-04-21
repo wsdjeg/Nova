@@ -9,6 +9,8 @@ import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -25,6 +27,24 @@ public class ApiClient {
     public interface SessionsCallback {
         void onSuccess(String[] sessions);
         void onError(String error);
+    }
+    
+    public interface MessagesCallback {
+        void onSuccess(List<ChatMessage> messages);
+        void onError(String error);
+    }
+    
+    /**
+     * Chat message model for API response
+     */
+    public static class ChatMessage {
+        public String role;
+        public String content;
+        
+        public ChatMessage(String role, String content) {
+            this.role = role;
+            this.content = content;
+        }
     }
     
     public ApiClient(SettingsManager settingsManager) {
@@ -186,6 +206,89 @@ public class ApiClient {
                 }
             } catch (Exception e) {
                 Log.e(TAG, "getSessions failed", e);
+                new Handler(Looper.getMainLooper()).post(() -> 
+                    callback.onError("Network error: " + e.getMessage()));
+            }
+        }).start();
+    }
+    
+    /**
+     * Get messages for a specific session.
+     * GET /messages?session=xxx
+     * Returns JSON array with messages containing role and content.
+     */
+    public void getMessages(String sessionId, MessagesCallback callback) {
+        String baseUrl = settingsManager.getFullUrl();
+        String apiKey = settingsManager.getApiKey();
+        
+        if (baseUrl.isEmpty() || apiKey.isEmpty()) {
+            callback.onError("Please configure API settings");
+            return;
+        }
+        
+        if (sessionId == null || sessionId.isEmpty()) {
+            sessionId = settingsManager.getSession();
+            if (sessionId.isEmpty()) {
+                callback.onError("Please configure Session ID");
+                return;
+            }
+        }
+        
+        final String finalSessionId = sessionId;
+        
+        new Thread(() -> {
+            try {
+                URL url = new URL(baseUrl + "/messages?session=" + finalSessionId);
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("GET");
+                conn.setRequestProperty("X-API-Key", apiKey);
+                conn.setConnectTimeout(5000);
+                conn.setReadTimeout(10000);
+
+                int responseCode = conn.getResponseCode();
+                
+                if (responseCode == 200) {
+                    BufferedReader br = new BufferedReader(
+                        new InputStreamReader(conn.getInputStream()));
+                    StringBuilder response = new StringBuilder();
+                    String line;
+                    while ((line = br.readLine()) != null) {
+                        response.append(line);
+                    }
+                    br.close();
+                    
+                    // Parse JSON array
+                    JSONArray jsonArray = new JSONArray(response.toString());
+                    List<ChatMessage> messages = new ArrayList<>();
+                    
+                    for (int i = 0; i < jsonArray.length(); i++) {
+                        JSONObject msg = jsonArray.getJSONObject(i);
+                        String role = msg.optString("role", "");
+                        String content = msg.optString("content", "");
+                        
+                        // Only add messages with content
+                        if (!content.isEmpty()) {
+                            messages.add(new ChatMessage(role, content));
+                        }
+                    }
+                    
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onSuccess(messages));
+                } else if (responseCode == 401) {
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onError("Unauthorized: Invalid API Key"));
+                } else if (responseCode == 404) {
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onError("Session not found"));
+                } else if (responseCode == 400) {
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onError("Bad Request: Missing session ID"));
+                } else {
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onError("Error: " + responseCode));
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "getMessages failed", e);
                 new Handler(Looper.getMainLooper()).post(() -> 
                     callback.onError("Network error: " + e.getMessage()));
             }
