@@ -3,11 +3,11 @@ plugins {
 }
 
 android {
-    namespace 'com.example.myandroidapp'
+    namespace 'net.wsdjeg.nova'
     compileSdk 34
 
     defaultConfig {
-        applicationId "com.example.myandroidapp"
+        applicationId "net.wsdjeg.nova"
         minSdk 24
         targetSdk 34
         versionCode 1
