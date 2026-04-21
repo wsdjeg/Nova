@@ -11,10 +11,7 @@ import io.noties.markwon.ext.tables.TablePlugin;
 import io.noties.markwon.ext.tasklist.TaskListPlugin;
 import io.noties.markwon.ext.strikethrough.StrikethroughPlugin;
 import io.noties.markwon.html.HtmlPlugin;
-import java.text.SimpleDateFormat;
-import java.util.Date;
 import java.util.List;
-import java.util.Locale;
 
 public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageViewHolder> {
     private List<Message> messages;
@@ -54,8 +51,8 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
         // 使用 Markwon 渲染 Markdown
         markwon.setMarkdown(holder.messageText, message.getContent());
         
-        SimpleDateFormat sdf = new SimpleDateFormat("HH:mm", Locale.getDefault());
-        String time = sdf.format(new Date(message.getTimestamp()));
+        // 使用统一的时间格式化工具
+        String time = TimeUtils.formatTime(message.getTimestamp());
         holder.timeText.setText(time);
     }
 

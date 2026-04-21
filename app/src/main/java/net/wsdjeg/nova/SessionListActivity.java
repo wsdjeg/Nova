@@ -2,6 +2,8 @@ package net.wsdjeg.nova;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -12,13 +14,19 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * 会话列表界面
  * 显示所有会话，点击进入聊天界面
  */
 public class SessionListActivity extends AppCompatActivity implements SessionAdapter.OnSessionClickListener {
+    
+    private static final int REFRESH_INTERVAL_MS = 5000; // 5秒刷新一次
     
     private RecyclerView rvSessions;
     private FloatingActionButton fabNewSession;
@@ -27,6 +35,12 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
     private SessionManager sessionManager;
     private SettingsManager settingsManager;
     private ApiClient apiClient;
+    
+    // 自动刷新相关
+    private Handler refreshHandler;
+    private Runnable refreshRunnable;
+    private boolean isFirstRefreshDone = false;
+    private Set<String> initializedSessions = new HashSet<>();
     
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -43,13 +57,37 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
         
         initViews();
         setupRecyclerView();
+        setupAutoRefresh();
+        
+        // 先加载本地会话列表
+        loadSessions();
+        
+        // 启动时刷新会话列表
+        refreshSessionsFromServer();
     }
     
     @Override
     protected void onResume() {
         super.onResume();
-        // 每次返回界面时刷新会话列表
+        // 每次返回界面时刷新会话列表（包括从设置页面返回）
         loadSessions();
+        
+        // 如果设置有效且第一次刷新已完成，启动定时刷新
+        if (isFirstRefreshDone && settingsManager.hasValidSettings()) {
+            startAutoRefresh();
+        }
+    }
+    
+    @Override
+    protected void onPause() {
+        super.onPause();
+        stopAutoRefresh();
+    }
+    
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        stopAutoRefresh();
     }
     
     @Override
@@ -62,10 +100,8 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
     public boolean onOptionsItemSelected(MenuItem item) {
         int id = item.getItemId();
         if (id == R.id.action_settings) {
+            // 从设置页面返回后会自动调用 onResume 刷新
             startActivity(new Intent(this, SettingsActivity.class));
-            return true;
-        } else if (id == R.id.action_refresh) {
-            loadSessionsFromServer();
             return true;
         }
         return super.onOptionsItemSelected(item);
@@ -87,11 +123,53 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
     }
     
     /**
+     * 设置自动刷新
+     */
+    private void setupAutoRefresh() {
+        refreshHandler = new Handler(Looper.getMainLooper());
+        refreshRunnable = new Runnable() {
+            @Override
+            public void run() {
+                if (settingsManager.hasValidSettings()) {
+                    refreshSessionsFromServer();
+                }
+                refreshHandler.postDelayed(this, REFRESH_INTERVAL_MS);
+            }
+        };
+    }
+    
+    /**
+     * 启动自动刷新
+     */
+    private void startAutoRefresh() {
+        refreshHandler.removeCallbacks(refreshRunnable);
+        refreshHandler.post(refreshRunnable);
+    }
+    
+    /**
+     * 停止自动刷新
+     */
+    private void stopAutoRefresh() {
+        if (refreshHandler != null) {
+            refreshHandler.removeCallbacks(refreshRunnable);
+        }
+    }
+    
+    /**
      * 从本地加载会话列表
      */
     private void loadSessions() {
         sessions.clear();
         sessions.addAll(sessionManager.loadSessions());
+        
+        // 按 session ID 排序（字符串字典序）
+        Collections.sort(sessions, new Comparator<Session>() {
+            @Override
+            public int compare(Session s1, Session s2) {
+                return s1.getSessionId().compareTo(s2.getSessionId());
+            }
+        });
+        
         adapter.notifyDataSetChanged();
         
         if (sessions.isEmpty()) {
@@ -100,15 +178,12 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
     }
     
     /**
-     * 从服务器加载会话列表
+     * 从服务器刷新会话列表
      */
-    private void loadSessionsFromServer() {
+    private void refreshSessionsFromServer() {
         if (!settingsManager.hasValidSettings()) {
-            Toast.makeText(this, "请先配置 API 设置", Toast.LENGTH_SHORT).show();
             return;
         }
-        
-        Toast.makeText(this, "正在刷新...", Toast.LENGTH_SHORT).show();
         
         apiClient.getSessions(new ApiClient.SessionsCallback() {
             @Override
@@ -116,24 +191,82 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
                 runOnUiThread(() -> {
                     // 更新本地会话列表
                     for (String sessionId : sessionIds) {
-                        Session session = new Session(sessionId);
-                        sessionManager.addOrUpdateSession(session);
+                        Session session = sessionManager.getSession(sessionId);
+                        if (session == null) {
+                            session = new Session(sessionId);
+                            sessionManager.addOrUpdateSession(session);
+                        }
                     }
                     
                     loadSessions();
-                    Toast.makeText(SessionListActivity.this, 
-                        "已加载 " + sessionIds.length + " 个会话", 
-                        Toast.LENGTH_SHORT).show();
+                    
+                    // 第一次刷新后，获取每个会话的消息列表
+                    if (!isFirstRefreshDone) {
+                        isFirstRefreshDone = true;
+                        initializeAllSessions(sessionIds);
+                        startAutoRefresh();
+                    }
                 });
             }
             
             @Override
             public void onError(String error) {
-                runOnUiThread(() -> 
-                    Toast.makeText(SessionListActivity.this, 
-                        "加载失败: " + error, 
-                        Toast.LENGTH_SHORT).show()
-                );
+                runOnUiThread(() -> {
+                    if (!isFirstRefreshDone) {
+                        // 首次刷新失败也标记为已完成，允许后续定时重试
+                        isFirstRefreshDone = true;
+                        startAutoRefresh();
+                    }
+                });
+            }
+        });
+    }
+    
+    /**
+     * 初始化所有会话的消息列表
+     * 第一次刷新后，每个会话获取一次消息列表
+     */
+    private void initializeAllSessions(String[] sessionIds) {
+        for (String sessionId : sessionIds) {
+            if (!initializedSessions.contains(sessionId)) {
+                initializedSessions.add(sessionId);
+                fetchMessagesForSession(sessionId);
+            }
+        }
+    }
+    
+    /**
+     * 获取指定会话的消息列表并更新
+     */
+    private void fetchMessagesForSession(String sessionId) {
+        apiClient.getMessages(sessionId, new ApiClient.MessagesCallback() {
+            @Override
+            public void onSuccess(List<ApiClient.ChatMessage> chatMessages) {
+                runOnUiThread(() -> {
+                    if (!chatMessages.isEmpty()) {
+                        ApiClient.ChatMessage lastMsg = chatMessages.get(chatMessages.size() - 1);
+                        // 查找第一条用户消息作为标题
+                        String firstUserMessage = null;
+                        for (ApiClient.ChatMessage msg : chatMessages) {
+                            if ("user".equals(msg.role)) {
+                                firstUserMessage = msg.content;
+                                break;
+                            }
+                        }
+                        sessionManager.updateMessages(
+                            sessionId,
+                            firstUserMessage,
+                            lastMsg.content,
+                            chatMessages.size()
+                        );
+                        loadSessions();
+                    }
+                });
+            }
+            
+            @Override
+            public void onError(String error) {
+                // 忽略单个会话的消息获取错误
             }
         });
     }
@@ -167,6 +300,10 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
      * 打开聊天界面
      */
     private void openChatActivity(String sessionId) {
+        // 清除该会话的未读数
+        sessionManager.clearUnreadCount(sessionId);
+        loadSessions();
+        
         sessionManager.saveCurrentSession(sessionId);
         Intent intent = new Intent(this, ChatActivity.class);
         intent.putExtra("session_id", sessionId);
@@ -189,6 +326,7 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
             .setMessage("确定要删除会话 " + session.getTitle() + " 吗？\n\n此操作不可恢复。")
             .setPositiveButton("删除", (dialog, which) -> {
                 sessionManager.deleteSession(session.getSessionId());
+                initializedSessions.remove(session.getSessionId());
                 loadSessions();
                 Toast.makeText(this, "已删除会话", Toast.LENGTH_SHORT).show();
             })

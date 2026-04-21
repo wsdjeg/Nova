@@ -1,5 +1,6 @@
 package net.wsdjeg.nova;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.view.MenuItem;
 import android.widget.Button;
@@ -9,6 +10,8 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 
 public class SettingsActivity extends AppCompatActivity {
+    
+    public static final String EXTRA_SETTINGS_SAVED = "settings_saved";
     
     private EditText etUrl, etPort, etApiKey;
     private Button btnSave;
@@ -54,6 +57,12 @@ public class SettingsActivity extends AppCompatActivity {
         // Session 不在设置页面配置，使用主界面的下拉菜单选择
         settingsManager.saveSettings(url, port, apiKey);
         Toast.makeText(this, "设置已保存", Toast.LENGTH_SHORT).show();
+        
+        // 设置结果，通知 SessionListActivity 刷新
+        Intent resultIntent = new Intent();
+        resultIntent.putExtra(EXTRA_SETTINGS_SAVED, true);
+        setResult(RESULT_OK, resultIntent);
+        
         finish();
     }
 

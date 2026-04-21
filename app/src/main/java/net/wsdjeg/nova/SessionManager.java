@@ -38,6 +38,7 @@ public class SessionManager {
                 json.put("lastMessage", session.getLastMessage());
                 json.put("lastMessageTime", session.getLastMessageTime());
                 json.put("messageCount", session.getMessageCount());
+                json.put("unreadCount", session.getUnreadCount());
                 jsonArray.put(json);
             } catch (JSONException e) {
                 e.printStackTrace();
@@ -47,7 +48,7 @@ public class SessionManager {
     }
     
     /**
-     * 加载会话列表
+     * 加载会话列表，按 sessionId 排序
      */
     public List<Session> loadSessions() {
         List<Session> sessions = new ArrayList<>();
@@ -63,27 +64,27 @@ public class SessionManager {
                 JSONObject json = jsonArray.getJSONObject(i);
                 Session session = new Session(
                     json.getString("sessionId"),
-                    json.optString("firstMessage", ""),  // 兼容旧版本
+                    json.optString("firstMessage", ""),
                     json.optString("lastMessage", ""),
                     json.optLong("lastMessageTime", System.currentTimeMillis()),
                     json.optInt("messageCount", 0)
                 );
+                session.setUnreadCount(json.optInt("unreadCount", 0));
                 sessions.add(session);
             }
         } catch (JSONException e) {
             e.printStackTrace();
         }
         
-        // 按时间倒序排列（最新的在前面）
+        // 按 sessionId 排序（字符串字典序）
         Collections.sort(sessions, (s1, s2) -> 
-            Long.compare(s2.getLastMessageTime(), s1.getLastMessageTime()));
+            s1.getSessionId().compareTo(s2.getSessionId()));
         
         return sessions;
     }
     
     /**
      * 添加或更新会话
-     * 如果会话已存在，更新其信息；否则添加新会话
      */
     public void addOrUpdateSession(Session newSession) {
         List<Session> sessions = loadSessions();
@@ -91,6 +92,10 @@ public class SessionManager {
         
         for (int i = 0; i < sessions.size(); i++) {
             if (sessions.get(i).getSessionId().equals(newSession.getSessionId())) {
+                // 保留未读数（如果新session没有设置）
+                if (newSession.getUnreadCount() == 0 && sessions.get(i).getUnreadCount() > 0) {
+                    newSession.setUnreadCount(sessions.get(i).getUnreadCount());
+                }
                 sessions.set(i, newSession);
                 found = true;
                 break;
@@ -105,7 +110,7 @@ public class SessionManager {
     }
     
     /**
-     * 更新会话的第一条和最后消息
+     * 更新会话的消息信息
      */
     public void updateMessages(String sessionId, String firstMessage, String lastMessage, int messageCount) {
         List<Session> sessions = loadSessions();
@@ -130,6 +135,38 @@ public class SessionManager {
      */
     public void updateLastMessage(String sessionId, String message, int messageCount) {
         updateMessages(sessionId, null, message, messageCount);
+    }
+    
+    /**
+     * 增加会话的未读消息数
+     */
+    public void incrementUnreadCount(String sessionId) {
+        List<Session> sessions = loadSessions();
+        
+        for (Session session : sessions) {
+            if (session.getSessionId().equals(sessionId)) {
+                session.setUnreadCount(session.getUnreadCount() + 1);
+                break;
+            }
+        }
+        
+        saveSessions(sessions);
+    }
+    
+    /**
+     * 清除会话的未读消息数
+     */
+    public void clearUnreadCount(String sessionId) {
+        List<Session> sessions = loadSessions();
+        
+        for (Session session : sessions) {
+            if (session.getSessionId().equals(sessionId)) {
+                session.setUnreadCount(0);
+                break;
+            }
+        }
+        
+        saveSessions(sessions);
     }
     
     /**

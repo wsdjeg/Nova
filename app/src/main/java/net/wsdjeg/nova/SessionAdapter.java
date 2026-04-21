@@ -47,11 +47,17 @@ public class SessionAdapter extends RecyclerView.Adapter<SessionAdapter.SessionV
         // 设置最后消息预览
         holder.textPreview.setText(session.getPreview());
         
-        // 设置时间
+        // 设置时间（使用 TimeUtils 统一格式化）
         holder.textTime.setText(session.getFormattedTime());
         
-        // 设置消息数量
-        holder.textCount.setText(String.valueOf(session.getMessageCount()));
+        // 设置未读消息数量
+        int unreadCount = session.getUnreadCount();
+        if (unreadCount > 0) {
+            holder.textCount.setVisibility(View.VISIBLE);
+            holder.textCount.setText(unreadCount > 99 ? "99+" : String.valueOf(unreadCount));
+        } else {
+            holder.textCount.setVisibility(View.GONE);
+        }
         
         // 点击事件
         holder.itemView.setOnClickListener(v -> {

@@ -1,8 +1,6 @@
 package net.wsdjeg.nova;
 
-import java.text.SimpleDateFormat;
 import java.util.Date;
-import java.util.Locale;
 
 /**
  * 会话数据模型
@@ -15,6 +13,7 @@ public class Session {
     private long lastMessageTime;
     private int messageCount;
     private String preview;
+    private int unreadCount;  // 未读消息数量
     
     public Session(String sessionId) {
         this.sessionId = sessionId;
@@ -23,6 +22,7 @@ public class Session {
         this.lastMessageTime = System.currentTimeMillis();
         this.messageCount = 0;
         this.preview = "";
+        this.unreadCount = 0;
     }
     
     public Session(String sessionId, String firstMessage, String lastMessage, long lastMessageTime, int messageCount) {
@@ -32,6 +32,7 @@ public class Session {
         this.lastMessageTime = lastMessageTime;
         this.messageCount = messageCount;
         this.preview = generatePreview(lastMessage);
+        this.unreadCount = 0;
     }
     
     // 兼容旧版本的构造函数
@@ -57,35 +58,11 @@ public class Session {
     /**
      * 获取格式化的时间显示
      * 今天：HH:mm
-     * 昨天：昨天 HH:mm
-     * 更早：MM-dd HH:mm
+     * 非今天但今年：MM-dd HH:mm
+     * 非今年：yyyy-MM-dd HH:mm
      */
     public String getFormattedTime() {
-        SimpleDateFormat sdf = new SimpleDateFormat("HH:mm", Locale.getDefault());
-        SimpleDateFormat sdfDate = new SimpleDateFormat("MM-dd HH:mm", Locale.getDefault());
-        
-        Date now = new Date();
-        Date messageDate = new Date(lastMessageTime);
-        
-        // 判断是否是今天
-        SimpleDateFormat sdfDay = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
-        String nowDay = sdfDay.format(now);
-        String messageDay = sdfDay.format(messageDate);
-        
-        if (nowDay.equals(messageDay)) {
-            return sdf.format(messageDate);
-        }
-        
-        // 判断是否是昨天
-        long oneDayMs = 24 * 60 * 60 * 1000;
-        Date yesterday = new Date(now.getTime() - oneDayMs);
-        String yesterdayDay = sdfDay.format(yesterday);
-        
-        if (yesterdayDay.equals(messageDay)) {
-            return "昨天 " + sdf.format(messageDate);
-        }
-        
-        return sdfDate.format(messageDate);
+        return TimeUtils.formatTime(lastMessageTime);
     }
     
     // Getters and Setters
@@ -132,6 +109,14 @@ public class Session {
     
     public String getPreview() {
         return preview;
+    }
+    
+    public int getUnreadCount() {
+        return unreadCount;
+    }
+    
+    public void setUnreadCount(int unreadCount) {
+        this.unreadCount = unreadCount;
     }
     
     /**
