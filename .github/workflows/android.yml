@@ -31,13 +31,6 @@ jobs:
     
     - name: Build Debug APK
       run: ./gradlew assembleDebug
-        cache: gradle
-
-    - name: Grant execute permission for gradlew
-      run: chmod +x gradlew
-    
-    - name: Build Debug APK
-      run: ./gradlew assembleDebug
     
     - name: Get version info
       id: version
