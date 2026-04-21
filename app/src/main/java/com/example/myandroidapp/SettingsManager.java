@@ -8,6 +8,7 @@ public class SettingsManager {
     private static final String KEY_URL = "url";
     private static final String KEY_PORT = "port";
     private static final String KEY_API_KEY = "api_key";
+    private static final String KEY_SESSION = "session";
     
     private SharedPreferences prefs;
 
@@ -15,12 +16,18 @@ public class SettingsManager {
         prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
     }
 
-    public void saveSettings(String url, String port, String apiKey) {
+    public void saveSettings(String url, String port, String apiKey, String session) {
         prefs.edit()
             .putString(KEY_URL, url)
             .putString(KEY_PORT, port)
             .putString(KEY_API_KEY, apiKey)
+            .putString(KEY_SESSION, session)
             .apply();
+    }
+
+    // Keep for backward compatibility
+    public void saveSettings(String url, String port, String apiKey) {
+        saveSettings(url, port, apiKey, getSession());
     }
 
     public String getUrl() {
@@ -35,6 +42,10 @@ public class SettingsManager {
         return prefs.getString(KEY_API_KEY, "");
     }
 
+    public String getSession() {
+        return prefs.getString(KEY_SESSION, "");
+    }
+
     public String getFullUrl() {
         String url = getUrl();
         String port = getPort();
@@ -47,10 +58,19 @@ public class SettingsManager {
             url = "http://" + url;
         }
         
+        // Remove trailing slash
+        if (url.endsWith("/")) {
+            url = url.substring(0, url.length() - 1);
+        }
+        
         if (!port.isEmpty()) {
             url = url + ":" + port;
         }
         
         return url;
+    }
+
+    public boolean hasValidSettings() {
+        return !getFullUrl().isEmpty() && !getApiKey().isEmpty() && !getSession().isEmpty();
     }
 }

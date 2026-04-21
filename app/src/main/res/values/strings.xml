@@ -6,9 +6,29 @@
     <string name="url">URL</string>
     <string name="port">Port</string>
     <string name="api_key">API Key</string>
+    <string name="session_id">Session ID</string>
     <string name="save">Save</string>
     <string name="cancel">Cancel</string>
     <string name="no_settings">Please configure API settings first</string>
     <string name="error">Error</string>
     <string name="success">Saved successfully</string>
+    <string name="session_required">Session ID is required</string>
+    <string name="api_key_required">API Key is required</string>
+    <string name="url_required">URL is required</string>
+    
+    <!-- Commands -->
+    <string name="help_header">📝 Available Commands:</string>
+    <string name="help_help">/help - Show this help</string>
+    <string name="help_sessions">/sessions - List all active sessions</string>
+    <string name="help_session">/session [id] - Get session preview (optional id)</string>
+    <string name="help_set">/set [id] - Set current session id</string>
+    <string name="help_clear">/clear - Clear message list</string>
+    <string name="no_active_sessions">No active sessions</string>
+    <string name="active_sessions">Active Sessions:</string>
+    <string name="session_preview">Session Preview:</string>
+    <string name="session_set">Session set to: %s</string>
+    <string name="session_id_required">Session ID is required</string>
+    <string name="messages_cleared">Messages cleared</string>
+    <string name="unknown_command">Unknown command: %s</string>
+    <string name="current_session">Current Session: %s</string>
 </resources>

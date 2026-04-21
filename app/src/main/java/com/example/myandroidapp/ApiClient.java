@@ -2,15 +2,18 @@ package com.example.myandroidapp;
 
 import android.os.Handler;
 import android.os.Looper;
+import android.util.Log;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import org.json.JSONArray;
 import org.json.JSONObject;
 
 public class ApiClient {
+    private static final String TAG = "ApiClient";
     
     private final SettingsManager settingsManager;
     
@@ -19,8 +22,8 @@ public class ApiClient {
         void onError(String error);
     }
     
-    public interface Callback {
-        void onSuccess(String response);
+    public interface SessionsCallback {
+        void onSuccess(String[] sessions);
         void onError(String error);
     }
     
@@ -28,126 +31,222 @@ public class ApiClient {
         this.settingsManager = settingsManager;
     }
     
-    public void sendMessage(String message, ApiCallback callback) {
-        String url = settingsManager.getUrl();
-        String port = settingsManager.getPort();
+    /**
+     * Send a message to a specific chat session.
+     * POST /
+     * Request body: {"session": "session-id", "content": "message"}
+     * Returns 204 on success.
+     */
+    public void sendMessage(String content, ApiCallback callback) {
+        String baseUrl = settingsManager.getFullUrl();
         String apiKey = settingsManager.getApiKey();
+        String session = settingsManager.getSession();
         
-        String fullUrl;
-        if (port != null && !port.isEmpty()) {
-            fullUrl = url + ":" + port;
-        } else {
-            fullUrl = url;
+        if (baseUrl.isEmpty()) {
+            callback.onError("Please configure API URL in settings");
+            return;
+        }
+        
+        if (apiKey.isEmpty()) {
+            callback.onError("Please configure API Key in settings");
+            return;
+        }
+        
+        if (session.isEmpty()) {
+            callback.onError("Please configure Session ID in settings");
+            return;
         }
         
         new Thread(() -> {
             try {
-                URL apiUrl = new URL(fullUrl);
-                HttpURLConnection conn = (HttpURLConnection) apiUrl.openConnection();
+                URL url = new URL(baseUrl + "/");
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("POST");
                 conn.setRequestProperty("Content-Type", "application/json");
-                if (apiKey != null && !apiKey.isEmpty()) {
-                    conn.setRequestProperty("Authorization", "Bearer " + apiKey);
-                }
+                conn.setRequestProperty("X-API-Key", apiKey);
                 conn.setDoOutput(true);
                 conn.setConnectTimeout(10000);
                 conn.setReadTimeout(30000);
 
-                // 构建请求体
+                // Build request body: {"session": "...", "content": "..."}
                 JSONObject requestBody = new JSONObject();
-                requestBody.put("message", message);
+                requestBody.put("session", session);
+                requestBody.put("content", content);
                 
-                // 发送请求
+                // Send request
                 try (OutputStream os = conn.getOutputStream()) {
                     byte[] input = requestBody.toString().getBytes(StandardCharsets.UTF_8);
                     os.write(input, 0, input.length);
                 }
 
-                // 读取响应
+                // Read response
                 int responseCode = conn.getResponseCode();
-                BufferedReader br;
-                if (responseCode == HttpURLConnection.HTTP_OK) {
-                    br = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+                
+                if (responseCode == 204) {
+                    // Success - 204 No Content
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onSuccess("Message sent successfully"));
+                } else if (responseCode == 200 || responseCode == 201) {
+                    // Read success response
+                    BufferedReader br = new BufferedReader(
+                        new InputStreamReader(conn.getInputStream()));
+                    StringBuilder response = new StringBuilder();
+                    String line;
+                    while ((line = br.readLine()) != null) {
+                        response.append(line);
+                    }
+                    br.close();
+                    
+                    String result = response.toString();
+                    // Try to extract response field
+                    try {
+                        JSONObject jsonResponse = new JSONObject(result);
+                        result = jsonResponse.optString("response", result);
+                    } catch (Exception e) {
+                        // Not JSON, use raw response
+                    }
+                    
+                    final String finalResult = result;
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onSuccess(finalResult));
                 } else {
-                    br = new BufferedReader(new InputStreamReader(conn.getErrorStream()));
+                    // Error response
+                    String errorMessage;
+                    if (responseCode == 401) {
+                        errorMessage = "Unauthorized: Invalid API Key";
+                    } else if (responseCode == 400) {
+                        errorMessage = "Bad Request: Invalid message format";
+                    } else if (responseCode == 404) {
+                        errorMessage = "Not Found: Wrong endpoint or session not found";
+                    } else {
+                        errorMessage = "Error: " + responseCode;
+                    }
+                    
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onError(errorMessage));
                 }
-
-                StringBuilder response = new StringBuilder();
-                String line;
-                while ((line = br.readLine()) != null) {
-                    response.append(line);
-                }
-                br.close();
-
-                // 解析响应
-                String result;
-                if (responseCode == HttpURLConnection.HTTP_OK) {
-                    JSONObject jsonResponse = new JSONObject(response.toString());
-                    result = jsonResponse.optString("response", response.toString());
-                } else {
-                    result = "Error: " + responseCode + " - " + response.toString();
-                }
-
-                new Handler(Looper.getMainLooper()).post(() -> callback.onSuccess(result));
             } catch (Exception e) {
+                Log.e(TAG, "sendMessage failed", e);
                 new Handler(Looper.getMainLooper()).post(() -> 
-                    callback.onError("Request failed: " + e.getMessage()));
+                    callback.onError("Network error: " + e.getMessage()));
             }
         }).start();
     }
     
-    // 保留静态方法以兼容旧代码
-    public static void sendMessage(String url, String apiKey, String message, Callback callback) {
+    /**
+     * Get all active session IDs.
+     * GET /sessions
+     * Returns JSON array: ["session1", "session2", ...]
+     */
+    public void getSessions(SessionsCallback callback) {
+        String baseUrl = settingsManager.getFullUrl();
+        String apiKey = settingsManager.getApiKey();
+        
+        if (baseUrl.isEmpty() || apiKey.isEmpty()) {
+            callback.onError("Please configure API settings");
+            return;
+        }
+        
         new Thread(() -> {
             try {
-                URL apiUrl = new URL(url);
-                HttpURLConnection conn = (HttpURLConnection) apiUrl.openConnection();
-                conn.setRequestMethod("POST");
-                conn.setRequestProperty("Content-Type", "application/json");
-                conn.setRequestProperty("Authorization", "Bearer " + apiKey);
-                conn.setDoOutput(true);
-                conn.setConnectTimeout(10000);
-                conn.setReadTimeout(30000);
+                URL url = new URL(baseUrl + "/sessions");
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("GET");
+                conn.setRequestProperty("X-API-Key", apiKey);
+                conn.setConnectTimeout(5000);
+                conn.setReadTimeout(10000);
 
-                // 构建请求体
-                JSONObject requestBody = new JSONObject();
-                requestBody.put("message", message);
-                
-                // 发送请求
-                try (OutputStream os = conn.getOutputStream()) {
-                    byte[] input = requestBody.toString().getBytes(StandardCharsets.UTF_8);
-                    os.write(input, 0, input.length);
-                }
-
-                // 读取响应
                 int responseCode = conn.getResponseCode();
-                BufferedReader br;
-                if (responseCode == HttpURLConnection.HTTP_OK) {
-                    br = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+                
+                if (responseCode == 200) {
+                    BufferedReader br = new BufferedReader(
+                        new InputStreamReader(conn.getInputStream()));
+                    StringBuilder response = new StringBuilder();
+                    String line;
+                    while ((line = br.readLine()) != null) {
+                        response.append(line);
+                    }
+                    br.close();
+                    
+                    // Parse JSON array
+                    JSONArray jsonArray = new JSONArray(response.toString());
+                    String[] sessions = new String[jsonArray.length()];
+                    for (int i = 0; i < jsonArray.length(); i++) {
+                        sessions[i] = jsonArray.getString(i);
+                    }
+                    
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onSuccess(sessions));
+                } else if (responseCode == 401) {
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onError("Unauthorized: Invalid API Key"));
                 } else {
-                    br = new BufferedReader(new InputStreamReader(conn.getErrorStream()));
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onError("Error: " + responseCode));
                 }
-
-                StringBuilder response = new StringBuilder();
-                String line;
-                while ((line = br.readLine()) != null) {
-                    response.append(line);
-                }
-                br.close();
-
-                // 解析响应
-                String result;
-                if (responseCode == HttpURLConnection.HTTP_OK) {
-                    JSONObject jsonResponse = new JSONObject(response.toString());
-                    result = jsonResponse.optString("response", response.toString());
-                } else {
-                    result = "Error: " + responseCode + " - " + response.toString();
-                }
-
-                new Handler(Looper.getMainLooper()).post(() -> callback.onSuccess(result));
             } catch (Exception e) {
+                Log.e(TAG, "getSessions failed", e);
                 new Handler(Looper.getMainLooper()).post(() -> 
-                    callback.onError("Request failed: " + e.getMessage()));
+                    callback.onError("Network error: " + e.getMessage()));
+            }
+        }).start();
+    }
+    
+    /**
+     * Get HTML preview of a session.
+     * GET /session?id=session-id
+     * Returns HTML content.
+     */
+    public void getSessionPreview(String sessionId, ApiCallback callback) {
+        String baseUrl = settingsManager.getFullUrl();
+        String apiKey = settingsManager.getApiKey();
+        
+        if (baseUrl.isEmpty() || apiKey.isEmpty()) {
+            callback.onError("Please configure API settings");
+            return;
+        }
+        
+        new Thread(() -> {
+            try {
+                URL url = new URL(baseUrl + "/session?id=" + sessionId);
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("GET");
+                conn.setRequestProperty("X-API-Key", apiKey);
+                conn.setConnectTimeout(5000);
+                conn.setReadTimeout(10000);
+
+                int responseCode = conn.getResponseCode();
+                
+                if (responseCode == 200) {
+                    BufferedReader br = new BufferedReader(
+                        new InputStreamReader(conn.getInputStream()));
+                    StringBuilder response = new StringBuilder();
+                    String line;
+                    while ((line = br.readLine()) != null) {
+                        response.append(line);
+                    }
+                    br.close();
+                    
+                    final String html = response.toString();
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onSuccess(html));
+                } else if (responseCode == 401) {
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onError("Unauthorized: Invalid API Key"));
+                } else if (responseCode == 404) {
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onError("Session not found"));
+                } else if (responseCode == 400) {
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onError("Bad Request: Missing session ID"));
+                } else {
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onError("Error: " + responseCode));
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "getSessionPreview failed", e);
+                new Handler(Looper.getMainLooper()).post(() -> 
+                    callback.onError("Network error: " + e.getMessage()));
             }
         }).start();
     }

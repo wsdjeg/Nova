@@ -1,72 +1,93 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:padding="16dp">
+    android:fillViewport="true">
 
-    <TextView
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="API 设置"
-        android:textSize="24sp"
-        android:textStyle="bold"
-        android:layout_marginBottom="24dp" />
+        android:orientation="vertical"
+        android:padding="16dp">
 
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="服务器地址"
-        android:textSize="16sp" />
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="API 设置"
+            android:textSize="24sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="24dp" />
 
-    <EditText
-        android:id="@+id/et_url"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:hint="例如：192.168.1.100 或 example.com"
-        android:inputType="textUri"
-        android:layout_marginBottom="16dp" />
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="服务器地址"
+            android:textSize="16sp" />
 
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="端口"
-        android:textSize="16sp" />
+        <EditText
+            android:id="@+id/et_url"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="例如：192.168.1.100 或 example.com"
+            android:inputType="textUri"
+            android:layout_marginBottom="16dp" />
 
-    <EditText
-        android:id="@+id/et_port"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:hint="例如：8080"
-        android:inputType="number"
-        android:layout_marginBottom="16dp" />
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="端口"
+            android:textSize="16sp" />
 
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="API Key"
-        android:textSize="16sp" />
+        <EditText
+            android:id="@+id/et_port"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="例如：7777"
+            android:inputType="number"
+            android:layout_marginBottom="16dp" />
 
-    <EditText
-        android:id="@+id/et_api_key"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:hint="输入你的 API Key"
-        android:inputType="textPassword"
-        android:layout_marginBottom="24dp" />
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="API Key"
+            android:textSize="16sp" />
 
-    <Button
-        android:id="@+id/btn_save"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="保存" />
+        <EditText
+            android:id="@+id/et_api_key"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="输入你的 API Key"
+            android:inputType="textPassword"
+            android:layout_marginBottom="16dp" />
 
-    <TextView
-        android:id="@+id/tv_status"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
-        android:textSize="14sp"
-        android:textColor="#757575" />
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Session ID"
+            android:textSize="16sp" />
 
-</LinearLayout>
+        <EditText
+            android:id="@+id/et_session"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="例如：2024-01-15-10-30-00"
+            android:inputType="text"
+            android:layout_marginBottom="24dp" />
+
+        <Button
+            android:id="@+id/btn_save"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="保存" />
+
+        <TextView
+            android:id="@+id/tv_status"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:textSize="14sp"
+            android:textColor="#757575" />
+
+    </LinearLayout>
+
+</ScrollView>
