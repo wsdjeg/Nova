@@ -227,9 +227,7 @@ public class ChatActivity extends AppCompatActivity {
     
     private void updateMessagesList(List<ApiClient.ChatMessage> chatMessages) {
         int scrollPosition = ((LinearLayoutManager) rvMessages.getLayoutManager())
-                .getFirstVisibleItemPosition();
-        boolean shouldScrollToBottom = scrollPosition >= messages.size() - 2;
-        
+                .findFirstVisibleItemPosition();
         messages.clear();
         
         for (ApiClient.ChatMessage msg : chatMessages) {
