@@ -238,7 +238,9 @@ public class ChatActivity extends AppCompatActivity {
                 continue;
             }
             boolean isUser = "user".equals(msg.role);
-            messages.add(new Message(msg.content, isUser));
+            // Lua os.time() 返回的是秒，Java 需要毫秒
+            long timestamp = msg.created * 1000L;
+            messages.add(new Message(msg.content, isUser, timestamp));
         }
         
         adapter.notifyDataSetChanged();
@@ -247,7 +249,6 @@ public class ChatActivity extends AppCompatActivity {
             rvMessages.smoothScrollToPosition(messages.size() - 1);
         }
     }
-
     private void sendMessage() {
         String messageText = etMessage.getText().toString().trim();
         

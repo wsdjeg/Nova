@@ -40,10 +40,12 @@ public class ApiClient {
     public static class ChatMessage {
         public String role;
         public String content;
+        public long created; // Lua os.time() 时间戳（秒）
         
-        public ChatMessage(String role, String content) {
+        public ChatMessage(String role, String content, long created) {
             this.role = role;
             this.content = content;
+            this.created = created;
         }
     }
     
@@ -215,7 +217,7 @@ public class ApiClient {
     /**
      * Get messages for a specific session.
      * GET /messages?session=xxx
-     * Returns JSON array with messages containing role and content.
+     * Returns JSON array with messages containing role, content, and created timestamp.
      */
     public void getMessages(String sessionId, MessagesCallback callback) {
         String baseUrl = settingsManager.getFullUrl();
@@ -265,10 +267,12 @@ public class ApiClient {
                         JSONObject msg = jsonArray.getJSONObject(i);
                         String role = msg.optString("role", "");
                         String content = msg.optString("content", "");
+                        // 获取 created 时间戳，如果不存在则使用当前时间
+                        long created = msg.optLong("created", System.currentTimeMillis() / 1000);
                         
                         // Only add messages with content
                         if (!content.isEmpty()) {
-                            messages.add(new ChatMessage(role, content));
+                            messages.add(new ChatMessage(role, content, created));
                         }
                     }
                     
