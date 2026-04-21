@@ -24,23 +24,14 @@ jobs:
       with:
         gradle-version: '8.0'
 
-    # 缓存 debug keystore 以保持签名一致
-    - name: Cache debug keystore
-      id: cache-keystore
-      uses: actions/cache@v4
-      with:
-        path: ~/.android/debug.keystore
-        key: debug-keystore-v1
-        restore-keys: |
-          debug-keystore-
-
-    # 如果没有缓存的 keystore，创建一个固定的
-    - name: Create debug keystore if not cached
-      if: steps.cache-keystore.outputs.cache-hit != 'true'
+    # 生成 debug keystore（使用 Gradle 默认密码 android）
+    - name: Generate debug keystore
       run: |
         mkdir -p ~/.android
         keytool -genkey -v -keystore ~/.android/debug.keystore \
-          -alias androiddebugkey -storepass android -keypass android \
+          -alias androiddebugkey \
+          -storepass android \
+          -keypass android \
           -keyalg RSA -keysize 2048 -validity 10000 \
           -dname "CN=Android Debug,O=Android,C=US"
 
