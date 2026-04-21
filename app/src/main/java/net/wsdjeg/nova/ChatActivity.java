@@ -185,32 +185,18 @@ public class ChatActivity extends AppCompatActivity {
         if (!settingsManager.hasValidSettings() || currentSessionId == null) {
             return;
         }
-        
         apiClient.getMessages(currentSessionId, new ApiClient.MessagesCallback() {
             @Override
             public void onSuccess(List<ApiClient.ChatMessage> chatMessages) {
-    private void updateMessagesList(List<ApiClient.ChatMessage> chatMessages) {
-        int scrollPosition = ((LinearLayoutManager) rvMessages.getLayoutManager())
-                .getFirstVisibleItemPosition();
-        boolean shouldScrollToBottom = scrollPosition >= messages.size() - 2;
-        
-        messages.clear();
-        
-        for (ApiClient.ChatMessage msg : chatMessages) {
-            // 过滤掉 role == "tool" 的消息
-            if ("tool".equals(msg.role)) {
-                continue;
-            }
-            boolean isUser = "user".equals(msg.role);
-            messages.add(new Message(msg.content, isUser));
-        }
-        
-        adapter.notifyDataSetChanged();
-        
-        if (shouldScrollToBottom && messages.size() > 0) {
-            rvMessages.smoothScrollToPosition(messages.size() - 1);
-        }
-    }
+                runOnUiThread(() -> {
+                    if (chatMessages.size() != lastMessageCount) {
+                        updateMessagesList(chatMessages);
+                        lastMessageCount = chatMessages.size();
+                        
+                        // 更新 SessionManager 中的消息信息
+                        if (!chatMessages.isEmpty()) {
+                            ApiClient.ChatMessage lastMsg = chatMessages.get(chatMessages.size() - 1);
+                            // 查找第一条用户消息作为标题
                             String firstUserMessage = null;
                             for (ApiClient.ChatMessage msg : chatMessages) {
                                 if ("user".equals(msg.role)) {
@@ -241,12 +227,16 @@ public class ChatActivity extends AppCompatActivity {
     
     private void updateMessagesList(List<ApiClient.ChatMessage> chatMessages) {
         int scrollPosition = ((LinearLayoutManager) rvMessages.getLayoutManager())
-                .findFirstVisibleItemPosition();
+                .getFirstVisibleItemPosition();
         boolean shouldScrollToBottom = scrollPosition >= messages.size() - 2;
         
         messages.clear();
         
         for (ApiClient.ChatMessage msg : chatMessages) {
+            // 过滤掉 role == "tool" 的消息
+            if ("tool".equals(msg.role)) {
+                continue;
+            }
             boolean isUser = "user".equals(msg.role);
             messages.add(new Message(msg.content, isUser));
         }
