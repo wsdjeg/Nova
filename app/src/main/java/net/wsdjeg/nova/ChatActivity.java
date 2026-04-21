@@ -242,10 +242,9 @@ public class ChatActivity extends AppCompatActivity {
         }
         
         adapter.notifyDataSetChanged();
-        }
-    }
-
-    private void sendMessage() {
+        
+        if (shouldScrollToBottom && messages.size() > 0) {
+            rvMessages.smoothScrollToPosition(messages.size() - 1);
         }
     }
 
