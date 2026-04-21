@@ -37,6 +37,4 @@ dependencies {
     // Markwon for Markdown rendering
     implementation 'io.noties.markwon:core:4.6.2'
     implementation 'io.noties.markwon:syntax-highlight:4.6.2'
-    implementation 'io.noties.markwon:core:6.0.0'
-    implementation 'io.noties.markwon:syntax-highlight:6.0.0'
 }
