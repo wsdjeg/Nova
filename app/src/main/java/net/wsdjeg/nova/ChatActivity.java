@@ -10,6 +10,7 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.Toolbar;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import java.util.ArrayList;
@@ -26,6 +27,7 @@ public class ChatActivity extends AppCompatActivity {
     
     private static final int REFRESH_INTERVAL_MS = 5000; // 5秒刷新一次
     
+    private Toolbar toolbar;
     private RecyclerView rvMessages;
     private EditText etMessage;
     private Button btnSend;
@@ -49,6 +51,10 @@ public class ChatActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_chat);
         
+        // 设置 Toolbar
+        toolbar = findViewById(R.id.toolbar);
+        setSupportActionBar(toolbar);
+        
         // 获取传入的 session ID
         currentSessionId = getIntent().getStringExtra(EXTRA_SESSION_ID);
         currentSessionTitle = getIntent().getStringExtra(EXTRA_SESSION_TITLE);
@@ -61,7 +67,9 @@ public class ChatActivity extends AppCompatActivity {
         
         // 设置标题
         if (currentSessionTitle != null && !currentSessionTitle.isEmpty()) {
-            setTitle(currentSessionTitle);
+            toolbar.setTitle(currentSessionTitle);
+        } else {
+            toolbar.setTitle("聊天");
         }
         
         // 启用返回按钮
