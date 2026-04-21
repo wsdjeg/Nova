@@ -82,13 +82,15 @@ Nova 是一个轻量级的 Android AI 聊天助手应用，作为 [chat.nvim](ht
 ### 首次配置
 
 1. 打开应用，点击右上角「Settings」图标
-### 界面交互
+2. 配置服务器地址、端口和 API Key
+3. 点击保存，返回主界面
 
-Nova 采用类似微信的交互方式：
+### 界面交互
 
 1. **会话列表** - 打开应用显示所有会话列表
 2. **进入对话** - 点击会话进入对应的聊天界面
 3. **新建会话** - 点击右下角按钮创建新会话
+4. **删除会话** - 长按会话项，选择删除
 
 ## 📂 项目结构
 
@@ -96,34 +98,39 @@ Nova 采用类似微信的交互方式：
 Nova/
 ├── app/
 │   ├── src/main/
-│   │   ├── java/com/example/myandroidapp/
-│   │   │   ├── MainActivity.java        # 主界面 - 消息列表和发送
-│   │   │   ├── SettingsActivity.java    # 设置界面 - API 配置
-│   │   │   ├── Message.java            # 消息数据模型
-│   │   │   ├── MessageAdapter.java     # 消息列表适配器
-│   │   │   ├── ApiClient.java          # API 客户端 - 网络请求
-│   │   │   └── SettingsManager.java    # 设置管理器 - 本地存储
+│   │   ├── java/net/wsdjeg/nova/
+│   │   │   ├── SessionListActivity.java  # 会话列表界面（启动入口）
+│   │   │   ├── ChatActivity.java         # 聊天界面
+│   │   │   ├── SettingsActivity.java     # 设置界面 - API 配置
+│   │   │   ├── Session.java              # 会话数据模型
+│   │   │   ├── SessionAdapter.java       # 会话列表适配器
+│   │   │   ├── SessionManager.java       # 会话管理器 - 本地存储
+│   │   │   ├── Message.java              # 消息数据模型
+│   │   │   ├── MessageAdapter.java       # 消息列表适配器
+│   │   │   ├── ApiClient.java            # API 客户端 - 网络请求
+│   │   │   └── SettingsManager.java      # 设置管理器 - 本地存储
 │   │   ├── res/
-│   │   │   ├── layout/                 # 布局文件
-│   │   │   ├── drawable/               # 图标和背景
-│   │   │   ├── menu/                   # 菜单
-│   │   │   └── values/                # 字符串和主题
+│   │   │   ├── layout/                   # 布局文件
+│   │   │   ├── drawable/                 # 图标和背景
+│   │   │   ├── menu/                     # 菜单
+│   │   │   └── values/                   # 字符串和主题
 │   │   └── AndroidManifest.xml
-│   ├── build.gradle                   # 应用级构建配置
-│   └── proguard-rules.pro             # 混淆规则
-├── build.gradle                       # 项目级构建配置
-├── settings.gradle                    # 项目设置
-├── .github/workflows/android.yml      # CI/CD 配置
+│   ├── build.gradle                      # 应用级构建配置
+│   └── proguard-rules.pro                # 混淆规则
+├── build.gradle                          # 项目级构建配置
+├── settings.gradle                       # 项目设置
+├── .github/workflows/android.yml         # CI/CD 配置
 └── README.md
 ```
 
 ## 🔌 API 文档
+
 Nova 连接到 [chat.nvim HTTP Server](https://nvim.chat/api/http/)。
 
 ## 🎯 后续计划
 
+- [x] 支持多会话管理界面
 - [ ] 支持流式响应（SSE）
-- [ ] 支持多会话管理界面
 - [ ] 支持图片发送
 - [ ] 支持语音输入
 
