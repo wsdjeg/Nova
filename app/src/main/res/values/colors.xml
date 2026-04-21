@@ -7,4 +7,14 @@
     <color name="teal_700">#FF018786</color>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+    
+    <!-- Theme colors -->
+    <color name="primary_color">#6200EE</color>
+    <color name="primary_dark">#3700B3</color>
+    
+    <!-- Message colors -->
+    <color name="user_message_bg">#6200EE</color>
+    <color name="ai_message_bg">#E0E0E0</color>
+    <color name="user_message_text">#FFFFFF</color>
+    <color name="ai_message_text">#000000</color>
 </resources>

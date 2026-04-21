@@ -24,37 +24,70 @@ jobs:
       with:
         gradle-version: '8.0'
 
+    # 缓存 debug keystore 以保持签名一致
+    - name: Cache debug keystore
+      id: cache-keystore
+      uses: actions/cache@v4
+      with:
+        path: ~/.android/debug.keystore
+        key: debug-keystore-v1
+        restore-keys: |
+          debug-keystore-
+
+    # 如果没有缓存的 keystore，创建一个固定的
+    - name: Create debug keystore if not cached
+      if: steps.cache-keystore.outputs.cache-hit != 'true'
+      run: |
+        mkdir -p ~/.android
+        keytool -genkey -v -keystore ~/.android/debug.keystore \
+          -alias androiddebugkey -storepass android -keypass android \
+          -keyalg RSA -keysize 2048 -validity 10000 \
+          -dname "CN=Android Debug,O=Android,C=US"
+
     - name: Build Debug APK
       run: gradle assembleDebug --no-daemon --stacktrace
     
     - name: Get version info
       id: version
       run: |
-        echo "VERSION_NAME=$(grep -oP 'versionName\s*=?\s*["\x27]\K[^"\x27]+' app/build.gradle | head -1)" >> $GITHUB_OUTPUT
-        echo "VERSION_CODE=$(grep -oP 'versionCode\s*=?\s*\K\d+' app/build.gradle | head -1)" >> $GITHUB_OUTPUT
+        VERSION_NAME=$(grep "versionName" app/build.gradle | head -1 | sed 's/.*versionName[[:space:]]*["'"'"']\([^"'"'"']*\).*/\1/')
+        VERSION_CODE=$(grep "versionCode" app/build.gradle | head -1 | sed 's/.*versionCode[[:space:]]*\([0-9]*\).*/\1/')
+        echo "VERSION_NAME=$VERSION_NAME" >> $GITHUB_OUTPUT
+        echo "VERSION_CODE=$VERSION_CODE" >> $GITHUB_OUTPUT
         echo "BUILD_TIME=$(date +'%Y%m%d_%H%M%S')" >> $GITHUB_OUTPUT
     
     - name: Rename APK
       run: |
-        mv app/build/outputs/apk/debug/app-debug.apk app/build/outputs/apk/debug/ChatApp-${{ steps.version.outputs.BUILD_TIME }}.apk
+        mv app/build/outputs/apk/debug/app-debug.apk app/build/outputs/apk/debug/ChatApp.apk
+    
+    # 删除旧的 prerelease，然后创建新的
+    - name: Delete old prerelease
+      if: github.event_name == 'push'
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        gh release delete prerelease --yes --cleanup-tag 2>/dev/null || true
     
     - name: Create PreRelease
       if: github.event_name == 'push'
       uses: softprops/action-gh-release@v1
       with:
-        tag_name: v${{ steps.version.outputs.VERSION_CODE }}-${{ steps.version.outputs.BUILD_TIME }}
-        name: PreRelease v${{ steps.version.outputs.VERSION_NAME }} (${{ steps.version.outputs.BUILD_TIME }})
+        tag_name: prerelease
+        name: PreRelease v${{ steps.version.outputs.VERSION_NAME }}
         body: |
           ## 自动构建 PreRelease
           
-          **版本**: ${{ steps.version.outputs.VERSION_NAME }}
+          **版本**: ${{ steps.version.outputs.VERSION_NAME }} (Build ${{ steps.version.outputs.VERSION_CODE }})
           **构建时间**: ${{ steps.version.outputs.BUILD_TIME }}
           **Commit**: ${{ github.sha }}
           
           ### 下载说明
-          下载 APK 文件安装即可使用
+          下载 `ChatApp.apk` 文件安装即可使用（可直接覆盖安装）
+          
+          ### 更新内容
+          ${{ github.event.head_commit.message }}
         draft: false
         prerelease: true
-        files: app/build/outputs/apk/debug/ChatApp-${{ steps.version.outputs.BUILD_TIME }}.apk
+        files: app/build/outputs/apk/debug/ChatApp.apk
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
