@@ -125,10 +125,7 @@ Nova/
 ```
 
 ## 🔌 API 文档
-
 Nova 连接到 [chat.nvim HTTP Server](https://nvim.chat/api/http/)。
-
-详细的 API 接口说明请参考：[chat.nvim HTTP API 文档](https://nvim.chat/api/http/)
 
 ## 🎯 后续计划
 
@@ -136,10 +133,6 @@ Nova 连接到 [chat.nvim HTTP Server](https://nvim.chat/api/http/)。
 - [ ] 支持多会话管理界面
 - [ ] 支持图片发送
 - [ ] 支持语音输入
-- [ ] 支持深色模式
-- [ ] 支持消息复制和删除
-- [ ] 支持对话导出
-- [ ] 国际化支持
 
 ## 🤝 贡献指南
 
