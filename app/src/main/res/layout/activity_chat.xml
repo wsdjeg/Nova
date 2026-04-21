@@ -3,9 +3,9 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-    <!-- Session Selector -->
+    <!-- 标题栏 -->
     <LinearLayout
-        android:id="@+id/sessionSelectorLayout"
+        android:id="@+id/titleBar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_alignParentTop="true"
@@ -14,19 +14,31 @@
         android:padding="8dp"
         android:background="#E0E0E0">
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="会话: "
-            android:textSize="14sp"
-            android:textColor="#424242" />
+        <ImageButton
+            android:id="@+id/btnBack"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:src="@android:drawable/ic_menu_revert"
+            android:background="?android:attr/selectableItemBackground"
+            android:contentDescription="返回" />
 
-        <Spinner
-            android:id="@+id/spinner_session"
+        <TextView
+            android:id="@+id/textSessionTitle"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:spinnerMode="dropdown" />
+            android:text="聊天"
+            android:textSize="18sp"
+            android:textColor="#424242"
+            android:gravity="center" />
+
+        <ImageButton
+            android:id="@+id/btnSettings"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:src="@android:drawable/ic_menu_manage"
+            android:background="?android:attr/selectableItemBackground"
+            android:contentDescription="设置" />
 
     </LinearLayout>
 
@@ -36,7 +48,7 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:layout_above="@id/inputLayout"
-        android:layout_below="@id/sessionSelectorLayout"
+        android:layout_below="@id/titleBar"
         android:scrollbars="vertical"
         android:padding="8dp" />
 

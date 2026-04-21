@@ -15,8 +15,9 @@
         android:theme="@style/Theme.MyAndroidApp"
         android:usesCleartextTraffic="true">
 
+        <!-- SessionListActivity 作为启动界面 -->
         <activity
-            android:name=".MainActivity"
+            android:name=".SessionListActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -24,6 +25,13 @@
             </intent-filter>
         </activity>
 
+        <!-- ChatActivity 聊天界面 -->
+        <activity
+            android:name=".ChatActivity"
+            android:exported="false"
+            android:label="聊天" />
+
+        <!-- SettingsActivity 设置界面 -->
         <activity
             android:name=".SettingsActivity"
             android:exported="false"
