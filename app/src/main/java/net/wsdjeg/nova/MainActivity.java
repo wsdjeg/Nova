@@ -107,7 +107,6 @@ public class MainActivity extends AppCompatActivity {
         }
         return super.onOptionsItemSelected(item);
     }
-
     private void initViews() {
         spinnerSession = findViewById(R.id.spinner_session);
         rvMessages = findViewById(R.id.rv_messages);
@@ -119,13 +118,12 @@ public class MainActivity extends AppCompatActivity {
 
     private void setupRecyclerView() {
         messages = new ArrayList<>();
-        adapter = new MessageAdapter(messages);
+        adapter = new MessageAdapter(messages, this);
         LinearLayoutManager layoutManager = new LinearLayoutManager(this);
         layoutManager.setStackFromEnd(true);
         rvMessages.setLayoutManager(layoutManager);
         rvMessages.setAdapter(adapter);
     }
-    
     private void setupSessionSpinner() {
         sessionList = new ArrayList<>();
         sessionAdapter = new ArrayAdapter<>(this, 
