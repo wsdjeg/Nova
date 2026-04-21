@@ -228,6 +228,8 @@ public class ChatActivity extends AppCompatActivity {
     private void updateMessagesList(List<ApiClient.ChatMessage> chatMessages) {
         int scrollPosition = ((LinearLayoutManager) rvMessages.getLayoutManager())
                 .findFirstVisibleItemPosition();
+        boolean shouldScrollToBottom = scrollPosition >= messages.size() - 2;
+        
         messages.clear();
         
         for (ApiClient.ChatMessage msg : chatMessages) {
@@ -242,6 +244,9 @@ public class ChatActivity extends AppCompatActivity {
         adapter.notifyDataSetChanged();
         
         if (shouldScrollToBottom && messages.size() > 0) {
+            rvMessages.smoothScrollToPosition(messages.size() - 1);
+        }
+    }
             rvMessages.smoothScrollToPosition(messages.size() - 1);
         }
     }
