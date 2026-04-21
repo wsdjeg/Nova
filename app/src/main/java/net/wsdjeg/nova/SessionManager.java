@@ -195,26 +195,12 @@ public class SessionManager {
     
     /**
      * 获取当前会话 ID
-    /**
-     * 获取会话数量
      */
-    public int getSessionCount() {
-        return loadSessions().size();
+    public String getCurrentSession() {
+        return prefs.getString(KEY_CURRENT_SESSION, "");
     }
     
     /**
-     * 根据 ID 获取会话
-     */
-    public Session getSession(String sessionId) {
-        List<Session> sessions = loadSessions();
-        for (Session session : sessions) {
-            if (session.getSessionId().equals(sessionId)) {
-                return session;
-            }
-        }
-        return null;
-    }
-}
      * 检查是否存在会话
      */
     public boolean hasCurrentSession() {
@@ -234,5 +220,18 @@ public class SessionManager {
      */
     public int getSessionCount() {
         return loadSessions().size();
+    }
+    
+    /**
+     * 根据 ID 获取会话
+     */
+    public Session getSession(String sessionId) {
+        List<Session> sessions = loadSessions();
+        for (Session session : sessions) {
+            if (session.getSessionId().equals(sessionId)) {
+                return session;
+            }
+        }
+        return null;
     }
 }
