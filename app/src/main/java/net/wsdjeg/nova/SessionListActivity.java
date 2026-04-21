@@ -154,20 +154,16 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
         // 设置为当前会话
         sessionManager.saveCurrentSession(newSessionId);
         
+        // 可选：创建后直接打开聊天界面
+        openChatActivity(newSessionId);
+    }
+    
     /**
      * 打开聊天界面
      */
     private void openChatActivity(String sessionId) {
         sessionManager.saveCurrentSession(sessionId);
         Intent intent = new Intent(this, ChatActivity.class);
-        intent.putExtra("session_id", sessionId);
-        startActivity(intent);
-    }
-     * 打开聊天界面
-     */
-    private void openChatActivity(String sessionId) {
-        sessionManager.saveCurrentSession(sessionId);
-        Intent intent = new Intent(this, MainActivity.class);
         intent.putExtra("session_id", sessionId);
         startActivity(intent);
     }
