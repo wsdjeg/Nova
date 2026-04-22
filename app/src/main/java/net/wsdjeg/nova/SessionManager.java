@@ -8,7 +8,9 @@ import org.json.JSONObject;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * 会话管理器
@@ -18,6 +20,7 @@ public class SessionManager {
     private static final String PREFS_NAME = "ChatAppSessions";
     private static final String KEY_SESSIONS = "sessions";
     private static final String KEY_CURRENT_SESSION = "current_session";
+    private static final String KEY_INITIALIZED_SESSIONS = "initialized_sessions";
     
     private SharedPreferences prefs;
     
@@ -193,6 +196,9 @@ public class SessionManager {
         
         sessions.removeAll(toRemove);
         saveSessions(sessions);
+        
+        // 同时从已初始化列表中移除
+        removeInitializedSession(sessionId);
     }
     
     /**
@@ -242,5 +248,85 @@ public class SessionManager {
             }
         }
         return null;
+    }
+    
+    /**
+     * 获取会话在列表中的索引
+     */
+    public int getSessionIndex(String sessionId, List<Session> sessions) {
+        for (int i = 0; i < sessions.size(); i++) {
+            if (sessions.get(i).getSessionId().equals(sessionId)) {
+                return i;
+            }
+        }
+        return -1;
+    }
+    
+    // ========== 已初始化会话状态管理 ==========
+    
+    /**
+     * 保存已初始化的会话列表
+     */
+    public void saveInitializedSessions(Set<String> initializedSessions) {
+        JSONArray jsonArray = new JSONArray();
+        for (String sessionId : initializedSessions) {
+            jsonArray.put(sessionId);
+        }
+        prefs.edit().putString(KEY_INITIALIZED_SESSIONS, jsonArray.toString()).apply();
+    }
+    
+    /**
+     * 加载已初始化的会话列表
+     */
+    public Set<String> loadInitializedSessions() {
+        Set<String> initializedSessions = new HashSet<>();
+        String jsonStr = prefs.getString(KEY_INITIALIZED_SESSIONS, "");
+        
+        if (jsonStr.isEmpty()) {
+            return initializedSessions;
+        }
+        
+        try {
+            JSONArray jsonArray = new JSONArray(jsonStr);
+            for (int i = 0; i < jsonArray.length(); i++) {
+                initializedSessions.add(jsonArray.getString(i));
+            }
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+        
+        return initializedSessions;
+    }
+    
+    /**
+     * 添加已初始化的会话
+     */
+    public void addInitializedSession(String sessionId) {
+        Set<String> initializedSessions = loadInitializedSessions();
+        initializedSessions.add(sessionId);
+        saveInitializedSessions(initializedSessions);
+    }
+    
+    /**
+     * 移除已初始化的会话
+     */
+    public void removeInitializedSession(String sessionId) {
+        Set<String> initializedSessions = loadInitializedSessions();
+        initializedSessions.remove(sessionId);
+        saveInitializedSessions(initializedSessions);
+    }
+    
+    /**
+     * 检查会话是否已初始化
+     */
+    public boolean isSessionInitialized(String sessionId) {
+        return loadInitializedSessions().contains(sessionId);
+    }
+    
+    /**
+     * 清除所有已初始化状态（用于强制重新同步）
+     */
+    public void clearInitializedSessions() {
+        prefs.edit().remove(KEY_INITIALIZED_SESSIONS).apply();
     }
 }

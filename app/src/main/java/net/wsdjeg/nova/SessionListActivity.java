@@ -40,7 +40,10 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
     private Handler refreshHandler;
     private Runnable refreshRunnable;
     private boolean isFirstRefreshDone = false;
-    private Set<String> initializedSessions = new HashSet<>();
+    
+    // 同步状态
+    private int syncTotal = 0;      // 总共需要同步的会话数
+    private int syncCompleted = 0;  // 已完成同步的会话数
     
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -220,7 +223,6 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
                     for (Session localSession : localSessions) {
                         if (!serverSessionMap.containsKey(localSession.getSessionId())) {
                             sessionManager.deleteSession(localSession.getSessionId());
-                            initializedSessions.remove(localSession.getSessionId());
                         }
                     }
                     
@@ -257,43 +259,126 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
      * 获取每个会话的消息列表，提取最后一条消息作为预览
      */
     private void initializeAllSessions(String[] sessionIds) {
+        if (sessionIds == null || sessionIds.length == 0) {
+            return;
+        }
+        
+        // 加载已初始化的会话列表
+        Set<String> initializedSessions = sessionManager.loadInitializedSessions();
+        
+        // 重置同步计数
+        syncTotal = 0;
+        syncCompleted = 0;
+        
+        // 统计需要同步的数量
         for (String sessionId : sessionIds) {
+            if (!initializedSessions.contains(sessionId)) {
+                syncTotal++;
+            }
+        }
+        
+        // 显示同步提示
+        if (syncTotal > 0) {
+            updateSyncProgress();
+        }
+        
+        // 遍历所有会话，获取消息列表
+        for (String sessionId : sessionIds) {
+            // 跳过已初始化的会话
             if (initializedSessions.contains(sessionId)) {
                 continue;
             }
             
+            // 获取该会话的消息列表
+            final String currentSessionId = sessionId;
             apiClient.getMessages(sessionId, new ApiClient.MessagesCallback() {
                 @Override
                 public void onSuccess(List<ApiClient.ChatMessage> chatMessages) {
                     runOnUiThread(() -> {
-                        initializedSessions.add(sessionId);
+                        // 标记为已初始化并保存
+                        sessionManager.addInitializedSession(currentSessionId);
+                        syncCompleted++;
                         
                         if (chatMessages.isEmpty()) {
+                            updateSyncProgress();
                             return;
                         }
                         
-                        // 获取最后一条消息
+                        // 获取第一条和最后一条消息
+                        ApiClient.ChatMessage firstMsg = chatMessages.get(0);
                         ApiClient.ChatMessage lastMsg = chatMessages.get(chatMessages.size() - 1);
                         long lastMessageTime = lastMsg.created * 1000; // 转换为毫秒
                         
                         // 更新会话信息
-                        Session session = sessionManager.getSession(sessionId);
-                        if (session != null) {
-                            session.updateSessionInfo(
-                                lastMsg.content,
-                                chatMessages.size(),
-                                lastMessageTime
-                            );
-                            loadSessions();
-                        }
+                        sessionManager.updateMessages(
+                            currentSessionId,
+                            firstMsg.content,
+                            lastMsg.content,
+                            chatMessages.size(),
+                            lastMessageTime
+                        );
+                        
+                        // 实时更新 UI - 找到该会话并更新
+                        updateSingleSession(currentSessionId);
+                        
+                        // 更新同步进度
+                        updateSyncProgress();
                     });
                 }
                 
                 @Override
                 public void onError(String error) {
-                    // 忽略单个会话的消息获取错误
+                    runOnUiThread(() -> {
+                        // 即使失败也计数
+                        syncCompleted++;
+                        updateSyncProgress();
+                        // 忽略单个会话的消息获取错误
+                    });
                 }
             });
+        }
+    }
+    
+    /**
+     * 更新单个会话的 UI
+     */
+    private void updateSingleSession(String sessionId) {
+        // 重新从 SessionManager 加载该会话
+        Session updatedSession = sessionManager.getSession(sessionId);
+        if (updatedSession == null) {
+            return;
+        }
+        
+        // 在当前列表中查找并更新
+        for (int i = 0; i < sessions.size(); i++) {
+            if (sessions.get(i).getSessionId().equals(sessionId)) {
+                sessions.set(i, updatedSession);
+                adapter.notifyItemChanged(i);
+                break;
+            }
+        }
+    }
+    
+    /**
+     * 更新同步进度提示
+     */
+    private void updateSyncProgress() {
+        if (syncTotal == 0) {
+            return;
+        }
+        
+        if (syncCompleted < syncTotal) {
+            // 正在同步
+            Toast.makeText(this, 
+                String.format("正在同步会话消息 (%d/%d)...", syncCompleted, syncTotal), 
+                Toast.LENGTH_SHORT).show();
+        } else if (syncCompleted == syncTotal) {
+            // 同步完成
+            Toast.makeText(this, 
+                String.format("已同步 %d 个会话的消息", syncTotal), 
+                Toast.LENGTH_SHORT).show();
+            syncTotal = 0;
+            syncCompleted = 0;
         }
     }
     
@@ -388,7 +473,6 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
         if (!settingsManager.hasValidSettings()) {
             // 如果没有配置 API，只删除本地数据
             sessionManager.deleteSession(session.getSessionId());
-            initializedSessions.remove(session.getSessionId());
             loadSessions();
             Toast.makeText(this, "已删除本地会话", Toast.LENGTH_SHORT).show();
             return;
@@ -404,7 +488,6 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
                 runOnUiThread(() -> {
                     // 删除成功，同时删除本地数据
                     sessionManager.deleteSession(session.getSessionId());
-                    initializedSessions.remove(session.getSessionId());
                     loadSessions();
                     Toast.makeText(SessionListActivity.this, 
                         "已删除会话", Toast.LENGTH_SHORT).show();
@@ -417,7 +500,6 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
                     // 特殊处理：如果是 404，说明会话在服务器上不存在，直接删除本地数据
                     if (error.contains("404") || error.contains("Not Found")) {
                         sessionManager.deleteSession(session.getSessionId());
-                        initializedSessions.remove(session.getSessionId());
                         loadSessions();
                         Toast.makeText(SessionListActivity.this, 
                             "已删除本地会话（服务器上不存在）", Toast.LENGTH_SHORT).show();
