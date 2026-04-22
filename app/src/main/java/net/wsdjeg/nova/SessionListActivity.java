@@ -191,12 +191,27 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
             @Override
             public void onSuccess(String[] sessionIds) {
                 runOnUiThread(() -> {
-                    // 更新本地会话列表
+                    // 将服务器会话 ID 转为 Set，用于快速查找
+                    Set<String> serverSessionIds = new HashSet<>();
+                    for (String id : sessionIds) {
+                        serverSessionIds.add(id);
+                    }
+                    
+                    // 同步：添加本地没有的会话
                     for (String sessionId : sessionIds) {
                         Session session = sessionManager.getSession(sessionId);
                         if (session == null) {
                             session = new Session(sessionId);
                             sessionManager.addOrUpdateSession(session);
+                        }
+                    }
+                    
+                    // 同步：删除服务器没有的本地会话
+                    List<Session> localSessions = sessionManager.loadSessions();
+                    for (Session localSession : localSessions) {
+                        if (!serverSessionIds.contains(localSession.getSessionId())) {
+                            sessionManager.deleteSession(localSession.getSessionId());
+                            initializedSessions.remove(localSession.getSessionId());
                         }
                     }
                     
