@@ -204,10 +204,6 @@ public class ChatActivity extends AppCompatActivity {
      * 使用浏览器打开预览链接
      */
     private void openPreviewInBrowser() {
-    /**
-     * 使用浏览器打开预览链接
-     */
-    private void openPreviewInBrowser() {
         String ip = settingsManager.getUrl();
         String port = settingsManager.getPort();
         String url = "http://" + ip + ":" + port + "/session?id=" + currentSessionId;
@@ -215,12 +211,13 @@ public class ChatActivity extends AppCompatActivity {
         Intent intent = new Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url));
         startActivity(intent);
     }
+    
+    private void initViews() {
         rvMessages = findViewById(R.id.rv_messages);
         etMessage = findViewById(R.id.et_message);
         btnSend = findViewById(R.id.btn_send);
         btnSend.setOnClickListener(v -> sendMessage());
     }
-
     private void setupRecyclerView() {
         messages = new ArrayList<>();
         adapter = new MessageAdapter(messages, this);
