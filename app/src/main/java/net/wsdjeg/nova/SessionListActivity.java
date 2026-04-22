@@ -104,6 +104,9 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
             // 从设置页面返回后会自动调用 onResume 刷新
             startActivity(new Intent(this, SettingsActivity.class));
             return true;
+        } else if (id == R.id.action_about) {
+            startActivity(new Intent(this, AboutActivity.class));
+            return true;
         }
         return super.onOptionsItemSelected(item);
     }

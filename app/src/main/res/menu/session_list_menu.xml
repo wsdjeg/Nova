@@ -3,7 +3,17 @@
     xmlns:app="http://schemas.android.com/apk/res-auto">
     
     <item
-        android:id="@+id/action_settings"
-        android:title="设置"
-        app:showAsAction="always" />
+        android:id="@+id/action_more"
+        android:icon="@drawable/ic_more_vert_white"
+        android:title=""
+        app:showAsAction="always">
+        <menu>
+            <item
+                android:id="@+id/action_settings"
+                android:title="设置" />
+            <item
+                android:id="@+id/action_about"
+                android:title="关于" />
+        </menu>
+    </item>
 </menu>
