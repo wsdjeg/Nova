@@ -313,11 +313,24 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
                             return;
                         }
                         
+                        // 过滤掉 tool 消息，与 ChatActivity 保持一致
+                        List<ApiClient.ChatMessage> filteredMessages = new ArrayList<>();
+                        for (ApiClient.ChatMessage msg : chatMessages) {
+                            if (!"tool".equals(msg.role)) {
+                                filteredMessages.add(msg);
+                            }
+                        }
+                        
+                        if (filteredMessages.isEmpty()) {
+                            updateSyncProgress();
+                            return;
+                        }
+                        
                         // 获取第一条和最后一条消息
-                        ApiClient.ChatMessage firstMsg = chatMessages.get(0);
-                        ApiClient.ChatMessage lastMsg = chatMessages.get(chatMessages.size() - 1);
+                        ApiClient.ChatMessage firstMsg = filteredMessages.get(0);
+                        ApiClient.ChatMessage lastMsg = filteredMessages.get(filteredMessages.size() - 1);
                         long lastMessageTime = lastMsg.created * 1000; // 转换为毫秒
-                        int messageCount = chatMessages.size();
+                        int messageCount = filteredMessages.size();
                         
                         // 更新会话信息
                         sessionManager.updateMessages(
@@ -367,9 +380,19 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
             return;
         }
         
+        // 加载已初始化的会话列表，只轮询已初始化的会话
+        // 避免在初始化过程中计算错误的未读数
+        Set<String> initializedSessions = sessionManager.loadInitializedSessions();
+        
         // 轮询每个会话的消息
         for (Session session : currentSessions) {
             final String sessionId = session.getSessionId();
+            
+            // 跳过未初始化的会话，避免未读数计算错误
+            if (!initializedSessions.contains(sessionId)) {
+                continue;
+            }
+            
             final int readCount = sessionManager.getReadMessageCount(sessionId);
             
             apiClient.getMessages(sessionId, new ApiClient.MessagesCallback() {
@@ -380,11 +403,23 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
                             return;
                         }
                         
+                        // 过滤掉 tool 消息，与 ChatActivity 保持一致
+                        List<ApiClient.ChatMessage> filteredMessages = new ArrayList<>();
+                        for (ApiClient.ChatMessage msg : chatMessages) {
+                            if (!"tool".equals(msg.role)) {
+                                filteredMessages.add(msg);
+                            }
+                        }
+                        
+                        if (filteredMessages.isEmpty()) {
+                            return;
+                        }
+                        
                         // 获取第一条和最后一条消息
-                        ApiClient.ChatMessage firstMsg = chatMessages.get(0);
-                        ApiClient.ChatMessage lastMsg = chatMessages.get(chatMessages.size() - 1);
+                        ApiClient.ChatMessage firstMsg = filteredMessages.get(0);
+                        ApiClient.ChatMessage lastMsg = filteredMessages.get(filteredMessages.size() - 1);
                         long lastMessageTime = lastMsg.created * 1000;
-                        int serverMessageCount = chatMessages.size();
+                        int serverMessageCount = filteredMessages.size();
                         
                         // 计算未读数：服务器消息数 - 已读消息数
                         int unreadCount = serverMessageCount - readCount;
