@@ -7,11 +7,13 @@ import org.json.JSONException;
 import org.json.JSONObject;
 import java.util.ArrayList;
 import java.util.Collections;
-    private static final String PREFS_NAME = "ChatAppSessions";
-    private static final String KEY_SESSIONS = "sessions";
-    private static final String KEY_CURRENT_SESSION = "current_session";
-    private static final String KEY_INITIALIZED_SESSIONS = "initialized_sessions";
-    private static final String KEY_READ_MESSAGE_COUNTS = "read_message_counts"; // 已读消息数
+import java.util.HashSet;
+import java.util.Set;
+import java.util.Map;
+import java.util.HashMap;
+import java.util.Iterator;
+
+/**
  * 会话管理器
  * 负责管理会话列表的存储、加载和更新
  */
@@ -20,6 +22,7 @@ public class SessionManager {
     private static final String KEY_SESSIONS = "sessions";
     private static final String KEY_CURRENT_SESSION = "current_session";
     private static final String KEY_INITIALIZED_SESSIONS = "initialized_sessions";
+    private static final String KEY_READ_MESSAGE_COUNTS = "read_message_counts";
     
     private SharedPreferences prefs;
     
@@ -41,7 +44,6 @@ public class SessionManager {
                 json.put("lastMessageTime", session.getLastMessageTime());
                 json.put("messageCount", session.getMessageCount());
                 json.put("unreadCount", session.getUnreadCount());
-                // 新增字段：来自 API /sessions
                 json.put("provider", session.getProvider());
                 json.put("model", session.getModel());
                 json.put("cwd", session.getCwd());
@@ -76,7 +78,6 @@ public class SessionManager {
                     json.optInt("messageCount", 0)
                 );
                 session.setUnreadCount(json.optInt("unreadCount", 0));
-                // 加载新增字段
                 session.setProvider(json.optString("provider", ""));
                 session.setModel(json.optString("model", ""));
                 session.setCwd(json.optString("cwd", ""));
@@ -86,7 +87,6 @@ public class SessionManager {
             e.printStackTrace();
         }
         
-        // 按 sessionId 排序（字符串字典序）
         Collections.sort(sessions, (s1, s2) -> 
             s1.getSessionId().compareTo(s2.getSessionId()));
         
@@ -102,7 +102,6 @@ public class SessionManager {
         
         for (int i = 0; i < sessions.size(); i++) {
             if (sessions.get(i).getSessionId().equals(newSession.getSessionId())) {
-                // 保留未读数（如果新session没有设置）
                 if (newSession.getUnreadCount() == 0 && sessions.get(i).getUnreadCount() > 0) {
                     newSession.setUnreadCount(sessions.get(i).getUnreadCount());
                 }
@@ -128,7 +127,6 @@ public class SessionManager {
     
     /**
      * 更新会话的消息信息
-     * @param lastMessageTime 最后一条消息的时间戳（毫秒）
      */
     public void updateMessages(String sessionId, String firstMessage, String lastMessage, int messageCount, long lastMessageTime) {
         List<Session> sessions = loadSessions();
@@ -196,7 +194,6 @@ public class SessionManager {
         sessions.removeAll(toRemove);
         saveSessions(sessions);
         
-        // 同时从已初始化列表中移除
         removeInitializedSession(sessionId);
     }
     
@@ -321,8 +318,9 @@ public class SessionManager {
     public boolean isSessionInitialized(String sessionId) {
         return loadInitializedSessions().contains(sessionId);
     }
+    
     /**
-     * 清除所有已初始化状态（用于强制重新同步）
+     * 清除所有已初始化状态
      */
     public void clearInitializedSessions() {
         prefs.edit().remove(KEY_INITIALIZED_SESSIONS).apply();
@@ -333,9 +331,9 @@ public class SessionManager {
     /**
      * 保存已读消息数映射
      */
-    public void saveReadMessageCounts(java.util.Map<String, Integer> readCounts) {
+    public void saveReadMessageCounts(Map<String, Integer> readCounts) {
         JSONObject json = new JSONObject();
-        for (java.util.Map.Entry<String, Integer> entry : readCounts.entrySet()) {
+        for (Map.Entry<String, Integer> entry : readCounts.entrySet()) {
             try {
                 json.put(entry.getKey(), entry.getValue());
             } catch (JSONException e) {
@@ -348,8 +346,8 @@ public class SessionManager {
     /**
      * 加载已读消息数映射
      */
-    public java.util.Map<String, Integer> loadReadMessageCounts() {
-        java.util.Map<String, Integer> readCounts = new java.util.HashMap<>();
+    public Map<String, Integer> loadReadMessageCounts() {
+        Map<String, Integer> readCounts = new HashMap<>();
         String jsonStr = prefs.getString(KEY_READ_MESSAGE_COUNTS, "");
         
         if (jsonStr.isEmpty()) {
@@ -358,7 +356,7 @@ public class SessionManager {
         
         try {
             JSONObject json = new JSONObject(jsonStr);
-            java.util.Iterator<String> keys = json.keys();
+            Iterator<String> keys = json.keys();
             while (keys.hasNext()) {
                 String key = keys.next();
                 readCounts.put(key, json.getInt(key));
@@ -374,7 +372,7 @@ public class SessionManager {
      * 保存单个会话的已读消息数
      */
     public void saveReadMessageCount(String sessionId, int count) {
-        java.util.Map<String, Integer> readCounts = loadReadMessageCounts();
+        Map<String, Integer> readCounts = loadReadMessageCounts();
         readCounts.put(sessionId, count);
         saveReadMessageCounts(readCounts);
     }
@@ -383,7 +381,7 @@ public class SessionManager {
      * 获取单个会话的已读消息数
      */
     public int getReadMessageCount(String sessionId) {
-        java.util.Map<String, Integer> readCounts = loadReadMessageCounts();
+        Map<String, Integer> readCounts = loadReadMessageCounts();
         return readCounts.getOrDefault(sessionId, 0);
     }
     
