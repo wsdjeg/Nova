@@ -247,9 +247,11 @@ public class ChatActivity extends AppCompatActivity {
         adapter.notifyDataSetChanged();
         
         if (shouldScrollToBottom && messages.size() > 0) {
-            rvMessages.smoothScrollToPosition(messages.size() - 1);
+            // 直接跳转到底部，避免长时间滚动动画
+            rvMessages.scrollToPosition(messages.size() - 1);
         }
     }
+    
     private void sendMessage() {
         String messageText = etMessage.getText().toString().trim();
         
