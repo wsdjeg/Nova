@@ -57,6 +57,20 @@ Nova 是一个 Android AI 聊天助手应用，作为 [chat.nvim](https://nvim.c
 │           └── values/               # 值资源
 │               ├── colors.xml
 │               ├── strings.xml
+│               └── themes.xml
+├── .github/
+│   └── workflows/
+│       └── android.yml               # CI/CD 配置
+├── build.gradle                      # 项目级构建配置
+├── settings.gradle                   # 项目设置
+├── gradle.properties                 # Gradle 属性
+├── .gitignore                        # Git 忽略规则
+├── README.md                         # 项目说明
+└── AGENTS.md                         # 本文件
+```
+
+## 开发规范
+
 ### 代码修改规范
 
 **⚠️ 极其重要：修改前必须验证存在性！**
@@ -81,176 +95,30 @@ String ip = settingsManager.getIpAddress();  // 方法不存在！
 4. 然后才能在代码中引用
 
 **禁止行为：**
-## API 实现
+- 禁止凭记忆或猜测调用方法
+- 禁止假设某个类有某个方法
+- 禁止不看源码就写代码
+
+### API 实现规范
 
 Nova 作为 chat.nvim 的移动端客户端，需要实现 HTTP API 与服务端通信。
 
-### API 文档
+**获取最新 API 文档：**
 
-> **参考文档**: [HTTP API](https://raw.githubusercontent.com/wsdjeg/chat.nvim/refs/heads/master/docs/api/http.md)
-> 
-> 该文档会持续更新，实现时请以最新文档为准。
+当需要实现或修改 API 相关功能时，使用 `@fetch_web` 获取最新的 API 文档：
 
-### API 端点
-
-| Endpoint        | Method | Description                                              |
-| --------------- | ------ | -------------------------------------------------------- |
-| `/`             | POST   | 发送消息到指定会话                                        |
-| `/sessions`     | GET    | 获取所有会话列表                                          |
-| `/session/new`  | POST   | 创建新会话                                               |
-| `/session/:id`  | DELETE | 删除指定会话                                              |
-| `/session`      | GET    | 获取会话 HTML 预览 (需要 `id` 参数)                       |
-| `/messages`     | GET    | 获取会话消息列表 (需要 `session` 参数)                     |
-
-**Base URL**: `http://{host}:{port}/` (默认: `127.0.0.1:7777`)
-
-### 认证
-
-所有请求（除 GET /session 外）都需要 `X-API-Key` 请求头：
-
-```java
-Request request = new Request.Builder()
-    .url(url)
-    .addHeader("X-API-Key", apiKey)
-    .build();
+```
+@fetch_web url="https://raw.githubusercontent.com/wsdjeg/chat.nvim/refs/heads/master/docs/api/http.md"
 ```
 
-### 请求示例
+该文档包含：
+- API 端点定义
+- 请求/响应格式
+- 认证方式
+- 错误处理
+- 代码示例
 
-#### 发送消息 (POST /)
-
-```java
-// 请求体
-{
-  "session": "session-id",
-  "content": "消息内容"
-}
-
-// OkHttp 实现
-String json = String.format("{\"session\":\"%s\",\"content\":\"%s\"}", 
-    sessionId, content);
-RequestBody body = RequestBody.create(json, MediaType.parse("application/json"));
-Request request = new Request.Builder()
-    .url(baseUrl + "/")
-    .addHeader("X-API-Key", apiKey)
-    .post(body)
-    .build();
-```
-
-#### 获取会话列表 (GET /sessions)
-
-```java
-Request request = new Request.Builder()
-    .url(baseUrl + "/sessions")
-    .addHeader("X-API-Key", apiKey)
-    .build();
-
-// 响应示例
-[
-  {
-    "id": "2024-01-15-10-30-00",
-    "cwd": "/home/user/project",
-    "provider": "openai",
-    "model": "gpt-4o"
-  }
-]
-```
-
-#### 创建新会话 (POST /session/new)
-
-```java
-// 请求体 (可选)
-{
-  "cwd": "/path/to/project",
-  "provider": "openai",
-  "model": "gpt-4o"
-}
-
-// 响应 201
-{
-  "id": "2024-01-15-10-30-00"
-}
-```
-
-#### 删除会话 (DELETE /session/:id)
-
-```java
-Request request = new Request.Builder()
-    .url(baseUrl + "/session/" + sessionId)
-    .addHeader("X-API-Key", apiKey)
-    .delete()
-    .build();
-
-// 响应: 204 成功, 404 会话不存在, 409 会话进行中
-```
-
-#### 获取消息列表 (GET /messages)
-
-```java
-Request request = new Request.Builder()
-    .url(baseUrl + "/messages?session=" + sessionId)
-    .addHeader("X-API-Key", apiKey)
-    .build();
-
-// 响应示例
-[
-  {
-    "role": "user",
-    "content": "Hello!"
-  },
-  {
-    "role": "assistant", 
-    "content": "Hi there!"
-  }
-]
-```
-
-### 响应状态码
-
-| 状态码 | 说明 |
-| ------ | ---- |
-| 200    | 成功 |
-| 201    | 创建成功 |
-| 204    | 成功 (无内容) |
-| 400    | 请求格式错误 |
-| 401    | 认证失败 (无效或缺失 API Key) |
-| 404    | 资源不存在 |
-| 409    | 冲突 (会话正在处理中) |
-
-### 消息队列机制
-
-> **重要**: 服务端使用消息队列系统处理请求：
-> 1. 消息接收后立即进入队列
-> 2. 队列每 5 秒检查一次
-> 3. 当会话空闲时才处理消息
-> 4. 如果会话忙碌，消息保留在队列中等待
-
-这意味着发送消息后不会立即收到 AI 回复，客户端需要：
-- 定期轮询 `/messages` 获取新消息
-- 或者实现流式响应 (如支持)
-
-## 常见问题
-
-### Q: 如何添加新功能？
-A: 创建 feature 分支 → 开发 → 测试 → PR → 合并
-
-### Q: 如何更新版本号？
-A: 修改 app/build.gradle 中的 versionCode 和 versionName
-
-### Q: CI 构建失败怎么办？
-A: 检查 Actions 日志，通常是依赖或配置问题
-├── .github/
-│   └── workflows/
-│       └── android.yml               # CI/CD 配置
-├── build.gradle                      # 项目级构建配置
-├── settings.gradle                   # 项目设置
-├── gradle.properties                 # Gradle 属性
-├── .gitignore                        # Git 忽略规则
-├── README.md                         # 项目说明
-└── AGENTS.md                         # 本文件
-```
-
-## 开发规范
+**注意：** API 文档会持续更新，每次修改 API 相关代码时都应先获取最新文档确认。
 
 ### Git 工作流
 
@@ -296,6 +164,25 @@ A: 检查 Actions 日志，通常是依赖或配置问题
 - `master`: 主分支，保持稳定
 - 功能开发: 从 master 创建 feature 分支
 - 修复: 从 master 创建 fix 分支
+
+### 修改后检查规范
+
+**⚠️ 重要：每次修改完成后必须检查！**
+
+每次修改文件完成后，必须：
+1. 使用 `@read_file` 读取修改过的文件的**完整内容**
+2. 确认修改无误，格式正确
+3. 确认没有破坏其他部分
+4. 确认无误后，再推送到 GitHub
+
+```
+✅ 正确流程:
+1. 修改文件
+2. @read_file filepath="修改的文件路径"  # 读取完整内容确认
+3. 确认无误后 @git_add
+4. @git_commit
+5. @git_push
+```
 
 ## 构建与运行
 
