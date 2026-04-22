@@ -85,6 +85,8 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
         // 这确保从设置页面保存后返回时能立即开始刷新
         if (settingsManager.hasValidSettings()) {
             refreshSessionsFromServer();
+            // 立即启动自动刷新，确保持续轮询消息
+            startAutoRefresh();
         }
     }
     
@@ -393,8 +395,7 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
                 continue;
             }
             
-            final int readCount = sessionManager.getReadMessageCount(sessionId);
-            
+            // 在 API 回调中重新获取 readCount，确保使用最新的值
             apiClient.getMessages(sessionId, new ApiClient.MessagesCallback() {
                 @Override
                 public void onSuccess(List<ApiClient.ChatMessage> chatMessages) {
@@ -420,6 +421,9 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
                         ApiClient.ChatMessage lastMsg = filteredMessages.get(filteredMessages.size() - 1);
                         long lastMessageTime = lastMsg.created * 1000;
                         int serverMessageCount = filteredMessages.size();
+                        
+                        // 在回调中重新获取 readCount，确保使用最新的已读消息数
+                        int readCount = sessionManager.getReadMessageCount(sessionId);
                         
                         // 计算未读数：服务器消息数 - 已读消息数
                         int unreadCount = serverMessageCount - readCount;
