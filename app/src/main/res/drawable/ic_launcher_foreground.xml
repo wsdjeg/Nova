@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    
+    <!-- Nova 能量钻石 - 前景层 (108dp 安全区域) -->
+    <!-- 安全区域边距约 18dp，中心 72dp -->
+    
+    <!-- 星尘粒子 - 环绕效果 -->
+    <group
+        android:translateX="54"
+        android:translateY="54">
+        <!-- 距离中心 32-38dp 的粒子 -->
+        <path
+            android:fillColor="#80FFFFFF"
+            android:pathData="M36,-8 L37,-7 L36,-6 L35,-7 Z"/>
+        <path
+            android:fillColor="#60FFFFFF"
+            android:pathData="M-35,12 L-34,13 L-35,14 L-36,13 Z"/>
+        <path
+            android:fillColor="#70FFFFFF"
+            android:pathData="M12,-36 L13,-35 L12,-34 L11,-35 Z"/>
+        <path
+            android:fillColor="#50FFFFFF"
+            android:pathData="M-10,34 L-9,35 L-10,36 L-11,35 Z"/>
+    </group>
+    
+    <!-- 主钻石形状 -->
+    <group
+        android:translateX="54"
+        android:translateY="54">
+        
+        <!-- 钻石外层光晕 -->
+        <path
+            android:fillColor="#1500D4FF"
+            android:pathData="M0,-32 L38,-12 L0,38 L-38,-12 Z"/>
+        
+        <!-- 钻石主体 - 渐变层 -->
+        <path
+            android:fillColor="#1A237E"
+            android:pathData="M0,-28 L34,-10 L0,34 L-34,-10 Z"/>
+        
+        <!-- 钻石上部 - 深蓝到电蓝渐变 -->
+        <path
+            android:fillColor="#2962FF"
+            android:pathData="M0,-28 L17,-19 L0,-10 L-17,-19 Z"/>
+        
+        <!-- 钻石左翼 -->
+        <path
+            android:fillColor="#1565C0"
+            android:pathData="M-17,-19 L0,-10 L0,12 L-34,-10 Z"/>
+        
+        <!-- 钻石右翼 -->
+        <path
+            android:fillColor="#0D47A1"
+            android:pathData="M17,-19 L34,-10 L0,12 L0,-10 Z"/>
+        
+        <!-- 钻石下部核心 -->
+        <path
+            android:fillColor="#00BCD4"
+            android:pathData="M0,-10 L17,-19 L0,34 L-17,-19 Z"
+            android:fillAlpha="0.3"/>
+        
+        <!-- 钻石顶部高光 -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M0,-28 L10,-20 L0,-15 L-10,-20 Z"
+            android:fillAlpha="0.15"/>
+        
+        <!-- 核心光芒 - 中央发光点 -->
+        <path
+            android:fillColor="#00FFFF"
+            android:pathData="M-3,-6 L3,-6 L3,6 L-3,6 Z"
+            android:fillAlpha="0.4"/>
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M-2,-3 L2,-3 L2,3 L-2,3 Z"
+            android:fillAlpha="0.8"/>
+        
+        <!-- 能量环 - 穿过钻石 -->
+        <path
+            android:pathData="M-28,0 Q0,-18 28,0"
+            android:strokeColor="#00BCD4"
+            android:strokeWidth="1.5"
+            android:strokeAlpha="0.9"
+            android:fillColor="@android:color/transparent"/>
+        <path
+            android:pathData="M-26,2 Q0,-15 26,2"
+            android:strokeColor="#00FFFF"
+            android:strokeWidth="1"
+            android:strokeAlpha="0.5"
+            android:fillColor="@android:color/transparent"/>
+        
+        <!-- 外发光环 -->
+        <path
+            android:pathData="M-38,-12 Q0,-35 38,-12"
+            android:strokeColor="#7C4DFF"
+            android:strokeWidth="1"
+            android:strokeAlpha="0.6"
+            android:fillColor="@android:color/transparent"/>
+        
+        <!-- 边缘光效 -->
+        <path
+            android:pathData="M0,-28 L34,-10"
+            android:strokeColor="#FFFFFF"
+            android:strokeWidth="0.5"
+            android:strokeAlpha="0.6"
+            android:fillColor="@android:color/transparent"/>
+        <path
+            android:pathData="M0,-28 L-34,-10"
+            android:strokeColor="#FFFFFF"
+            android:strokeWidth="0.5"
+            android:strokeAlpha="0.4"
+            android:fillColor="@android:color/transparent"/>
+        <path
+            android:pathData="M0,34 L-34,-10"
+            android:strokeColor="#64FFDA"
+            android:strokeWidth="0.5"
+            android:strokeAlpha="0.4"
+            android:fillColor="@android:color/transparent"/>
+        <path
+            android:pathData="M0,34 L34,-10"
+            android:strokeColor="#64FFDA"
+            android:strokeWidth="0.5"
+            android:strokeAlpha="0.3"
+            android:fillColor="@android:color/transparent"/>
+    </group>
+</vector>

@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    
+    <!-- 宇宙深色渐变背景 -->
+    <!-- 从深黑到深蓝的径向渐变效果 -->
+    
+    <!-- 最外层 - 深黑 -->
+    <path
+        android:fillColor="#000510"
+        android:pathData="M0,0h108v108H0z"/>
+    
+    <!-- 径向渐变层 - 模拟从中心向外变暗 -->
+    <path
+        android:fillColor="#0A1628"
+        android:pathData="M54,54m-54,0a54,54 0,1 1,108 0a54,54 0,1 1,-108 0"/>
+    
+    <!-- 中心稍亮区域 -->
+    <path
+        android:fillColor="#0D1F3C"
+        android:pathData="M54,54m-40,0a40,40 0,1 1,80 0a40,40 0,1 1,-80 0"/>
+    
+    <!-- 微弱的蓝紫色调 -->
+    <path
+        android:fillColor="#1A0A2E"
+        android:fillAlpha="0.3"
+        android:pathData="M54,54m-35,0a35,35 0,1 1,70 0a35,35 0,1 1,-70 0"/>
+    
+    <!-- 星尘粒子 - 细微亮点 -->
+    <!-- 位置随机分布但保持对称美感 -->
+    <group>
+        <!-- 粒子组 1 - 左上区域 -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:fillAlpha="0.4"
+            android:pathData="M20,25 L21,24 L22,25 L21,26 Z"/>
+        <path
+            android:fillColor="#FFFFFF"
+            android:fillAlpha="0.25"
+            android:pathData="M15,40 L15.5,39.5 L16,40 L15.5,40.5 Z"/>
+        <path
+            android:fillColor="#FFFFFF"
+            android:fillAlpha="0.15"
+            android:pathData="M28,15 L29,14 L30,15 L29,16 Z"/>
+        
+        <!-- 粒子组 2 - 右上区域 -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:fillAlpha="0.35"
+            android:pathData="M88,20 L89,19 L90,20 L89,21 Z"/>
+        <path
+            android:fillColor="#FFFFFF"
+            android:fillAlpha="0.2"
+            android:pathData="M92,35 L92.5,34.5 L93,35 L92.5,35.5 Z"/>
+        <path
+            android:fillColor="#FFFFFF"
+            android:fillAlpha="0.1"
+            android:pathData="M80,12 L81,11 L82,12 L81,13 Z"/>
+        
+        <!-- 粒子组 3 - 左下区域 -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:fillAlpha="0.3"
+            android:pathData="M12,70 L13,69 L14,70 L13,71 Z"/>
+        <path
+            android:fillColor="#FFFFFF"
+            android:fillAlpha="0.15"
+            android:pathData="M22,85 L23,84 L24,85 L23,86 Z"/>
+        <path
+            android:fillColor="#FFFFFF"
+            android:fillAlpha="0.2"
+            android:pathData="M8,55 L8.5,54.5 L9,55 L8.5,55.5 Z"/>
+        
+        <!-- 粒子组 4 - 右下区域 -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:fillAlpha="0.35"
+            android:pathData="M95,75 L96,74 L97,75 L96,76 Z"/>
+        <path
+            android:fillColor="#FFFFFF"
+            android:fillAlpha="0.2"
+            android:pathData="M85,90 L86,89 L87,90 L86,91 Z"/>
+        <path
+            android:fillColor="#FFFFFF"
+            android:fillAlpha="0.25"
+            android:pathData="M100,60 L100.5,59.5 L101,60 L100.5,60.5 Z"/>
+        
+        <!-- 粒子组 5 - 边缘散射 -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:fillAlpha="0.1"
+            android:pathData="M5,10 L6,9 L7,10 L6,11 Z"/>
+        <path
+            android:fillColor="#FFFFFF"
+            android:fillAlpha="0.1"
+            android:pathData="M100,10 L101,9 L102,10 L101,11 Z"/>
+        <path
+            android:fillColor="#FFFFFF"
+            android:fillAlpha="0.1"
+            android:pathData="M5,98 L6,97 L7,98 L6,99 Z"/>
+        <path
+            android:fillColor="#FFFFFF"
+            android:fillAlpha="0.1"
+            android:pathData="M100,98 L101,97 L102,98 L101,99 Z"/>
+    </group>
+</vector>
