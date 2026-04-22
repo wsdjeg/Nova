@@ -39,6 +39,10 @@ public class SessionManager {
                 json.put("lastMessageTime", session.getLastMessageTime());
                 json.put("messageCount", session.getMessageCount());
                 json.put("unreadCount", session.getUnreadCount());
+                // 新增字段：来自 API /sessions
+                json.put("provider", session.getProvider());
+                json.put("model", session.getModel());
+                json.put("cwd", session.getCwd());
                 jsonArray.put(json);
             } catch (JSONException e) {
                 e.printStackTrace();
@@ -70,6 +74,10 @@ public class SessionManager {
                     json.optInt("messageCount", 0)
                 );
                 session.setUnreadCount(json.optInt("unreadCount", 0));
+                // 加载新增字段
+                session.setProvider(json.optString("provider", ""));
+                session.setModel(json.optString("model", ""));
+                session.setCwd(json.optString("cwd", ""));
                 sessions.add(session);
             }
         } catch (JSONException e) {
