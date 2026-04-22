@@ -29,6 +29,7 @@ public class ChatActivity extends AppCompatActivity {
     private static final int REFRESH_INTERVAL_MS = 5000; // 5秒刷新一次
     
     private Toolbar toolbar;
+    private TextView tvSessionTitle;
     private TextView tvSessionInfo;
     private TextView tvSessionPath;
     private RecyclerView rvMessages;
@@ -58,7 +59,8 @@ public class ChatActivity extends AppCompatActivity {
         toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
         
-        // 初始化顶部会话信息控件
+        // 初始化顶部会话信息控件（三行）
+        tvSessionTitle = findViewById(R.id.tv_session_title);
         tvSessionInfo = findViewById(R.id.tv_session_info);
         tvSessionPath = findViewById(R.id.tv_session_path);
         
@@ -124,8 +126,9 @@ public class ChatActivity extends AppCompatActivity {
                 public void onError(String error) {
                     // 如果无法获取，显示默认信息
                     runOnUiThread(() -> {
-                        tvSessionInfo.setText("Provider: unknown | Model: unknown");
-                        tvSessionPath.setText("Path: unknown");
+                        tvSessionTitle.setText("未知会话");
+                        tvSessionInfo.setText("unknown | unknown");
+                        tvSessionPath.setText("CWD: unknown");
                     });
                 }
             });
@@ -133,20 +136,25 @@ public class ChatActivity extends AppCompatActivity {
     }
     
     /**
-     * 更新顶部会话信息显示
+     * 更新顶部会话信息显示（三行）
      */
     private void updateSessionInfo(Session session) {
+        String title = session.getTitle();
         String provider = session.getProvider();
         String model = session.getModel();
         String cwd = session.getCwd();
         
-        // 第一行：Provider + Model
-        String infoLine = "Provider: " + (provider != null ? provider : "unknown") 
-                        + " | Model: " + (model != null ? model : "unknown");
+        // 第一行：会话标题（粗体、白色）
+        tvSessionTitle.setText(title != null && !title.isEmpty() ? title : "新会话");
+        
+        // 第二行：provider | model（不要前面的标签）
+        String infoLine = (provider != null ? provider : "unknown") 
+                        + " | " 
+                        + (model != null ? model : "unknown");
         tvSessionInfo.setText(infoLine);
         
-        // 第二行：路径（cwd）
-        String pathLine = "Path: " + (cwd != null ? cwd : "unknown");
+        // 第三行：CWD: session.cwd
+        String pathLine = "CWD: " + (cwd != null ? cwd : "unknown");
         tvSessionPath.setText(pathLine);
     }
     
@@ -218,6 +226,7 @@ public class ChatActivity extends AppCompatActivity {
         btnSend = findViewById(R.id.btn_send);
         btnSend.setOnClickListener(v -> sendMessage());
     }
+    
     private void setupRecyclerView() {
         messages = new ArrayList<>();
         adapter = new MessageAdapter(messages, this);
@@ -281,6 +290,11 @@ public class ChatActivity extends AppCompatActivity {
                                 chatMessages.size(),
                                 lastMsg.created * 1000L  // lastMessageTime in ms
                             );
+                            
+                            // 更新顶部标题
+                            if (firstUserMessage != null) {
+                                tvSessionTitle.setText(firstUserMessage);
+                            }
                         }
                     }
                 });

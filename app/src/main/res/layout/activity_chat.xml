@@ -15,7 +15,7 @@
         app:titleTextColor="@android:color/white"
         app:subtitleTextColor="#CCCCCC">
         
-        <!-- Session Info embedded in Toolbar -->
+        <!-- Session Info embedded in Toolbar - 3 lines -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -23,23 +23,36 @@
             android:paddingStart="16dp"
             android:paddingEnd="16dp">
             
-            <!-- Provider and Model info -->
+            <!-- Line 1: Session Title (bold, white) -->
+            <TextView
+                android:id="@+id/tv_session_title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="新会话"
+                android:textColor="@android:color/white"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:maxLines="1"
+                android:ellipsize="end" />
+            
+            <!-- Line 2: Provider | Model -->
             <TextView
                 android:id="@+id/tv_session_info"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Provider: unknown | Model: unknown"
-                android:textColor="@android:color/white"
-                android:textSize="14sp"
-                android:textStyle="bold" />
+                android:text="unknown | unknown"
+                android:textColor="#CCCCCC"
+                android:textSize="13sp"
+                android:maxLines="1"
+                android:ellipsize="middle" />
             
-            <!-- Working directory path -->
+            <!-- Line 3: CWD path -->
             <TextView
                 android:id="@+id/tv_session_path"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Path: unknown"
-                android:textColor="#CCCCCC"
+                android:text="CWD: unknown"
+                android:textColor="#AAAAAA"
                 android:textSize="12sp"
                 android:maxLines="1"
                 android:ellipsize="middle" />
