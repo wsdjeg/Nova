@@ -37,6 +37,12 @@
             android:exported="false"
             android:label="设置" />
 
+        <!-- AboutActivity 关于界面 -->
+        <activity
+            android:name=".AboutActivity"
+            android:exported="false"
+            android:label="关于" />
+
     </application>
 
 </manifest>

@@ -1,6 +1,7 @@
 package net.wsdjeg.nova;
 
 import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
 import android.view.MenuItem;
 import android.widget.Button;
@@ -12,9 +13,10 @@ import androidx.appcompat.widget.Toolbar;
 public class SettingsActivity extends AppCompatActivity {
     
     public static final String EXTRA_SETTINGS_SAVED = "settings_saved";
+    private static final String UPDATE_URL = "https://github.com/wsdjeg/Nova/releases/download/prerelease/ChatApp.apk";
     
     private EditText etUrl, etPort, etApiKey;
-    private Button btnSave;
+    private Button btnSave, btnCheckUpdate, btnAbout;
     private SettingsManager settingsManager;
 
     @Override
@@ -39,8 +41,12 @@ public class SettingsActivity extends AppCompatActivity {
         etPort = findViewById(R.id.et_port);
         etApiKey = findViewById(R.id.et_api_key);
         btnSave = findViewById(R.id.btn_save);
+        btnCheckUpdate = findViewById(R.id.btn_check_update);
+        btnAbout = findViewById(R.id.btn_about);
         
         btnSave.setOnClickListener(v -> saveSettings());
+        btnCheckUpdate.setOnClickListener(v -> checkUpdate());
+        btnAbout.setOnClickListener(v -> openAbout());
     }
 
     private void loadSettings() {
@@ -54,7 +60,6 @@ public class SettingsActivity extends AppCompatActivity {
         String port = etPort.getText().toString().trim();
         String apiKey = etApiKey.getText().toString().trim();
         
-        // Session 不在设置页面配置，使用主界面的下拉菜单选择
         settingsManager.saveSettings(url, port, apiKey);
         Toast.makeText(this, "设置已保存", Toast.LENGTH_SHORT).show();
         
@@ -64,6 +69,16 @@ public class SettingsActivity extends AppCompatActivity {
         setResult(RESULT_OK, resultIntent);
         
         finish();
+    }
+
+    private void checkUpdate() {
+        Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(UPDATE_URL));
+        startActivity(intent);
+    }
+
+    private void openAbout() {
+        Intent intent = new Intent(this, AboutActivity.class);
+        startActivity(intent);
     }
 
     @Override

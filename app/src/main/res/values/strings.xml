@@ -31,4 +31,14 @@
     <string name="messages_cleared">Messages cleared</string>
     <string name="unknown_command">Unknown command: %s</string>
     <string name="current_session">Current Session: %s</string>
+    
+    <!-- About -->
+    <string name="about_title">关于 Nova</string>
+    <string name="app_description">Nova 是一个 Android AI 聊天助手应用，作为 chat.nvim 的移动端客户端。</string>
+    <string name="features_title">主要功能</string>
+    <string name="features_content">• 多会话管理\n• 实时聊天\n• Markdown 支持\n• API 配置</string>
+    <string name="tech_title">技术栈</string>
+    <string name="tech_content">• Java\n• AndroidX\n• OkHttp\n• Material Design</string>
+    <string name="github_title">开源项目</string>
+    <string name="github_url">https://github.com/wsdjeg/Nova</string>
 </resources>

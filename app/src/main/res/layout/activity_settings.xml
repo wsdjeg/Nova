@@ -77,14 +77,6 @@
                 android:inputType="textPassword"
                 android:layout_marginBottom="24dp" />
 
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="提示：Session 在主界面顶部下拉菜单中选择"
-                android:textSize="14sp"
-                android:textColor="#757575"
-                android:layout_marginBottom="16dp" />
-
             <Button
                 android:id="@+id/btn_save"
                 android:layout_width="match_parent"
@@ -98,6 +90,37 @@
                 android:layout_marginTop="16dp"
                 android:textSize="14sp"
                 android:textColor="#757575" />
+
+            <!-- 分隔线 -->
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginTop="24dp"
+                android:layout_marginBottom="24dp"
+                android:background="#E0E0E0" />
+
+            <!-- 其他选项 -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="其他"
+                android:textSize="24sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="16dp" />
+
+            <Button
+                android:id="@+id/btn_check_update"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="检查更新"
+                android:layout_marginBottom="8dp" />
+
+            <Button
+                android:id="@+id/btn_about"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="关于"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton" />
 
         </LinearLayout>
 
