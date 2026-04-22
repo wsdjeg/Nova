@@ -142,7 +142,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Licensed under MIT License"
+                android:text="Licensed under GPL v3"
                 android:textSize="12sp"
                 android:textColor="#9E9E9E"
                 android:layout_marginTop="4dp" />
