@@ -25,12 +25,7 @@ Nova 是一个轻量级的 Android AI 聊天助手应用，作为 [chat.nvim](ht
 - 🔒 **本地存储** - 设置信息安全保存在本地
 - 📋 **命令支持** - 支持斜杠命令管理会话
 - 🔄 **会话管理** - 查看和切换不同的对话会话
-
-### 📸 应用截图
-
-| 主界面 | 设置界面 | 对话界面 |
-|:---:|:---:|:---:|
-| 主界面截图 | 设置截图 | 对话截图 |
+- 📝 **Markdown 渲染** - 支持代码高亮、表格、任务列表等
 
 ## 🛠️ 技术栈
 
@@ -42,6 +37,7 @@ Nova 是一个轻量级的 Android AI 聊天助手应用，作为 [chat.nvim](ht
 | **UI 框架** | AppCompat + Material Design + ConstraintLayout |
 | **列表组件** | RecyclerView |
 | **网络请求** | OkHttp 4.12.0 |
+| **Markdown** | Markwon 4.6.2 (含代码高亮、表格、任务列表等扩展) |
 | **JSON 解析** | org.json |
 
 ## 🚀 快速开始
@@ -49,7 +45,7 @@ Nova 是一个轻量级的 Android AI 聊天助手应用，作为 [chat.nvim](ht
 ### 环境要求
 
 - Android Studio Hedgehog 或更高版本
-- JDK 17 或更高版本
+- JDK 8 或更高版本
 - Android SDK (API 34)
 - Gradle 8.0+
 
@@ -146,7 +142,7 @@ Nova 连接到 [chat.nvim HTTP Server](https://nvim.chat/api/http/)。
 
 ## 📄 许可证
 
-本项目采用 [MIT License](LICENSE) 许可证。
+本项目采用 [GPL-3.0 License](LICENSE) 许可证。
 
 ---
 
