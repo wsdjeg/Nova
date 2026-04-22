@@ -72,9 +72,10 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
         // 每次返回界面时刷新会话列表（包括从设置页面返回）
         loadSessions();
         
-        // 如果设置有效且第一次刷新已完成，启动定时刷新
-        if (isFirstRefreshDone && settingsManager.hasValidSettings()) {
-            startAutoRefresh();
+        // 如果设置有效，立即触发刷新并启动自动刷新
+        // 这确保从设置页面保存后返回时能立即开始刷新
+        if (settingsManager.hasValidSettings()) {
+            refreshSessionsFromServer();
         }
     }
     
@@ -162,11 +163,12 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
         sessions.clear();
         sessions.addAll(sessionManager.loadSessions());
         
-        // 按 session ID 排序（字符串字典序）
+        // 按 session ID 降序排序（最新的 session 排在前面）
+        // session ID 格式为 年月日时分秒随机数，字典序降序即为最新在前
         Collections.sort(sessions, new Comparator<Session>() {
             @Override
             public int compare(Session s1, Session s2) {
-                return s1.getSessionId().compareTo(s2.getSessionId());
+                return s2.getSessionId().compareTo(s1.getSessionId());
             }
         });
         
