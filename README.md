@@ -1,4 +1,4 @@
-# Nova - Android AI Chat Assistant
+# Nova - chat.nvim Android Client
 
 <div align="center">
 
@@ -6,7 +6,7 @@
 ![API](https://img.shields.io/badge/API-24%2B-brightgreen.svg)
 ![Java](https://img.shields.io/badge/Language-Java-orange.svg)
 
-**A simple and elegant AI chat assistant for Android**
+**Mobile client for [chat.nvim](https://nvim.chat) - Neovim AI chat plugin**
 
 [Download APK](https://github.com/wsdjeg/Nova/releases/tag/prerelease) | [Report Bug](https://github.com/wsdjeg/Nova/issues) | [Request Feature](https://github.com/wsdjeg/Nova/issues)
 
@@ -14,16 +14,17 @@
 
 ## 📱 项目简介
 
-Nova 是一个轻量级的 Android AI 聊天助手应用，作为 [chat.nvim](https://nvim.chat) 的移动端客户端，让你随时随地与 AI 助手进行对话。
+Nova 是 [chat.nvim](https://nvim.chat) 的 Android 移动端客户端，需要配合 **chat.nvim HTTP Server** 使用。
+
+> ⚠️ **注意**: 本应用不直接连接大模型 API，而是通过 chat.nvim HTTP Server 作为中间层。你需要先在电脑上运行 chat.nvim 并启动 HTTP Server，然后在手机上配置服务器地址即可使用。
 
 ### ✨ 功能特性
 
-- 🤖 **AI 对话** - 与 AI 助手进行自然流畅的对话
+- 📱 **移动端访问** - 在手机上继续你的 Neovim AI 对话
 - ⚙️ **灵活配置** - 支持自定义服务器地址、端口和 API Key
 - 💬 **消息列表** - 流畅的对话消息展示，区分用户和 AI 消息
 - 🎨 **Material Design** - 现代化的 Material 设计风格
-- 🔒 **本地存储** - 设置信息安全保存在本地
-- 📋 **命令支持** - 支持斜杠命令管理会话
+- 🔒 **本地存储** - 设置信息和会话列表保存在本地
 - 🔄 **会话管理** - 查看和切换不同的对话会话
 - 📝 **Markdown 渲染** - 支持代码高亮、表格、任务列表等
 
@@ -42,7 +43,13 @@ Nova 是一个轻量级的 Android AI 聊天助手应用，作为 [chat.nvim](ht
 
 ## 🚀 快速开始
 
-### 环境要求
+### 前置条件
+
+1. **安装 chat.nvim** - 在你的电脑上安装 [chat.nvim](https://nvim.chat) Neovim 插件
+2. **启动 HTTP Server** - 在 Neovim 中运行 HTTP Server（默认端口 8000）
+3. **网络连接** - 确保手机和电脑在同一网络，或通过公网 IP 连接
+
+### 环境要求（开发）
 
 - Android Studio Hedgehog 或更高版本
 - JDK 8 或更高版本
@@ -65,9 +72,7 @@ Nova 是一个轻量级的 Android AI 聊天助手应用，作为 [chat.nvim](ht
    - 连接 Android 设备或启动模拟器
    - 点击 Run 按钮 (Shift + F10)
 
-### 直接安装
-
-如果你只想体验应用，可以直接下载 APK：
+### 直接安装 APK
 
 1. 访问 [PreRelease](https://github.com/wsdjeg/Nova/releases/tag/prerelease) 页面
 2. 下载最新的 `ChatApp.apk`
@@ -78,7 +83,10 @@ Nova 是一个轻量级的 Android AI 聊天助手应用，作为 [chat.nvim](ht
 ### 首次配置
 
 1. 打开应用，点击右上角「Settings」图标
-2. 配置服务器地址、端口和 API Key
+2. 配置服务器信息：
+   - **服务器地址**: 运行 chat.nvim HTTP Server 的电脑 IP 地址
+   - **端口**: HTTP Server 端口（默认 8000）
+   - **API Key**: 你的 API Key（如果 chat.nvim 配置了验证）
 3. 点击保存，返回主界面
 
 ### 界面交互
@@ -121,7 +129,7 @@ Nova/
 
 ## 🔌 API 文档
 
-Nova 连接到 [chat.nvim HTTP Server](https://nvim.chat/api/http/)。
+Nova 通过 HTTP API 连接到 [chat.nvim HTTP Server](https://nvim.chat/api/http/)。
 
 ## 🎯 后续计划
 
