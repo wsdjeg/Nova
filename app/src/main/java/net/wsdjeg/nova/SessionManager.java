@@ -111,8 +111,9 @@ public class SessionManager {
     
     /**
      * 更新会话的消息信息
+     * @param lastMessageTime 最后一条消息的时间戳（毫秒）
      */
-    public void updateMessages(String sessionId, String firstMessage, String lastMessage, int messageCount) {
+    public void updateMessages(String sessionId, String firstMessage, String lastMessage, int messageCount, long lastMessageTime) {
         List<Session> sessions = loadSessions();
         
         for (Session session : sessions) {
@@ -121,20 +122,13 @@ public class SessionManager {
                     session.setFirstMessage(firstMessage);
                 }
                 session.setLastMessage(lastMessage);
-                session.setLastMessageTime(System.currentTimeMillis());
+                session.setLastMessageTime(lastMessageTime);
                 session.setMessageCount(messageCount);
                 break;
             }
         }
         
         saveSessions(sessions);
-    }
-    
-    /**
-     * 更新会话的最后消息（兼容旧版本）
-     */
-    public void updateLastMessage(String sessionId, String message, int messageCount) {
-        updateMessages(sessionId, null, message, messageCount);
     }
     
     /**
