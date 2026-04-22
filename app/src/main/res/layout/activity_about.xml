@@ -13,8 +13,7 @@
         android:background="?attr/colorPrimary"
         android:elevation="4dp"
         app:title="关于"
-        app:titleTextColor="@android:color/white"
-        app:navigationIcon="@android:drawable/ic_menu_close_clear_cancel" />
+        app:titleTextColor="@android:color/white" />
 
     <ScrollView
         android:layout_width="match_parent"
@@ -112,6 +111,18 @@
                 android:clickable="true"
                 android:focusable="true" />
 
+            <TextView
+                android:id="@+id/tv_check_update"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="检查更新"
+                android:textSize="16sp"
+                android:textColor="#1976D2"
+                android:padding="12dp"
+                android:background="?attr/selectableItemBackground"
+                android:clickable="true"
+                android:focusable="true" />
+
             <!-- 分隔线 -->
             <View
                 android:layout_width="match_parent"
@@ -124,7 +135,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="© 2024 wsdjeg"
+                android:text="© 2025 wsdjeg"
                 android:textSize="12sp"
                 android:textColor="#9E9E9E" />
 

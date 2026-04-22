@@ -13,8 +13,7 @@
         android:background="?attr/colorPrimary"
         android:elevation="4dp"
         app:title="设置"
-        app:titleTextColor="@android:color/white"
-        app:navigationIcon="@android:drawable/ic_menu_close_clear_cancel" />
+        app:titleTextColor="@android:color/white" />
 
     <ScrollView
         android:layout_width="match_parent"
@@ -90,37 +89,6 @@
                 android:layout_marginTop="16dp"
                 android:textSize="14sp"
                 android:textColor="#757575" />
-
-            <!-- 分隔线 -->
-            <View
-                android:layout_width="match_parent"
-                android:layout_height="1dp"
-                android:layout_marginTop="24dp"
-                android:layout_marginBottom="24dp"
-                android:background="#E0E0E0" />
-
-            <!-- 其他选项 -->
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="其他"
-                android:textSize="24sp"
-                android:textStyle="bold"
-                android:layout_marginBottom="16dp" />
-
-            <Button
-                android:id="@+id/btn_check_update"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="检查更新"
-                android:layout_marginBottom="8dp" />
-
-            <Button
-                android:id="@+id/btn_about"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="关于"
-                style="@style/Widget.MaterialComponents.Button.OutlinedButton" />
 
         </LinearLayout>
 
