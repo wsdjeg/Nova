@@ -1,0 +1,1355 @@
+
+
+<!DOCTYPE html>
+
+<html lang="en-US">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=Edge">
+
+  <link rel="stylesheet" href="/assets/css/just-the-docs-default.css">
+
+  <link rel="stylesheet" href="/assets/css/just-the-docs-head-nav.css" id="jtd-head-nav-stylesheet">
+
+  <style id="jtd-nav-activation">
+  
+
+    .site-nav > ul.nav-list:first-child > li > a,
+    
+    .site-nav > ul.nav-list:first-child > li > ul > li:not(:nth-child(1)) > a,
+    .site-nav > ul.nav-list:first-child > li > ul > li > ul > li a {
+      background-image: none;
+    }
+
+    .site-nav > ul.nav-list:not(:first-child) a,
+    .site-nav li.external a {
+      background-image: none;
+    }
+
+    .site-nav > ul.nav-list:first-child > li:nth-child(8) > ul > li:nth-child(1) > a {
+      font-weight: 600;
+      text-decoration: none;
+    }.site-nav > ul.nav-list:first-child > li:nth-child(8) > button svg,
+    .site-nav > ul.nav-list:first-child > li:nth-child(8) > ul > li:nth-child(1) > button svg {
+      transform: rotate(-90deg);
+    }.site-nav > ul.nav-list:first-child > li.nav-list-item:nth-child(8) > ul.nav-list,
+    .site-nav > ul.nav-list:first-child > li.nav-list-item:nth-child(8) > ul.nav-list > li.nav-list-item:nth-child(1) > ul.nav-list {
+      display: block;
+    }
+  </style>
+
+  
+
+  
+    <script src="/assets/js/vendor/lunr.min.js"></script>
+  
+
+  <script src="/assets/js/just-the-docs.js"></script>
+
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+
+
+
+  <!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>HTTP API | chat.nvim</title>
+<meta name="generator" content="Jekyll v3.10.0" />
+<meta property="og:title" content="HTTP API" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="A lightweight, extensible chat plugin for Neovim with AI integration" />
+<meta property="og:description" content="A lightweight, extensible chat plugin for Neovim with AI integration" />
+<link rel="canonical" href="https://nvim.chat/api/http/" />
+<meta property="og:url" content="https://nvim.chat/api/http/" />
+<meta property="og:site_name" content="chat.nvim" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="HTTP API" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","description":"A lightweight, extensible chat plugin for Neovim with AI integration","headline":"HTTP API","url":"https://nvim.chat/api/http/"}</script>
+<!-- End Jekyll SEO tag -->
+
+
+  
+
+</head>
+
+<body>
+  <a class="skip-to-main" href="#main-content">Skip to main content</a>
+  <svg xmlns="http://www.w3.org/2000/svg" class="d-none">
+  <symbol id="svg-link" viewBox="0 0 24 24">
+  <title>Link</title>
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-link">
+    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+  </svg>
+</symbol>
+
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+  <title>Menu</title>
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-menu">
+    <line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line>
+  </svg>
+</symbol>
+
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+  <title>Expand</title>
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-chevron-right">
+    <polyline points="9 18 15 12 9 6"></polyline>
+  </svg>
+</symbol>
+
+  <!-- Feather. MIT License: https://github.com/feathericons/feather/blob/master/LICENSE -->
+<symbol id="svg-external-link" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-external-link">
+  <title id="svg-external-link-title">(external link)</title>
+  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line>
+</symbol>
+
+  
+    <symbol id="svg-doc" viewBox="0 0 24 24">
+  <title>Document</title>
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-file">
+    <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><polyline points="13 2 13 9 20 9"></polyline>
+  </svg>
+</symbol>
+
+    <symbol id="svg-search" viewBox="0 0 24 24">
+  <title>Search</title>
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-search">
+    <circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+  </svg>
+</symbol>
+
+  
+  
+    <!-- Bootstrap Icons. MIT License: https://github.com/twbs/icons/blob/main/LICENSE.md -->
+<symbol id="svg-copy" viewBox="0 0 16 16">
+  <title>Copy</title>
+  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-clipboard" viewBox="0 0 16 16">
+    <path d="M4 1.5H3a2 2 0 0 0-2 2V14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V3.5a2 2 0 0 0-2-2h-1v1h1a1 1 0 0 1 1 1V14a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1h1v-1z"/>
+    <path d="M9.5 1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5h3zm-3-1A1.5 1.5 0 0 0 5 1.5v1A1.5 1.5 0 0 0 6.5 4h3A1.5 1.5 0 0 0 11 2.5v-1A1.5 1.5 0 0 0 9.5 0h-3z"/>
+  </svg>
+</symbol>
+<symbol id="svg-copied" viewBox="0 0 16 16">
+  <title>Copied</title>
+  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-clipboard-check-fill" viewBox="0 0 16 16">
+    <path d="M6.5 0A1.5 1.5 0 0 0 5 1.5v1A1.5 1.5 0 0 0 6.5 4h3A1.5 1.5 0 0 0 11 2.5v-1A1.5 1.5 0 0 0 9.5 0h-3Zm3 1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5h3Z"/>
+    <path d="M4 1.5H3a2 2 0 0 0-2 2V14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V3.5a2 2 0 0 0-2-2h-1v1A2.5 2.5 0 0 1 9.5 5h-3A2.5 2.5 0 0 1 4 2.5v-1Zm6.854 7.354-3 3a.5.5 0 0 1-.708 0l-1.5-1.5a.5.5 0 0 1 .708-.708L7.5 10.793l2.646-2.647a.5.5 0 0 1 .708.708Z"/>
+  </svg>
+</symbol>
+
+  
+</svg>
+
+  
+    <header class="side-bar">
+  <div class="site-header">
+    <a href="/" class="site-title lh-tight">
+  chat.nvim
+
+</a>
+    <button id="menu-button" class="site-button btn-reset" aria-label="Menu" aria-expanded="false">
+      <svg viewBox="0 0 24 24" class="icon" aria-hidden="true"><use xlink:href="#svg-menu"></use></svg>
+    </button>
+  </div>
+
+  <nav aria-label="Main" id="site-nav" class="site-nav">
+  
+  
+    <ul class="nav-list"><li class="nav-list-item"><a href="/" class="nav-list-link">Home</a></li><li class="nav-list-item"><button class="nav-list-expander btn-reset" aria-label="Getting Started submenu" aria-expanded="false">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><use xlink:href="#svg-arrow-right"></use></svg>
+      </button><a href="/getting-started/" class="nav-list-link">Getting Started</a><ul class="nav-list"><li class="nav-list-item"><a href="/getting-started/installation/" class="nav-list-link">Installation</a></li></ul></li><li class="nav-list-item"><a href="/configuration/" class="nav-list-link">Configuration</a></li><li class="nav-list-item"><a href="/usage/" class="nav-list-link">Usage</a></li><li class="nav-list-item"><a href="/providers/" class="nav-list-link">Providers</a></li><li class="nav-list-item"><button class="nav-list-expander btn-reset" aria-label="Tools submenu" aria-expanded="false">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><use xlink:href="#svg-arrow-right"></use></svg>
+      </button><a href="/tools/" class="nav-list-link">Tools</a><ul class="nav-list"><li class="nav-list-item"><a href="/tools/find_files/" class="nav-list-link">find_files</a></li><li class="nav-list-item"><a href="/tools/read_file/" class="nav-list-link">read_file</a></li><li class="nav-list-item"><a href="/tools/search_text/" class="nav-list-link">search_text</a></li><li class="nav-list-item"><a href="/tools/write_file/" class="nav-list-link">write_file</a></li><li class="nav-list-item"><a href="/tools/extract_memory/" class="nav-list-link">extract_memory</a></li><li class="nav-list-item"><a href="/tools/make/" class="nav-list-link">make</a></li><li class="nav-list-item"><a href="/tools/recall_memory/" class="nav-list-link">recall_memory</a></li><li class="nav-list-item"><a href="/tools/set_prompt/" class="nav-list-link">set_prompt</a></li><li class="nav-list-item"><a href="/tools/fetch_web/" class="nav-list-link">fetch_web</a></li><li class="nav-list-item"><a href="/tools/web_search/" class="nav-list-link">web_search</a></li><li class="nav-list-item"><a href="/tools/git_diff/" class="nav-list-link">git_diff</a></li><li class="nav-list-item"><a href="/tools/git_log/" class="nav-list-link">git_log</a></li><li class="nav-list-item"><a href="/tools/git_status/" class="nav-list-link">git_status</a></li><li class="nav-list-item"><a href="/tools/git_show/" class="nav-list-link">git_show</a></li><li class="nav-list-item"><a href="/tools/get_history/" class="nav-list-link">get_history</a></li><li class="nav-list-item"><a href="/tools/plan/" class="nav-list-link">plan</a></li><li class="nav-list-item"><a href="/tools/git_add/" class="nav-list-link">git_add</a></li><li class="nav-list-item"><a href="/tools/git_branch/" class="nav-list-link">git_branch</a></li><li class="nav-list-item"><a href="/tools/git_checkout/" class="nav-list-link">git_checkout</a></li><li class="nav-list-item"><a href="/tools/git_commit/" class="nav-list-link">git_commit</a></li><li class="nav-list-item"><a href="/tools/git_config/" class="nav-list-link">git_config</a></li><li class="nav-list-item"><a href="/tools/git_fetch/" class="nav-list-link">git_fetch</a></li><li class="nav-list-item"><a href="/tools/git_merge/" class="nav-list-link">git_merge</a></li><li class="nav-list-item"><a href="/tools/git_pull/" class="nav-list-link">git_pull</a></li><li class="nav-list-item"><a href="/tools/git_push/" class="nav-list-link">git_push</a></li><li class="nav-list-item"><a href="/tools/git_remote/" class="nav-list-link">git_remote</a></li><li class="nav-list-item"><a href="/tools/git_reset/" class="nav-list-link">git_reset</a></li><li class="nav-list-item"><a href="/tools/git_stash/" class="nav-list-link">git_stash</a></li><li class="nav-list-item"><a href="/tools/git_tag/" class="nav-list-link">git_tag</a></li></ul></li><li class="nav-list-item"><a href="/memory/" class="nav-list-link">Memory System</a></li><li class="nav-list-item"><button class="nav-list-expander btn-reset" aria-label="API submenu" aria-expanded="false">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><use xlink:href="#svg-arrow-right"></use></svg>
+      </button><a href="/api/" class="nav-list-link">API</a><ul class="nav-list"><li class="nav-list-item"><a href="/api/http/" class="nav-list-link">HTTP API</a></li></ul></li><li class="nav-list-item"><a href="/mcp/" class="nav-list-link">MCP (Model Context Protocol)</a></li><li class="nav-list-item"><button class="nav-list-expander btn-reset" aria-label="IM Integration submenu" aria-expanded="false">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><use xlink:href="#svg-arrow-right"></use></svg>
+      </button><a href="/integrations/" class="nav-list-link">IM Integration</a><ul class="nav-list"><li class="nav-list-item"><a href="/integrations/discord/" class="nav-list-link">Discord Integration</a></li><li class="nav-list-item"><a href="/integrations/telegram/" class="nav-list-link">Telegram Integration</a></li><li class="nav-list-item"><a href="/integrations/slack/" class="nav-list-link">Slack Integration</a></li><li class="nav-list-item"><a href="/integrations/lark/" class="nav-list-link">Lark Integration</a></li><li class="nav-list-item"><a href="/integrations/dingtalk/" class="nav-list-link">DingTalk Integration</a></li><li class="nav-list-item"><a href="/integrations/wecom/" class="nav-list-link">WeCom Integration</a></li><li class="nav-list-item"><a href="/integrations/weixin/" class="nav-list-link">Weixin Integration</a></li></ul></li></ul>
+  
+</nav>
+
+
+<div class="d-md-block d-none site-footer">
+  
+  
+    This site uses <a href="https://github.com/just-the-docs/just-the-docs">Just the Docs</a>, a documentation theme for Jekyll.
+  
+  </div>
+</header>
+
+  
+  <div class="main" id="top">
+    <div id="main-header" class="main-header">
+  
+    
+
+<div class="search" role="search">
+  <div class="search-input-wrap">
+    <input type="text" id="search-input" class="search-input" tabindex="0" placeholder="Search chat.nvim" autocomplete="off">
+    <label for="search-input" class="search-label">
+      <span class="sr-only">Search chat.nvim</span>
+      <svg viewBox="0 0 24 24" class="search-icon" aria-hidden="true"><use xlink:href="#svg-search"></use></svg>
+    </label>
+  </div>
+  <div id="search-results" class="search-results"></div>
+</div>
+
+  
+  
+  
+    <nav aria-label="Auxiliary" class="aux-nav">
+  <ul class="aux-nav-list">
+    
+      <li class="aux-nav-list-item">
+        <a href="https://github.com/wsdjeg/chat.nvim" class="site-button"
+          
+          target="_blank" rel="noopener noreferrer"
+          
+        >
+          GitHub Repository
+        </a>
+      </li>
+    
+  </ul>
+</nav>
+
+  
+</div>
+
+    <div class="main-content-wrap">
+      <nav aria-label="Breadcrumb" class="breadcrumb-nav">
+  <ol class="breadcrumb-nav-list">
+    <li class="breadcrumb-nav-list-item"><a href="/api/">API</a></li>
+    <li class="breadcrumb-nav-list-item"><span>HTTP API</span></li>
+  </ol>
+</nav>
+
+
+      <div id="main-content" class="main-content">
+        <main>
+          
+            <!-- prettier-ignore-start -->
+<h1 class="no_toc" id="http-api">
+  
+  
+    <a href="#http-api" class="anchor-heading" aria-labelledby="http-api"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> HTTP API
+  
+  
+</h1>
+    
+<h2 class="no_toc" id="table-of-contents">
+  
+  
+    <a href="#table-of-contents" class="anchor-heading" aria-labelledby="table-of-contents"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Table of contents
+  
+  
+</h2>
+    
+<!-- prettier-ignore-end -->
+
+<!-- prettier-ignore -->
+<ul id="markdown-toc">
+  <li><a href="#enabling-the-http-server" id="markdown-toc-enabling-the-http-server">Enabling the HTTP Server</a></li>
+  <li><a href="#api-endpoints" id="markdown-toc-api-endpoints">API Endpoints</a></li>
+  <li><a href="#request-format" id="markdown-toc-request-format">Request Format</a>    <ul>
+      <li><a href="#post-" id="markdown-toc-post-">POST <code class="language-plaintext highlighter-rouge">/</code></a></li>
+      <li><a href="#post-sessionnew" id="markdown-toc-post-sessionnew">POST <code class="language-plaintext highlighter-rouge">/session/new</code></a></li>
+      <li><a href="#delete-sessionid" id="markdown-toc-delete-sessionid">DELETE <code class="language-plaintext highlighter-rouge">/session/:id</code></a></li>
+    </ul>
+  </li>
+  <li><a href="#response-format" id="markdown-toc-response-format">Response Format</a>    <ul>
+      <li><a href="#post--1" id="markdown-toc-post--1">POST <code class="language-plaintext highlighter-rouge">/</code></a></li>
+      <li><a href="#get-sessions" id="markdown-toc-get-sessions">GET <code class="language-plaintext highlighter-rouge">/sessions</code></a></li>
+      <li><a href="#get-messages" id="markdown-toc-get-messages">GET <code class="language-plaintext highlighter-rouge">/messages</code></a></li>
+      <li><a href="#get-session" id="markdown-toc-get-session">GET <code class="language-plaintext highlighter-rouge">/session</code></a></li>
+    </ul>
+  </li>
+  <li><a href="#message-queue-system" id="markdown-toc-message-queue-system">Message Queue System</a></li>
+  <li><a href="#usage-examples" id="markdown-toc-usage-examples">Usage Examples</a>    <ul>
+      <li><a href="#using-curl" id="markdown-toc-using-curl">Using curl</a></li>
+      <li><a href="#using-python" id="markdown-toc-using-python">Using Python</a></li>
+      <li><a href="#using-javascriptnodejs" id="markdown-toc-using-javascriptnodejs">Using JavaScript/Node.js</a></li>
+    </ul>
+  </li>
+  <li><a href="#security-considerations" id="markdown-toc-security-considerations">Security Considerations</a></li>
+  <li><a href="#integration-ideas" id="markdown-toc-integration-ideas">Integration Ideas</a>    <ul>
+      <li><a href="#cicd-pipelines" id="markdown-toc-cicd-pipelines">CI/CD Pipelines</a></li>
+      <li><a href="#monitoring-systems" id="markdown-toc-monitoring-systems">Monitoring Systems</a></li>
+      <li><a href="#script-automation" id="markdown-toc-script-automation">Script Automation</a></li>
+      <li><a href="#external-applications" id="markdown-toc-external-applications">External Applications</a></li>
+      <li><a href="#session-management-tools" id="markdown-toc-session-management-tools">Session Management Tools</a></li>
+      <li><a href="#monitoring-dashboard" id="markdown-toc-monitoring-dashboard">Monitoring Dashboard</a></li>
+    </ul>
+  </li>
+  <li><a href="#next-steps" id="markdown-toc-next-steps">Next Steps</a></li>
+</ul><hr />
+
+<p>chat.nvim includes a built-in HTTP server that allows external applications to send messages to your chat sessions. This enables integration with other tools, scripts, and automation workflows.</p>
+<h2 id="enabling-the-http-server">
+  
+  
+    <a href="#enabling-the-http-server" class="anchor-heading" aria-labelledby="enabling-the-http-server"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Enabling the HTTP Server
+  
+  
+</h2>
+    
+
+<p>The HTTP server is automatically started when the <code class="language-plaintext highlighter-rouge">http.api_key</code> configuration is set to a non-empty value:</p>
+
+<div class="language-lua highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">require</span><span class="p">(</span><span class="s1">'chat'</span><span class="p">).</span><span class="n">setup</span><span class="p">({</span>
+  <span class="c1">-- ... other configuration</span>
+  <span class="n">http</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="n">host</span> <span class="o">=</span> <span class="s1">'127.0.0.1'</span><span class="p">,</span>    <span class="c1">-- Default: '127.0.0.1'</span>
+    <span class="n">port</span> <span class="o">=</span> <span class="mi">7777</span><span class="p">,</span>           <span class="c1">-- Default: 7777</span>
+    <span class="n">api_key</span> <span class="o">=</span> <span class="s1">'your-secret-key'</span><span class="p">,</span> <span class="c1">-- Required to enable server</span>
+  <span class="p">},</span>
+<span class="p">})</span>
+</code></pre></div></div>
+
+<blockquote class="warning">
+  <p>The HTTP server will not start if <code class="language-plaintext highlighter-rouge">http.api_key</code> is empty or not set.</p>
+</blockquote><hr />
+<h2 id="api-endpoints">
+  
+  
+    <a href="#api-endpoints" class="anchor-heading" aria-labelledby="api-endpoints"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> API Endpoints
+  
+  
+</h2>
+    
+
+<p>chat.nvim provides the following HTTP API endpoints for external integration:</p>
+
+<div class="table-wrapper"><table>
+  <thead>
+    <tr>
+      <th>Endpoint</th>
+      <th>Method</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">/</code></td>
+      <td>POST</td>
+      <td>Send messages to a specified chat session</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">/sessions</code></td>
+      <td>GET</td>
+      <td>Get a list of all sessions with details</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">/session/new</code></td>
+      <td>POST</td>
+      <td>Create a new session</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">/session/:id</code></td>
+      <td>DELETE</td>
+      <td>Delete a session</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">/session</code></td>
+      <td>GET</td>
+      <td>Get HTML preview of a session (requires <code class="language-plaintext highlighter-rouge">id</code> parameter)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">/messages</code></td>
+      <td>GET</td>
+      <td>Get message list for a session (requires <code class="language-plaintext highlighter-rouge">session</code> param)</td>
+    </tr>
+  </tbody>
+</table></div>
+
+<p><strong>Base URL</strong>: <code class="language-plaintext highlighter-rouge">http://{host}:{port}/</code> where <code class="language-plaintext highlighter-rouge">{host}</code> and <code class="language-plaintext highlighter-rouge">{port}</code> are configured in your chat.nvim settings (default: <code class="language-plaintext highlighter-rouge">127.0.0.1:7777</code>)</p>
+
+<p><strong>Authentication</strong>: All requests (except GET /session for HTML preview) require the <code class="language-plaintext highlighter-rouge">X-API-Key</code> header containing your configured API key.</p>
+
+<p><strong>Example Usage</strong>:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Send message to session</span>
+curl <span class="nt">-X</span> POST http://127.0.0.1:7777/ <span class="se">\</span>
+  <span class="nt">-H</span> <span class="s2">"X-API-Key: your-secret-key"</span> <span class="se">\</span>
+  <span class="nt">-H</span> <span class="s2">"Content-Type: application/json"</span> <span class="se">\</span>
+  <span class="nt">-d</span> <span class="s1">'{"session": "my-session", "content": "Hello from curl!"}'</span>
+
+<span class="c"># Get session list</span>
+curl <span class="nt">-H</span> <span class="s2">"X-API-Key: your-secret-key"</span> http://127.0.0.1:7777/sessions
+
+<span class="c"># Create new session</span>
+curl <span class="nt">-X</span> POST http://127.0.0.1:7777/session/new <span class="se">\</span>
+  <span class="nt">-H</span> <span class="s2">"X-API-Key: your-secret-key"</span> <span class="se">\</span>
+  <span class="nt">-H</span> <span class="s2">"Content-Type: application/json"</span> <span class="se">\</span>
+  <span class="nt">-d</span> <span class="s1">'{"provider": "openai", "model": "gpt-4o"}'</span>
+</code></pre></div></div><hr />
+<h2 id="request-format">
+  
+  
+    <a href="#request-format" class="anchor-heading" aria-labelledby="request-format"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Request Format
+  
+  
+</h2>
+    
+<h3 id="post-">
+  
+  
+    <a href="#post-" class="anchor-heading" aria-labelledby="post-"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> POST <code class="language-plaintext highlighter-rouge">/</code>
+  
+  
+</h3>
+    
+
+<p>Send a message to a specific chat session.</p>
+
+<p><strong>Request Body</strong>:</p>
+
+<div class="language-json highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">{</span><span class="w">
+  </span><span class="nl">"session"</span><span class="p">:</span><span class="w"> </span><span class="s2">"session-id"</span><span class="p">,</span><span class="w">
+  </span><span class="nl">"content"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Message content from external application"</span><span class="w">
+</span><span class="p">}</span><span class="w">
+</span></code></pre></div></div>
+
+<p><strong>Parameters</strong>:</p>
+
+<div class="table-wrapper"><table>
+  <thead>
+    <tr>
+      <th>Parameter</th>
+      <th>Type</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">session</code></td>
+      <td>string</td>
+      <td>Chat session ID.</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">content</code></td>
+      <td>string</td>
+      <td>Message content to send to the chat session</td>
+    </tr>
+  </tbody>
+</table></div>
+
+<p><strong>Example</strong>:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>curl <span class="nt">-X</span> POST http://127.0.0.1:7777/ <span class="se">\</span>
+  <span class="nt">-H</span> <span class="s2">"X-API-Key: your-secret-key"</span> <span class="se">\</span>
+  <span class="nt">-H</span> <span class="s2">"Content-Type: application/json"</span> <span class="se">\</span>
+  <span class="nt">-d</span> <span class="s1">'{"session": "2024-01-15-10-30-00", "content": "What is the weather today?"}'</span>
+</code></pre></div></div>
+<h3 id="post-sessionnew">
+  
+  
+    <a href="#post-sessionnew" class="anchor-heading" aria-labelledby="post-sessionnew"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> POST <code class="language-plaintext highlighter-rouge">/session/new</code>
+  
+  
+</h3>
+    
+
+<p>Create a new chat session with optional configuration.</p>
+
+<p><strong>Request Body</strong> (all fields optional):</p>
+
+<div class="language-json highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">{</span><span class="w">
+  </span><span class="nl">"cwd"</span><span class="p">:</span><span class="w"> </span><span class="s2">"/path/to/project"</span><span class="p">,</span><span class="w">
+  </span><span class="nl">"provider"</span><span class="p">:</span><span class="w"> </span><span class="s2">"openai"</span><span class="p">,</span><span class="w">
+  </span><span class="nl">"model"</span><span class="p">:</span><span class="w"> </span><span class="s2">"gpt-4o"</span><span class="w">
+</span><span class="p">}</span><span class="w">
+</span></code></pre></div></div>
+
+<p><strong>Parameters</strong>:</p>
+
+<div class="table-wrapper"><table>
+  <thead>
+    <tr>
+      <th>Parameter</th>
+      <th>Type</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">cwd</code></td>
+      <td>string</td>
+      <td>Working directory for the session (optional)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">provider</code></td>
+      <td>string</td>
+      <td>AI provider name (optional)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">model</code></td>
+      <td>string</td>
+      <td>Model name (optional)</td>
+    </tr>
+  </tbody>
+</table></div>
+
+<p><strong>Response</strong> (201 Created):</p>
+
+<div class="language-json highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">{</span><span class="w">
+  </span><span class="nl">"id"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2024-01-15-10-30-00"</span><span class="w">
+</span><span class="p">}</span><span class="w">
+</span></code></pre></div></div>
+
+<p><strong>Example</strong>:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Create session with default settings</span>
+curl <span class="nt">-X</span> POST http://127.0.0.1:7777/session/new <span class="se">\</span>
+  <span class="nt">-H</span> <span class="s2">"X-API-Key: your-secret-key"</span>
+
+<span class="c"># Create session with custom settings</span>
+curl <span class="nt">-X</span> POST http://127.0.0.1:7777/session/new <span class="se">\</span>
+  <span class="nt">-H</span> <span class="s2">"X-API-Key: your-secret-key"</span> <span class="se">\</span>
+  <span class="nt">-H</span> <span class="s2">"Content-Type: application/json"</span> <span class="se">\</span>
+  <span class="nt">-d</span> <span class="s1">'{"provider": "anthropic", "model": "claude-3-5-sonnet-20241022"}'</span>
+</code></pre></div></div>
+<h3 id="delete-sessionid">
+  
+  
+    <a href="#delete-sessionid" class="anchor-heading" aria-labelledby="delete-sessionid"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> DELETE <code class="language-plaintext highlighter-rouge">/session/:id</code>
+  
+  
+</h3>
+    
+
+<p>Delete a specific session.</p>
+
+<p><strong>Path Parameters</strong>:</p>
+
+<div class="table-wrapper"><table>
+  <thead>
+    <tr>
+      <th>Parameter</th>
+      <th>Type</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">id</code></td>
+      <td>string</td>
+      <td>Session ID to delete</td>
+    </tr>
+  </tbody>
+</table></div>
+
+<p><strong>Response</strong>:</p>
+
+<div class="table-wrapper"><table>
+  <thead>
+    <tr>
+      <th>Status Code</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>204</td>
+      <td>Success - Session deleted successfully</td>
+    </tr>
+    <tr>
+      <td>404</td>
+      <td>Not Found - Session does not exist</td>
+    </tr>
+    <tr>
+      <td>409</td>
+      <td>Conflict - Session is in progress</td>
+    </tr>
+    <tr>
+      <td>401</td>
+      <td>Unauthorized - Invalid or missing API key</td>
+    </tr>
+  </tbody>
+</table></div>
+
+<p><strong>Example</strong>:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>curl <span class="nt">-X</span> DELETE http://127.0.0.1:7777/session/2024-01-15-10-30-00 <span class="se">\</span>
+  <span class="nt">-H</span> <span class="s2">"X-API-Key: your-secret-key"</span>
+</code></pre></div></div><hr />
+<h2 id="response-format">
+  
+  
+    <a href="#response-format" class="anchor-heading" aria-labelledby="response-format"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Response Format
+  
+  
+</h2>
+    
+<h3 id="post--1">
+  
+  
+    <a href="#post--1" class="anchor-heading" aria-labelledby="post--1"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> POST <code class="language-plaintext highlighter-rouge">/</code>
+  
+  
+</h3>
+    
+
+<div class="table-wrapper"><table>
+  <thead>
+    <tr>
+      <th>Status Code</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>204</td>
+      <td>Success - Message queued successfully</td>
+    </tr>
+    <tr>
+      <td>401</td>
+      <td>Unauthorized - Invalid or missing API key</td>
+    </tr>
+    <tr>
+      <td>400</td>
+      <td>Bad Request - Invalid JSON or missing required fields</td>
+    </tr>
+    <tr>
+      <td>404</td>
+      <td>Not Found - Wrong method or path</td>
+    </tr>
+  </tbody>
+</table></div>
+<h3 id="get-sessions">
+  
+  
+    <a href="#get-sessions" class="anchor-heading" aria-labelledby="get-sessions"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> GET <code class="language-plaintext highlighter-rouge">/sessions</code>
+  
+  
+</h3>
+    
+
+<p>Returns a JSON array of session objects with details.</p>
+
+<p><strong>Success Response</strong> (200 OK):</p>
+
+<div class="language-json highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">[</span><span class="w">
+  </span><span class="p">{</span><span class="w">
+    </span><span class="nl">"id"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2024-01-15-10-30-00"</span><span class="p">,</span><span class="w">
+    </span><span class="nl">"cwd"</span><span class="p">:</span><span class="w"> </span><span class="s2">"/home/user/project"</span><span class="p">,</span><span class="w">
+    </span><span class="nl">"provider"</span><span class="p">:</span><span class="w"> </span><span class="s2">"openai"</span><span class="p">,</span><span class="w">
+    </span><span class="nl">"model"</span><span class="p">:</span><span class="w"> </span><span class="s2">"gpt-4o"</span><span class="w">
+  </span><span class="p">},</span><span class="w">
+  </span><span class="p">{</span><span class="w">
+    </span><span class="nl">"id"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2024-01-15-11-45-00"</span><span class="p">,</span><span class="w">
+    </span><span class="nl">"cwd"</span><span class="p">:</span><span class="w"> </span><span class="s2">"/home/user/another-project"</span><span class="p">,</span><span class="w">
+    </span><span class="nl">"provider"</span><span class="p">:</span><span class="w"> </span><span class="s2">"anthropic"</span><span class="p">,</span><span class="w">
+    </span><span class="nl">"model"</span><span class="p">:</span><span class="w"> </span><span class="s2">"claude-3-5-sonnet-20241022"</span><span class="w">
+  </span><span class="p">}</span><span class="w">
+</span><span class="p">]</span><span class="w">
+</span></code></pre></div></div>
+
+<p><strong>Fields</strong>:</p>
+
+<div class="table-wrapper"><table>
+  <thead>
+    <tr>
+      <th>Field</th>
+      <th>Type</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">id</code></td>
+      <td>string</td>
+      <td>Session ID (format: <code class="language-plaintext highlighter-rouge">YYYY-MM-DD-HH-MM-SS</code>)</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">cwd</code></td>
+      <td>string</td>
+      <td>Working directory for the session</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">provider</code></td>
+      <td>string</td>
+      <td>AI provider name</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">model</code></td>
+      <td>string</td>
+      <td>Model name</td>
+    </tr>
+  </tbody>
+</table></div>
+
+<blockquote class="info">
+  <p>Session IDs follow the format <code class="language-plaintext highlighter-rouge">YYYY-MM-DD-HH-MM-SS</code> (e.g., <code class="language-plaintext highlighter-rouge">2024-01-15-10-30-00</code>) and are automatically generated when new sessions are created.</p>
+</blockquote>
+<h3 id="get-messages">
+  
+  
+    <a href="#get-messages" class="anchor-heading" aria-labelledby="get-messages"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> GET <code class="language-plaintext highlighter-rouge">/messages</code>
+  
+  
+</h3>
+    
+
+<p>Returns the message list for a specific session.</p>
+
+<p><strong>Query Parameters</strong>:</p>
+
+<div class="table-wrapper"><table>
+  <thead>
+    <tr>
+      <th>Parameter</th>
+      <th>Type</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">session</code></td>
+      <td>string</td>
+      <td><strong>Required</strong>. Session ID</td>
+    </tr>
+  </tbody>
+</table></div>
+
+<p><strong>Example</strong>:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>curl <span class="s2">"http://127.0.0.1:7777/messages?session=2024-01-15-10-30-00"</span> <span class="se">\</span>
+  <span class="nt">-H</span> <span class="s2">"X-API-Key: your-secret-key"</span>
+</code></pre></div></div>
+
+<p><strong>Success Response</strong> (200 OK):</p>
+
+<div class="language-json highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">[</span><span class="w">
+  </span><span class="p">{</span><span class="w">
+    </span><span class="nl">"role"</span><span class="p">:</span><span class="w"> </span><span class="s2">"user"</span><span class="p">,</span><span class="w">
+    </span><span class="nl">"content"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Hello!"</span><span class="w">
+  </span><span class="p">},</span><span class="w">
+  </span><span class="p">{</span><span class="w">
+    </span><span class="nl">"role"</span><span class="p">:</span><span class="w"> </span><span class="s2">"assistant"</span><span class="p">,</span><span class="w">
+    </span><span class="nl">"content"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Hi there! How can I help you?"</span><span class="w">
+  </span><span class="p">}</span><span class="w">
+</span><span class="p">]</span><span class="w">
+</span></code></pre></div></div>
+<h3 id="get-session">
+  
+  
+    <a href="#get-session" class="anchor-heading" aria-labelledby="get-session"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> GET <code class="language-plaintext highlighter-rouge">/session</code>
+  
+  
+</h3>
+    
+
+<p>Returns an HTML preview of the specified chat session.</p>
+
+<p><strong>Request Parameters</strong>:</p>
+
+<div class="table-wrapper"><table>
+  <thead>
+    <tr>
+      <th>Parameter</th>
+      <th>Type</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">id</code></td>
+      <td>string</td>
+      <td><strong>Required</strong>. Session ID to preview</td>
+    </tr>
+  </tbody>
+</table></div>
+
+<p><strong>Example Request</strong>:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>curl <span class="s2">"http://127.0.0.1:7777/session?id=2024-01-15-10-30-00"</span>
+</code></pre></div></div>
+
+<p><strong>Response</strong>:</p>
+
+<div class="table-wrapper"><table>
+  <thead>
+    <tr>
+      <th>Status Code</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>200</td>
+      <td>Success - Returns HTML content</td>
+    </tr>
+    <tr>
+      <td>400</td>
+      <td>Bad Request - Missing session ID</td>
+    </tr>
+    <tr>
+      <td>404</td>
+      <td>Not Found - Session not found</td>
+    </tr>
+  </tbody>
+</table></div>
+
+<blockquote class="info">
+  <p>Note: The GET /session endpoint does not require authentication (no API key needed) to allow easy HTML preview in browsers.</p>
+</blockquote>
+
+<p><strong>HTML Preview Features</strong>:</p>
+
+<ul>
+  <li>Clean, modern dark theme design</li>
+  <li>Session metadata display (ID, provider, model, working directory, system prompt)</li>
+  <li>Message formatting with role badges and timestamps</li>
+  <li>Support for tool calls and results visualization</li>
+  <li>Reasoning content (thinking) display</li>
+  <li>Error messages highlighting</li>
+  <li>Token usage statistics</li>
+  <li>Responsive layout with scrollable sections</li>
+</ul><hr />
+<h2 id="message-queue-system">
+  
+  
+    <a href="#message-queue-system" class="anchor-heading" aria-labelledby="message-queue-system"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Message Queue System
+  
+  
+</h2>
+    
+
+<p>Incoming messages are processed through a queue system to ensure reliability:</p>
+
+<ol class="highlight">
+  <li>Messages are immediately queued upon receipt</li>
+  <li>The queue is checked every 5 seconds</li>
+  <li>Messages are delivered to the chat session when it’s not in progress</li>
+  <li>If a session is busy (processing another request), messages remain in the queue until the session becomes available</li>
+</ol>
+
+<p>This ensures that messages are never lost and are delivered in the order they were received.</p><hr />
+<h2 id="usage-examples">
+  
+  
+    <a href="#usage-examples" class="anchor-heading" aria-labelledby="usage-examples"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Usage Examples
+  
+  
+</h2>
+    
+<h3 id="using-curl">
+  
+  
+    <a href="#using-curl" class="anchor-heading" aria-labelledby="using-curl"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Using curl
+  
+  
+</h3>
+    
+
+<p><strong>Send a message</strong>:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Send a message to a specific session</span>
+curl <span class="nt">-X</span> POST http://127.0.0.1:7777/ <span class="se">\</span>
+  <span class="nt">-H</span> <span class="s2">"X-API-Key: your-secret-key"</span> <span class="se">\</span>
+  <span class="nt">-H</span> <span class="s2">"Content-Type: application/json"</span> <span class="se">\</span>
+  <span class="nt">-d</span> <span class="s1">'{"session": "2024-01-15-10-30-00", "content": "Hello from curl!"}'</span>
+</code></pre></div></div>
+
+<p><strong>Get session list</strong>:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Get all sessions with details</span>
+curl <span class="nt">-H</span> <span class="s2">"X-API-Key: your-secret-key"</span> http://127.0.0.1:7777/sessions
+</code></pre></div></div>
+
+<p><strong>Create new session</strong>:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Create session with default settings</span>
+curl <span class="nt">-X</span> POST http://127.0.0.1:7777/session/new <span class="se">\</span>
+  <span class="nt">-H</span> <span class="s2">"X-API-Key: your-secret-key"</span>
+
+<span class="c"># Create session with custom settings</span>
+curl <span class="nt">-X</span> POST http://127.0.0.1:7777/session/new <span class="se">\</span>
+  <span class="nt">-H</span> <span class="s2">"X-API-Key: your-secret-key"</span> <span class="se">\</span>
+  <span class="nt">-H</span> <span class="s2">"Content-Type: application/json"</span> <span class="se">\</span>
+  <span class="nt">-d</span> <span class="s1">'{"cwd": "/home/user/my-project", "provider": "anthropic"}'</span>
+</code></pre></div></div>
+
+<p><strong>Delete session</strong>:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Delete a session</span>
+curl <span class="nt">-X</span> DELETE http://127.0.0.1:7777/session/2024-01-15-10-30-00 <span class="se">\</span>
+  <span class="nt">-H</span> <span class="s2">"X-API-Key: your-secret-key"</span>
+</code></pre></div></div>
+
+<p><strong>Get session preview</strong>:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Get HTML preview of a session</span>
+curl <span class="s2">"http://127.0.0.1:7777/session?id=2024-01-15-10-30-00"</span>
+</code></pre></div></div>
+<h3 id="using-python">
+  
+  
+    <a href="#using-python" class="anchor-heading" aria-labelledby="using-python"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Using Python
+  
+  
+</h3>
+    
+
+<p><strong>Send a message</strong>:</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">requests</span>
+
+<span class="c1"># Send a message to a session
+</span><span class="n">url</span> <span class="o">=</span> <span class="s">"http://127.0.0.1:7777/"</span>
+<span class="n">headers</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s">"X-API-Key"</span><span class="p">:</span> <span class="s">"your-secret-key"</span><span class="p">,</span>
+    <span class="s">"Content-Type"</span><span class="p">:</span> <span class="s">"application/json"</span>
+<span class="p">}</span>
+<span class="n">data</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s">"session"</span><span class="p">:</span> <span class="s">"2024-01-15-10-30-00"</span><span class="p">,</span>
+    <span class="s">"content"</span><span class="p">:</span> <span class="s">"Message from Python script"</span>
+<span class="p">}</span>
+<span class="n">response</span> <span class="o">=</span> <span class="n">requests</span><span class="p">.</span><span class="n">post</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">json</span><span class="o">=</span><span class="n">data</span><span class="p">,</span> <span class="n">headers</span><span class="o">=</span><span class="n">headers</span><span class="p">)</span>
+<span class="k">print</span><span class="p">(</span><span class="sa">f</span><span class="s">"Status: </span><span class="si">{</span><span class="n">response</span><span class="p">.</span><span class="n">status_code</span><span class="si">}</span><span class="s">"</span><span class="p">)</span>
+</code></pre></div></div>
+
+<p><strong>Get session list</strong>:</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">requests</span>
+
+<span class="c1"># Get session list with details
+</span><span class="n">headers</span> <span class="o">=</span> <span class="p">{</span><span class="s">"X-API-Key"</span><span class="p">:</span> <span class="s">"your-secret-key"</span><span class="p">}</span>
+<span class="n">sessions_response</span> <span class="o">=</span> <span class="n">requests</span><span class="p">.</span><span class="n">get</span><span class="p">(</span><span class="s">"http://127.0.0.1:7777/sessions"</span><span class="p">,</span> <span class="n">headers</span><span class="o">=</span><span class="n">headers</span><span class="p">)</span>
+<span class="k">if</span> <span class="n">sessions_response</span><span class="p">.</span><span class="n">status_code</span> <span class="o">==</span> <span class="mi">200</span><span class="p">:</span>
+    <span class="n">sessions</span> <span class="o">=</span> <span class="n">sessions_response</span><span class="p">.</span><span class="n">json</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">session</span> <span class="ow">in</span> <span class="n">sessions</span><span class="p">:</span>
+        <span class="k">print</span><span class="p">(</span><span class="sa">f</span><span class="s">"Session: </span><span class="si">{</span><span class="n">session</span><span class="p">[</span><span class="s">'id'</span><span class="p">]</span><span class="si">}</span><span class="s">, Provider: </span><span class="si">{</span><span class="n">session</span><span class="p">[</span><span class="s">'provider'</span><span class="p">]</span><span class="si">}</span><span class="s">, Model: </span><span class="si">{</span><span class="n">session</span><span class="p">[</span><span class="s">'model'</span><span class="p">]</span><span class="si">}</span><span class="s">"</span><span class="p">)</span>
+</code></pre></div></div>
+
+<p><strong>Create new session</strong>:</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">requests</span>
+
+<span class="c1"># Create a new session
+</span><span class="n">headers</span> <span class="o">=</span> <span class="p">{</span><span class="s">"X-API-Key"</span><span class="p">:</span> <span class="s">"your-secret-key"</span><span class="p">}</span>
+<span class="n">data</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s">"cwd"</span><span class="p">:</span> <span class="s">"/home/user/my-project"</span><span class="p">,</span>
+    <span class="s">"provider"</span><span class="p">:</span> <span class="s">"openai"</span><span class="p">,</span>
+    <span class="s">"model"</span><span class="p">:</span> <span class="s">"gpt-4o"</span>
+<span class="p">}</span>
+<span class="n">response</span> <span class="o">=</span> <span class="n">requests</span><span class="p">.</span><span class="n">post</span><span class="p">(</span><span class="s">"http://127.0.0.1:7777/session/new"</span><span class="p">,</span> <span class="n">json</span><span class="o">=</span><span class="n">data</span><span class="p">,</span> <span class="n">headers</span><span class="o">=</span><span class="n">headers</span><span class="p">)</span>
+<span class="k">if</span> <span class="n">response</span><span class="p">.</span><span class="n">status_code</span> <span class="o">==</span> <span class="mi">201</span><span class="p">:</span>
+    <span class="n">session_id</span> <span class="o">=</span> <span class="n">response</span><span class="p">.</span><span class="n">json</span><span class="p">()[</span><span class="s">"id"</span><span class="p">]</span>
+    <span class="k">print</span><span class="p">(</span><span class="sa">f</span><span class="s">"Created session: </span><span class="si">{</span><span class="n">session_id</span><span class="si">}</span><span class="s">"</span><span class="p">)</span>
+</code></pre></div></div>
+
+<p><strong>Delete session</strong>:</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">requests</span>
+
+<span class="c1"># Delete a session
+</span><span class="n">session_id</span> <span class="o">=</span> <span class="s">"2024-01-15-10-30-00"</span>
+<span class="n">headers</span> <span class="o">=</span> <span class="p">{</span><span class="s">"X-API-Key"</span><span class="p">:</span> <span class="s">"your-secret-key"</span><span class="p">}</span>
+<span class="n">response</span> <span class="o">=</span> <span class="n">requests</span><span class="p">.</span><span class="n">delete</span><span class="p">(</span><span class="sa">f</span><span class="s">"http://127.0.0.1:7777/session/</span><span class="si">{</span><span class="n">session_id</span><span class="si">}</span><span class="s">"</span><span class="p">,</span> <span class="n">headers</span><span class="o">=</span><span class="n">headers</span><span class="p">)</span>
+<span class="k">if</span> <span class="n">response</span><span class="p">.</span><span class="n">status_code</span> <span class="o">==</span> <span class="mi">204</span><span class="p">:</span>
+    <span class="k">print</span><span class="p">(</span><span class="s">"Session deleted successfully"</span><span class="p">)</span>
+<span class="k">elif</span> <span class="n">response</span><span class="p">.</span><span class="n">status_code</span> <span class="o">==</span> <span class="mi">409</span><span class="p">:</span>
+    <span class="k">print</span><span class="p">(</span><span class="s">"Cannot delete: session is in progress"</span><span class="p">)</span>
+</code></pre></div></div>
+
+<p><strong>Get session preview</strong>:</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">requests</span>
+
+<span class="c1"># Get HTML preview
+</span><span class="n">params</span> <span class="o">=</span> <span class="p">{</span><span class="s">"id"</span><span class="p">:</span> <span class="s">"2024-01-15-10-30-00"</span><span class="p">}</span>
+<span class="n">response</span> <span class="o">=</span> <span class="n">requests</span><span class="p">.</span><span class="n">get</span><span class="p">(</span><span class="s">"http://127.0.0.1:7777/session"</span><span class="p">,</span> <span class="n">params</span><span class="o">=</span><span class="n">params</span><span class="p">)</span>
+<span class="k">if</span> <span class="n">response</span><span class="p">.</span><span class="n">status_code</span> <span class="o">==</span> <span class="mi">200</span><span class="p">:</span>
+    <span class="n">html_content</span> <span class="o">=</span> <span class="n">response</span><span class="p">.</span><span class="n">text</span>
+    <span class="k">print</span><span class="p">(</span><span class="s">"Preview generated successfully"</span><span class="p">)</span>
+</code></pre></div></div>
+<h3 id="using-javascriptnodejs">
+  
+  
+    <a href="#using-javascriptnodejs" class="anchor-heading" aria-labelledby="using-javascriptnodejs"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Using JavaScript/Node.js
+  
+  
+</h3>
+    
+
+<p><strong>Send a message</strong>:</p>
+
+<div class="language-javascript highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">const</span> <span class="nx">axios</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="dl">"</span><span class="s2">axios</span><span class="dl">"</span><span class="p">);</span>
+
+<span class="c1">// Send a message to a session</span>
+<span class="k">async</span> <span class="kd">function</span> <span class="nx">sendMessage</span><span class="p">(</span><span class="nx">sessionId</span><span class="p">,</span> <span class="nx">content</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">try</span> <span class="p">{</span>
+    <span class="kd">const</span> <span class="nx">response</span> <span class="o">=</span> <span class="k">await</span> <span class="nx">axios</span><span class="p">.</span><span class="nx">post</span><span class="p">(</span>
+      <span class="dl">"</span><span class="s2">http://127.0.0.1:7777/</span><span class="dl">"</span><span class="p">,</span>
+      <span class="p">{</span>
+        <span class="na">session</span><span class="p">:</span> <span class="nx">sessionId</span><span class="p">,</span>
+        <span class="na">content</span><span class="p">:</span> <span class="nx">content</span><span class="p">,</span>
+      <span class="p">},</span>
+      <span class="p">{</span>
+        <span class="na">headers</span><span class="p">:</span> <span class="p">{</span>
+          <span class="dl">"</span><span class="s2">X-API-Key</span><span class="dl">"</span><span class="p">:</span> <span class="dl">"</span><span class="s2">your-secret-key</span><span class="dl">"</span><span class="p">,</span>
+          <span class="dl">"</span><span class="s2">Content-Type</span><span class="dl">"</span><span class="p">:</span> <span class="dl">"</span><span class="s2">application/json</span><span class="dl">"</span><span class="p">,</span>
+        <span class="p">},</span>
+      <span class="p">},</span>
+    <span class="p">);</span>
+    <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="dl">"</span><span class="s2">Message sent successfully</span><span class="dl">"</span><span class="p">);</span>
+  <span class="p">}</span> <span class="k">catch</span> <span class="p">(</span><span class="nx">error</span><span class="p">)</span> <span class="p">{</span>
+    <span class="nx">console</span><span class="p">.</span><span class="nx">error</span><span class="p">(</span><span class="dl">"</span><span class="s2">Error:</span><span class="dl">"</span><span class="p">,</span> <span class="nx">error</span><span class="p">.</span><span class="nx">response</span><span class="p">?.</span><span class="nx">status</span><span class="p">);</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="nx">sendMessage</span><span class="p">(</span><span class="dl">"</span><span class="s2">2024-01-15-10-30-00</span><span class="dl">"</span><span class="p">,</span> <span class="dl">"</span><span class="s2">Hello from Node.js!</span><span class="dl">"</span><span class="p">);</span>
+</code></pre></div></div>
+
+<p><strong>Get session list</strong>:</p>
+
+<div class="language-javascript highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">const</span> <span class="nx">axios</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="dl">"</span><span class="s2">axios</span><span class="dl">"</span><span class="p">);</span>
+
+<span class="c1">// Get all sessions with details</span>
+<span class="k">async</span> <span class="kd">function</span> <span class="nx">getSessions</span><span class="p">()</span> <span class="p">{</span>
+  <span class="k">try</span> <span class="p">{</span>
+    <span class="kd">const</span> <span class="nx">response</span> <span class="o">=</span> <span class="k">await</span> <span class="nx">axios</span><span class="p">.</span><span class="kd">get</span><span class="p">(</span><span class="dl">"</span><span class="s2">http://127.0.0.1:7777/sessions</span><span class="dl">"</span><span class="p">,</span> <span class="p">{</span>
+      <span class="na">headers</span><span class="p">:</span> <span class="p">{</span> <span class="dl">"</span><span class="s2">X-API-Key</span><span class="dl">"</span><span class="p">:</span> <span class="dl">"</span><span class="s2">your-secret-key</span><span class="dl">"</span> <span class="p">},</span>
+    <span class="p">});</span>
+    <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="dl">"</span><span class="s2">Sessions:</span><span class="dl">"</span><span class="p">,</span> <span class="nx">response</span><span class="p">.</span><span class="nx">data</span><span class="p">);</span>
+    <span class="k">return</span> <span class="nx">response</span><span class="p">.</span><span class="nx">data</span><span class="p">;</span>
+  <span class="p">}</span> <span class="k">catch</span> <span class="p">(</span><span class="nx">error</span><span class="p">)</span> <span class="p">{</span>
+    <span class="nx">console</span><span class="p">.</span><span class="nx">error</span><span class="p">(</span><span class="dl">"</span><span class="s2">Error:</span><span class="dl">"</span><span class="p">,</span> <span class="nx">error</span><span class="p">.</span><span class="nx">response</span><span class="p">?.</span><span class="nx">status</span><span class="p">);</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="nx">getSessions</span><span class="p">();</span>
+</code></pre></div></div>
+
+<p><strong>Create new session</strong>:</p>
+
+<div class="language-javascript highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">const</span> <span class="nx">axios</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="dl">"</span><span class="s2">axios</span><span class="dl">"</span><span class="p">);</span>
+
+<span class="c1">// Create a new session</span>
+<span class="k">async</span> <span class="kd">function</span> <span class="nx">createSession</span><span class="p">(</span><span class="nx">cwd</span><span class="p">,</span> <span class="nx">provider</span><span class="p">,</span> <span class="nx">model</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">try</span> <span class="p">{</span>
+    <span class="kd">const</span> <span class="nx">response</span> <span class="o">=</span> <span class="k">await</span> <span class="nx">axios</span><span class="p">.</span><span class="nx">post</span><span class="p">(</span>
+      <span class="dl">"</span><span class="s2">http://127.0.0.1:7777/session/new</span><span class="dl">"</span><span class="p">,</span>
+      <span class="p">{</span> <span class="nx">cwd</span><span class="p">,</span> <span class="nx">provider</span><span class="p">,</span> <span class="nx">model</span> <span class="p">},</span>
+      <span class="p">{</span>
+        <span class="na">headers</span><span class="p">:</span> <span class="p">{</span>
+          <span class="dl">"</span><span class="s2">X-API-Key</span><span class="dl">"</span><span class="p">:</span> <span class="dl">"</span><span class="s2">your-secret-key</span><span class="dl">"</span><span class="p">,</span>
+          <span class="dl">"</span><span class="s2">Content-Type</span><span class="dl">"</span><span class="p">:</span> <span class="dl">"</span><span class="s2">application/json</span><span class="dl">"</span><span class="p">,</span>
+        <span class="p">},</span>
+      <span class="p">},</span>
+    <span class="p">);</span>
+    <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="dl">"</span><span class="s2">Created session:</span><span class="dl">"</span><span class="p">,</span> <span class="nx">response</span><span class="p">.</span><span class="nx">data</span><span class="p">.</span><span class="nx">id</span><span class="p">);</span>
+    <span class="k">return</span> <span class="nx">response</span><span class="p">.</span><span class="nx">data</span><span class="p">.</span><span class="nx">id</span><span class="p">;</span>
+  <span class="p">}</span> <span class="k">catch</span> <span class="p">(</span><span class="nx">error</span><span class="p">)</span> <span class="p">{</span>
+    <span class="nx">console</span><span class="p">.</span><span class="nx">error</span><span class="p">(</span><span class="dl">"</span><span class="s2">Error:</span><span class="dl">"</span><span class="p">,</span> <span class="nx">error</span><span class="p">.</span><span class="nx">response</span><span class="p">?.</span><span class="nx">status</span><span class="p">);</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="nx">createSession</span><span class="p">(</span><span class="dl">"</span><span class="s2">/home/user/project</span><span class="dl">"</span><span class="p">,</span> <span class="dl">"</span><span class="s2">openai</span><span class="dl">"</span><span class="p">,</span> <span class="dl">"</span><span class="s2">gpt-4o</span><span class="dl">"</span><span class="p">);</span>
+</code></pre></div></div>
+
+<p><strong>Delete session</strong>:</p>
+
+<div class="language-javascript highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">const</span> <span class="nx">axios</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="dl">"</span><span class="s2">axios</span><span class="dl">"</span><span class="p">);</span>
+
+<span class="c1">// Delete a session</span>
+<span class="k">async</span> <span class="kd">function</span> <span class="nx">deleteSession</span><span class="p">(</span><span class="nx">sessionId</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">try</span> <span class="p">{</span>
+    <span class="kd">const</span> <span class="nx">response</span> <span class="o">=</span> <span class="k">await</span> <span class="nx">axios</span><span class="p">.</span><span class="k">delete</span><span class="p">(</span>
+      <span class="s2">`http://127.0.0.1:7777/session/</span><span class="p">${</span><span class="nx">sessionId</span><span class="p">}</span><span class="s2">`</span><span class="p">,</span>
+      <span class="p">{</span>
+        <span class="na">headers</span><span class="p">:</span> <span class="p">{</span> <span class="dl">"</span><span class="s2">X-API-Key</span><span class="dl">"</span><span class="p">:</span> <span class="dl">"</span><span class="s2">your-secret-key</span><span class="dl">"</span> <span class="p">},</span>
+      <span class="p">},</span>
+    <span class="p">);</span>
+    <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="dl">"</span><span class="s2">Session deleted successfully</span><span class="dl">"</span><span class="p">);</span>
+  <span class="p">}</span> <span class="k">catch</span> <span class="p">(</span><span class="nx">error</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">if</span> <span class="p">(</span><span class="nx">error</span><span class="p">.</span><span class="nx">response</span><span class="p">?.</span><span class="nx">status</span> <span class="o">===</span> <span class="mi">409</span><span class="p">)</span> <span class="p">{</span>
+      <span class="nx">console</span><span class="p">.</span><span class="nx">error</span><span class="p">(</span><span class="dl">"</span><span class="s2">Cannot delete: session is in progress</span><span class="dl">"</span><span class="p">);</span>
+    <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+      <span class="nx">console</span><span class="p">.</span><span class="nx">error</span><span class="p">(</span><span class="dl">"</span><span class="s2">Error:</span><span class="dl">"</span><span class="p">,</span> <span class="nx">error</span><span class="p">.</span><span class="nx">response</span><span class="p">?.</span><span class="nx">status</span><span class="p">);</span>
+    <span class="p">}</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="nx">deleteSession</span><span class="p">(</span><span class="dl">"</span><span class="s2">2024-01-15-10-30-00</span><span class="dl">"</span><span class="p">);</span>
+</code></pre></div></div><hr />
+<h2 id="security-considerations">
+  
+  
+    <a href="#security-considerations" class="anchor-heading" aria-labelledby="security-considerations"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Security Considerations
+  
+  
+</h2>
+    
+
+<p class="warning"><strong>Important Security Notes</strong>:</p>
+
+<ol>
+  <li><strong>API Key Protection</strong>: Keep your API key secure and never commit it to version control</li>
+  <li><strong>Network Security</strong>: By default, the server binds to localhost (127.0.0.1). Only allow external access if you have proper network security measures</li>
+  <li><strong>Input Validation</strong>: All incoming messages are validated for proper JSON format and required fields</li>
+  <li><strong>Rate Limiting</strong>: Consider implementing external rate limiting if needed for your use case</li>
+</ol>
+
+<p><strong>Best Practices</strong>:</p>
+
+<ul>
+  <li>Use strong, unique API keys (generate with: <code class="language-plaintext highlighter-rouge">openssl rand -hex 32</code>)</li>
+  <li>If exposing the server externally, use HTTPS with a reverse proxy</li>
+  <li>Monitor the server logs for suspicious activity</li>
+  <li>Restrict access to trusted IP addresses if possible</li>
+</ul><hr />
+<h2 id="integration-ideas">
+  
+  
+    <a href="#integration-ideas" class="anchor-heading" aria-labelledby="integration-ideas"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Integration Ideas
+  
+  
+</h2>
+    
+
+<p>The HTTP API opens up many possibilities for integration:</p>
+<h3 id="cicd-pipelines">
+  
+  
+    <a href="#cicd-pipelines" class="anchor-heading" aria-labelledby="cicd-pipelines"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> CI/CD Pipelines
+  
+  
+</h3>
+    
+
+<p>Send build notifications or deployment status to chat sessions:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># In your CI/CD script</span>
+curl <span class="nt">-X</span> POST http://127.0.0.1:7777/ <span class="se">\</span>
+  <span class="nt">-H</span> <span class="s2">"X-API-Key: your-secret-key"</span> <span class="se">\</span>
+  <span class="nt">-H</span> <span class="s2">"Content-Type: application/json"</span> <span class="se">\</span>
+  <span class="nt">-d</span> <span class="s2">"{</span><span class="se">\"</span><span class="s2">session</span><span class="se">\"</span><span class="s2">: </span><span class="se">\"</span><span class="nv">$SESSION_ID</span><span class="se">\"</span><span class="s2">, </span><span class="se">\"</span><span class="s2">content</span><span class="se">\"</span><span class="s2">: </span><span class="se">\"</span><span class="s2">Build completed successfully!</span><span class="se">\"</span><span class="s2">}"</span>
+</code></pre></div></div>
+<h3 id="monitoring-systems">
+  
+  
+    <a href="#monitoring-systems" class="anchor-heading" aria-labelledby="monitoring-systems"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Monitoring Systems
+  
+  
+</h3>
+    
+
+<p>Forward alerts from monitoring tools:</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">requests</span>
+
+<span class="k">def</span> <span class="nf">send_alert</span><span class="p">(</span><span class="n">session_id</span><span class="p">,</span> <span class="n">alert_message</span><span class="p">):</span>
+    <span class="n">requests</span><span class="p">.</span><span class="n">post</span><span class="p">(</span><span class="s">'http://127.0.0.1:7777/'</span><span class="p">,</span>
+        <span class="n">json</span><span class="o">=</span><span class="p">{</span><span class="s">'session'</span><span class="p">:</span> <span class="n">session_id</span><span class="p">,</span> <span class="s">'content'</span><span class="p">:</span> <span class="n">alert_message</span><span class="p">},</span>
+        <span class="n">headers</span><span class="o">=</span><span class="p">{</span><span class="s">'X-API-Key'</span><span class="p">:</span> <span class="s">'your-secret-key'</span><span class="p">})</span>
+</code></pre></div></div>
+<h3 id="script-automation">
+  
+  
+    <a href="#script-automation" class="anchor-heading" aria-labelledby="script-automation"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Script Automation
+  
+  
+</h3>
+    
+
+<p>Trigger chat interactions from shell scripts:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">#!/bin/bash</span>
+<span class="c"># Daily report script</span>
+<span class="nv">REPORT</span><span class="o">=</span><span class="si">$(</span>generate_daily_report<span class="si">)</span>
+curl <span class="nt">-X</span> POST http://127.0.0.1:7777/ <span class="se">\</span>
+  <span class="nt">-H</span> <span class="s2">"X-API-Key: your-secret-key"</span> <span class="se">\</span>
+  <span class="nt">-H</span> <span class="s2">"Content-Type: application/json"</span> <span class="se">\</span>
+  <span class="nt">-d</span> <span class="s2">"{</span><span class="se">\"</span><span class="s2">session</span><span class="se">\"</span><span class="s2">: </span><span class="se">\"</span><span class="nv">$SESSION_ID</span><span class="se">\"</span><span class="s2">, </span><span class="se">\"</span><span class="s2">content</span><span class="se">\"</span><span class="s2">: </span><span class="se">\"</span><span class="s2">Daily Report:</span><span class="se">\n</span><span class="nv">$REPORT</span><span class="se">\"</span><span class="s2">}"</span>
+</code></pre></div></div>
+<h3 id="external-applications">
+  
+  
+    <a href="#external-applications" class="anchor-heading" aria-labelledby="external-applications"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> External Applications
+  
+  
+</h3>
+    
+
+<p>Integrate with other desktop or web applications:</p>
+
+<div class="language-javascript highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// Electron app integration</span>
+<span class="kd">const</span> <span class="p">{</span> <span class="nx">ipcMain</span> <span class="p">}</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="dl">"</span><span class="s2">electron</span><span class="dl">"</span><span class="p">);</span>
+<span class="kd">const</span> <span class="nx">axios</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="dl">"</span><span class="s2">axios</span><span class="dl">"</span><span class="p">);</span>
+
+<span class="nx">ipcMain</span><span class="p">.</span><span class="nx">handle</span><span class="p">(</span><span class="dl">"</span><span class="s2">send-to-chat</span><span class="dl">"</span><span class="p">,</span> <span class="k">async</span> <span class="p">(</span><span class="nx">event</span><span class="p">,</span> <span class="nx">message</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="p">{</span>
+  <span class="kd">const</span> <span class="nx">response</span> <span class="o">=</span> <span class="k">await</span> <span class="nx">axios</span><span class="p">.</span><span class="nx">post</span><span class="p">(</span>
+    <span class="dl">"</span><span class="s2">http://127.0.0.1:7777/</span><span class="dl">"</span><span class="p">,</span>
+    <span class="p">{</span>
+      <span class="na">session</span><span class="p">:</span> <span class="dl">"</span><span class="s2">electron-app</span><span class="dl">"</span><span class="p">,</span>
+      <span class="na">content</span><span class="p">:</span> <span class="nx">message</span><span class="p">,</span>
+    <span class="p">},</span>
+    <span class="p">{</span>
+      <span class="na">headers</span><span class="p">:</span> <span class="p">{</span> <span class="dl">"</span><span class="s2">X-API-Key</span><span class="dl">"</span><span class="p">:</span> <span class="dl">"</span><span class="s2">your-secret-key</span><span class="dl">"</span> <span class="p">},</span>
+    <span class="p">},</span>
+  <span class="p">);</span>
+  <span class="k">return</span> <span class="nx">response</span><span class="p">.</span><span class="nx">status</span> <span class="o">===</span> <span class="mi">204</span><span class="p">;</span>
+<span class="p">});</span>
+</code></pre></div></div>
+<h3 id="session-management-tools">
+  
+  
+    <a href="#session-management-tools" class="anchor-heading" aria-labelledby="session-management-tools"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Session Management Tools
+  
+  
+</h3>
+    
+
+<p>External scripts can manage sessions programmatically:</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">requests</span>
+
+<span class="k">def</span> <span class="nf">backup_sessions</span><span class="p">():</span>
+    <span class="n">headers</span> <span class="o">=</span> <span class="p">{</span><span class="s">'X-API-Key'</span><span class="p">:</span> <span class="s">'your-secret-key'</span><span class="p">}</span>
+    
+    <span class="c1"># Get all sessions
+</span>    <span class="n">response</span> <span class="o">=</span> <span class="n">requests</span><span class="p">.</span><span class="n">get</span><span class="p">(</span><span class="s">'http://127.0.0.1:7777/sessions'</span><span class="p">,</span> <span class="n">headers</span><span class="o">=</span><span class="n">headers</span><span class="p">)</span>
+    <span class="n">sessions</span> <span class="o">=</span> <span class="n">response</span><span class="p">.</span><span class="n">json</span><span class="p">()</span>
+    
+    <span class="k">for</span> <span class="n">session</span> <span class="ow">in</span> <span class="n">sessions</span><span class="p">:</span>
+        <span class="n">session_id</span> <span class="o">=</span> <span class="n">session</span><span class="p">[</span><span class="s">'id'</span><span class="p">]</span>
+        
+        <span class="c1"># Get messages for backup
+</span>        <span class="n">msgs</span> <span class="o">=</span> <span class="n">requests</span><span class="p">.</span><span class="n">get</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s">'http://127.0.0.1:7777/messages?session=</span><span class="si">{</span><span class="n">session_id</span><span class="si">}</span><span class="s">'</span><span class="p">,</span>
+            <span class="n">headers</span><span class="o">=</span><span class="n">headers</span>
+        <span class="p">)</span>
+        
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="sa">f</span><span class="s">'backup_</span><span class="si">{</span><span class="n">session_id</span><span class="si">}</span><span class="s">.json'</span><span class="p">,</span> <span class="s">'w'</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">json</span><span class="p">.</span><span class="n">dump</span><span class="p">(</span><span class="n">msgs</span><span class="p">.</span><span class="n">json</span><span class="p">(),</span> <span class="n">f</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">cleanup_old_sessions</span><span class="p">(</span><span class="n">days_old</span><span class="o">=</span><span class="mi">30</span><span class="p">):</span>
+    <span class="s">"""Delete sessions older than specified days"""</span>
+    <span class="n">headers</span> <span class="o">=</span> <span class="p">{</span><span class="s">'X-API-Key'</span><span class="p">:</span> <span class="s">'your-secret-key'</span><span class="p">}</span>
+    
+    <span class="n">response</span> <span class="o">=</span> <span class="n">requests</span><span class="p">.</span><span class="n">get</span><span class="p">(</span><span class="s">'http://127.0.0.1:7777/sessions'</span><span class="p">,</span> <span class="n">headers</span><span class="o">=</span><span class="n">headers</span><span class="p">)</span>
+    <span class="n">sessions</span> <span class="o">=</span> <span class="n">response</span><span class="p">.</span><span class="n">json</span><span class="p">()</span>
+    
+    <span class="n">cutoff</span> <span class="o">=</span> <span class="n">datetime</span><span class="p">.</span><span class="n">now</span><span class="p">()</span> <span class="o">-</span> <span class="n">timedelta</span><span class="p">(</span><span class="n">days</span><span class="o">=</span><span class="n">days_old</span><span class="p">)</span>
+    
+    <span class="k">for</span> <span class="n">session</span> <span class="ow">in</span> <span class="n">sessions</span><span class="p">:</span>
+        <span class="n">session_date</span> <span class="o">=</span> <span class="n">datetime</span><span class="p">.</span><span class="n">strptime</span><span class="p">(</span><span class="n">session</span><span class="p">[</span><span class="s">'id'</span><span class="p">],</span> <span class="s">'%Y-%m-%d-%H-%M-%S'</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">session_date</span> <span class="o">&lt;</span> <span class="n">cutoff</span><span class="p">:</span>
+            <span class="c1"># Delete old session
+</span>            <span class="n">requests</span><span class="p">.</span><span class="n">delete</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s">'http://127.0.0.1:7777/session/</span><span class="si">{</span><span class="n">session</span><span class="p">[</span><span class="s">"id"</span><span class="p">]</span><span class="si">}</span><span class="s">'</span><span class="p">,</span>
+                <span class="n">headers</span><span class="o">=</span><span class="n">headers</span>
+            <span class="p">)</span>
+</code></pre></div></div>
+<h3 id="monitoring-dashboard">
+  
+  
+    <a href="#monitoring-dashboard" class="anchor-heading" aria-labelledby="monitoring-dashboard"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Monitoring Dashboard
+  
+  
+</h3>
+    
+
+<p>Display status and statistics of all active sessions:</p>
+
+<div class="language-javascript highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// Web dashboard</span>
+<span class="k">async</span> <span class="kd">function</span> <span class="nx">updateDashboard</span><span class="p">()</span> <span class="p">{</span>
+  <span class="kd">const</span> <span class="nx">response</span> <span class="o">=</span> <span class="k">await</span> <span class="nx">fetch</span><span class="p">(</span><span class="dl">"</span><span class="s2">http://127.0.0.1:7777/sessions</span><span class="dl">"</span><span class="p">,</span> <span class="p">{</span>
+    <span class="na">headers</span><span class="p">:</span> <span class="p">{</span> <span class="dl">"</span><span class="s2">X-API-Key</span><span class="dl">"</span><span class="p">:</span> <span class="dl">"</span><span class="s2">your-secret-key</span><span class="dl">"</span> <span class="p">},</span>
+  <span class="p">});</span>
+  <span class="kd">const</span> <span class="nx">sessions</span> <span class="o">=</span> <span class="k">await</span> <span class="nx">response</span><span class="p">.</span><span class="nx">json</span><span class="p">();</span>
+
+  <span class="c1">// Update dashboard UI</span>
+  <span class="nb">document</span><span class="p">.</span><span class="nx">getElementById</span><span class="p">(</span><span class="dl">"</span><span class="s2">session-count</span><span class="dl">"</span><span class="p">).</span><span class="nx">textContent</span> <span class="o">=</span> <span class="nx">sessions</span><span class="p">.</span><span class="nx">length</span><span class="p">;</span>
+  <span class="nb">document</span><span class="p">.</span><span class="nx">getElementById</span><span class="p">(</span><span class="dl">"</span><span class="s2">session-list</span><span class="dl">"</span><span class="p">).</span><span class="nx">innerHTML</span> <span class="o">=</span> <span class="nx">sessions</span>
+    <span class="p">.</span><span class="nx">map</span><span class="p">((</span><span class="nx">s</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="s2">`&lt;li&gt;</span><span class="p">${</span><span class="nx">s</span><span class="p">.</span><span class="nx">id</span><span class="p">}</span><span class="s2"> - </span><span class="p">${</span><span class="nx">s</span><span class="p">.</span><span class="nx">provider</span><span class="p">}</span><span class="s2">/</span><span class="p">${</span><span class="nx">s</span><span class="p">.</span><span class="nx">model</span><span class="p">}</span><span class="s2">&lt;/li&gt;`</span><span class="p">)</span>
+    <span class="p">.</span><span class="nx">join</span><span class="p">(</span><span class="dl">""</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="c1">// Update every 5 seconds</span>
+<span class="nx">setInterval</span><span class="p">(</span><span class="nx">updateDashboard</span><span class="p">,</span> <span class="mi">5000</span><span class="p">);</span>
+</code></pre></div></div><hr />
+<h2 id="next-steps">
+  
+  
+    <a href="#next-steps" class="anchor-heading" aria-labelledby="next-steps"><svg viewBox="0 0 16 16" aria-hidden="true"><use xlink:href="#svg-link"></use></svg></a> Next Steps
+  
+  
+</h2>
+    
+
+<ul>
+  <li><a href="../providers/">Providers</a> - Learn about AI providers</li>
+  <li><a href="../tools/">Tools</a> - Explore available tools</li>
+  <li><a href="../memory/">Memory System</a> - Memory system configuration</li>
+  <li><a href="../integrations/im/">IM Integration</a> - Instant messaging integrations</li>
+</ul>
+
+          
+
+          
+            
+          
+        </main>
+        
+<hr>
+<footer>
+  
+    <p><a href="#top" id="back-to-top">Back to top</a></p>
+  
+
+  <p class="text-small mb-0">Copyright &copy; 2024 wsdjeg. Distributed by the <a href="https://github.com/wsdjeg/chat.nvim/blob/master/LICENSE">GPL-3.0 license</a>.</p>
+
+  
+    <div class="d-flex mt-2">
+      
+      
+        <p class="text-small mb-0">
+          <a href="https://github.com/wsdjeg/chat.nvim/tree/master/api/http.md" id="edit-this-page">Edit this page on GitHub</a>
+        </p>
+      
+    </div>
+  <div class="d-md-none mt-4 fs-2">
+    
+    
+      This site uses <a href="https://github.com/just-the-docs/just-the-docs">Just the Docs</a>, a documentation theme for Jekyll.
+    
+  </div>
+</footer>
+
+      </div>
+    </div>
+    
+      
+
+<div class="search-overlay"></div>
+
+    
+  </div>
+
+  
+    
+
+
+
+
+
+
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@9.1.6/dist/mermaid.min.js"></script>
+
+
+<script>
+  var config = {}
+;
+  mermaid.initialize(config);
+  window.mermaid.init(undefined, document.querySelectorAll('.language-mermaid'));
+</script>
+
+
+
+  
+</body>
+</html>
+

@@ -25,12 +25,28 @@ public class ApiClient {
     }
     
     public interface SessionsCallback {
-        void onSuccess(String[] sessions);
+        void onSuccess(List<Session> sessions);
         void onError(String error);
     }
     
     public interface MessagesCallback {
         void onSuccess(List<ChatMessage> messages);
+        void onError(String error);
+    }
+    
+    /**
+     * 创建会话回调接口
+     */
+    public interface CreateSessionCallback {
+        void onSuccess(Session session);
+        void onError(String error);
+    }
+    
+    /**
+     * 删除会话回调接口
+     */
+    public interface DeleteSessionCallback {
+        void onSuccess();
         void onError(String error);
     }
     
@@ -156,9 +172,9 @@ public class ApiClient {
     }
     
     /**
-     * Get all active session IDs.
+     * Get all active sessions with details.
      * GET /sessions
-     * Returns JSON array: ["session1", "session2", ...]
+     * Returns JSON array with session objects: [{id, cwd, provider, model}, ...]
      */
     public void getSessions(SessionsCallback callback) {
         String baseUrl = settingsManager.getFullUrl();
@@ -190,11 +206,24 @@ public class ApiClient {
                     }
                     br.close();
                     
-                    // Parse JSON array
+                    // Parse JSON array with session objects
                     JSONArray jsonArray = new JSONArray(response.toString());
-                    String[] sessions = new String[jsonArray.length()];
+                    List<Session> sessions = new ArrayList<>();
+                    
                     for (int i = 0; i < jsonArray.length(); i++) {
-                        sessions[i] = jsonArray.getString(i);
+                        JSONObject sessionObj = jsonArray.getJSONObject(i);
+                        String id = sessionObj.optString("id", "");
+                        String cwd = sessionObj.optString("cwd", "");
+                        String provider = sessionObj.optString("provider", "");
+                        String model = sessionObj.optString("model", "");
+                        
+                        if (!id.isEmpty()) {
+                            Session session = new Session(id);
+                            session.setCwd(cwd);
+                            session.setProvider(provider);
+                            session.setModel(model);
+                            sessions.add(session);
+                        }
                     }
                     
                     new Handler(Looper.getMainLooper()).post(() -> 
@@ -208,6 +237,148 @@ public class ApiClient {
                 }
             } catch (Exception e) {
                 Log.e(TAG, "getSessions failed", e);
+                new Handler(Looper.getMainLooper()).post(() -> 
+                    callback.onError("Network error: " + e.getMessage()));
+            }
+        }).start();
+    }
+    
+    /**
+     * Create a new chat session.
+     * POST /session/new
+     * Request body: {"cwd": "...", "provider": "...", "model": "..."} (all optional)
+     * Returns 201 with {"id": "session-id"}
+     */
+    public void createSession(String cwd, String provider, String model, CreateSessionCallback callback) {
+        String baseUrl = settingsManager.getFullUrl();
+        String apiKey = settingsManager.getApiKey();
+        
+        if (baseUrl.isEmpty() || apiKey.isEmpty()) {
+            callback.onError("Please configure API settings");
+            return;
+        }
+        
+        new Thread(() -> {
+            try {
+                URL url = new URL(baseUrl + "/session/new");
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("POST");
+                conn.setRequestProperty("Content-Type", "application/json");
+                conn.setRequestProperty("X-API-Key", apiKey);
+                conn.setDoOutput(true);
+                conn.setConnectTimeout(5000);
+                conn.setReadTimeout(10000);
+
+                // Build request body (all fields optional)
+                JSONObject requestBody = new JSONObject();
+                if (cwd != null && !cwd.isEmpty()) {
+                    requestBody.put("cwd", cwd);
+                }
+                if (provider != null && !provider.isEmpty()) {
+                    requestBody.put("provider", provider);
+                }
+                if (model != null && !model.isEmpty()) {
+                    requestBody.put("model", model);
+                }
+                
+                // Send request
+                try (OutputStream os = conn.getOutputStream()) {
+                    byte[] input = requestBody.toString().getBytes(StandardCharsets.UTF_8);
+                    os.write(input, 0, input.length);
+                }
+
+                int responseCode = conn.getResponseCode();
+                
+                if (responseCode == 201) {
+                    // Read response to get session ID
+                    BufferedReader br = new BufferedReader(
+                        new InputStreamReader(conn.getInputStream()));
+                    StringBuilder response = new StringBuilder();
+                    String line;
+                    while ((line = br.readLine()) != null) {
+                        response.append(line);
+                    }
+                    br.close();
+                    
+                    // Parse response: {"id": "session-id"}
+                    JSONObject jsonResponse = new JSONObject(response.toString());
+                    String sessionId = jsonResponse.getString("id");
+                    
+                    // Create session object with returned ID
+                    Session session = new Session(sessionId);
+                    session.setCwd(cwd != null ? cwd : "");
+                    session.setProvider(provider != null ? provider : "");
+                    session.setModel(model != null ? model : "");
+                    
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onSuccess(session));
+                } else if (responseCode == 401) {
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onError("Unauthorized: Invalid API Key"));
+                } else if (responseCode == 400) {
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onError("Bad Request: Invalid parameters"));
+                } else {
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onError("Error: " + responseCode));
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "createSession failed", e);
+                new Handler(Looper.getMainLooper()).post(() -> 
+                    callback.onError("Network error: " + e.getMessage()));
+            }
+        }).start();
+    }
+    
+    /**
+     * Delete a specific session.
+     * DELETE /session/:id
+     * Returns 204 on success, 409 if session is in progress.
+     */
+    public void deleteSession(String sessionId, DeleteSessionCallback callback) {
+        String baseUrl = settingsManager.getFullUrl();
+        String apiKey = settingsManager.getApiKey();
+        
+        if (baseUrl.isEmpty() || apiKey.isEmpty()) {
+            callback.onError("Please configure API settings");
+            return;
+        }
+        
+        if (sessionId == null || sessionId.isEmpty()) {
+            callback.onError("Session ID is required");
+            return;
+        }
+        
+        new Thread(() -> {
+            try {
+                URL url = new URL(baseUrl + "/session/" + sessionId);
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("DELETE");
+                conn.setRequestProperty("X-API-Key", apiKey);
+                conn.setConnectTimeout(5000);
+                conn.setReadTimeout(10000);
+
+                int responseCode = conn.getResponseCode();
+                
+                if (responseCode == 204) {
+                    // Success - 204 No Content
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onSuccess());
+                } else if (responseCode == 404) {
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onError("Session not found"));
+                } else if (responseCode == 409) {
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onError("Session is in progress, cannot delete"));
+                } else if (responseCode == 401) {
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onError("Unauthorized: Invalid API Key"));
+                } else {
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onError("Error: " + responseCode));
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "deleteSession failed", e);
                 new Handler(Looper.getMainLooper()).post(() -> 
                     callback.onError("Network error: " + e.getMessage()));
             }

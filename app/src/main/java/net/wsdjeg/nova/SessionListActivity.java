@@ -189,27 +189,33 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
         
         apiClient.getSessions(new ApiClient.SessionsCallback() {
             @Override
-            public void onSuccess(String[] sessionIds) {
+            public void onSuccess(List<Session> serverSessions) {
                 runOnUiThread(() -> {
-                    // 将服务器会话 ID 转为 Set，用于快速查找
-                    Set<String> serverSessionIds = new HashSet<>();
-                    for (String id : sessionIds) {
-                        serverSessionIds.add(id);
+                    // 将服务器会话转为 Map，方便查找
+                    java.util.Map<String, Session> serverSessionMap = new java.util.HashMap<>();
+                    for (Session session : serverSessions) {
+                        serverSessionMap.put(session.getSessionId(), session);
                     }
                     
-                    // 同步：添加本地没有的会话
-                    for (String sessionId : sessionIds) {
-                        Session session = sessionManager.getSession(sessionId);
-                        if (session == null) {
-                            session = new Session(sessionId);
-                            sessionManager.addOrUpdateSession(session);
+                    // 同步：添加或更新本地会话
+                    for (Session serverSession : serverSessions) {
+                        Session localSession = sessionManager.getSession(serverSession.getSessionId());
+                        if (localSession == null) {
+                            // 本地没有，添加新会话（保留服务器的完整信息）
+                            sessionManager.addOrUpdateSession(serverSession);
+                        } else {
+                            // 本地已有，更新 provider, model, cwd 信息
+                            localSession.setProvider(serverSession.getProvider());
+                            localSession.setModel(serverSession.getModel());
+                            localSession.setCwd(serverSession.getCwd());
+                            sessionManager.addOrUpdateSession(localSession);
                         }
                     }
                     
                     // 同步：删除服务器没有的本地会话
                     List<Session> localSessions = sessionManager.loadSessions();
                     for (Session localSession : localSessions) {
-                        if (!serverSessionIds.contains(localSession.getSessionId())) {
+                        if (!serverSessionMap.containsKey(localSession.getSessionId())) {
                             sessionManager.deleteSession(localSession.getSessionId());
                             initializedSessions.remove(localSession.getSessionId());
                         }
@@ -220,6 +226,10 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
                     // 第一次刷新后，获取每个会话的消息列表
                     if (!isFirstRefreshDone) {
                         isFirstRefreshDone = true;
+                        String[] sessionIds = new String[serverSessions.size()];
+                        for (int i = 0; i < serverSessions.size(); i++) {
+                            sessionIds[i] = serverSessions.get(i).getSessionId();
+                        }
                         initializeAllSessions(sessionIds);
                         startAutoRefresh();
                     }
@@ -240,59 +250,53 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
     }
     
     /**
-     * 初始化所有会话的消息列表
-     * 第一次刷新后，每个会话获取一次消息列表
+     * 初始化所有会话的消息信息
+     * 获取每个会话的消息列表，提取最后一条消息作为预览
      */
     private void initializeAllSessions(String[] sessionIds) {
         for (String sessionId : sessionIds) {
-            if (!initializedSessions.contains(sessionId)) {
-                initializedSessions.add(sessionId);
-                fetchMessagesForSession(sessionId);
+            if (initializedSessions.contains(sessionId)) {
+                continue;
             }
+            
+            apiClient.getMessages(sessionId, new ApiClient.MessagesCallback() {
+                @Override
+                public void onSuccess(List<ApiClient.ChatMessage> chatMessages) {
+                    runOnUiThread(() -> {
+                        initializedSessions.add(sessionId);
+                        
+                        if (chatMessages.isEmpty()) {
+                            return;
+                        }
+                        
+                        // 获取最后一条消息
+                        ApiClient.ChatMessage lastMsg = chatMessages.get(chatMessages.size() - 1);
+                        long lastMessageTime = lastMsg.created * 1000; // 转换为毫秒
+                        
+                        // 更新会话信息
+                        Session session = sessionManager.getSession(sessionId);
+                        if (session != null) {
+                            session.updateSessionInfo(
+                                lastMsg.content,
+                                chatMessages.size(),
+                                lastMessageTime
+                            );
+                            loadSessions();
+                        }
+                    });
+                }
+                
+                @Override
+                public void onError(String error) {
+                    // 忽略单个会话的消息获取错误
+                }
+            });
         }
     }
     
     /**
-     * 获取指定会话的消息列表并更新
-     */
-    private void fetchMessagesForSession(String sessionId) {
-        apiClient.getMessages(sessionId, new ApiClient.MessagesCallback() {
-            @Override
-            public void onSuccess(List<ApiClient.ChatMessage> chatMessages) {
-                runOnUiThread(() -> {
-                    if (!chatMessages.isEmpty()) {
-                        ApiClient.ChatMessage lastMsg = chatMessages.get(chatMessages.size() - 1);
-                        // 查找第一条用户消息作为标题
-                        String firstUserMessage = null;
-                        for (ApiClient.ChatMessage msg : chatMessages) {
-                            if ("user".equals(msg.role)) {
-                                firstUserMessage = msg.content;
-                                break;
-                            }
-                        }
-                        // ChatMessage.created 是秒级时间戳，需要转换为毫秒
-                        long lastMessageTime = lastMsg.created * 1000;
-                        sessionManager.updateMessages(
-                            sessionId,
-                            firstUserMessage,
-                            lastMsg.content,
-                            chatMessages.size(),
-                            lastMessageTime
-                        );
-                        loadSessions();
-                    }
-                });
-            }
-            
-            @Override
-            public void onError(String error) {
-                // 忽略单个会话的消息获取错误
-            }
-        });
-    }
-    
-    /**
      * 创建新会话
+     * 通过 API 创建新会话
      */
     private void createNewSession() {
         if (!settingsManager.hasValidSettings()) {
@@ -301,19 +305,42 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
             return;
         }
         
-        // 生成新的 session ID
-        String newSessionId = java.util.UUID.randomUUID().toString();
+        // 显示创建中提示
+        Toast.makeText(this, "正在创建新会话...", Toast.LENGTH_SHORT).show();
         
-        // 保存为新会话
-        Session newSession = new Session(newSessionId);
-        newSession.setLastMessageTime(System.currentTimeMillis());
-        sessionManager.addOrUpdateSession(newSession);
-        
-        // 设置为当前会话
-        sessionManager.saveCurrentSession(newSessionId);
-        
-        // 可选：创建后直接打开聊天界面
-        openChatActivity(newSessionId);
+        // 通过 API 创建新会话
+        apiClient.createSession(null, null, null, new ApiClient.CreateSessionCallback() {
+            @Override
+            public void onSuccess(Session session) {
+                runOnUiThread(() -> {
+                    // 保存到本地
+                    session.setLastMessageTime(System.currentTimeMillis());
+                    sessionManager.addOrUpdateSession(session);
+                    
+                    // 设置为当前会话
+                    sessionManager.saveCurrentSession(session.getSessionId());
+                    
+                    // 刷新列表
+                    loadSessions();
+                    
+                    // 直接打开聊天界面
+                    openChatActivity(session.getSessionId());
+                    
+                    Toast.makeText(SessionListActivity.this, 
+                        "已创建新会话: " + session.getSessionId(), 
+                        Toast.LENGTH_SHORT).show();
+                });
+            }
+            
+            @Override
+            public void onError(String error) {
+                runOnUiThread(() -> {
+                    Toast.makeText(SessionListActivity.this, 
+                        "创建会话失败: " + error, 
+                        Toast.LENGTH_SHORT).show();
+                });
+            }
+        });
     }
     
     /**
@@ -345,12 +372,58 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
             .setTitle("删除会话")
             .setMessage("确定要删除会话 " + session.getTitle() + " 吗？\n\n此操作不可恢复。")
             .setPositiveButton("删除", (dialog, which) -> {
-                sessionManager.deleteSession(session.getSessionId());
-                initializedSessions.remove(session.getSessionId());
-                loadSessions();
-                Toast.makeText(this, "已删除会话", Toast.LENGTH_SHORT).show();
+                deleteSession(session);
             })
             .setNegativeButton("取消", null)
             .show();
+    }
+    
+    /**
+     * 删除会话（通过 API）
+     */
+    private void deleteSession(Session session) {
+        if (!settingsManager.hasValidSettings()) {
+            // 如果没有配置 API，只删除本地数据
+            sessionManager.deleteSession(session.getSessionId());
+            initializedSessions.remove(session.getSessionId());
+            loadSessions();
+            Toast.makeText(this, "已删除本地会话", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        // 显示删除中提示
+        Toast.makeText(this, "正在删除会话...", Toast.LENGTH_SHORT).show();
+        
+        // 调用 API 删除会话
+        apiClient.deleteSession(session.getSessionId(), new ApiClient.DeleteSessionCallback() {
+            @Override
+            public void onSuccess() {
+                runOnUiThread(() -> {
+                    // 删除成功，同时删除本地数据
+                    sessionManager.deleteSession(session.getSessionId());
+                    initializedSessions.remove(session.getSessionId());
+                    loadSessions();
+                    Toast.makeText(SessionListActivity.this, 
+                        "已删除会话", Toast.LENGTH_SHORT).show();
+                });
+            }
+            
+            @Override
+            public void onError(String error) {
+                runOnUiThread(() -> {
+                    // 特殊处理：如果是 404，说明会话在服务器上不存在，直接删除本地数据
+                    if (error.contains("404") || error.contains("Not Found")) {
+                        sessionManager.deleteSession(session.getSessionId());
+                        initializedSessions.remove(session.getSessionId());
+                        loadSessions();
+                        Toast.makeText(SessionListActivity.this, 
+                            "已删除本地会话（服务器上不存在）", Toast.LENGTH_SHORT).show();
+                    } else {
+                        Toast.makeText(SessionListActivity.this, 
+                            "删除会话失败: " + error, Toast.LENGTH_SHORT).show();
+                    }
+                });
+            }
+        });
     }
 }

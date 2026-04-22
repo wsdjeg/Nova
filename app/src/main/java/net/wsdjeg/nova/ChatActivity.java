@@ -8,6 +8,7 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.TextView;
 import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
@@ -28,6 +29,8 @@ public class ChatActivity extends AppCompatActivity {
     private static final int REFRESH_INTERVAL_MS = 5000; // 5秒刷新一次
     
     private Toolbar toolbar;
+    private TextView tvSessionInfo;
+    private TextView tvSessionPath;
     private RecyclerView rvMessages;
     private EditText etMessage;
     private Button btnSend;
@@ -55,6 +58,10 @@ public class ChatActivity extends AppCompatActivity {
         toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
         
+        // 初始化顶部会话信息控件
+        tvSessionInfo = findViewById(R.id.tv_session_info);
+        tvSessionPath = findViewById(R.id.tv_session_path);
+        
         // 获取传入的 session ID
         currentSessionId = getIntent().getStringExtra(EXTRA_SESSION_ID);
         currentSessionTitle = getIntent().getStringExtra(EXTRA_SESSION_TITLE);
@@ -65,17 +72,8 @@ public class ChatActivity extends AppCompatActivity {
             return;
         }
         
-        // 设置标题
-        if (currentSessionTitle != null && !currentSessionTitle.isEmpty()) {
-            toolbar.setTitle(currentSessionTitle);
-        } else {
-            toolbar.setTitle("聊天");
-        }
-        
-        // 启用返回按钮
-        if (getSupportActionBar() != null) {
-            getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-        }
+        // 不显示标题文字，改为显示会话信息
+        toolbar.setTitle("");
         
         settingsManager = new SettingsManager(this);
         sessionManager = new SessionManager(this);
@@ -85,6 +83,9 @@ public class ChatActivity extends AppCompatActivity {
         settingsManager.setSession(currentSessionId);
         sessionManager.saveCurrentSession(currentSessionId);
         
+        // 加载会话信息
+        loadSessionInfo();
+        
         initViews();
         setupRecyclerView();
         setupAutoRefresh();
@@ -92,6 +93,61 @@ public class ChatActivity extends AppCompatActivity {
         // 加载消息
         addMessage("正在加载消息...", false);
         refreshMessages();
+    }
+    
+    /**
+     * 加载会话信息并显示在顶部
+     */
+    private void loadSessionInfo() {
+        // 从 SessionManager 获取会话信息
+        Session session = sessionManager.getSession(currentSessionId);
+        
+        if (session != null) {
+            updateSessionInfo(session);
+        } else {
+            // 从 API 获取会话详情
+            apiClient.getSessions(new ApiClient.SessionsCallback() {
+                @Override
+                public void onSuccess(List<Session> sessions) {
+                    runOnUiThread(() -> {
+                        for (Session s : sessions) {
+                            if (s.getSessionId().equals(currentSessionId)) {
+                                sessionManager.updateSession(s);
+                                updateSessionInfo(s);
+                                break;
+                            }
+                        }
+                    });
+                }
+                
+                @Override
+                public void onError(String error) {
+                    // 如果无法获取，显示默认信息
+                    runOnUiThread(() -> {
+                        tvSessionInfo.setText("Provider: unknown | Model: unknown");
+                        tvSessionPath.setText("Path: unknown");
+                    });
+                }
+            });
+        }
+    }
+    
+    /**
+     * 更新顶部会话信息显示
+     */
+    private void updateSessionInfo(Session session) {
+        String provider = session.getProvider();
+        String model = session.getModel();
+        String cwd = session.getCwd();
+        
+        // 第一行：Provider + Model
+        String infoLine = "Provider: " + (provider != null ? provider : "unknown") 
+                        + " | Model: " + (model != null ? model : "unknown");
+        tvSessionInfo.setText(infoLine);
+        
+        // 第二行：路径（cwd）
+        String pathLine = "Path: " + (cwd != null ? cwd : "unknown");
+        tvSessionPath.setText(pathLine);
     }
     
     @Override

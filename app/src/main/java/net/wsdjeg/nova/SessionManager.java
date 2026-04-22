@@ -110,6 +110,13 @@ public class SessionManager {
     }
     
     /**
+     * 更新会话信息（来自服务器）
+     */
+    public void updateSession(Session updatedSession) {
+        addOrUpdateSession(updatedSession);
+    }
+    
+    /**
      * 更新会话的消息信息
      * @param lastMessageTime 最后一条消息的时间戳（毫秒）
      */

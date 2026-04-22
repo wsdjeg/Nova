@@ -15,6 +15,11 @@ public class Session {
     private String preview;
     private int unreadCount;  // 未读消息数量
     
+    // 新增字段：来自 API /sessions
+    private String provider;  // AI provider
+    private String model;     // Model name
+    private String cwd;       // Working directory
+    
     public Session(String sessionId) {
         this.sessionId = sessionId;
         this.firstMessage = "";
@@ -23,6 +28,9 @@ public class Session {
         this.messageCount = 0;
         this.preview = "";
         this.unreadCount = 0;
+        this.provider = "";
+        this.model = "";
+        this.cwd = "";
     }
     
     public Session(String sessionId, String firstMessage, String lastMessage, long lastMessageTime, int messageCount) {
@@ -32,6 +40,25 @@ public class Session {
         this.lastMessageTime = lastMessageTime;
         this.messageCount = messageCount;
         this.preview = generatePreview(lastMessage);
+        this.unreadCount = 0;
+        this.provider = "";
+        this.model = "";
+        this.cwd = "";
+    }
+    
+    /**
+     * 新构造函数：包含 provider, model, cwd
+     */
+    public Session(String sessionId, String cwd, String provider, String model) {
+        this.sessionId = sessionId;
+        this.cwd = cwd != null ? cwd : "";
+        this.provider = provider != null ? provider : "";
+        this.model = model != null ? model : "";
+        this.firstMessage = "";
+        this.lastMessage = "";
+        this.lastMessageTime = System.currentTimeMillis();
+        this.messageCount = 0;
+        this.preview = "";
         this.unreadCount = 0;
     }
     
@@ -63,6 +90,45 @@ public class Session {
      */
     public String getFormattedTime() {
         return TimeUtils.formatTime(lastMessageTime);
+    }
+    
+    /**
+     * 获取会话信息显示
+     * 格式：provider / model
+     */
+    public String getSessionInfo() {
+        if (provider != null && !provider.isEmpty() && model != null && !model.isEmpty()) {
+            return provider + " / " + model;
+        }
+        return "Unknown Provider";
+    }
+    
+    /**
+     * 获取路径显示
+     * 如果路径太长，只显示最后部分
+     */
+    public String getShortPath() {
+        if (cwd == null || cwd.isEmpty()) {
+            return "";
+        }
+        // 只显示最后 30 个字符
+        if (cwd.length() > 30) {
+            return "..." + cwd.substring(cwd.length() - 30);
+        }
+        return cwd;
+    }
+    
+    /**
+     * 更新会话信息（从消息列表获取）
+     * @param lastMessageContent 最后一条消息内容
+     * @param count 消息数量
+     * @param time 最后消息时间
+     */
+    public void updateSessionInfo(String lastMessageContent, int count, long time) {
+        this.lastMessage = lastMessageContent;
+        this.preview = generatePreview(lastMessageContent);
+        this.messageCount = count;
+        this.lastMessageTime = time;
     }
     
     // Getters and Setters
@@ -117,6 +183,30 @@ public class Session {
     
     public void setUnreadCount(int unreadCount) {
         this.unreadCount = unreadCount;
+    }
+    
+    public String getProvider() {
+        return provider;
+    }
+    
+    public void setProvider(String provider) {
+        this.provider = provider != null ? provider : "";
+    }
+    
+    public String getModel() {
+        return model;
+    }
+    
+    public void setModel(String model) {
+        this.model = model != null ? model : "";
+    }
+    
+    public String getCwd() {
+        return cwd;
+    }
+    
+    public void setCwd(String cwd) {
+        this.cwd = cwd != null ? cwd : "";
     }
     
     /**
