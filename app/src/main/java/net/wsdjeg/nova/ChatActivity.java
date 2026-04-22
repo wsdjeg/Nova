@@ -191,16 +191,31 @@ public class ChatActivity extends AppCompatActivity {
             refreshMessages();
             Toast.makeText(this, "已刷新", Toast.LENGTH_SHORT).show();
             return true;
+        } else if (itemId == R.id.action_preview) {
+            // 预览：使用浏览器打开当前会话
+            openPreviewInBrowser();
+            return true;
         }
         
         return super.onOptionsItemSelected(item);
+    }
+    
+    /**
+     * 使用浏览器打开预览链接
+     */
+    private void openPreviewInBrowser() {
+        String ip = settingsManager.getIpAddress();
+        String port = settingsManager.getPort();
+        String url = "http://" + ip + ":" + port + "/session?id=" + currentSessionId;
+        
+        Intent intent = new Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url));
+        startActivity(intent);
     }
     
     private void initViews() {
         rvMessages = findViewById(R.id.rv_messages);
         etMessage = findViewById(R.id.et_message);
         btnSend = findViewById(R.id.btn_send);
-        
         btnSend.setOnClickListener(v -> sendMessage());
     }
 

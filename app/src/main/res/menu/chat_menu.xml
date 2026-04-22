@@ -8,6 +8,11 @@
         app:showAsAction="never" />
     
     <item
+        android:id="@+id/action_preview"
+        android:title="预览"
+        app:showAsAction="never" />
+    
+    <item
         android:id="@+id/action_settings"
         android:title="设置"
         app:showAsAction="never" />
