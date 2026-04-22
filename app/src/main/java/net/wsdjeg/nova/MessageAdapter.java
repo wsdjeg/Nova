@@ -1,9 +1,13 @@
 package net.wsdjeg.nova;
 
+import android.content.ClipData;
+import android.content.ClipboardManager;
+import android.content.Context;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
+import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 import io.noties.markwon.Markwon;
@@ -16,11 +20,13 @@ import java.util.List;
 public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageViewHolder> {
     private List<Message> messages;
     private Markwon markwon;
+    private Context context;
     private static final int TYPE_USER = 1;
     private static final int TYPE_BOT = 2;
 
-    public MessageAdapter(List<Message> messages, android.content.Context context) {
+    public MessageAdapter(List<Message> messages, Context context) {
         this.messages = messages;
+        this.context = context;
         this.markwon = Markwon.builder(context)
             .usePlugin(TablePlugin.create(context))
             .usePlugin(TaskListPlugin.create(context))
@@ -54,11 +60,35 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
         // 使用统一的时间格式化工具
         String time = TimeUtils.formatTime(message.getTimestamp());
         holder.timeText.setText(time);
+        
+        // 设置长按复制功能
+        holder.messageText.setOnLongClickListener(v -> {
+            copyToClipboard(message.getContent());
+            return true;
+        });
+        
+        // 整个消息区域也可以长按复制
+        holder.itemView.setOnLongClickListener(v -> {
+            copyToClipboard(message.getContent());
+            return true;
+        });
     }
 
     @Override
     public int getItemCount() {
         return messages.size();
+    }
+    
+    /**
+     * 复制文本到剪贴板
+     */
+    private void copyToClipboard(String text) {
+        ClipboardManager clipboard = (ClipboardManager) context.getSystemService(Context.CLIPBOARD_SERVICE);
+        if (clipboard != null) {
+            ClipData clip = ClipData.newPlainText("消息内容", text);
+            clipboard.setPrimaryClip(clip);
+            Toast.makeText(context, "已复制到剪贴板", Toast.LENGTH_SHORT).show();
+        }
     }
 
     static class MessageViewHolder extends RecyclerView.ViewHolder {
