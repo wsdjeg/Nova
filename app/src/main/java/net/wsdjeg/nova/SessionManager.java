@@ -96,6 +96,7 @@ public class SessionManager {
     
     /**
      * 添加或更新会话
+     * 注意：直接使用新会话的数据，不保留旧数据
      */
     public void addOrUpdateSession(Session newSession) {
         List<Session> sessions = loadSessions();
@@ -103,9 +104,7 @@ public class SessionManager {
         
         for (int i = 0; i < sessions.size(); i++) {
             if (sessions.get(i).getSessionId().equals(newSession.getSessionId())) {
-                if (newSession.getUnreadCount() == 0 && sessions.get(i).getUnreadCount() > 0) {
-                    newSession.setUnreadCount(sessions.get(i).getUnreadCount());
-                }
+                // 直接用新会话替换旧会话，不保留旧的未读数
                 sessions.set(i, newSession);
                 found = true;
                 break;
