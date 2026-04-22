@@ -170,6 +170,14 @@ public class ChatActivity extends AppCompatActivity {
     protected void onPause() {
         super.onPause();
         stopAutoRefresh();
+        
+        // 离开聊天界面时，保存当前消息数作为已读数
+        // 这样返回会话列表时，该会话不会显示未读数
+        if (currentSessionId != null && messages != null) {
+            int currentMessageCount = messages.size();
+            sessionManager.saveReadMessageCount(currentSessionId, currentMessageCount);
+            sessionManager.clearUnreadCount(currentSessionId);
+        }
     }
     
     @Override
@@ -177,13 +185,13 @@ public class ChatActivity extends AppCompatActivity {
         super.onDestroy();
         stopAutoRefresh();
     }
-
+    
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         getMenuInflater().inflate(R.menu.chat_menu, menu);
         return true;
     }
-
+    
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         int itemId = item.getItemId();
