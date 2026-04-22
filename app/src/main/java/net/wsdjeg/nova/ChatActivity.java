@@ -205,10 +205,11 @@ public class ChatActivity extends AppCompatActivity {
                                 }
                             }
                             sessionManager.updateMessages(
-                                currentSessionId, 
+                                currentSessionId,
                                 firstUserMessage,  // 第一条用户消息作为标题
-                                lastMsg.content, 
-                                chatMessages.size()
+                                lastMsg.content,
+                                chatMessages.size(),
+                                lastMsg.created * 1000L  // lastMessageTime in ms
                             );
                         }
                     }
