@@ -3,7 +3,7 @@
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content"
+    android:layout_height="88dp"
     android:padding="12dp"
     android:background="?attr/selectableItemBackground">
 
@@ -22,21 +22,21 @@
         app:layout_constraintEnd_toStartOf="@id/textSessionTime"
         app:layout_constraintTop_toTopOf="parent" />
 
-    <!-- 消息预览 -->
+    <!-- 消息预览 (固定2行高度) -->
     <TextView
         android:id="@+id/textSessionPreview"
         android:layout_width="0dp"
-        android:layout_height="wrap_content"
+        android:layout_height="36dp"
         android:layout_marginTop="4dp"
         android:text="Message preview..."
         android:textSize="14sp"
         android:textColor="#757575"
         android:maxLines="2"
         android:ellipsize="end"
+        android:gravity="top"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toStartOf="@id/textSessionCount"
-        app:layout_constraintTop_toBottomOf="@id/textSessionTitle"
-        app:layout_constraintBottom_toBottomOf="parent" />
+        app:layout_constraintTop_toBottomOf="@id/textSessionTitle" />
 
     <!-- 时间 -->
     <TextView
@@ -73,7 +73,6 @@
         android:layout_width="0dp"
         android:layout_height="1dp"
         android:background="#E0E0E0"
-        android:layout_marginBottom="11dp"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintBottom_toBottomOf="parent" />
