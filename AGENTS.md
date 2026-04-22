@@ -57,6 +57,34 @@ Nova 是一个 Android AI 聊天助手应用，作为 [chat.nvim](https://nvim.c
 │           └── values/               # 值资源
 │               ├── colors.xml
 │               ├── strings.xml
+### 代码修改规范
+
+**⚠️ 极其重要：修改前必须验证存在性！**
+
+在修改任何 class、函数、变量之前，**必须先检查它们是否存在**：
+
+```
+❌ 错误示例（不要瞎猜）:
+// 直接调用不存在的方法
+String ip = settingsManager.getIpAddress();  // 方法不存在！
+
+✅ 正确示例（先验证再使用）:
+1. 先用 @search_text 或 @read_file 检查源码
+2. 确认 SettingsManager 类中有 getUrl() 方法
+3. 然后使用: String ip = settingsManager.getUrl();
+```
+
+**验证方法：**
+1. 使用 `@find_files` 找到目标文件
+2. 使用 `@read_file` 或 `@search_text` 查看实际代码
+3. 确认 class/function/variable 确实存在
+4. 然后才能在代码中引用
+
+**禁止行为：**
+- 禁止凭记忆或猜测调用方法
+- 禁止假设某个类有某个方法
+- 禁止不看源码就写代码
+
 │               └── themes.xml
 ├── .github/
 │   └── workflows/
