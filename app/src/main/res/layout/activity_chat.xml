@@ -47,12 +47,13 @@
                 android:ellipsize="middle" />
             
             <!-- Line 3: CWD path -->
+            <!-- Line 3: CWD path -->
             <TextView
                 android:id="@+id/tv_session_path"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="CWD: unknown"
-                android:textColor="#AAAAAA"
+                android:textColor="#CCCCCC"
                 android:textSize="12sp"
                 android:maxLines="1"
                 android:ellipsize="middle" />
