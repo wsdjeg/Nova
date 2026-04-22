@@ -17,7 +17,15 @@
 Nova 是 [chat.nvim](https://nvim.chat) 的 Android 移动端客户端，需要配合 Neovim + chat.nvim HTTP Server 使用。
 
 > ⚠️ **注意**: 本应用不直接连接大模型 API，而是通过 chat.nvim HTTP Server 作为中间层。
+## 📸 应用截图
 
+<div align="center">
+
+| 会话列表 | 聊天界面 | 设置界面 |
+|:--------:|:--------:|:--------:|
+| <img src="https://github.com/user-attachments/assets/e6c4910b-28f6-4493-b16b-1b099decc983" width="250"/> | <img src="https://github.com/user-attachments/assets/016ebdda-13ae-4468-b865-b8aaed9a3abb" width="250"/> | <img src="https://github.com/user-attachments/assets/fc3d35da-f85c-436c-9c66-6f35a7243661" width="250"/> |
+
+</div>
 ### ✨ 功能特性
 
 - 📱 **移动端访问** - 在手机上继续你的 Neovim AI 对话
