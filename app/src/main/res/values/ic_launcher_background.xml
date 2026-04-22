@@ -1,5 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- 深空宇宙背景色 -->
-    <color name="ic_launcher_background">#0A0E1A</color>
+    <color name="ic_launcher_background">#0D1117</color>
 </resources>

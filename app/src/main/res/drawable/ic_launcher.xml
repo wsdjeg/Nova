@@ -5,160 +5,42 @@
     android:viewportWidth="48"
     android:viewportHeight="48">
     
-    <!-- 外发光光晕 -->
-    <path
-        android:fillColor="#1A237E"
-        android:fillAlpha="0.3"
-        android:pathData="M24,3 L43,19 L24,45 L5,19 Z"/>
+    <!-- 科技感字母 N - 简洁版 -->
     
-    <!-- 钻石主体 - 下半部分（深色基底） -->
+    <!-- 背景 -->
     <path
-        android:fillColor="#0D1B2A"
-        android:pathData="M24,8 L38,20 L24,40 L10,20 Z"/>
+        android:fillColor="#0D1117"
+        android:pathData="M0,0h48v48H0z"/>
     
-    <!-- 钻石主体 - 上半部分渐变层 -->
-    <path
-        android:fillColor="#1B3A5F"
-        android:pathData="M24,8 L38,20 L24,20 L10,20 Z"/>
-    
-    <!-- 钻石左上角高光 -->
-    <path
-        android:fillColor="#2196F3"
-        android:pathData="M24,8 L32,14 L24,20 L16,14 Z"/>
-    
-    <!-- 钻石顶部中央最亮区域 -->
-    <path
-        android:fillColor="#4FC3F7"
-        android:pathData="M24,8 L28,12 L24,20 L20,12 Z"/>
-    
-    <!-- 钻石右上角次高光 -->
-    <path
-        android:fillColor="#29B6F6"
-        android:pathData="M24,8 L32,14 L28,12 Z"/>
-    
-    <!-- 钻石左侧渐变 -->
-    <path
-        android:fillColor="#0D47A1"
-        android:pathData="M10,20 L24,20 L16,14 Z"/>
-    
-    <!-- 钻石右侧渐变 -->
-    <path
-        android:fillColor="#1565C0"
-        android:pathData="M24,20 L38,20 L32,14 Z"/>
-    
-    <!-- 钻石下半部分左侧深色 -->
-    <path
-        android:fillColor="#0A1929"
-        android:pathData="M10,20 L24,40 L24,20 Z"/>
-    
-    <!-- 钻石下半部分右侧 -->
-    <path
-        android:fillColor="#0F2744"
-        android:pathData="M24,20 L24,40 L38,20 Z"/>
-    
-    <!-- 内部发光线条 - 中央垂直线 -->
-    <path
-        android:strokeColor="#29B6F6"
-        android:strokeWidth="0.5"
-        android:strokeAlpha="0.8"
-        android:fillColor="@android:color/transparent"
-        android:pathData="M24,10 L24,38"/>
-    
-    <!-- 内部发光线条 - 水平线 -->
-    <path
-        android:strokeColor="#42A5F5"
-        android:strokeWidth="0.5"
-        android:strokeAlpha="0.6"
-        android:fillColor="@android:color/transparent"
-        android:pathData="M12,20 L36,20"/>
-    
-    <!-- 内部发光线条 - 左斜线 -->
-    <path
-        android:strokeColor="#64B5F6"
-        android:strokeWidth="0.3"
-        android:strokeAlpha="0.5"
-        android:fillColor="@android:color/transparent"
-        android:pathData="M16,14 L24,40"/>
-    
-    <!-- 内部发光线条 - 右斜线 -->
-    <path
-        android:strokeColor="#64B5F6"
-        android:strokeWidth="0.3"
-        android:strokeAlpha="0.5"
-        android:fillColor="@android:color/transparent"
-        android:pathData="M32,14 L24,40"/>
-    
-    <!-- 轨道光环 - 左侧弧线 -->
-    <path
-        android:strokeColor="#00BCD4"
-        android:strokeWidth="1.2"
-        android:strokeAlpha="0.9"
-        android:fillColor="@android:color/transparent"
-        android:pathData="M8,20 Q12,10 24,8 Q36,6 40,20"/>
-    
-    <!-- 轨道光环 - 右侧弧线 -->
-    <path
-        android:strokeColor="#00E5FF"
-        android:strokeWidth="0.8"
-        android:strokeAlpha="0.7"
-        android:fillColor="@android:color/transparent"
-        android:pathData="M10,20 Q14,28 24,40 Q34,52 38,20"/>
-    
-    <!-- 轨道光环发光点 - 左 -->
-    <path
-        android:fillColor="#00E5FF"
-        android:pathData="M10,20 m-2,0 a2,2 0,1 1,4 0 a2,2 0,1 1,-4 0"/>
-    
-    <!-- 轨道光环发光点 - 右 -->
-    <path
-        android:fillColor="#00BCD4"
-        android:pathData="M38,20 m-2,0 a2,2 0,1 1,4 0 a2,2 0,1 1,-4 0"/>
-    
-    <!-- 顶部发光核心 -->
-    <path
-        android:fillColor="#80DEEA"
-        android:pathData="M24,8 m-1.5,0 a1.5,1.5 0,1 1,3 0 a1.5,1.5 0,1 1,-3 0"/>
-    
-    <!-- 底部发光点 -->
-    <path
-        android:fillColor="#4FC3F7"
-        android:fillAlpha="0.8"
-        android:pathData="M24,40 m-1,0 a1,1 0,1 1,2 0 a1,1 0,1 1,-2 0"/>
-    
-    <!-- 边缘发光效果 - 左 -->
-    <path
-        android:strokeColor="#1E88E5"
-        android:strokeWidth="0.5"
-        android:strokeAlpha="0.6"
-        android:fillColor="@android:color/transparent"
-        android:pathData="M24,8 L10,20 L24,40"/>
-    
-    <!-- 边缘发光效果 - 右 -->
-    <path
-        android:strokeColor="#1E88E5"
-        android:strokeWidth="0.5"
-        android:strokeAlpha="0.6"
-        android:fillColor="@android:color/transparent"
-        android:pathData="M24,8 L38,20 L24,40"/>
-    
-    <!-- 星尘粒子 -->
-    <path
-        android:fillColor="#FFFFFF"
-        android:fillAlpha="0.4"
-        android:pathData="M14,12 m-0.5,0 a0.5,0.5 0,1 1,1 0 a0.5,0.5 0,1 1,-1 0"/>
-    
-    <path
-        android:fillColor="#FFFFFF"
-        android:fillAlpha="0.3"
-        android:pathData="M34,14 m-0.5,0 a0.5,0.5 0,1 1,1 0 a0.5,0.5 0,1 1,-1 0"/>
-    
-    <path
-        android:fillColor="#FFFFFF"
-        android:fillAlpha="0.25"
-        android:pathData="M18,32 m-0.4,0 a0.4,0.4 0,1 1,0.8 0 a0.4,0.4 0,1 1,-0.8 0"/>
-    
-    <path
-        android:fillColor="#FFFFFF"
-        android:fillAlpha="0.35"
-        android:pathData="M30,30 m-0.4,0 a0.4,0.4 0,1 1,0.8 0 a0.4,0.4 0,1 1,-0.8 0"/>
+    <!-- N 字母主体 -->
+    <group
+        android:translateX="12"
+        android:translateY="8">
+        
+        <!-- 左竖线 -->
+        <path
+            android:fillColor="#58A6FF"
+            android:pathData="M0,0 L5,0 L5,32 L0,32 Z"/>
+        
+        <!-- 右竖线 -->
+        <path
+            android:fillColor="#58A6FF"
+            android:pathData="M19,0 L24,0 L24,32 L19,32 Z"/>
+        
+        <!-- 斜线 -->
+        <path
+            android:fillColor="#1F6FEB"
+            android:pathData="M0,0 L5,0 L24,32 L19,32 Z"/>
+        
+        <!-- 高光效果 -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M0,0 L5,0 L5,3 L0,3 Z"
+            android:fillAlpha="0.3"/>
+        
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M19,0 L24,0 L24,3 L19,3 Z"
+            android:fillAlpha="0.3"/>
+    </group>
 </vector>
