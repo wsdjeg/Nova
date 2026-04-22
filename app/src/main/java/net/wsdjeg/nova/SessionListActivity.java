@@ -23,6 +23,12 @@ import java.util.Set;
 /**
  * 会话列表界面
  * 显示所有会话，点击进入聊天界面
+ * 
+ * 功能：
+ * - 定时刷新会话列表（每5秒）
+ * - 定时轮询每个会话的消息，检测新消息
+ * - 计算并显示未读消息数
+ * - 点击进入会话时，保存当前消息数作为已读数
  */
 public class SessionListActivity extends AppCompatActivity implements SessionAdapter.OnSessionClickListener {
     
@@ -228,7 +234,7 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
                     
                     loadSessions();
                     
-                    // 第一次刷新后，获取每个会话的消息列表
+                    // 第一次刷新后，初始化所有会话的消息
                     if (!isFirstRefreshDone) {
                         isFirstRefreshDone = true;
                         String[] sessionIds = new String[serverSessions.size()];
@@ -237,6 +243,9 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
                         }
                         initializeAllSessions(sessionIds);
                         startAutoRefresh();
+                    } else {
+                        // 后续刷新：轮询每个会话的消息，检测新消息
+                        pollSessionMessages();
                     }
                 });
             }
@@ -308,15 +317,19 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
                         ApiClient.ChatMessage firstMsg = chatMessages.get(0);
                         ApiClient.ChatMessage lastMsg = chatMessages.get(chatMessages.size() - 1);
                         long lastMessageTime = lastMsg.created * 1000; // 转换为毫秒
+                        int messageCount = chatMessages.size();
                         
                         // 更新会话信息
                         sessionManager.updateMessages(
                             currentSessionId,
                             firstMsg.content,
                             lastMsg.content,
-                            chatMessages.size(),
+                            messageCount,
                             lastMessageTime
                         );
+                        
+                        // 初始化时，设置已读消息数为当前消息数
+                        sessionManager.saveReadMessageCount(currentSessionId, messageCount);
                         
                         // 实时更新 UI - 找到该会话并更新
                         updateSingleSession(currentSessionId);
@@ -334,6 +347,75 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
                         updateSyncProgress();
                         // 忽略单个会话的消息获取错误
                     });
+                }
+            });
+        }
+    }
+    
+    /**
+     * 轮询所有会话的消息，检测新消息并计算未读数
+     * 在定时刷新时调用
+     */
+    private void pollSessionMessages() {
+        if (!settingsManager.hasValidSettings()) {
+            return;
+        }
+        
+        // 获取当前所有会话
+        List<Session> currentSessions = sessionManager.loadSessions();
+        if (currentSessions.isEmpty()) {
+            return;
+        }
+        
+        // 轮询每个会话的消息
+        for (Session session : currentSessions) {
+            final String sessionId = session.getSessionId();
+            final int readCount = sessionManager.getReadMessageCount(sessionId);
+            
+            apiClient.getMessages(sessionId, new ApiClient.MessagesCallback() {
+                @Override
+                public void onSuccess(List<ApiClient.ChatMessage> chatMessages) {
+                    runOnUiThread(() -> {
+                        if (chatMessages.isEmpty()) {
+                            return;
+                        }
+                        
+                        // 获取第一条和最后一条消息
+                        ApiClient.ChatMessage firstMsg = chatMessages.get(0);
+                        ApiClient.ChatMessage lastMsg = chatMessages.get(chatMessages.size() - 1);
+                        long lastMessageTime = lastMsg.created * 1000;
+                        int serverMessageCount = chatMessages.size();
+                        
+                        // 计算未读数：服务器消息数 - 已读消息数
+                        int unreadCount = serverMessageCount - readCount;
+                        if (unreadCount < 0) {
+                            unreadCount = 0;
+                        }
+                        
+                        // 更新会话信息
+                        sessionManager.updateMessages(
+                            sessionId,
+                            firstMsg.content,
+                            lastMsg.content,
+                            serverMessageCount,
+                            lastMessageTime
+                        );
+                        
+                        // 更新未读数
+                        Session updatedSession = sessionManager.getSession(sessionId);
+                        if (updatedSession != null) {
+                            updatedSession.setUnreadCount(unreadCount);
+                            sessionManager.addOrUpdateSession(updatedSession);
+                            
+                            // 更新 UI
+                            updateSingleSession(sessionId);
+                        }
+                    });
+                }
+                
+                @Override
+                public void onError(String error) {
+                    // 忽略单个会话的轮询错误
                 }
             });
         }
@@ -433,8 +515,16 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
     
     /**
      * 打开聊天界面
+     * 在进入会话时，保存当前消息数作为已读消息数
      */
     private void openChatActivity(String sessionId) {
+        // 获取该会话的消息数，作为已读消息数保存
+        Session session = sessionManager.getSession(sessionId);
+        if (session != null) {
+            int currentMessageCount = session.getMessageCount();
+            sessionManager.saveReadMessageCount(sessionId, currentMessageCount);
+        }
+        
         // 清除该会话的未读数
         sessionManager.clearUnreadCount(sessionId);
         loadSessions();

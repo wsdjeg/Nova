@@ -7,12 +7,11 @@ import org.json.JSONException;
 import org.json.JSONObject;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-
-/**
+    private static final String PREFS_NAME = "ChatAppSessions";
+    private static final String KEY_SESSIONS = "sessions";
+    private static final String KEY_CURRENT_SESSION = "current_session";
+    private static final String KEY_INITIALIZED_SESSIONS = "initialized_sessions";
+    private static final String KEY_READ_MESSAGE_COUNTS = "read_message_counts"; // 已读消息数
  * 会话管理器
  * 负责管理会话列表的存储、加载和更新
  */
@@ -322,11 +321,76 @@ public class SessionManager {
     public boolean isSessionInitialized(String sessionId) {
         return loadInitializedSessions().contains(sessionId);
     }
-    
     /**
      * 清除所有已初始化状态（用于强制重新同步）
      */
     public void clearInitializedSessions() {
         prefs.edit().remove(KEY_INITIALIZED_SESSIONS).apply();
+    }
+    
+    // ========== 已读消息数管理 ==========
+    
+    /**
+     * 保存已读消息数映射
+     */
+    public void saveReadMessageCounts(java.util.Map<String, Integer> readCounts) {
+        JSONObject json = new JSONObject();
+        for (java.util.Map.Entry<String, Integer> entry : readCounts.entrySet()) {
+            try {
+                json.put(entry.getKey(), entry.getValue());
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
+        }
+        prefs.edit().putString(KEY_READ_MESSAGE_COUNTS, json.toString()).apply();
+    }
+    
+    /**
+     * 加载已读消息数映射
+     */
+    public java.util.Map<String, Integer> loadReadMessageCounts() {
+        java.util.Map<String, Integer> readCounts = new java.util.HashMap<>();
+        String jsonStr = prefs.getString(KEY_READ_MESSAGE_COUNTS, "");
+        
+        if (jsonStr.isEmpty()) {
+            return readCounts;
+        }
+        
+        try {
+            JSONObject json = new JSONObject(jsonStr);
+            java.util.Iterator<String> keys = json.keys();
+            while (keys.hasNext()) {
+                String key = keys.next();
+                readCounts.put(key, json.getInt(key));
+            }
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+        
+        return readCounts;
+    }
+    
+    /**
+     * 保存单个会话的已读消息数
+     */
+    public void saveReadMessageCount(String sessionId, int count) {
+        java.util.Map<String, Integer> readCounts = loadReadMessageCounts();
+        readCounts.put(sessionId, count);
+        saveReadMessageCounts(readCounts);
+    }
+    
+    /**
+     * 获取单个会话的已读消息数
+     */
+    public int getReadMessageCount(String sessionId) {
+        java.util.Map<String, Integer> readCounts = loadReadMessageCounts();
+        return readCounts.getOrDefault(sessionId, 0);
+    }
+    
+    /**
+     * 清除所有已读消息数记录
+     */
+    public void clearReadMessageCounts() {
+        prefs.edit().remove(KEY_READ_MESSAGE_COUNTS).apply();
     }
 }
