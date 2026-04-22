@@ -255,11 +255,14 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
                                 break;
                             }
                         }
+                        // ChatMessage.created 是秒级时间戳，需要转换为毫秒
+                        long lastMessageTime = lastMsg.created * 1000;
                         sessionManager.updateMessages(
                             sessionId,
                             firstUserMessage,
                             lastMsg.content,
-                            chatMessages.size()
+                            chatMessages.size(),
+                            lastMessageTime
                         );
                         loadSessions();
                     }
