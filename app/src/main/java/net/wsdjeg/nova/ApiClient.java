@@ -607,6 +607,7 @@ public class ApiClient {
             } catch (Exception e) {
                 Log.e(TAG, "getSessionPreview failed", e);
                 new Handler(Looper.getMainLooper()).post(() -> 
+                    callback.onError("Network error: " + e.getMessage()));
             }
         }).start();
     }

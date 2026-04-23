@@ -262,7 +262,6 @@ public class AccountManager {
             saveAccounts();
         }
     }
-}
 
     /**
      * 获取所有账号（别名方法）
