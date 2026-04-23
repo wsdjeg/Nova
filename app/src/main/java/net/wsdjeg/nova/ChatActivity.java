@@ -40,9 +40,11 @@ public class ChatActivity extends AppCompatActivity {
     private ApiClient apiClient;
     private SettingsManager settingsManager;
     private SessionManager sessionManager;
+    private AccountManager accountManager;
     
     private String currentSessionId;
     private String currentSessionTitle;
+    private String accountId;
     
     // 自动刷新相关
     private Handler refreshHandler;
@@ -79,7 +81,29 @@ public class ChatActivity extends AppCompatActivity {
         
         settingsManager = new SettingsManager(this);
         sessionManager = new SessionManager(this);
-        apiClient = new ApiClient(settingsManager);
+        accountManager = AccountManager.getInstance(this);
+        
+        // 获取当前激活账号
+        Account activeAccount = accountManager.getActiveAccount();
+        if (activeAccount == null) {
+            Toast.makeText(this, "请先添加账号", Toast.LENGTH_SHORT).show();
+            finish();
+            return;
+        }
+        
+        accountId = activeAccount.getId();
+        
+        // 使用当前账号的 URL 和 API Key 创建 ApiClient
+        String baseUrl = activeAccount.getUrl();
+        String apiKey = activeAccount.getApiKey();
+        
+        if (baseUrl == null || baseUrl.isEmpty() || apiKey == null || apiKey.isEmpty()) {
+            Toast.makeText(this, "账号配置不完整，请检查 URL 和 API Key", Toast.LENGTH_SHORT).show();
+            finish();
+            return;
+        }
+        
+        apiClient = new ApiClient(baseUrl, apiKey);
         
         // 保存当前 session
         settingsManager.setSession(currentSessionId);
@@ -161,7 +185,7 @@ public class ChatActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        if (isAutoRefreshEnabled && settingsManager.hasValidSettings()) {
+        if (isAutoRefreshEnabled && apiClient != null) {
             startAutoRefresh();
         }
     }
@@ -220,9 +244,13 @@ public class ChatActivity extends AppCompatActivity {
      * 使用浏览器打开预览链接
      */
     private void openPreviewInBrowser() {
-        String ip = settingsManager.getUrl();
-        String port = settingsManager.getPort();
-        String url = "http://" + ip + ":" + port + "/session?id=" + currentSessionId;
+        Account activeAccount = accountManager.getActiveAccount();
+        if (activeAccount == null) {
+            Toast.makeText(this, "请先添加账号", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        String url = activeAccount.getUrl() + "/session?id=" + currentSessionId;
         
         Intent intent = new Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url));
         startActivity(intent);
@@ -249,7 +277,7 @@ public class ChatActivity extends AppCompatActivity {
         refreshRunnable = new Runnable() {
             @Override
             public void run() {
-                if (isAutoRefreshEnabled && settingsManager.hasValidSettings()) {
+                if (isAutoRefreshEnabled && apiClient != null) {
                     refreshMessages();
                 }
                 refreshHandler.postDelayed(this, REFRESH_INTERVAL_MS);
@@ -269,7 +297,7 @@ public class ChatActivity extends AppCompatActivity {
     }
     
     private void refreshMessages() {
-        if (!settingsManager.hasValidSettings() || currentSessionId == null) {
+        if (apiClient == null || currentSessionId == null) {
             return;
         }
         apiClient.getMessages(currentSessionId, new ApiClient.MessagesCallback() {
@@ -359,8 +387,8 @@ public class ChatActivity extends AppCompatActivity {
     }
 
     private void sendChatMessage(String content) {
-        if (!settingsManager.hasValidSettings()) {
-            addMessage("请先配置 API 设置", false);
+        if (apiClient == null) {
+            addMessage("请先配置账号", false);
             return;
         }
         
