@@ -14,10 +14,16 @@ import java.util.List;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+/**
+ * API 客户端
+ * 支持多账号：可以指定 baseUrl 和 apiKey，或使用 SettingsManager 的默认设置
+ */
 public class ApiClient {
     private static final String TAG = "ApiClient";
     
     private final SettingsManager settingsManager;
+    private final String overrideBaseUrl;   // 覆盖的 baseUrl（用于多账号）
+    private final String overrideApiKey;    // 覆盖的 apiKey（用于多账号）
     
     public interface ApiCallback {
         void onSuccess(String response);
@@ -65,8 +71,65 @@ public class ApiClient {
         }
     }
     
+    /**
+     * 默认构造函数：使用 SettingsManager 的设置
+     */
     public ApiClient(SettingsManager settingsManager) {
         this.settingsManager = settingsManager;
+        this.overrideBaseUrl = null;
+        this.overrideApiKey = null;
+    }
+    
+    /**
+     * 多账号构造函数：直接指定 baseUrl 和 apiKey
+     */
+    public ApiClient(String baseUrl, String apiKey) {
+        this.settingsManager = null;
+        this.overrideBaseUrl = baseUrl;
+        this.overrideApiKey = apiKey;
+    }
+    
+    /**
+     * 获取 baseUrl（优先使用覆盖值）
+     */
+    private String getBaseUrl() {
+        if (overrideBaseUrl != null) {
+            return overrideBaseUrl;
+        }
+        if (settingsManager != null) {
+            return settingsManager.getFullUrl();
+        }
+        return "";
+    }
+    
+    /**
+     * 获取 apiKey（优先使用覆盖值）
+     */
+    private String getApiKey() {
+        if (overrideApiKey != null) {
+            return overrideApiKey;
+        }
+        if (settingsManager != null) {
+            return settingsManager.getApiKey();
+        }
+        return "";
+    }
+    
+    /**
+     * 获取 session（仅从 SettingsManager 获取）
+     */
+    private String getSession() {
+        if (settingsManager != null) {
+            return settingsManager.getSession();
+        }
+        return "";
+    }
+    
+    /**
+     * 检查是否有有效的 API 设置
+     */
+    public boolean hasValidSettings() {
+        return !getBaseUrl().isEmpty() && !getApiKey().isEmpty();
     }
     
     /**
@@ -76,9 +139,9 @@ public class ApiClient {
      * Returns 204 on success.
      */
     public void sendMessage(String content, ApiCallback callback) {
-        String baseUrl = settingsManager.getFullUrl();
-        String apiKey = settingsManager.getApiKey();
-        String session = settingsManager.getSession();
+        String baseUrl = getBaseUrl();
+        String apiKey = getApiKey();
+        String session = getSession();
         
         if (baseUrl.isEmpty()) {
             callback.onError("Please configure API URL in settings");
@@ -175,10 +238,12 @@ public class ApiClient {
      * Get all active sessions with details.
      * GET /sessions
      * Returns JSON array with session objects: [{id, cwd, provider, model}, ...]
+     * 
+     * @param accountId 用于标记会话所属账号（可选）
      */
-    public void getSessions(SessionsCallback callback) {
-        String baseUrl = settingsManager.getFullUrl();
-        String apiKey = settingsManager.getApiKey();
+    public void getSessions(String accountId, SessionsCallback callback) {
+        String baseUrl = getBaseUrl();
+        String apiKey = getApiKey();
         
         if (baseUrl.isEmpty() || apiKey.isEmpty()) {
             callback.onError("Please configure API settings");
@@ -219,6 +284,7 @@ public class ApiClient {
                         
                         if (!id.isEmpty()) {
                             Session session = new Session(id);
+                            session.setAccountId(accountId);  // 设置账号 ID
                             session.setCwd(cwd);
                             session.setProvider(provider);
                             session.setModel(model);
@@ -244,14 +310,23 @@ public class ApiClient {
     }
     
     /**
+     * Get all active sessions (兼容旧接口)
+     */
+    public void getSessions(SessionsCallback callback) {
+        getSessions(null, callback);
+    }
+    
+    /**
      * Create a new chat session.
      * POST /session/new
      * Request body: {"cwd": "...", "provider": "...", "model": "..."} (all optional)
      * Returns 201 with {"id": "session-id"}
+     * 
+     * @param accountId 用于标记会话所属账号（可选）
      */
-    public void createSession(String cwd, String provider, String model, CreateSessionCallback callback) {
-        String baseUrl = settingsManager.getFullUrl();
-        String apiKey = settingsManager.getApiKey();
+    public void createSession(String cwd, String provider, String model, String accountId, CreateSessionCallback callback) {
+        String baseUrl = getBaseUrl();
+        String apiKey = getApiKey();
         
         if (baseUrl.isEmpty() || apiKey.isEmpty()) {
             callback.onError("Please configure API settings");
@@ -306,6 +381,7 @@ public class ApiClient {
                     
                     // Create session object with returned ID
                     Session session = new Session(sessionId);
+                    session.setAccountId(accountId);  // 设置账号 ID
                     session.setCwd(cwd != null ? cwd : "");
                     session.setProvider(provider != null ? provider : "");
                     session.setModel(model != null ? model : "");
@@ -331,13 +407,20 @@ public class ApiClient {
     }
     
     /**
+     * Create a new chat session (兼容旧接口)
+     */
+    public void createSession(String cwd, String provider, String model, CreateSessionCallback callback) {
+        createSession(cwd, provider, model, null, callback);
+    }
+    
+    /**
      * Delete a specific session.
      * DELETE /session/:id
      * Returns 204 on success, 409 if session is in progress.
      */
     public void deleteSession(String sessionId, DeleteSessionCallback callback) {
-        String baseUrl = settingsManager.getFullUrl();
-        String apiKey = settingsManager.getApiKey();
+        String baseUrl = getBaseUrl();
+        String apiKey = getApiKey();
         
         if (baseUrl.isEmpty() || apiKey.isEmpty()) {
             callback.onError("Please configure API settings");
@@ -391,8 +474,8 @@ public class ApiClient {
      * Returns JSON array with messages containing role, content, and created timestamp.
      */
     public void getMessages(String sessionId, MessagesCallback callback) {
-        String baseUrl = settingsManager.getFullUrl();
-        String apiKey = settingsManager.getApiKey();
+        String baseUrl = getBaseUrl();
+        String apiKey = getApiKey();
         
         if (baseUrl.isEmpty() || apiKey.isEmpty()) {
             callback.onError("Please configure API settings");
@@ -400,7 +483,7 @@ public class ApiClient {
         }
         
         if (sessionId == null || sessionId.isEmpty()) {
-            sessionId = settingsManager.getSession();
+            sessionId = getSession();
             if (sessionId.isEmpty()) {
                 callback.onError("Please configure Session ID");
                 return;
@@ -476,8 +559,8 @@ public class ApiClient {
      * Returns HTML content.
      */
     public void getSessionPreview(String sessionId, ApiCallback callback) {
-        String baseUrl = settingsManager.getFullUrl();
-        String apiKey = settingsManager.getApiKey();
+        String baseUrl = getBaseUrl();
+        String apiKey = getApiKey();
         
         if (baseUrl.isEmpty() || apiKey.isEmpty()) {
             callback.onError("Please configure API settings");

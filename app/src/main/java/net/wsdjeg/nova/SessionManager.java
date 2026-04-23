@@ -17,6 +17,7 @@ import java.util.Iterator;
 /**
  * 会话管理器
  * 负责管理会话列表的存储、加载和更新
+ * 支持多账号聚合
  */
 public class SessionManager {
     private static final String PREFS_NAME = "ChatAppSessions";
@@ -26,9 +27,11 @@ public class SessionManager {
     private static final String KEY_READ_MESSAGE_COUNTS = "read_message_counts";
     
     private SharedPreferences prefs;
+    private AccountManager accountManager;
     
     public SessionManager(Context context) {
         prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        accountManager = new AccountManager(context);
     }
     
     /**
@@ -40,6 +43,7 @@ public class SessionManager {
             JSONObject json = new JSONObject();
             try {
                 json.put("sessionId", session.getSessionId());
+                json.put("accountId", session.getAccountId());  // 保存账号ID
                 json.put("firstMessage", session.getFirstMessage());
                 json.put("lastMessage", session.getLastMessage());
                 json.put("lastMessageTime", session.getLastMessageTime());
@@ -78,6 +82,7 @@ public class SessionManager {
                     json.optLong("lastMessageTime", System.currentTimeMillis()),
                     json.optInt("messageCount", 0)
                 );
+                session.setAccountId(json.optString("accountId", ""));  // 加载账号ID
                 session.setUnreadCount(json.optInt("unreadCount", 0));
                 session.setProvider(json.optString("provider", ""));
                 session.setModel(json.optString("model", ""));
@@ -90,6 +95,49 @@ public class SessionManager {
         
         Collections.sort(sessions, (s1, s2) -> 
             s1.getSessionId().compareTo(s2.getSessionId()));
+        
+        return sessions;
+    }
+    
+    /**
+     * 加载指定账号的会话列表
+     * @param accountId 账号ID，null 或空字符串表示当前账号
+     */
+    public List<Session> loadSessions(String accountId) {
+        // 如果 accountId 为空，使用当前激活账号
+        if (accountId == null || accountId.isEmpty()) {
+            Account currentAccount = accountManager.getCurrentAccount();
+            if (currentAccount != null) {
+                accountId = currentAccount.getId();
+            } else {
+                // 没有账号，返回空列表
+                return new ArrayList<>();
+            }
+        }
+        
+        // 过滤出指定账号的会话
+        List<Session> allSessions = loadSessions();
+        List<Session> accountSessions = new ArrayList<>();
+        
+        for (Session session : allSessions) {
+            if (accountId.equals(session.getAccountId())) {
+                accountSessions.add(session);
+            }
+        }
+        
+        return accountSessions;
+    }
+    
+    /**
+     * 加载所有账号的会话列表（聚合视图）
+     * @return 所有会话列表，按时间降序排序
+     */
+    public List<Session> loadAllSessions() {
+        List<Session> sessions = loadSessions();
+        
+        // 按时间降序排序（最新在前）
+        Collections.sort(sessions, (s1, s2) -> 
+            Long.compare(s2.getLastMessageTime(), s1.getLastMessageTime()));
         
         return sessions;
     }
@@ -116,6 +164,16 @@ public class SessionManager {
         }
         
         saveSessions(sessions);
+    }
+    
+    /**
+     * 添加或更新会话（指定账号）
+     * @param session 会话对象
+     * @param accountId 账号ID
+     */
+    public void addOrUpdateSession(Session session, String accountId) {
+        session.setAccountId(accountId);
+        addOrUpdateSession(session);
     }
     
     /**
@@ -195,6 +253,25 @@ public class SessionManager {
         saveSessions(sessions);
         
         removeInitializedSession(sessionId);
+    }
+    
+    /**
+     * 删除指定账号的所有会话
+     * @param accountId 账号ID
+     */
+    public void deleteAccountSessions(String accountId) {
+        List<Session> sessions = loadSessions();
+        List<Session> toRemove = new ArrayList<>();
+        
+        for (Session session : sessions) {
+            if (accountId.equals(session.getAccountId())) {
+                toRemove.add(session);
+                removeInitializedSession(session.getSessionId());
+            }
+        }
+        
+        sessions.removeAll(toRemove);
+        saveSessions(sessions);
     }
     
     /**

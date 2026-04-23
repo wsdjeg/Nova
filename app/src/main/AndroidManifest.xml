@@ -43,6 +43,18 @@
             android:exported="false"
             android:label="关于" />
 
+        <!-- AccountManagerActivity 账号管理界面 -->
+        <activity
+            android:name=".AccountManagerActivity"
+            android:exported="false"
+            android:label="账号管理" />
+
+        <!-- AccountEditActivity 账号编辑界面 -->
+        <activity
+            android:name=".AccountEditActivity"
+            android:exported="false"
+            android:label="编辑账号" />
+
     </application>
 
 </manifest>

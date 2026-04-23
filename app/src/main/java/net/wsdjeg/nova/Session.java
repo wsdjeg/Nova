@@ -5,9 +5,11 @@ import java.util.Date;
 /**
  * 会话数据模型
  * 用于在会话列表中显示每个会话的信息
+ * 支持多账号聚合
  */
 public class Session {
     private String sessionId;
+    private String accountId;     // 关联的账号ID（支持多账号）
     private String firstMessage;  // 第一个消息（用于显示标题）
     private String lastMessage;
     private long lastMessageTime;
@@ -22,6 +24,7 @@ public class Session {
     
     public Session(String sessionId) {
         this.sessionId = sessionId;
+        this.accountId = "";  // 默认空，表示本地会话或当前账号
         this.firstMessage = "";
         this.lastMessage = "";
         this.lastMessageTime = System.currentTimeMillis();
@@ -35,6 +38,7 @@ public class Session {
     
     public Session(String sessionId, String firstMessage, String lastMessage, long lastMessageTime, int messageCount) {
         this.sessionId = sessionId;
+        this.accountId = "";
         this.firstMessage = firstMessage != null ? firstMessage : "";
         this.lastMessage = lastMessage;
         this.lastMessageTime = lastMessageTime;
@@ -47,10 +51,11 @@ public class Session {
     }
     
     /**
-     * 新构造函数：包含 provider, model, cwd
+     * 新构造函数：包含 accountId, provider, model, cwd
      */
-    public Session(String sessionId, String cwd, String provider, String model) {
+    public Session(String sessionId, String accountId, String cwd, String provider, String model) {
         this.sessionId = sessionId;
+        this.accountId = accountId != null ? accountId : "";
         this.cwd = cwd != null ? cwd : "";
         this.provider = provider != null ? provider : "";
         this.model = model != null ? model : "";
@@ -138,6 +143,14 @@ public class Session {
     
     public void setSessionId(String sessionId) {
         this.sessionId = sessionId;
+    }
+    
+    public String getAccountId() {
+        return accountId;
+    }
+    
+    public void setAccountId(String accountId) {
+        this.accountId = accountId != null ? accountId : "";
     }
     
     public String getFirstMessage() {

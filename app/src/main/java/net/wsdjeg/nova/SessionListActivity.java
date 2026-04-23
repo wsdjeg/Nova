@@ -7,6 +7,7 @@ import android.os.Looper;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.TextView;
 import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
@@ -22,24 +23,30 @@ import java.util.Set;
 
 /**
  * 会话列表界面
- * 显示所有会话，点击进入聊天界面
+ * 显示所有会话，支持多账号聚合
+ * 点击进入聊天界面
  * 
  * 功能：
  * - 定时刷新会话列表（每5秒）
  * - 定时轮询每个会话的消息，检测新消息
  * - 计算并显示未读消息数
  * - 点击进入会话时，保存当前消息数作为已读数
+ * - 多账号聚合显示
  */
 public class SessionListActivity extends AppCompatActivity implements SessionAdapter.OnSessionClickListener {
     
     private static final int REFRESH_INTERVAL_MS = 5000; // 5秒刷新一次
+    private static final int REQUEST_ACCOUNT_MANAGE = 1001;
     
     private RecyclerView rvSessions;
     private FloatingActionButton fabNewSession;
+    private TextView textAccount;
+    private View accountSelector;
     private SessionAdapter adapter;
     private List<Session> sessions;
     private SessionManager sessionManager;
     private SettingsManager settingsManager;
+    private AccountManager accountManager;
     private ApiClient apiClient;
     
     // 自动刷新相关
@@ -62,11 +69,13 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
         
         sessionManager = new SessionManager(this);
         settingsManager = new SettingsManager(this);
+        accountManager = new AccountManager(this);
         apiClient = new ApiClient(settingsManager);
         
         initViews();
         setupRecyclerView();
         setupAutoRefresh();
+        setupAccountSelector();
         
         // 先加载本地会话列表
         loadSessions();
@@ -80,12 +89,12 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
         super.onResume();
         // 每次返回界面时刷新会话列表（包括从设置页面返回）
         loadSessions();
+        updateAccountDisplay();
         
-        // 如果设置有效，立即触发刷新并启动自动刷新
-        // 这确保从设置页面保存后返回时能立即开始刷新
-        if (settingsManager.hasValidSettings()) {
+        // 如果有激活账号，立即触发刷新并启动自动刷新
+        Account activeAccount = accountManager.getActiveAccount();
+        if (activeAccount != null) {
             refreshSessionsFromServer();
-            // 立即启动自动刷新，确保持续轮询消息
             startAutoRefresh();
         }
     }
@@ -112,8 +121,10 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
     public boolean onOptionsItemSelected(MenuItem item) {
         int id = item.getItemId();
         if (id == R.id.action_settings) {
-            // 从设置页面返回后会自动调用 onResume 刷新
             startActivity(new Intent(this, SettingsActivity.class));
+            return true;
+        } else if (id == R.id.action_account) {
+            openAccountManager();
             return true;
         } else if (id == R.id.action_about) {
             startActivity(new Intent(this, AboutActivity.class));
@@ -129,9 +140,63 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
         fabNewSession.setOnClickListener(v -> createNewSession());
     }
     
+    /**
+     * 设置账号选择器
+     */
+    private void setupAccountSelector() {
+        accountSelector = findViewById(R.id.account_selector);
+        textAccount = findViewById(R.id.text_account);
+        
+        if (accountSelector != null) {
+            accountSelector.setOnClickListener(v -> {
+                openAccountManager();
+            });
+        }
+        
+        updateAccountDisplay();
+    }
+    
+    /**
+     * 更新账号显示
+     */
+    private void updateAccountDisplay() {
+        if (textAccount == null) {
+            return;
+        }
+        
+        Account activeAccount = accountManager.getActiveAccount();
+        if (activeAccount != null) {
+            textAccount.setText(activeAccount.getDisplayName());
+        } else {
+            textAccount.setText("未配置账号");
+        }
+    }
+    
+    /**
+     * 打开账号管理
+     */
+    private void openAccountManager() {
+        startActivityForResult(
+            new Intent(this, AccountManagerActivity.class),
+            REQUEST_ACCOUNT_MANAGE
+        );
+    }
+    
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        
+        if (requestCode == REQUEST_ACCOUNT_MANAGE) {
+            // 从账号管理返回后，更新显示和刷新会话
+            updateAccountDisplay();
+            loadSessions();
+            refreshSessionsFromServer();
+        }
+    }
+    
     private void setupRecyclerView() {
         sessions = new ArrayList<>();
-        adapter = new SessionAdapter(sessions, this);
+        adapter = new SessionAdapter(sessions, this, accountManager);
         LinearLayoutManager layoutManager = new LinearLayoutManager(this);
         rvSessions.setLayoutManager(layoutManager);
         rvSessions.setAdapter(adapter);
@@ -145,7 +210,8 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
         refreshRunnable = new Runnable() {
             @Override
             public void run() {
-                if (settingsManager.hasValidSettings()) {
+                Account activeAccount = accountManager.getActiveAccount();
+                if (activeAccount != null) {
                     refreshSessionsFromServer();
                 }
                 refreshHandler.postDelayed(this, REFRESH_INTERVAL_MS);
@@ -172,13 +238,32 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
     
     /**
      * 从本地加载会话列表
+     * 支持多账号聚合显示
      */
     private void loadSessions() {
         sessions.clear();
-        sessions.addAll(sessionManager.loadSessions());
+        
+        Account activeAccount = accountManager.getActiveAccount();
+        if (activeAccount == null) {
+            // 没有激活账号，显示空列表
+            adapter.notifyDataSetChanged();
+            Toast.makeText(this, "请先添加账号", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        // 加载当前账号的会话
+        List<Session> accountSessions = sessionManager.loadSessions(activeAccount.getId());
+        
+        // 设置 accountId
+        for (Session session : accountSessions) {
+            if (session.getAccountId() == null || session.getAccountId().isEmpty()) {
+                session.setAccountId(activeAccount.getId());
+            }
+        }
+        
+        sessions.addAll(accountSessions);
         
         // 按 session ID 降序排序（最新的 session 排在前面）
-        // session ID 格式为 年月日时分秒随机数，字典序降序即为最新在前
         Collections.sort(sessions, new Comparator<Session>() {
             @Override
             public int compare(Session s1, Session s2) {
@@ -197,9 +282,12 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
      * 从服务器刷新会话列表
      */
     private void refreshSessionsFromServer() {
-        if (!settingsManager.hasValidSettings()) {
+        Account activeAccount = accountManager.getActiveAccount();
+        if (activeAccount == null) {
             return;
         }
+        
+        String accountId = activeAccount.getId();
         
         apiClient.getSessions(new ApiClient.SessionsCallback() {
             @Override
@@ -213,24 +301,26 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
                     
                     // 同步：添加或更新本地会话
                     for (Session serverSession : serverSessions) {
-                        Session localSession = sessionManager.getSession(serverSession.getSessionId());
+                        serverSession.setAccountId(accountId);
+                        
+                        Session localSession = sessionManager.getSession(accountId, serverSession.getSessionId());
                         if (localSession == null) {
                             // 本地没有，添加新会话（保留服务器的完整信息）
-                            sessionManager.addOrUpdateSession(serverSession);
+                            sessionManager.addOrUpdateSession(accountId, serverSession);
                         } else {
                             // 本地已有，更新 provider, model, cwd 信息
                             localSession.setProvider(serverSession.getProvider());
                             localSession.setModel(serverSession.getModel());
                             localSession.setCwd(serverSession.getCwd());
-                            sessionManager.addOrUpdateSession(localSession);
+                            sessionManager.addOrUpdateSession(accountId, localSession);
                         }
                     }
                     
                     // 同步：删除服务器没有的本地会话
-                    List<Session> localSessions = sessionManager.loadSessions();
+                    List<Session> localSessions = sessionManager.loadSessions(accountId);
                     for (Session localSession : localSessions) {
                         if (!serverSessionMap.containsKey(localSession.getSessionId())) {
-                            sessionManager.deleteSession(localSession.getSessionId());
+                            sessionManager.deleteSession(accountId, localSession.getSessionId());
                         }
                     }
                     
@@ -243,11 +333,11 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
                         for (int i = 0; i < serverSessions.size(); i++) {
                             sessionIds[i] = serverSessions.get(i).getSessionId();
                         }
-                        initializeAllSessions(sessionIds);
+                        initializeAllSessions(accountId, sessionIds);
                         startAutoRefresh();
                     } else {
                         // 后续刷新：轮询每个会话的消息，检测新消息
-                        pollSessionMessages();
+                        pollSessionMessages(accountId);
                     }
                 });
             }
@@ -269,7 +359,7 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
      * 初始化所有会话的消息信息
      * 获取每个会话的消息列表，提取最后一条消息作为预览
      */
-    private void initializeAllSessions(String[] sessionIds) {
+    private void initializeAllSessions(String accountId, String[] sessionIds) {
         if (sessionIds == null || sessionIds.length == 0) {
             return;
         }
@@ -336,6 +426,7 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
                         
                         // 更新会话信息
                         sessionManager.updateMessages(
+                            accountId,
                             currentSessionId,
                             firstMsg.content,
                             lastMsg.content,
@@ -347,7 +438,7 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
                         sessionManager.saveReadMessageCount(currentSessionId, messageCount);
                         
                         // 实时更新 UI - 找到该会话并更新
-                        updateSingleSession(currentSessionId);
+                        updateSingleSession(accountId, currentSessionId);
                         
                         // 更新同步进度
                         updateSyncProgress();
@@ -371,13 +462,14 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
      * 轮询所有会话的消息，检测新消息并计算未读数
      * 在定时刷新时调用
      */
-    private void pollSessionMessages() {
-        if (!settingsManager.hasValidSettings()) {
+    private void pollSessionMessages(String accountId) {
+        Account activeAccount = accountManager.getActiveAccount();
+        if (activeAccount == null) {
             return;
         }
         
         // 获取当前所有会话
-        List<Session> currentSessions = sessionManager.loadSessions();
+        List<Session> currentSessions = sessionManager.loadSessions(accountId);
         if (currentSessions.isEmpty()) {
             return;
         }
@@ -433,6 +525,7 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
                         
                         // 更新会话信息
                         sessionManager.updateMessages(
+                            accountId,
                             sessionId,
                             firstMsg.content,
                             lastMsg.content,
@@ -441,13 +534,13 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
                         );
                         
                         // 更新未读数
-                        Session updatedSession = sessionManager.getSession(sessionId);
+                        Session updatedSession = sessionManager.getSession(accountId, sessionId);
                         if (updatedSession != null) {
                             updatedSession.setUnreadCount(unreadCount);
-                            sessionManager.addOrUpdateSession(updatedSession);
+                            sessionManager.addOrUpdateSession(accountId, updatedSession);
                             
                             // 更新 UI
-                            updateSingleSession(sessionId);
+                            updateSingleSession(accountId, sessionId);
                         }
                     });
                 }
@@ -463,9 +556,9 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
     /**
      * 更新单个会话的 UI
      */
-    private void updateSingleSession(String sessionId) {
+    private void updateSingleSession(String accountId, String sessionId) {
         // 重新从 SessionManager 加载该会话
-        Session updatedSession = sessionManager.getSession(sessionId);
+        Session updatedSession = sessionManager.getSession(accountId, sessionId);
         if (updatedSession == null) {
             return;
         }
@@ -508,9 +601,10 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
      * 通过 API 创建新会话
      */
     private void createNewSession() {
-        if (!settingsManager.hasValidSettings()) {
-            Toast.makeText(this, "请先配置 API 设置", Toast.LENGTH_SHORT).show();
-            startActivity(new Intent(this, SettingsActivity.class));
+        Account activeAccount = accountManager.getActiveAccount();
+        if (activeAccount == null) {
+            Toast.makeText(this, "请先添加账号", Toast.LENGTH_SHORT).show();
+            openAccountManager();
             return;
         }
         
@@ -522,9 +616,12 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
             @Override
             public void onSuccess(Session session) {
                 runOnUiThread(() -> {
+                    String accountId = activeAccount.getId();
+                    
                     // 保存到本地
+                    session.setAccountId(accountId);
                     session.setLastMessageTime(System.currentTimeMillis());
-                    sessionManager.addOrUpdateSession(session);
+                    sessionManager.addOrUpdateSession(accountId, session);
                     
                     // 设置为当前会话
                     sessionManager.saveCurrentSession(session.getSessionId());
@@ -533,7 +630,7 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
                     loadSessions();
                     
                     // 直接打开聊天界面
-                    openChatActivity(session.getSessionId());
+                    openChatActivity(accountId, session.getSessionId());
                     
                     Toast.makeText(SessionListActivity.this, 
                         "已创建新会话: " + session.getSessionId(), 
@@ -556,16 +653,16 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
      * 打开聊天界面
      * 在进入会话时，保存当前消息数作为已读消息数
      */
-    private void openChatActivity(String sessionId) {
+    private void openChatActivity(String accountId, String sessionId) {
         // 获取该会话的消息数，作为已读消息数保存
-        Session session = sessionManager.getSession(sessionId);
+        Session session = sessionManager.getSession(accountId, sessionId);
         if (session != null) {
             int currentMessageCount = session.getMessageCount();
             sessionManager.saveReadMessageCount(sessionId, currentMessageCount);
         }
         
         // 清除该会话的未读数
-        sessionManager.clearUnreadCount(sessionId);
+        sessionManager.clearUnreadCount(accountId, sessionId);
         loadSessions();
         
         sessionManager.saveCurrentSession(sessionId);
@@ -579,7 +676,13 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
     @Override
     public void onSessionClick(Session session) {
         // 点击会话，进入聊天界面
-        openChatActivity(session.getSessionId());
+        String accountId = session.getAccountId();
+        if (accountId == null || accountId.isEmpty()) {
+            accountId = accountManager.getActiveAccount() != null 
+                ? accountManager.getActiveAccount().getId() 
+                : "";
+        }
+        openChatActivity(accountId, session.getSessionId());
     }
     
     @Override
@@ -599,9 +702,15 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
      * 删除会话（通过 API）
      */
     private void deleteSession(Session session) {
-        if (!settingsManager.hasValidSettings()) {
-            // 如果没有配置 API，只删除本地数据
-            sessionManager.deleteSession(session.getSessionId());
+        Account activeAccount = accountManager.getActiveAccount();
+        String accountId = session.getAccountId();
+        if (accountId == null || accountId.isEmpty()) {
+            accountId = activeAccount != null ? activeAccount.getId() : "";
+        }
+        
+        if (activeAccount == null) {
+            // 如果没有激活账号，只删除本地数据
+            sessionManager.deleteSession(accountId, session.getSessionId());
             loadSessions();
             Toast.makeText(this, "已删除本地会话", Toast.LENGTH_SHORT).show();
             return;
@@ -616,7 +725,7 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
             public void onSuccess() {
                 runOnUiThread(() -> {
                     // 删除成功，同时删除本地数据
-                    sessionManager.deleteSession(session.getSessionId());
+                    sessionManager.deleteSession(accountId, session.getSessionId());
                     loadSessions();
                     Toast.makeText(SessionListActivity.this, 
                         "已删除会话", Toast.LENGTH_SHORT).show();
@@ -628,7 +737,7 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
                 runOnUiThread(() -> {
                     // 特殊处理：如果是 404，说明会话在服务器上不存在，直接删除本地数据
                     if (error.contains("404") || error.contains("Not Found")) {
-                        sessionManager.deleteSession(session.getSessionId());
+                        sessionManager.deleteSession(accountId, session.getSessionId());
                         loadSessions();
                         Toast.makeText(SessionListActivity.this, 
                             "已删除本地会话（服务器上不存在）", Toast.LENGTH_SHORT).show();
