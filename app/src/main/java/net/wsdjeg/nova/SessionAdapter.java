@@ -5,6 +5,7 @@ import android.graphics.drawable.GradientDrawable;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
@@ -85,6 +86,13 @@ public class SessionAdapter extends RecyclerView.Adapter<SessionAdapter.SessionV
             }
         } else {
             holder.textAccount.setVisibility(View.GONE);
+        }
+        
+        // 显示 in_progress 状态的 spinner
+        if (session.isInProgress()) {
+            holder.progressSpinner.setVisibility(View.VISIBLE);
+        } else {
+            holder.progressSpinner.setVisibility(View.GONE);
         }
         
         // 点击事件
@@ -187,6 +195,7 @@ public class SessionAdapter extends RecyclerView.Adapter<SessionAdapter.SessionV
         TextView textTime;
         TextView textCount;
         TextView textAccount;  // 账号标签
+        ProgressBar progressSpinner;  // in_progress 状态指示器
         
         SessionViewHolder(View itemView) {
             super(itemView);
@@ -195,6 +204,7 @@ public class SessionAdapter extends RecyclerView.Adapter<SessionAdapter.SessionV
             textTime = itemView.findViewById(R.id.textSessionTime);
             textCount = itemView.findViewById(R.id.textSessionCount);
             textAccount = itemView.findViewById(R.id.textAccount);
+            progressSpinner = itemView.findViewById(R.id.progressSpinner);
         }
     }
 }

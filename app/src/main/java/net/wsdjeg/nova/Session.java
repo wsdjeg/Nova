@@ -18,9 +18,10 @@ public class Session {
     private int unreadCount;  // 未读消息数量
     
     // 新增字段：来自 API /sessions
-    private String provider;  // AI provider
-    private String model;     // Model name
-    private String cwd;       // Working directory
+    private String provider;     // AI provider
+    private String model;        // Model name
+    private String cwd;          // Working directory
+    private boolean inProgress;  // 会话是否正在进行中
     
     public Session(String sessionId) {
         this.sessionId = sessionId;
@@ -34,6 +35,7 @@ public class Session {
         this.provider = "";
         this.model = "";
         this.cwd = "";
+        this.inProgress = false;
     }
     
     public Session(String sessionId, String firstMessage, String lastMessage, long lastMessageTime, int messageCount) {
@@ -48,6 +50,7 @@ public class Session {
         this.provider = "";
         this.model = "";
         this.cwd = "";
+        this.inProgress = false;
     }
     
     /**
@@ -65,6 +68,7 @@ public class Session {
         this.messageCount = 0;
         this.preview = "";
         this.unreadCount = 0;
+        this.inProgress = false;
     }
     
     // 兼容旧版本的构造函数
@@ -220,6 +224,14 @@ public class Session {
     
     public void setCwd(String cwd) {
         this.cwd = cwd != null ? cwd : "";
+    }
+    
+    public boolean isInProgress() {
+        return inProgress;
+    }
+    
+    public void setInProgress(boolean inProgress) {
+        this.inProgress = inProgress;
     }
     
     /**
