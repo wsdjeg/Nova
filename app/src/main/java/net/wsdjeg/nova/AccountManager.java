@@ -114,6 +114,13 @@ public class AccountManager {
     }
 
     /**
+     * 获取当前激活的账号（兼容性别名）
+     */
+    public Account getActiveAccount() {
+        return getCurrentAccount();
+    }
+
+    /**
      * 根据 ID 获取账号
      */
     public Account getAccountById(String id) {
@@ -123,6 +130,13 @@ public class AccountManager {
             }
         }
         return null;
+    }
+
+    /**
+     * 根据 ID 获取账号（兼容性别名）
+     */
+    public Account getAccount(String id) {
+        return getAccountById(id);
     }
 
     /**
