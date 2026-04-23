@@ -14,48 +14,12 @@
         app:title="Nova"
         app:titleTextColor="@android:color/white" />
 
-    <!-- 账号选择器 -->
-    <LinearLayout
-        android:id="@+id/account_selector"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_below="@id/toolbar"
-        android:orientation="horizontal"
-        android:padding="8dp"
-        android:gravity="center_vertical"
-        android:background="?attr/selectableItemBackground">
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="当前账号: "
-            android:textSize="14sp"
-            android:textColor="@color/text_secondary" />
-
-        <TextView
-            android:id="@+id/text_account"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="未配置"
-            android:textSize="14sp"
-            android:textColor="@color/primary"
-            android:textStyle="bold" />
-
-        <ImageView
-            android:layout_width="16dp"
-            android:layout_height="16dp"
-            android:layout_marginStart="4dp"
-            android:src="@android:drawable/arrow_down_float"
-            android:contentDescription="切换账号" />
-
-    </LinearLayout>
-
     <!-- 会话列表 -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rv_sessions"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:layout_below="@id/account_selector"
+        android:layout_below="@id/toolbar"
         android:scrollbars="vertical"
         android:padding="8dp" />
 
