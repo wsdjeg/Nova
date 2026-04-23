@@ -12,6 +12,21 @@
     <color name="primary_color">#2196F3</color>
     <color name="primary_dark">#1976D2</color>
     
+    <!-- Standard Material colors -->
+    <color name="primary">#2196F3</color>
+    <color name="colorPrimary">#2196F3</color>
+    <color name="colorPrimaryDark">#1976D2</color>
+    <color name="colorAccent">#FF4081</color>
+    
+    <!-- Text colors -->
+    <color name="text_primary">#212121</color>
+    <color name="text_secondary">#757575</color>
+    
+    <!-- Status colors -->
+    <color name="error">#F44336</color>
+    <color name="success">#4CAF50</color>
+    <color name="warning">#FF9800</color>
+    
     <!-- Message colors - Blue theme -->
     <color name="user_message_bg">#2196F3</color>
     <color name="ai_message_bg">#E0E0E0</color>
@@ -22,4 +37,8 @@
     <color name="diamond_blue">#2196F3</color>
     <color name="diamond_light">#64B5F6</color>
     <color name="diamond_dark">#1976D2</color>
+    
+    <!-- Account tag colors -->
+    <color name="account_tag_bg">#E3F2FD</color>
+    <color name="account_tag_text">#1976D2</color>
 </resources>
