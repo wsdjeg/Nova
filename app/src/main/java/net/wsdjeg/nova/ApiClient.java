@@ -133,15 +133,14 @@ public class ApiClient {
     }
     
     /**
-     * Send a message to a specific chat session.
+     * Send a message to a specific chat session (指定 session ID).
      * POST /
      * Request body: {"session": "session-id", "content": "message"}
      * Returns 204 on success.
      */
-    public void sendMessage(String content, ApiCallback callback) {
+    public void sendMessage(String sessionId, String content, ApiCallback callback) {
         String baseUrl = getBaseUrl();
         String apiKey = getApiKey();
-        String session = getSession();
         
         if (baseUrl.isEmpty()) {
             callback.onError("Please configure API URL in settings");
@@ -153,8 +152,8 @@ public class ApiClient {
             return;
         }
         
-        if (session.isEmpty()) {
-            callback.onError("Please configure Session ID in settings");
+        if (sessionId == null || sessionId.isEmpty()) {
+            callback.onError("Session ID is required");
             return;
         }
         
@@ -171,7 +170,7 @@ public class ApiClient {
 
                 // Build request body: {"session": "...", "content": "..."}
                 JSONObject requestBody = new JSONObject();
-                requestBody.put("session", session);
+                requestBody.put("session", sessionId);
                 requestBody.put("content", content);
                 
                 // Send request
@@ -232,6 +231,15 @@ public class ApiClient {
                     callback.onError("Network error: " + e.getMessage()));
             }
         }).start();
+    }
+    
+    /**
+     * Send a message to the current session (从 SettingsManager 获取 session).
+     * 兼容旧版本方法。
+     */
+    public void sendMessage(String content, ApiCallback callback) {
+        String session = getSession();
+        sendMessage(session, content, callback);
     }
     
     /**
