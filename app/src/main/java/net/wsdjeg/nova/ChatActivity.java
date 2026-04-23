@@ -392,9 +392,15 @@ public class ChatActivity extends AppCompatActivity {
             return;
         }
         
+        if (currentSessionId == null || currentSessionId.isEmpty()) {
+            addMessage("无效的会话ID", false);
+            return;
+        }
+        
         btnSend.setEnabled(false);
         
-        apiClient.sendMessage(content, new ApiClient.ApiCallback() {
+        // 使用带 sessionId 参数的 sendMessage 方法
+        apiClient.sendMessage(currentSessionId, content, new ApiClient.ApiCallback() {
             @Override
             public void onSuccess(String response) {
                 runOnUiThread(() -> {
