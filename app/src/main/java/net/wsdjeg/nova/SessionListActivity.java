@@ -69,7 +69,7 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
         
         sessionManager = new SessionManager(this);
         settingsManager = new SettingsManager(this);
-        accountManager = new AccountManager(this);
+        accountManager = AccountManager.getInstance(this);
         apiClient = new ApiClient(settingsManager);
         
         initViews();
@@ -123,7 +123,7 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
         if (id == R.id.action_settings) {
             startActivity(new Intent(this, SettingsActivity.class));
             return true;
-        } else if (id == R.id.action_account) {
+        } else if (id == R.id.action_accounts) {
             openAccountManager();
             return true;
         } else if (id == R.id.action_about) {

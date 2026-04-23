@@ -31,7 +31,7 @@ public class SessionManager {
     
     public SessionManager(Context context) {
         prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
-        accountManager = new AccountManager(context);
+        accountManager = AccountManager.getInstance(context);
     }
     
     /**

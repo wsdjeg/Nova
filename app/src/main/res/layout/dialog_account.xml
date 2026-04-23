@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="账号名称"
+        android:textSize="14sp"
+        android:textColor="@color/text_secondary"/>
+
+    <EditText
+        android:id="@+id/et_account_name"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="例如：Home, Office, VPS"
+        android:inputType="text"
+        android:maxLines="1"
+        android:layout_marginTop="4dp"/>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="服务器地址"
+        android:textSize="14sp"
+        android:textColor="@color/text_secondary"
+        android:layout_marginTop="16dp"/>
+
+    <EditText
+        android:id="@+id/et_account_url"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="例如：http://192.168.1.100:8080"
+        android:inputType="textUri"
+        android:maxLines="1"
+        android:layout_marginTop="4dp"/>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="API密钥（可选）"
+        android:textSize="14sp"
+        android:textColor="@color/text_secondary"
+        android:layout_marginTop="16dp"/>
+
+    <EditText
+        android:id="@+id/et_account_api_key"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="如果服务器需要认证"
+        android:inputType="textPassword"
+        android:maxLines="1"
+        android:layout_marginTop="4dp"/>
+
+</LinearLayout>

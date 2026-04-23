@@ -194,7 +194,7 @@ public class SessionAdapter extends RecyclerView.Adapter<SessionAdapter.SessionV
             textPreview = itemView.findViewById(R.id.textSessionPreview);
             textTime = itemView.findViewById(R.id.textSessionTime);
             textCount = itemView.findViewById(R.id.textSessionCount);
-            textAccount = itemView.findViewById(R.id.textSessionAccount);
+            textAccount = itemView.findViewById(R.id.textAccount);
         }
     }
 }

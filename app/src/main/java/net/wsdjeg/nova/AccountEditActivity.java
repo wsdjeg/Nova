@@ -48,10 +48,10 @@ public class AccountEditActivity extends AppCompatActivity {
     
     private void initViews() {
         etName = findViewById(R.id.et_account_name);
-        etUrl = findViewById(R.id.et_account_url);
-        etApiKey = findViewById(R.id.et_account_api_key);
+        etUrl = findViewById(R.id.et_server_url);
+        etApiKey = findViewById(R.id.et_api_key);
         btnSave = findViewById(R.id.btn_save);
-        btnTest = findViewById(R.id.btn_test);
+        btnTest = findViewById(R.id.btn_test_connection);
         btnDelete = findViewById(R.id.btn_delete);
         
         // 设置返回按钮

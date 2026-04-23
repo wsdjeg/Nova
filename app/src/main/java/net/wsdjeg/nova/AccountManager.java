@@ -263,3 +263,25 @@ public class AccountManager {
         }
     }
 }
+
+    /**
+     * 获取所有账号（别名方法）
+     */
+    public List<Account> getAllAccounts() {
+        return getAccounts();
+    }
+
+    /**
+     * 移除账号（别名方法）
+     */
+    public void removeAccount(String accountId) {
+        deleteAccount(accountId);
+    }
+
+    /**
+     * 切换账号（别名方法）
+     */
+    public void switchAccount(String accountId) {
+        switchToAccount(accountId);
+    }
+}

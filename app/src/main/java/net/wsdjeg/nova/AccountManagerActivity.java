@@ -8,7 +8,6 @@ import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
-import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.Toast;
@@ -46,7 +45,7 @@ public class AccountManagerActivity extends AppCompatActivity implements Account
     }
     
     private void initViews() {
-        recyclerView = findViewById(R.id.recycler_view);
+        recyclerView = findViewById(R.id.recycler_accounts);
         emptyView = findViewById(R.id.empty_view);
         
         adapter = new AccountAdapter(this);
@@ -55,9 +54,8 @@ public class AccountManagerActivity extends AppCompatActivity implements Account
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
         recyclerView.setAdapter(adapter);
         
-        // 添加账号按钮
-        Button btnAddAccount = findViewById(R.id.btn_add_account);
-        btnAddAccount.setOnClickListener(v -> showAddAccountDialog());
+        // 添加账号按钮 (FAB)
+        findViewById(R.id.fab_add_account).setOnClickListener(v -> showAddAccountDialog());
     }
     
     private void loadAccounts() {
