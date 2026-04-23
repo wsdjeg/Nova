@@ -155,6 +155,7 @@ public class AccountEditActivity extends AppCompatActivity {
     
     private void testConnection() {
         String url = etUrl.getText().toString().trim();
+        String apiKey = etApiKey.getText().toString().trim();
         
         if (TextUtils.isEmpty(url)) {
             Toast.makeText(this, "请输入服务器地址", Toast.LENGTH_SHORT).show();
@@ -163,13 +164,10 @@ public class AccountEditActivity extends AppCompatActivity {
         
         Toast.makeText(this, "正在测试连接...", Toast.LENGTH_SHORT).show();
         
-        // 使用ApiClient测试连接
-        ApiClient client = new ApiClient(this);
-        client.setServerUrl(url);
-        
-        client.testConnection(new ApiClient.ApiCallback<String>() {
+        // 使用 ApiClient 静态方法测试连接
+        ApiClient.testConnection(url, apiKey, new ApiClient.ApiCallback() {
             @Override
-            public void onSuccess(String result) {
+            public void onSuccess(String response) {
                 runOnUiThread(() -> {
                     new AlertDialog.Builder(AccountEditActivity.this)
                         .setTitle("连接成功")

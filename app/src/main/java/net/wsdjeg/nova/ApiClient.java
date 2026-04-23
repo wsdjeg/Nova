@@ -607,8 +607,71 @@ public class ApiClient {
             } catch (Exception e) {
                 Log.e(TAG, "getSessionPreview failed", e);
                 new Handler(Looper.getMainLooper()).post(() -> 
-                    callback.onError("Network error: " + e.getMessage()));
             }
         }).start();
+    }
+    
+    /**
+     * Test connection to a server.
+     * 静态方法，用于测试与指定服务器的连接
+     * GET /sessions 端点用于验证连接和认证
+     */
+    public static void testConnection(String serverUrl, String apiKey, ApiCallback callback) {
+        new Thread(() -> {
+            try {
+                // 确保 URL 格式正确
+                String url = serverUrl;
+                if (!url.startsWith("http://") && !url.startsWith("https://")) {
+                    url = "http://" + url;
+                }
+                
+                // 移除末尾斜杠
+                if (url.endsWith("/")) {
+                    url = url.substring(0, url.length() - 1);
+                }
+                
+                URL testUrl = new URL(url + "/sessions");
+                HttpURLConnection conn = (HttpURLConnection) testUrl.openConnection();
+                conn.setRequestMethod("GET");
+                if (apiKey != null && !apiKey.isEmpty()) {
+                    conn.setRequestProperty("X-API-Key", apiKey);
+                }
+                conn.setConnectTimeout(5000);
+                conn.setReadTimeout(10000);
+
+                int responseCode = conn.getResponseCode();
+                
+                if (responseCode == 200 || responseCode == 204) {
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onSuccess("Connection successful"));
+                } else if (responseCode == 401) {
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onError("Unauthorized: Invalid API Key"));
+                } else {
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onError("Error: HTTP " + responseCode));
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "testConnection failed", e);
+                new Handler(Looper.getMainLooper()).post(() -> 
+                    callback.onError("Connection failed: " + e.getMessage()));
+            }
+        }).start();
+    }
+    
+    /**
+     * Test connection with current settings.
+     * 使用当前配置测试连接
+     */
+    public void testConnection(ApiCallback callback) {
+        String baseUrl = getBaseUrl();
+        String apiKey = getApiKey();
+        
+        if (baseUrl.isEmpty()) {
+            callback.onError("Please configure server URL");
+            return;
+        }
+        
+        testConnection(baseUrl, apiKey, callback);
     }
 }
