@@ -17,6 +17,8 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
+import java.util.Map;
+import java.util.HashMap;
 
 /**
  * 会话列表界面
@@ -238,7 +240,7 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
             @Override
             public void onSuccess(List<Session> serverSessions) {
                 runOnUiThread(() -> {
-                    java.util.Map<String, Session> serverSessionMap = new java.util.HashMap<>();
+                    Map<String, Session> serverSessionMap = new HashMap<>();
                     for (Session session : serverSessions) {
                         serverSessionMap.put(session.getSessionId(), session);
                     }
@@ -249,11 +251,14 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
                         
                         Session localSession = sessionManager.getSession(serverSession.getSessionId());
                         if (localSession == null) {
+                            // 新会话，直接添加
                             sessionManager.addOrUpdateSession(serverSession, accountId);
                         } else {
+                            // 已存在的会话，更新服务器返回的字段
                             localSession.setProvider(serverSession.getProvider());
                             localSession.setModel(serverSession.getModel());
                             localSession.setCwd(serverSession.getCwd());
+                            localSession.setInProgress(serverSession.isInProgress());
                             sessionManager.addOrUpdateSession(localSession, accountId);
                         }
                     }

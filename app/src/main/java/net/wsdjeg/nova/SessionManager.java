@@ -52,6 +52,7 @@ public class SessionManager {
                 json.put("provider", session.getProvider());
                 json.put("model", session.getModel());
                 json.put("cwd", session.getCwd());
+                json.put("in_progress", session.isInProgress());
                 jsonArray.put(json);
             } catch (JSONException e) {
                 e.printStackTrace();
@@ -76,12 +77,13 @@ public class SessionManager {
             for (int i = 0; i < jsonArray.length(); i++) {
                 JSONObject json = jsonArray.getJSONObject(i);
                 Session session = new Session(
-                    json.getString("sessionId"),
-                    json.optString("firstMessage", ""),
-                    json.optString("lastMessage", ""),
-                    json.optLong("lastMessageTime", System.currentTimeMillis()),
-                    json.optInt("messageCount", 0)
-                );
+                session.setAccountId(json.optString("accountId", ""));  // 加载账号ID
+                session.setUnreadCount(json.optInt("unreadCount", 0));
+                session.setProvider(json.optString("provider", ""));
+                session.setModel(json.optString("model", ""));
+                session.setCwd(json.optString("cwd", ""));
+                session.setInProgress(json.optBoolean("in_progress", false));
+                sessions.add(session);
                 session.setAccountId(json.optString("accountId", ""));  // 加载账号ID
                 session.setUnreadCount(json.optInt("unreadCount", 0));
                 session.setProvider(json.optString("provider", ""));
@@ -272,6 +274,24 @@ public class SessionManager {
         
         sessions.removeAll(toRemove);
         saveSessions(sessions);
+    
+    /**
+     * 更新会话的 in_progress 状态
+     * @param sessionId 会话ID
+     * @param inProgress 是否正在进行中
+     */
+    public void setSessionInProgress(String sessionId, boolean inProgress) {
+        List<Session> sessions = loadSessions();
+        
+        for (Session session : sessions) {
+            if (session.getSessionId().equals(sessionId)) {
+                session.setInProgress(inProgress);
+                break;
+            }
+        }
+        
+        saveSessions(sessions);
+    }
     }
     
     /**

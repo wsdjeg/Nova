@@ -399,11 +399,16 @@ public class ChatActivity extends AppCompatActivity {
         
         btnSend.setEnabled(false);
         
+        // 设置会话为进行中状态
+        sessionManager.setSessionInProgress(currentSessionId, true);
+        
         // 使用带 sessionId 参数的 sendMessage 方法
         apiClient.sendMessage(currentSessionId, content, new ApiClient.ApiCallback() {
             @Override
             public void onSuccess(String response) {
                 runOnUiThread(() -> {
+                    // 设置会话为非进行中状态
+                    sessionManager.setSessionInProgress(currentSessionId, false);
                     refreshMessages();
                     btnSend.setEnabled(true);
                 });
@@ -412,17 +417,14 @@ public class ChatActivity extends AppCompatActivity {
             @Override
             public void onError(String error) {
                 runOnUiThread(() -> {
+                    // 设置会话为非进行中状态
+                    sessionManager.setSessionInProgress(currentSessionId, false);
                     addMessage("错误: " + error, false);
                     btnSend.setEnabled(true);
                     Toast.makeText(ChatActivity.this, "请求失败: " + error, Toast.LENGTH_SHORT).show();
                 });
             }
         });
-    }
-
-    private void addMessage(String text, boolean isUser) {
-        messages.add(new Message(text, isUser));
-        adapter.notifyItemInserted(messages.size() - 1);
         rvMessages.smoothScrollToPosition(messages.size() - 1);
     }
 }
