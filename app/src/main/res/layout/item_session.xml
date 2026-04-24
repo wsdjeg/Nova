@@ -11,22 +11,9 @@
     android:paddingBottom="8dp"
     android:background="?attr/selectableItemBackground">
 
-    <!-- 第一行：Spinner + 账号标签 + 会话标题 + 时间 -->
+    <!-- 第一行：账号标签 + 会话标题 + 时间 -->
     
-    <!-- Spinner (in_progress 状态图标，在账号标签左边) -->
-    <ProgressBar
-        android:id="@+id/progressSpinner"
-        style="?android:attr/progressBarStyleSmall"
-        android:layout_width="16dp"
-        android:layout_height="16dp"
-        android:layout_marginEnd="4dp"
-        android:visibility="gone"
-        android:indeterminateTint="@color/primary"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintBottom_toBottomOf="@id/textAccount" />
-
-    <!-- 账号标签 (显示来源账号，在 Spinner 右边) -->
+    <!-- 账号标签 (显示来源账号) -->
     <TextView
         android:id="@+id/textAccount"
         android:layout_width="wrap_content"
@@ -41,12 +28,10 @@
         android:paddingTop="2dp"
         android:paddingBottom="2dp"
         android:visibility="gone"
-        android:layout_marginStart="0dp"
-        app:layout_constraintStart_toEndOf="@id/progressSpinner"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_goneMarginStart="0dp" />
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
 
-    <!-- 会话标题 (紧跟在账号标签后面，如果没有账号标签则紧跟 Spinner) -->
+    <!-- 会话标题 (紧跟在账号标签后面) -->
     <TextView
         android:id="@+id/textSessionTitle"
         android:layout_width="0dp"
@@ -62,7 +47,7 @@
         app:layout_constraintEnd_toStartOf="@id/textSessionTime"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintBottom_toBottomOf="@id/textAccount"
-        app:layout_goneMarginStart="4dp" />
+        app:layout_goneMarginStart="0dp" />
 
     <!-- 时间 -->
     <TextView
@@ -76,26 +61,47 @@
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintBottom_toBottomOf="@id/textAccount" />
 
-    <!-- 第二行：消息预览 + 未读数量 -->
+    <!-- 第二行：Spinner + 消息预览 + 未读数量 -->
     
-    <!-- 消息预览 (与标题左对齐) -->
+    <!-- Spinner (in_progress 状态图标，在账号标签下方，左边) -->
+    <ProgressBar
+        android:id="@+id/progressSpinner"
+        style="?android:attr/progressBarStyleSmall"
+        android:layout_width="16dp"
+        android:layout_height="16dp"
+        android:layout_marginTop="4dp"
+        android:layout_marginEnd="4dp"
+        android:visibility="gone"
+        android:indeterminateTint="@color/primary"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/textAccount"
+        app:layout_goneMarginTop="4dp" />
+
+    <!-- Barrier: 预览的起始位置取决于 Spinner 和账号标签的最右边界 -->
+    <androidx.constraintlayout.widget.Barrier
+        android:id="@+id/barrierPreviewStart"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:barrierDirection="end"
+        app:constraint_referenced_ids="progressSpinner,textAccount" />
+
+    <!-- 消息预览 (与标题左对齐，或 Spinner 右边，取最大值) -->
     <TextView
         android:id="@+id/textSessionPreview"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:minHeight="36dp"
         android:layout_marginTop="4dp"
-        android:layout_marginStart="8dp"
+        android:layout_marginStart="4dp"
         android:text="Message preview..."
         android:textSize="14sp"
         android:textColor="#757575"
         android:maxLines="2"
         android:ellipsize="end"
         android:gravity="top"
-        app:layout_constraintStart_toEndOf="@id/textAccount"
+        app:layout_constraintStart_toEndOf="@id/barrierPreviewStart"
         app:layout_constraintEnd_toStartOf="@id/textSessionCount"
-        app:layout_constraintTop_toBottomOf="@id/textSessionTitle"
-        app:layout_goneMarginStart="20dp" />
+        app:layout_constraintTop_toBottomOf="@id/textSessionTitle" />
 
     <!-- 消息数量徽章 -->
     <TextView
