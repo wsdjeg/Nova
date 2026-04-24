@@ -43,7 +43,7 @@ public class SessionManager {
             JSONObject json = new JSONObject();
             try {
                 json.put("sessionId", session.getSessionId());
-                json.put("accountId", session.getAccountId());  // 保存账号ID
+                json.put("accountId", session.getAccountId());
                 json.put("firstMessage", session.getFirstMessage());
                 json.put("lastMessage", session.getLastMessage());
                 json.put("lastMessageTime", session.getLastMessageTime());
@@ -77,18 +77,18 @@ public class SessionManager {
             for (int i = 0; i < jsonArray.length(); i++) {
                 JSONObject json = jsonArray.getJSONObject(i);
                 Session session = new Session(
-                session.setAccountId(json.optString("accountId", ""));  // 加载账号ID
+                    json.getString("sessionId"),
+                    json.optString("firstMessage", ""),
+                    json.optString("lastMessage", ""),
+                    json.optLong("lastMessageTime", System.currentTimeMillis()),
+                    json.optInt("messageCount", 0)
+                );
+                session.setAccountId(json.optString("accountId", ""));
                 session.setUnreadCount(json.optInt("unreadCount", 0));
                 session.setProvider(json.optString("provider", ""));
                 session.setModel(json.optString("model", ""));
                 session.setCwd(json.optString("cwd", ""));
                 session.setInProgress(json.optBoolean("in_progress", false));
-                sessions.add(session);
-                session.setAccountId(json.optString("accountId", ""));  // 加载账号ID
-                session.setUnreadCount(json.optInt("unreadCount", 0));
-                session.setProvider(json.optString("provider", ""));
-                session.setModel(json.optString("model", ""));
-                session.setCwd(json.optString("cwd", ""));
                 sessions.add(session);
             }
         } catch (JSONException e) {
@@ -106,18 +106,15 @@ public class SessionManager {
      * @param accountId 账号ID，null 或空字符串表示当前账号
      */
     public List<Session> loadSessions(String accountId) {
-        // 如果 accountId 为空，使用当前激活账号
         if (accountId == null || accountId.isEmpty()) {
             Account currentAccount = accountManager.getCurrentAccount();
             if (currentAccount != null) {
                 accountId = currentAccount.getId();
             } else {
-                // 没有账号，返回空列表
                 return new ArrayList<>();
             }
         }
         
-        // 过滤出指定账号的会话
         List<Session> allSessions = loadSessions();
         List<Session> accountSessions = new ArrayList<>();
         
@@ -132,21 +129,16 @@ public class SessionManager {
     
     /**
      * 加载所有账号的会话列表（聚合视图）
-     * @return 所有会话列表，按时间降序排序
      */
     public List<Session> loadAllSessions() {
         List<Session> sessions = loadSessions();
-        
-        // 按时间降序排序（最新在前）
         Collections.sort(sessions, (s1, s2) -> 
             Long.compare(s2.getLastMessageTime(), s1.getLastMessageTime()));
-        
         return sessions;
     }
     
     /**
      * 添加或更新会话
-     * 注意：直接使用新会话的数据，不保留旧数据
      */
     public void addOrUpdateSession(Session newSession) {
         List<Session> sessions = loadSessions();
@@ -154,7 +146,6 @@ public class SessionManager {
         
         for (int i = 0; i < sessions.size(); i++) {
             if (sessions.get(i).getSessionId().equals(newSession.getSessionId())) {
-                // 直接用新会话替换旧会话，不保留旧的未读数
                 sessions.set(i, newSession);
                 found = true;
                 break;
@@ -170,8 +161,6 @@ public class SessionManager {
     
     /**
      * 添加或更新会话（指定账号）
-     * @param session 会话对象
-     * @param accountId 账号ID
      */
     public void addOrUpdateSession(Session session, String accountId) {
         session.setAccountId(accountId);
@@ -253,13 +242,11 @@ public class SessionManager {
         
         sessions.removeAll(toRemove);
         saveSessions(sessions);
-        
         removeInitializedSession(sessionId);
     }
     
     /**
      * 删除指定账号的所有会话
-     * @param accountId 账号ID
      */
     public void deleteAccountSessions(String accountId) {
         List<Session> sessions = loadSessions();
@@ -274,11 +261,10 @@ public class SessionManager {
         
         sessions.removeAll(toRemove);
         saveSessions(sessions);
+    }
     
     /**
      * 更新会话的 in_progress 状态
-     * @param sessionId 会话ID
-     * @param inProgress 是否正在进行中
      */
     public void setSessionInProgress(String sessionId, boolean inProgress) {
         List<Session> sessions = loadSessions();
@@ -291,7 +277,6 @@ public class SessionManager {
         }
         
         saveSessions(sessions);
-    }
     }
     
     /**
