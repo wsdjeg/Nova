@@ -265,6 +265,19 @@ public class ApiClient {
                 conn.setRequestMethod("GET");
                 conn.setRequestProperty("X-API-Key", apiKey);
                 conn.setConnectTimeout(5000);
+                conn.setReadTimeout(10000);
+                
+                int responseCode = conn.getResponseCode();
+                
+                if (responseCode == 200) {
+                    BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+                    StringBuilder response = new StringBuilder();
+                    String line;
+                    while ((line = br.readLine()) != null) {
+                        response.append(line);
+                    }
+                    br.close();
+                    
                     // Parse JSON array with session objects
                     JSONArray jsonArray = new JSONArray(response.toString());
                     List<Session> sessions = new ArrayList<>();
@@ -284,31 +297,6 @@ public class ApiClient {
                             session.setProvider(provider);
                             session.setModel(model);
                             session.setInProgress(inProgress);
-                            sessions.add(session);
-                        }
-                    }
-                    while ((line = br.readLine()) != null) {
-                        response.append(line);
-                    }
-                    br.close();
-                    
-                    // Parse JSON array with session objects
-                    JSONArray jsonArray = new JSONArray(response.toString());
-                    List<Session> sessions = new ArrayList<>();
-                    
-                    for (int i = 0; i < jsonArray.length(); i++) {
-                        JSONObject sessionObj = jsonArray.getJSONObject(i);
-                        String id = sessionObj.optString("id", "");
-                        String cwd = sessionObj.optString("cwd", "");
-                        String provider = sessionObj.optString("provider", "");
-                        String model = sessionObj.optString("model", "");
-                        
-                        if (!id.isEmpty()) {
-                            Session session = new Session(id);
-                            session.setAccountId(accountId);  // 设置账号 ID
-                            session.setCwd(cwd);
-                            session.setProvider(provider);
-                            session.setModel(model);
                             sessions.add(session);
                         }
                     }
@@ -339,7 +327,6 @@ public class ApiClient {
     
     /**
      * Create a new chat session.
-     * POST /session/new
      * Request body: {"cwd": "...", "provider": "...", "model": "..."} (all optional)
      * Returns 201 with {"id": "session-id"}
      * 
