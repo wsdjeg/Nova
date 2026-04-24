@@ -9,6 +9,12 @@ public class SettingsManager {
     private static final String KEY_PORT = "port";
     private static final String KEY_API_KEY = "api_key";
     private static final String KEY_SESSION = "session";
+    private static final String KEY_THEME_MODE = "theme_mode";
+    
+    // 主题模式常量
+    public static final int THEME_SYSTEM = 0;
+    public static final int THEME_LIGHT = 1;
+    public static final int THEME_DARK = 2;
     
     private SharedPreferences prefs;
 
@@ -28,6 +34,24 @@ public class SettingsManager {
         prefs.edit()
             .putString(KEY_SESSION, session)
             .apply();
+    }
+    
+    /**
+     * 设置主题模式
+     * @param mode THEME_SYSTEM, THEME_LIGHT, 或 THEME_DARK
+     */
+    public void setThemeMode(int mode) {
+        prefs.edit()
+            .putInt(KEY_THEME_MODE, mode)
+            .apply();
+    }
+    
+    /**
+     * 获取主题模式
+     * @return THEME_SYSTEM, THEME_LIGHT, 或 THEME_DARK
+     */
+    public int getThemeMode() {
+        return prefs.getInt(KEY_THEME_MODE, THEME_SYSTEM);
     }
 
     public String getUrl() {

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Dark theme colors -->
+    <color name="primary_color">#64B5F6</color>
+    <color name="primary_dark">#42A5F5</color>
+    
+    <!-- Text colors - dark theme -->
+    <color name="text_primary">#FFFFFF</color>
+    <color name="text_secondary">#B0B0B0</color>
+    
+    <!-- Message colors - dark theme -->
+    <color name="user_message_bg">#64B5F6</color>
+    <color name="ai_message_bg">#2D2D2D</color>
+    <color name="user_message_text">#000000</color>
+    <color name="ai_message_text">#FFFFFF</color>
+    
+    <!-- Background colors - dark theme -->
+    <color name="background_dark">#121212</color>
+    <color name="surface_dark">#1E1E1E</color>
+    
+    <!-- Account tag colors - dark theme -->
+    <color name="account_tag_bg">#1E3A5F</color>
+    <color name="account_tag_text">#64B5F6</color>
+</resources>

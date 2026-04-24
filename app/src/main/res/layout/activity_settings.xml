@@ -26,13 +26,60 @@
             android:orientation="vertical"
             android:padding="16dp">
 
+            <!-- 主题设置 -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="外观设置"
+                android:textSize="24sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="16dp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="主题模式"
+                android:textSize="16sp"
+                android:layout_marginBottom="8dp" />
+
+            <RadioGroup
+                android:id="@+id/rg_theme"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:layout_marginBottom="24dp">
+
+                <RadioButton
+                    android:id="@+id/rb_theme_system"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="跟随系统"
+                    android:padding="8dp" />
+
+                <RadioButton
+                    android:id="@+id/rb_theme_light"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="浅色模式"
+                    android:padding="8dp" />
+
+                <RadioButton
+                    android:id="@+id/rb_theme_dark"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="深色模式"
+                    android:padding="8dp" />
+
+            </RadioGroup>
+
+            <!-- API 设置 -->
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="API 设置"
                 android:textSize="24sp"
                 android:textStyle="bold"
-                android:layout_marginBottom="24dp" />
+                android:layout_marginBottom="16dp" />
 
             <TextView
                 android:layout_width="match_parent"
