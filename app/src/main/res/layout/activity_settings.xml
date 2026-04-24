@@ -109,7 +109,7 @@
                 android:layout_height="wrap_content"
                 android:textSize="14sp"
                 android:textColor="#757575"
-                android:text="提示：账户管理请在\"账号管理\"中进行" />
+                android:text="提示：账户管理请在&quot;账号管理&quot;中进行" />
 
         </LinearLayout>
 
