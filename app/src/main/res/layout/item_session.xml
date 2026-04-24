@@ -31,7 +31,7 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
-    <!-- 会话标题 (紧跟在账号标签后面) -->
+    <!-- 会话标题 (紧跟在账号标签后面，如果没有账号标签则靠左) -->
     <TextView
         android:id="@+id/textSessionTitle"
         android:layout_width="0dp"
@@ -46,7 +46,8 @@
         app:layout_constraintStart_toEndOf="@id/textAccount"
         app:layout_constraintEnd_toStartOf="@id/textSessionTime"
         app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintBottom_toBottomOf="@id/textAccount" />
+        app:layout_constraintBottom_toBottomOf="@id/textAccount"
+        app:layout_goneMarginStart="0dp" />
 
     <!-- 时间 -->
     <TextView
@@ -62,37 +63,38 @@
 
     <!-- 第二行：Spinner + 消息预览 + 未读数量 -->
     
-    <!-- Spinner (in_progress 状态图标，放在消息预览左边) -->
+    <!-- Spinner (in_progress 状态图标，放在消息预览左边，与账号标签对齐) -->
     <ProgressBar
         android:id="@+id/progressSpinner"
         style="?android:attr/progressBarStyleSmall"
-        android:layout_width="24dp"
-        android:layout_height="24dp"
+        android:layout_width="16dp"
+        android:layout_height="16dp"
         android:layout_marginTop="4dp"
-        android:layout_marginEnd="8dp"
+        android:layout_marginEnd="4dp"
         android:visibility="gone"
         android:indeterminateTint="@color/primary"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/textSessionTitle"
-        app:layout_constraintBottom_toBottomOf="@id/textSessionPreview" />
+        app:layout_constraintTop_toBottomOf="@id/textAccount"
+        app:layout_goneMarginTop="4dp" />
 
-    <!-- 消息预览 (固定2行高度，与标题左端对齐，或在 Spinner 右边) -->
+    <!-- 消息预览 (与标题左对齐) -->
     <TextView
         android:id="@+id/textSessionPreview"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:minHeight="36dp"
         android:layout_marginTop="4dp"
-        android:layout_marginStart="0dp"
+        android:layout_marginStart="8dp"
         android:text="Message preview..."
         android:textSize="14sp"
         android:textColor="#757575"
         android:maxLines="2"
         android:ellipsize="end"
         android:gravity="top"
-        app:layout_constraintStart_toEndOf="@id/progressSpinner"
+        app:layout_constraintStart_toEndOf="@id/textAccount"
         app:layout_constraintEnd_toStartOf="@id/textSessionCount"
-        app:layout_constraintTop_toBottomOf="@id/textSessionTitle" />
+        app:layout_constraintTop_toBottomOf="@id/textSessionTitle"
+        app:layout_goneMarginStart="0dp" />
 
     <!-- 消息数量徽章 -->
     <TextView
