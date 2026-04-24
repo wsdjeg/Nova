@@ -372,6 +372,33 @@ public class ChatActivity extends AppCompatActivity {
         }
     }
     
+    /**
+     * 添加消息到列表
+     * @param content 消息内容
+     * @param isUser 是否为用户消息
+     */
+    private void addMessage(String content, boolean isUser) {
+        if (messages == null) {
+            messages = new ArrayList<>();
+        }
+        if (adapter == null) {
+            adapter = new MessageAdapter(messages, this);
+            if (rvMessages != null) {
+                rvMessages.setAdapter(adapter);
+            }
+        }
+        
+        long timestamp = System.currentTimeMillis();
+        messages.add(new Message(content, isUser, timestamp));
+        
+        if (adapter != null) {
+            adapter.notifyItemInserted(messages.size() - 1);
+        }
+        if (rvMessages != null) {
+            rvMessages.scrollToPosition(messages.size() - 1);
+        }
+    }
+    
     private void sendMessage() {
         String messageText = etMessage.getText().toString().trim();
         
