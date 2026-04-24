@@ -1,27 +1,33 @@
 package net.wsdjeg.nova;
 
 import android.content.Intent;
+import android.graphics.Color;
+import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.view.MenuItem;
-import android.widget.Button;
-import android.widget.EditText;
+import android.view.View;
+import android.widget.LinearLayout;
 import android.widget.RadioButton;
 import android.widget.RadioGroup;
-import android.widget.Toast;
+import android.widget.TextView;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.app.AppCompatDelegate;
 import androidx.appcompat.widget.Toolbar;
+import androidx.core.content.ContextCompat;
 
 public class SettingsActivity extends AppCompatActivity {
     
     public static final String EXTRA_SETTINGS_SAVED = "settings_saved";
     public static final String EXTRA_THEME_CHANGED = "theme_changed";
+    public static final String EXTRA_COLOR_CHANGED = "color_changed";
     
-    private EditText etUrl, etPort, etApiKey;
     private RadioGroup rgTheme;
     private RadioButton rbSystem, rbLight, rbDark;
-    private Button btnSave;
+    private LinearLayout colorPickerContainer;
     private SettingsManager settingsManager;
+    
+    private int selectedColorIndex = 2; // 默认蓝色
+    private View[] colorViews;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -41,14 +47,11 @@ public class SettingsActivity extends AppCompatActivity {
     }
 
     private void initViews() {
-        etUrl = findViewById(R.id.et_url);
-        etPort = findViewById(R.id.et_port);
-        etApiKey = findViewById(R.id.et_api_key);
         rgTheme = findViewById(R.id.rg_theme);
         rbSystem = findViewById(R.id.rb_theme_system);
         rbLight = findViewById(R.id.rb_theme_light);
         rbDark = findViewById(R.id.rb_theme_dark);
-        btnSave = findViewById(R.id.btn_save);
+        colorPickerContainer = findViewById(R.id.color_picker_container);
         
         // 主题选择监听
         rgTheme.setOnCheckedChangeListener((group, checkedId) -> {
@@ -69,14 +72,65 @@ public class SettingsActivity extends AppCompatActivity {
             setResult(RESULT_OK, resultIntent);
         });
         
-        btnSave.setOnClickListener(v -> saveSettings());
+        // 初始化颜色选择器
+        initColorPicker();
+    }
+    
+    private void initColorPicker() {
+        String[] colors = SettingsManager.ACCOUNT_TAG_COLORS;
+        colorViews = new View[colors.length];
+        
+        int size = (int) (40 * getResources().getDisplayMetrics().density);
+        int margin = (int) (8 * getResources().getDisplayMetrics().density);
+        
+        for (int i = 0; i < colors.length; i++) {
+            View colorView = new View(this);
+            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(size, size);
+            params.setMargins(margin, 0, margin, 0);
+            colorView.setLayoutParams(params);
+            
+            // 设置圆形背景
+            GradientDrawable drawable = new GradientDrawable();
+            drawable.setShape(GradientDrawable.OVAL);
+            drawable.setColor(Color.parseColor(colors[i]));
+            colorView.setBackground(drawable);
+            
+            final int index = i;
+            colorView.setOnClickListener(v -> selectColor(index));
+            
+            colorPickerContainer.addView(colorView);
+            colorViews[i] = colorView;
+        }
+    }
+    
+    private void selectColor(int index) {
+        selectedColorIndex = index;
+        settingsManager.setAccountTagColorIndex(index);
+        updateColorSelection();
+        
+        // 通知颜色已更改
+        Intent resultIntent = new Intent();
+        resultIntent.putExtra(EXTRA_COLOR_CHANGED, true);
+        setResult(RESULT_OK, resultIntent);
+    }
+    
+    private void updateColorSelection() {
+        for (int i = 0; i < colorViews.length; i++) {
+            View view = colorViews[i];
+            GradientDrawable drawable = new GradientDrawable();
+            drawable.setShape(GradientDrawable.OVAL);
+            drawable.setColor(Color.parseColor(SettingsManager.ACCOUNT_TAG_COLORS[i]));
+            
+            if (i == selectedColorIndex) {
+                // 选中的添加边框
+                drawable.setStroke(4, ContextCompat.getColor(this, R.color.primary));
+            }
+            
+            view.setBackground(drawable);
+        }
     }
 
     private void loadSettings() {
-        etUrl.setText(settingsManager.getUrl());
-        etPort.setText(settingsManager.getPort());
-        etApiKey.setText(settingsManager.getApiKey());
-        
         // 加载主题设置
         int themeMode = settingsManager.getThemeMode();
         switch (themeMode) {
@@ -90,22 +144,10 @@ public class SettingsActivity extends AppCompatActivity {
                 rbSystem.setChecked(true);
                 break;
         }
-    }
-
-    private void saveSettings() {
-        String url = etUrl.getText().toString().trim();
-        String port = etPort.getText().toString().trim();
-        String apiKey = etApiKey.getText().toString().trim();
         
-        settingsManager.saveSettings(url, port, apiKey);
-        Toast.makeText(this, "设置已保存", Toast.LENGTH_SHORT).show();
-        
-        // 设置结果，通知 SessionListActivity 刷新
-        Intent resultIntent = new Intent();
-        resultIntent.putExtra(EXTRA_SETTINGS_SAVED, true);
-        setResult(RESULT_OK, resultIntent);
-        
-        finish();
+        // 加载账户标签颜色设置
+        selectedColorIndex = settingsManager.getAccountTagColorIndex();
+        updateColorSelection();
     }
     
     private void applyTheme(int themeMode) {

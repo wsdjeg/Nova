@@ -10,7 +10,6 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 import java.util.List;
-import java.util.Random;
 
 /**
  * 会话列表适配器
@@ -113,11 +112,14 @@ public class SessionAdapter extends RecyclerView.Adapter<SessionAdapter.SessionV
     }
     
     /**
-     * 为账号标签设置不同颜色
+     * 为账号标签设置颜色
+     * 使用用户在设置中选择的颜色
      */
     private void setAccountBadgeColor(TextView textView, String accountId) {
-        // 根据 accountId 生成固定颜色
-        int color = generateColorFromString(accountId);
+        // 获取用户设置的颜色
+        SettingsManager settingsManager = new SettingsManager(textView.getContext());
+        String colorHex = settingsManager.getAccountTagColor();
+        int color = Color.parseColor(colorHex);
         
         GradientDrawable drawable = new GradientDrawable();
         drawable.setShape(GradientDrawable.RECTANGLE);
@@ -125,27 +127,20 @@ public class SessionAdapter extends RecyclerView.Adapter<SessionAdapter.SessionV
         drawable.setColor(color);
         
         textView.setBackground(drawable);
+        textView.setTextColor(getContrastColor(color));
     }
     
     /**
-     * 根据字符串生成固定颜色
+     * 根据背景色获取对比色（黑色或白色）
      */
-    private int generateColorFromString(String str) {
-        // 预定义的颜色列表
-        int[] colors = {
-            Color.parseColor("#FF6B6B"),  // 红色
-            Color.parseColor("#4ECDC4"),  // 青色
-            Color.parseColor("#45B7D1"),   // 蓝色
-            Color.parseColor("#96CEB4"),   // 绿色
-            Color.parseColor("#FFEAA7"),   // 黄色
-            Color.parseColor("#DDA0DD"),   // 紫色
-            Color.parseColor("#98D8C8"),   // 薄荷绿
-            Color.parseColor("#F7DC6F"),   // 金色
-        };
+    private int getContrastColor(int backgroundColor) {
+        // 计算亮度
+        double luminance = (0.299 * Color.red(backgroundColor) 
+                          + 0.587 * Color.green(backgroundColor) 
+                          + 0.114 * Color.blue(backgroundColor)) / 255;
         
-        // 根据字符串 hash 选择颜色
-        int index = Math.abs(str.hashCode()) % colors.length;
-        return colors[index];
+        // 亮色背景用深色文字，暗色背景用浅色文字
+        return luminance > 0.5 ? Color.parseColor("#212121") : Color.parseColor("#FFFFFF");
     }
     
     @Override

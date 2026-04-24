@@ -10,11 +10,24 @@ public class SettingsManager {
     private static final String KEY_API_KEY = "api_key";
     private static final String KEY_SESSION = "session";
     private static final String KEY_THEME_MODE = "theme_mode";
+    private static final String KEY_ACCOUNT_TAG_COLOR_INDEX = "account_tag_color_index";
     
     // 主题模式常量
     public static final int THEME_SYSTEM = 0;
     public static final int THEME_LIGHT = 1;
     public static final int THEME_DARK = 2;
+    
+    // 账户标签颜色选项
+    public static final String[] ACCOUNT_TAG_COLORS = {
+        "#FF6B6B",  // 红色
+        "#4ECDC4",  // 青色
+        "#45B7D1",  // 蓝色
+        "#96CEB4",  // 绿色
+        "#FFEAA7",  // 黄色
+        "#DDA0DD",  // 紫色
+        "#98D8C8",  // 薄荷绿
+        "#F7DC6F",  // 金色
+    };
     
     private SharedPreferences prefs;
 
@@ -52,6 +65,36 @@ public class SettingsManager {
      */
     public int getThemeMode() {
         return prefs.getInt(KEY_THEME_MODE, THEME_SYSTEM);
+    }
+    
+    /**
+     * 设置账户标签颜色索引
+     * @param colorIndex 颜色索引 (0-7)
+     */
+    public void setAccountTagColorIndex(int colorIndex) {
+        prefs.edit()
+            .putInt(KEY_ACCOUNT_TAG_COLOR_INDEX, colorIndex)
+            .apply();
+    }
+    
+    /**
+     * 获取账户标签颜色索引
+     * @return 颜色索引 (0-7)，默认为 2 (蓝色)
+     */
+    public int getAccountTagColorIndex() {
+        return prefs.getInt(KEY_ACCOUNT_TAG_COLOR_INDEX, 2); // 默认蓝色
+    }
+    
+    /**
+     * 获取账户标签颜色
+     * @return 颜色字符串 (如 "#45B7D1")
+     */
+    public String getAccountTagColor() {
+        int index = getAccountTagColorIndex();
+        if (index >= 0 && index < ACCOUNT_TAG_COLORS.length) {
+            return ACCOUNT_TAG_COLORS[index];
+        }
+        return ACCOUNT_TAG_COLORS[2]; // 默认蓝色
     }
 
     public String getUrl() {

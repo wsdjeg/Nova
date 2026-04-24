@@ -26,15 +26,16 @@
             android:orientation="vertical"
             android:padding="16dp">
 
-            <!-- 主题设置 -->
+            <!-- 外观设置 -->
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="外观设置"
-                android:textSize="24sp"
+                android:textSize="20sp"
                 android:textStyle="bold"
                 android:layout_marginBottom="16dp" />
 
+            <!-- 主题模式 -->
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -72,70 +73,43 @@
 
             </RadioGroup>
 
-            <!-- API 设置 -->
+            <!-- 会话列表设置 -->
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="API 设置"
-                android:textSize="24sp"
+                android:text="会话列表"
+                android:textSize="20sp"
                 android:textStyle="bold"
                 android:layout_marginBottom="16dp" />
 
+            <!-- 账户标签颜色 -->
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="服务器地址"
-                android:textSize="16sp" />
+                android:text="账户标签颜色"
+                android:textSize="16sp"
+                android:layout_marginBottom="8dp" />
 
-            <EditText
-                android:id="@+id/et_url"
+            <LinearLayout
+                android:id="@+id/color_picker_container"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="例如：192.168.1.100 或 example.com"
-                android:inputType="textUri"
-                android:layout_marginBottom="16dp" />
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="24dp">
 
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="端口"
-                android:textSize="16sp" />
+                <!-- 颜色选项将通过代码动态添加 -->
 
-            <EditText
-                android:id="@+id/et_port"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:hint="例如：7777"
-                android:inputType="number"
-                android:layout_marginBottom="16dp" />
+            </LinearLayout>
 
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="API Key"
-                android:textSize="16sp" />
-
-            <EditText
-                android:id="@+id/et_api_key"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:hint="输入你的 API Key"
-                android:inputType="textPassword"
-                android:layout_marginBottom="24dp" />
-
-            <Button
-                android:id="@+id/btn_save"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="保存" />
-
+            <!-- 提示信息 -->
             <TextView
                 android:id="@+id/tv_status"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
                 android:textSize="14sp"
-                android:textColor="#757575" />
+                android:textColor="#757575"
+                android:text="提示：账户管理请在\"账号管理\"中进行" />
 
         </LinearLayout>
 
