@@ -571,8 +571,6 @@ public class ChatActivity extends AppCompatActivity {
                 });
             }
         });
-        rvMessages.smoothScrollToPosition(messages.size() - 1);
-    }
     
     /**
      * 停止生成
@@ -613,12 +611,14 @@ public class ChatActivity extends AppCompatActivity {
                 runOnUiThread(() -> {
                     Log.e("ChatActivity", "Stop failed: " + error + "\n" + debugInfo);
                     
-                    // 如果 session 不存在，清理本地数据并返回列表
+                    // 如果 session 不存在，提示用户（不删除本地数据）
                     if (error.contains("not found") || error.contains("不存在")) {
-                        // 删除本地会话数据
-                        sessionManager.deleteSession(currentSessionId);
-                        Toast.makeText(ChatActivity.this, "会话不存在，已返回列表", Toast.LENGTH_SHORT).show();
-                        finish();
+                        new androidx.appcompat.app.AlertDialog.Builder(ChatActivity.this)
+                            .setTitle("会话不存在")
+                            .setMessage("该会话在服务器上不存在，可能已被删除或切换了账号。\n是否返回会话列表？")
+                            .setPositiveButton("返回列表", (d, w) -> finish())
+                            .setNegativeButton("取消", (d, w) -> setButtonStateNormal())
+                            .show();
                     } else {
                         Toast.makeText(ChatActivity.this, "停止失败: " + error, Toast.LENGTH_SHORT).show();
                         // 恢复按钮状态
