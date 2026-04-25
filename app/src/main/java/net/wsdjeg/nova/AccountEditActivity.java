@@ -1,6 +1,8 @@
 package net.wsdjeg.nova;
 
 import android.content.Intent;
+import android.graphics.Color;
+import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.Menu;
@@ -8,12 +10,15 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
-import android.widget.FrameLayout;
+import android.widget.LinearLayout;
 import android.widget.RadioButton;
+import android.widget.RadioGroup;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
 
 /**
  * 账号编辑界面
@@ -32,9 +37,7 @@ public class AccountEditActivity extends AppCompatActivity {
     private EditText etHost;
     private EditText etPort;
     private EditText etApiKey;
-    private RadioButton rbColorDefault;
-    private RadioButton[] rbColors = new RadioButton[8];
-    private FrameLayout[] colorLayouts = new FrameLayout[9]; // 0-7 for colors, 8 for default
+    private RadioGroup rgColorPicker;
     private Button btnSave;
     private Button btnTest;
     private Button btnDelete;
@@ -42,6 +45,9 @@ public class AccountEditActivity extends AppCompatActivity {
     private AccountManager accountManager;
     private String accountId;  // 如果是编辑模式，保存账号ID
     private boolean isEditMode = false;
+    
+    private View[] colorViews;
+    private int selectedColorIndex = -1; // -1 表示默认
     
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -51,6 +57,7 @@ public class AccountEditActivity extends AppCompatActivity {
         accountManager = AccountManager.getInstance(this);
         
         initViews();
+        initColorPicker();
         loadAccountData();
         setupListeners();
     }
@@ -60,30 +67,7 @@ public class AccountEditActivity extends AppCompatActivity {
         etHost = findViewById(R.id.et_host);
         etPort = findViewById(R.id.et_port);
         etApiKey = findViewById(R.id.et_api_key);
-        
-        // 默认选项
-        rbColorDefault = findViewById(R.id.rb_color_default);
-        colorLayouts[8] = findViewById(R.id.color_default);
-        
-        // 颜色选项
-        rbColors[0] = findViewById(R.id.rb_color_0);
-        rbColors[1] = findViewById(R.id.rb_color_1);
-        rbColors[2] = findViewById(R.id.rb_color_2);
-        rbColors[3] = findViewById(R.id.rb_color_3);
-        rbColors[4] = findViewById(R.id.rb_color_4);
-        rbColors[5] = findViewById(R.id.rb_color_5);
-        rbColors[6] = findViewById(R.id.rb_color_6);
-        rbColors[7] = findViewById(R.id.rb_color_7);
-        
-        colorLayouts[0] = findViewById(R.id.color_0);
-        colorLayouts[1] = findViewById(R.id.color_1);
-        colorLayouts[2] = findViewById(R.id.color_2);
-        colorLayouts[3] = findViewById(R.id.color_3);
-        colorLayouts[4] = findViewById(R.id.color_4);
-        colorLayouts[5] = findViewById(R.id.color_5);
-        colorLayouts[6] = findViewById(R.id.color_6);
-        colorLayouts[7] = findViewById(R.id.color_7);
-        
+        rgColorPicker = findViewById(R.id.rg_color_picker);
         btnSave = findViewById(R.id.btn_save);
         btnTest = findViewById(R.id.btn_test_connection);
         btnDelete = findViewById(R.id.btn_delete);
@@ -91,6 +75,88 @@ public class AccountEditActivity extends AppCompatActivity {
         // 设置返回按钮
         if (getSupportActionBar() != null) {
             getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+        }
+    }
+    
+    private void initColorPicker() {
+        LinearLayout container = findViewById(R.id.color_picker_container);
+        
+        int size = (int) (36 * getResources().getDisplayMetrics().density);
+        int margin = (int) (6 * getResources().getDisplayMetrics().density);
+        
+        colorViews = new View[9]; // 0=默认, 1-8=颜色
+        
+        // 创建默认选项（渐变圆形 + "A" 字母）
+        View autoView = new View(this);
+        LinearLayout.LayoutParams autoParams = new LinearLayout.LayoutParams(size, size);
+        autoParams.setMargins(margin, margin, margin, margin);
+        autoView.setLayoutParams(autoParams);
+        
+        GradientDrawable autoDrawable = new GradientDrawable();
+        autoDrawable.setShape(GradientDrawable.OVAL);
+        autoDrawable.setColors(new int[] {
+            Color.parseColor("#FF6B6B"),
+            Color.parseColor("#4ECDC4"),
+            Color.parseColor("#45B7D1"),
+            Color.parseColor("#F7DC6F")
+        });
+        autoDrawable.setGradientType(GradientDrawable.SWEEP_GRADIENT);
+        autoView.setBackground(autoDrawable);
+        autoView.setOnClickListener(v -> selectColor(-1));
+        container.addView(autoView);
+        colorViews[0] = autoView;
+        
+        // 创建 8 个颜色选项
+        for (int i = 0; i < SettingsManager.ACCOUNT_TAG_COLORS.length; i++) {
+            View colorView = new View(this);
+            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(size, size);
+            params.setMargins(margin, margin, margin, margin);
+            colorView.setLayoutParams(params);
+            
+            GradientDrawable drawable = new GradientDrawable();
+            drawable.setShape(GradientDrawable.OVAL);
+            drawable.setColor(Color.parseColor(SettingsManager.ACCOUNT_TAG_COLORS[i]));
+            colorView.setBackground(drawable);
+            
+            final int colorIndex = i;
+            colorView.setOnClickListener(v -> selectColor(colorIndex));
+            
+            container.addView(colorView);
+            colorViews[i + 1] = colorView;
+        }
+    }
+    
+    private void selectColor(int index) {
+        selectedColorIndex = index;
+        updateColorSelection();
+    }
+    
+    private void updateColorSelection() {
+        for (int i = 0; i < colorViews.length; i++) {
+            View view = colorViews[i];
+            GradientDrawable drawable = new GradientDrawable();
+            drawable.setShape(GradientDrawable.OVAL);
+            
+            if (i == 0) {
+                // 默认选项：渐变背景
+                drawable.setColors(new int[] {
+                    Color.parseColor("#FF6B6B"),
+                    Color.parseColor("#4ECDC4"),
+                    Color.parseColor("#45B7D1"),
+                    Color.parseColor("#F7DC6F")
+                });
+                drawable.setGradientType(GradientDrawable.SWEEP_GRADIENT);
+            } else {
+                drawable.setColor(Color.parseColor(SettingsManager.ACCOUNT_TAG_COLORS[i - 1]));
+            }
+            
+            // 选中状态添加边框
+            int colorIndex = i - 1; // 转换为实际颜色索引
+            if (colorIndex == selectedColorIndex || (selectedColorIndex == -1 && i == 0)) {
+                drawable.setStroke(4, ContextCompat.getColor(this, R.color.primary));
+            }
+            
+            view.setBackground(drawable);
         }
     }
     
@@ -113,7 +179,8 @@ public class AccountEditActivity extends AppCompatActivity {
             etApiKey.setText(apiKey);
             
             // 设置颜色选择
-            selectColorRadioButton(colorIndex);
+            selectedColorIndex = colorIndex;
+            updateColorSelection();
             
             setTitle("编辑账号");
             btnDelete.setVisibility(Button.VISIBLE);
@@ -126,27 +193,8 @@ public class AccountEditActivity extends AppCompatActivity {
             // 设置默认端口
             etPort.setText("8080");
             // 默认选中"默认"选项
-            selectColorRadioButton(-1);
-        }
-    }
-    
-    private void selectColorRadioButton(int colorIndex) {
-        clearAllColorSelections();
-        if (colorIndex < 0 || colorIndex >= 8) {
-            rbColorDefault.setChecked(true);
-            colorLayouts[8].setSelected(true);
-        } else {
-            rbColors[colorIndex].setChecked(true);
-            colorLayouts[colorIndex].setSelected(true);
-        }
-    }
-    
-    private void clearAllColorSelections() {
-        rbColorDefault.setChecked(false);
-        colorLayouts[8].setSelected(false);
-        for (int i = 0; i < rbColors.length; i++) {
-            rbColors[i].setChecked(false);
-            colorLayouts[i].setSelected(false);
+            selectedColorIndex = -1;
+            updateColorSelection();
         }
     }
     
@@ -154,45 +202,6 @@ public class AccountEditActivity extends AppCompatActivity {
         btnSave.setOnClickListener(v -> saveAccount());
         btnTest.setOnClickListener(v -> testConnection());
         btnDelete.setOnClickListener(v -> deleteAccount());
-        
-        // 点击默认布局
-        colorLayouts[8].setOnClickListener(v -> selectColorRadioButton(-1));
-        
-        // 点击颜色布局
-        for (int i = 0; i < 8; i++) {
-            final int index = i;
-            colorLayouts[i].setOnClickListener(v -> selectColorRadioButton(index));
-        }
-        
-        // 颜色选择监听 - 点击颜色按钮时取消默认选择
-        for (int i = 0; i < rbColors.length; i++) {
-            final int index = i;
-            rbColors[i].setOnCheckedChangeListener((buttonView, isChecked) -> {
-                if (isChecked) {
-                    rbColorDefault.setChecked(false);
-                    colorLayouts[8].setSelected(false);
-                    // 清除其他颜色选择
-                    for (int j = 0; j < rbColors.length; j++) {
-                        if (j != index) {
-                            rbColors[j].setChecked(false);
-                            colorLayouts[j].setSelected(false);
-                        }
-                    }
-                    colorLayouts[index].setSelected(true);
-                }
-            });
-        }
-        
-        // 点击默认时清除颜色选择
-        rbColorDefault.setOnCheckedChangeListener((buttonView, isChecked) -> {
-            if (isChecked) {
-                for (int i = 0; i < rbColors.length; i++) {
-                    rbColors[i].setChecked(false);
-                    colorLayouts[i].setSelected(false);
-                }
-                colorLayouts[8].setSelected(true);
-            }
-        });
     }
     
     @Override
@@ -210,24 +219,12 @@ public class AccountEditActivity extends AppCompatActivity {
         return super.onOptionsItemSelected(item);
     }
     
-    private int getSelectedColorIndex() {
-        if (rbColorDefault.isChecked()) {
-            return -1; // 使用全局设置
-        }
-        for (int i = 0; i < rbColors.length; i++) {
-            if (rbColors[i].isChecked()) {
-                return i;
-            }
-        }
-        return -1;
-    }
-    
     private void saveAccount() {
         String name = etName.getText().toString().trim();
         String host = etHost.getText().toString().trim();
         String portStr = etPort.getText().toString().trim();
         String apiKey = etApiKey.getText().toString().trim();
-        int colorIndex = getSelectedColorIndex();
+        int colorIndex = selectedColorIndex;
         
         // 验证输入
         if (TextUtils.isEmpty(host)) {
