@@ -632,8 +632,6 @@ public class ApiClient {
                 Log.e(TAG, "getSessionPreview failed", e);
                 new Handler(Looper.getMainLooper()).post(() -> 
                     callback.onError("Network error: " + e.getMessage()));
-            }
-        }).start();
     }
     
     /**
@@ -658,13 +656,20 @@ public class ApiClient {
         new Thread(() -> {
             try {
                 URL url = new URL(baseUrl + "/session/" + sessionId + "/stop");
+                Log.d(TAG, "Stop session URL: " + url.toString());
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("POST");
                 conn.setRequestProperty("X-API-Key", apiKey);
+                conn.setRequestProperty("Accept", "*/*");
+                conn.setDoOutput(true);  // POST 请求必须设置
                 conn.setConnectTimeout(5000);
                 conn.setReadTimeout(10000);
+                
+                // 对于没有请求体的 POST，写入空内容
+                conn.getOutputStream().close();
 
                 int responseCode = conn.getResponseCode();
+                Log.d(TAG, "Stop session response code: " + responseCode);
                 
                 if (responseCode == 204) {
                     new Handler(Looper.getMainLooper()).post(() -> 
@@ -712,13 +717,20 @@ public class ApiClient {
         new Thread(() -> {
             try {
                 URL url = new URL(baseUrl + "/session/" + sessionId + "/retry");
+                Log.d(TAG, "Retry session URL: " + url.toString());
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("POST");
                 conn.setRequestProperty("X-API-Key", apiKey);
+                conn.setRequestProperty("Accept", "*/*");
+                conn.setDoOutput(true);  // POST 请求必须设置
                 conn.setConnectTimeout(5000);
                 conn.setReadTimeout(10000);
+                
+                // 对于没有请求体的 POST，写入空内容
+                conn.getOutputStream().close();
 
                 int responseCode = conn.getResponseCode();
+                Log.d(TAG, "Retry session response code: " + responseCode);
                 
                 if (responseCode == 204) {
                     new Handler(Looper.getMainLooper()).post(() -> 
