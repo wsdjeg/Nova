@@ -53,13 +53,13 @@ jobs:
     
     - name: Rename APK
       run: |
-        mv app/build/outputs/apk/debug/app-debug.apk app/build/outputs/apk/debug/ChatApp.apk
+        mv app/build/outputs/apk/debug/app-debug.apk app/build/outputs/apk/debug/Nova-v${{ steps.version.outputs.VERSION_NAME }}-dev.apk
 
     - name: Upload APK artifact
       uses: actions/upload-artifact@v4
       with:
-        name: ChatApp-apk
-        path: app/build/outputs/apk/debug/ChatApp.apk
+        name: Nova-apk
+        path: app/build/outputs/apk/debug/Nova-v${{ steps.version.outputs.VERSION_NAME }}-dev.apk
         retention-days: 1
 
   release:
@@ -73,7 +73,7 @@ jobs:
     - name: Download APK artifact
       uses: actions/download-artifact@v4
       with:
-        name: ChatApp-apk
+        name: Nova-apk
         path: ./apk
     
     - name: Delete old prerelease
@@ -95,12 +95,12 @@ jobs:
           **Commit**: ${{ github.sha }}
           
           ### 下载说明
-          下载 `ChatApp.apk` 文件安装即可使用（可直接覆盖安装）
+          下载 `Nova-v${{ needs.build.outputs.version_name }}-dev.apk` 文件安装即可使用（可直接覆盖安装）
           
           ### 更新内容
           ${{ github.event.head_commit.message }}
         draft: false
         prerelease: true
-        files: ./apk/ChatApp.apk
+        files: ./apk/Nova-v${{ needs.build.outputs.version_name }}-dev.apk
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
