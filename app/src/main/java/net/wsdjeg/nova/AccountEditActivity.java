@@ -310,7 +310,7 @@ public class AccountEditActivity extends AppCompatActivity {
             @Override
             public void onError(String error) {
                 runOnUiThread(() -> {
-                    new AlertDialog.Builder(AccountEditActivity)
+                    new AlertDialog.Builder(AccountEditActivity.this)
                         .setTitle("连接失败")
                         .setMessage(error)
                         .setPositiveButton("确定", null)
