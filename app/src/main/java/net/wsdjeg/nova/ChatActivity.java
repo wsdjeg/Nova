@@ -31,6 +31,10 @@ public class ChatActivity extends AppCompatActivity {
     private static final int STATE_NORMAL = 0;
     private static final int STATE_SENDING = 1;
     
+    // Intent extras
+    public static final String EXTRA_SESSION_ID = "session_id";
+    public static final String EXTRA_SESSION_TITLE = "session_title";
+    
     private Toolbar toolbar;
     private TextView tvSessionTitle;
     private TextView tvSessionInfo;
@@ -55,13 +59,15 @@ public class ChatActivity extends AppCompatActivity {
     private boolean isAutoRefreshEnabled = true;
     private int lastMessageCount = 0;
     
+    // 按钮状态
+    private int buttonState = STATE_NORMAL;
+    
     private boolean isInProgress = false; // 从 API 获取的会话状态
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_chat);
-        
         // 设置 Toolbar
         toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
