@@ -558,7 +558,6 @@ public class ChatActivity extends AppCompatActivity {
                     refreshMessages();
                 });
             }
-
             @Override
             public void onError(String error) {
                 runOnUiThread(() -> {
@@ -568,19 +567,20 @@ public class ChatActivity extends AppCompatActivity {
                     setButtonStateNormal();
                     addMessage("错误: " + error, false);
                     Toast.makeText(ChatActivity.this, "请求失败: " + error, Toast.LENGTH_SHORT).show();
+                });
             }
         });
     }
+
+    /**
     /**
      * 停止生成
      */
-
     private void stopGeneration() {
         if (apiClient == null || currentSessionId == null) {
             return;
         }
         
-        // 调试信息
         Session session = sessionManager.getSession(currentSessionId);
         final String debugInfo;
         if (session != null) {
@@ -592,7 +592,6 @@ public class ChatActivity extends AppCompatActivity {
         
         btnSend.setEnabled(false);
         btnSend.setText("停止中...");
-        
         apiClient.stopSession(currentSessionId, new ApiClient.StopCallback() {
             @Override
             public void onSuccess() {
