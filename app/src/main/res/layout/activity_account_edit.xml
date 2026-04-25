@@ -107,141 +107,108 @@
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:layout_marginTop="12dp"
-            android:gravity="center_vertical">
+            android:gravity="center">
 
             <!-- 默认 -->
-            <LinearLayout
+            <FrameLayout
                 android:id="@+id/color_default"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
-                android:padding="4dp"
-                android:background="?android:attr/selectableItemBackground">
+                android:padding="8dp">
 
-                <RadioButton
-                    android:id="@+id/rb_color_default"
-                    android:layout_width="wrap_content"
+                <LinearLayout
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:checked="true"/>
+                    android:orientation="vertical"
+                    android:gravity="center"
+                    android:padding="8dp"
+                    android:background="@drawable/color_selector_bg">
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="默认"
-                    android:textSize="14sp"
-                    android:layout_marginStart="4dp"/>
+                    <RadioButton
+                        android:id="@+id/rb_color_default"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:checked="true"/>
 
-            </LinearLayout>
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="默认"
+                        android:textSize="12sp"
+                        android:layout_marginTop="4dp"/>
+
+                </LinearLayout>
+
+            </FrameLayout>
 
             <!-- 颜色1 -->
-            <LinearLayout
+            <FrameLayout
                 android:id="@+id/color_0"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
-                android:padding="4dp"
-                android:background="?android:attr/selectableItemBackground">
+                android:padding="8dp">
 
-                <View
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
-                    android:background="@drawable/color_circle_0"/>
-
-                <RadioButton
-                    android:id="@+id/rb_color_0"
-                    android:layout_width="wrap_content"
+                <LinearLayout
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="4dp"
-                    android:text=""
-                    android:button="@null"
-                    android:background="@android:color/transparent"/>
+                    android:orientation="vertical"
+                    android:gravity="center"
+                    android:padding="8dp"
+                    android:background="@drawable/color_selector_bg">
 
-            </LinearLayout>
+                    <View
+                        android:layout_width="32dp"
+                        android:layout_height="32dp"
+                        android:background="@drawable/color_circle_0"/>
+
+                    <RadioButton
+                        android:id="@+id/rb_color_0"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text=""
+                        android:button="@null"
+                        android:background="@android:color/transparent"/>
+
+                </LinearLayout>
+
+            </FrameLayout>
 
             <!-- 颜色2 -->
-            <LinearLayout
+            <FrameLayout
                 android:id="@+id/color_1"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
-                android:padding="4dp"
-                android:background="?android:attr/selectableItemBackground">
+                android:padding="8dp">
 
-                <View
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
-                    android:background="@drawable/color_circle_1"/>
-
-                <RadioButton
-                    android:id="@+id/rb_color_1"
-                    android:layout_width="wrap_content"
+                <LinearLayout
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="4dp"
-                    android:text=""
-                    android:button="@null"
-                    android:background="@android:color/transparent"/>
+                    android:orientation="vertical"
+                    android:gravity="center"
+                    android:padding="8dp"
+                    android:background="@drawable/color_selector_bg">
 
-            </LinearLayout>
+                    <View
+                        android:layout_width="32dp"
+                        android:layout_height="32dp"
+                        android:background="@drawable/color_circle_1"/>
 
-            <!-- 颜色3 -->
-            <LinearLayout
-                android:id="@+id/color_2"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
-                android:padding="4dp"
-                android:background="?android:attr/selectableItemBackground">
+                    <RadioButton
+                        android:id="@+id/rb_color_1"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text=""
+                        android:button="@null"
+                        android:background="@android:color/transparent"/>
 
-                <View
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
-                    android:background="@drawable/color_circle_2"/>
+                </LinearLayout>
 
-                <RadioButton
-                    android:id="@+id/rb_color_2"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="4dp"
-                    android:text=""
-                    android:button="@null"
-                    android:background="@android:color/transparent"/>
-
-            </LinearLayout>
-
-            <!-- 颜色4 -->
-            <LinearLayout
-                android:id="@+id/color_3"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
-                android:padding="4dp"
-                android:background="?android:attr/selectableItemBackground">
-
-                <View
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
-                    android:background="@drawable/color_circle_3"/>
-
-                <RadioButton
-                    android:id="@+id/rb_color_3"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="4dp"
-                    android:text=""
-                    android:button="@null"
-                    android:background="@android:color/transparent"/>
-
-            </LinearLayout>
+            </FrameLayout>
 
         </LinearLayout>
 
@@ -250,119 +217,222 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:layout_marginTop="8dp"
-            android:gravity="center_vertical">
+            android:gravity="center">
+
+            <!-- 颜色3 -->
+            <FrameLayout
+                android:id="@+id/color_2"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:padding="8dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:gravity="center"
+                    android:padding="8dp"
+                    android:background="@drawable/color_selector_bg">
+
+                    <View
+                        android:layout_width="32dp"
+                        android:layout_height="32dp"
+                        android:background="@drawable/color_circle_2"/>
+
+                    <RadioButton
+                        android:id="@+id/rb_color_2"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text=""
+                        android:button="@null"
+                        android:background="@android:color/transparent"/>
+
+                </LinearLayout>
+
+            </FrameLayout>
+
+            <!-- 颜色4 -->
+            <FrameLayout
+                android:id="@+id/color_3"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:padding="8dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:gravity="center"
+                    android:padding="8dp"
+                    android:background="@drawable/color_selector_bg">
+
+                    <View
+                        android:layout_width="32dp"
+                        android:layout_height="32dp"
+                        android:background="@drawable/color_circle_3"/>
+
+                    <RadioButton
+                        android:id="@+id/rb_color_3"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text=""
+                        android:button="@null"
+                        android:background="@android:color/transparent"/>
+
+                </LinearLayout>
+
+            </FrameLayout>
 
             <!-- 颜色5 -->
-            <LinearLayout
+            <FrameLayout
                 android:id="@+id/color_4"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
-                android:padding="4dp"
-                android:background="?android:attr/selectableItemBackground">
+                android:padding="8dp">
 
-                <View
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
-                    android:background="@drawable/color_circle_4"/>
-
-                <RadioButton
-                    android:id="@+id/rb_color_4"
-                    android:layout_width="wrap_content"
+                <LinearLayout
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="4dp"
-                    android:text=""
-                    android:button="@null"
-                    android:background="@android:color/transparent"/>
+                    android:orientation="vertical"
+                    android:gravity="center"
+                    android:padding="8dp"
+                    android:background="@drawable/color_selector_bg">
 
-            </LinearLayout>
+                    <View
+                        android:layout_width="32dp"
+                        android:layout_height="32dp"
+                        android:background="@drawable/color_circle_4"/>
+
+                    <RadioButton
+                        android:id="@+id/rb_color_4"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text=""
+                        android:button="@null"
+                        android:background="@android:color/transparent"/>
+
+                </LinearLayout>
+
+            </FrameLayout>
+
+        </LinearLayout>
+
+        <!-- 颜色选择器第三行 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center">
 
             <!-- 颜色6 -->
-            <LinearLayout
+            <FrameLayout
                 android:id="@+id/color_5"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
-                android:padding="4dp"
-                android:background="?android:attr/selectableItemBackground">
+                android:padding="8dp">
 
-                <View
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
-                    android:background="@drawable/color_circle_5"/>
-
-                <RadioButton
-                    android:id="@+id/rb_color_5"
-                    android:layout_width="wrap_content"
+                <LinearLayout
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="4dp"
-                    android:text=""
-                    android:button="@null"
-                    android:background="@android:color/transparent"/>
+                    android:orientation="vertical"
+                    android:gravity="center"
+                    android:padding="8dp"
+                    android:background="@drawable/color_selector_bg">
 
-            </LinearLayout>
+                    <View
+                        android:layout_width="32dp"
+                        android:layout_height="32dp"
+                        android:background="@drawable/color_circle_5"/>
+
+                    <RadioButton
+                        android:id="@+id/rb_color_5"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text=""
+                        android:button="@null"
+                        android:background="@android:color/transparent"/>
+
+                </LinearLayout>
+
+            </FrameLayout>
 
             <!-- 颜色7 -->
-            <LinearLayout
+            <FrameLayout
                 android:id="@+id/color_6"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
-                android:padding="4dp"
-                android:background="?android:attr/selectableItemBackground">
+                android:padding="8dp">
 
-                <View
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
-                    android:background="@drawable/color_circle_6"/>
-
-                <RadioButton
-                    android:id="@+id/rb_color_6"
-                    android:layout_width="wrap_content"
+                <LinearLayout
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="4dp"
-                    android:text=""
-                    android:button="@null"
-                    android:background="@android:color/transparent"/>
+                    android:orientation="vertical"
+                    android:gravity="center"
+                    android:padding="8dp"
+                    android:background="@drawable/color_selector_bg">
 
-            </LinearLayout>
+                    <View
+                        android:layout_width="32dp"
+                        android:layout_height="32dp"
+                        android:background="@drawable/color_circle_6"/>
+
+                    <RadioButton
+                        android:id="@+id/rb_color_6"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text=""
+                        android:button="@null"
+                        android:background="@android:color/transparent"/>
+
+                </LinearLayout>
+
+            </FrameLayout>
 
             <!-- 颜色8 -->
-            <LinearLayout
+            <FrameLayout
                 android:id="@+id/color_7"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
-                android:padding="4dp"
-                android:background="?android:attr/selectableItemBackground">
+                android:padding="8dp">
 
-                <View
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
-                    android:background="@drawable/color_circle_7"/>
-
-                <RadioButton
-                    android:id="@+id/rb_color_7"
-                    android:layout_width="wrap_content"
+                <LinearLayout
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="4dp"
-                    android:text=""
-                    android:button="@null"
-                    android:background="@android:color/transparent"/>
+                    android:orientation="vertical"
+                    android:gravity="center"
+                    android:padding="8dp"
+                    android:background="@drawable/color_selector_bg">
 
-            </LinearLayout>
+                    <View
+                        android:layout_width="32dp"
+                        android:layout_height="32dp"
+                        android:background="@drawable/color_circle_7"/>
+
+                    <RadioButton
+                        android:id="@+id/rb_color_7"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text=""
+                        android:button="@null"
+                        android:background="@android:color/transparent"/>
+
+                </LinearLayout>
+
+            </FrameLayout>
 
         </LinearLayout>
-
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

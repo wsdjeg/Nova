@@ -8,7 +8,7 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
-import android.widget.LinearLayout;
+import android.widget.FrameLayout;
 import android.widget.RadioButton;
 import android.widget.Toast;
 
@@ -34,7 +34,7 @@ public class AccountEditActivity extends AppCompatActivity {
     private EditText etApiKey;
     private RadioButton rbColorDefault;
     private RadioButton[] rbColors = new RadioButton[8];
-    private LinearLayout[] colorLayouts = new LinearLayout[9]; // 0-7 for colors, 8 for default
+    private FrameLayout[] colorLayouts = new FrameLayout[9]; // 0-7 for colors, 8 for default
     private Button btnSave;
     private Button btnTest;
     private Button btnDelete;
@@ -125,6 +125,8 @@ public class AccountEditActivity extends AppCompatActivity {
             
             // 设置默认端口
             etPort.setText("8080");
+            // 默认选中"默认"选项
+            selectColorRadioButton(-1);
         }
     }
     
@@ -132,15 +134,19 @@ public class AccountEditActivity extends AppCompatActivity {
         clearAllColorSelections();
         if (colorIndex < 0 || colorIndex >= 8) {
             rbColorDefault.setChecked(true);
+            colorLayouts[8].setSelected(true);
         } else {
             rbColors[colorIndex].setChecked(true);
+            colorLayouts[colorIndex].setSelected(true);
         }
     }
     
     private void clearAllColorSelections() {
         rbColorDefault.setChecked(false);
+        colorLayouts[8].setSelected(false);
         for (int i = 0; i < rbColors.length; i++) {
             rbColors[i].setChecked(false);
+            colorLayouts[i].setSelected(false);
         }
     }
     
@@ -164,12 +170,15 @@ public class AccountEditActivity extends AppCompatActivity {
             rbColors[i].setOnCheckedChangeListener((buttonView, isChecked) -> {
                 if (isChecked) {
                     rbColorDefault.setChecked(false);
+                    colorLayouts[8].setSelected(false);
                     // 清除其他颜色选择
                     for (int j = 0; j < rbColors.length; j++) {
                         if (j != index) {
                             rbColors[j].setChecked(false);
+                            colorLayouts[j].setSelected(false);
                         }
                     }
+                    colorLayouts[index].setSelected(true);
                 }
             });
         }
@@ -179,7 +188,9 @@ public class AccountEditActivity extends AppCompatActivity {
             if (isChecked) {
                 for (int i = 0; i < rbColors.length; i++) {
                     rbColors[i].setChecked(false);
+                    colorLayouts[i].setSelected(false);
                 }
+                colorLayouts[8].setSelected(true);
             }
         });
     }
