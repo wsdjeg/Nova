@@ -618,20 +618,20 @@ public class ApiClient {
                 } else if (responseCode == 401) {
                     new Handler(Looper.getMainLooper()).post(() -> 
                         callback.onError("Unauthorized: Invalid API Key"));
-                } else if (responseCode == 404) {
-                    new Handler(Looper.getMainLooper()).post(() -> 
-                        callback.onError("Session not found"));
                 } else if (responseCode == 400) {
                     new Handler(Looper.getMainLooper()).post(() -> 
                         callback.onError("Bad Request: Missing session ID"));
                 } else {
+                    final int code = responseCode;
                     new Handler(Looper.getMainLooper()).post(() -> 
-                        callback.onError("Error: " + responseCode));
+                        callback.onError("Error: " + code));
                 }
             } catch (Exception e) {
                 Log.e(TAG, "getSessionPreview failed", e);
                 new Handler(Looper.getMainLooper()).post(() -> 
                     callback.onError("Network error: " + e.getMessage()));
+            }
+        }).start();
     }
     
     /**
@@ -661,7 +661,7 @@ public class ApiClient {
                 conn.setRequestMethod("POST");
                 conn.setRequestProperty("X-API-Key", apiKey);
                 conn.setRequestProperty("Accept", "*/*");
-                conn.setDoOutput(true);  // POST 请求必须设置
+                conn.setDoOutput(true);
                 conn.setConnectTimeout(5000);
                 conn.setReadTimeout(10000);
                 
@@ -722,7 +722,7 @@ public class ApiClient {
                 conn.setRequestMethod("POST");
                 conn.setRequestProperty("X-API-Key", apiKey);
                 conn.setRequestProperty("Accept", "*/*");
-                conn.setDoOutput(true);  // POST 请求必须设置
+                conn.setDoOutput(true);
                 conn.setConnectTimeout(5000);
                 conn.setReadTimeout(10000);
                 
@@ -802,12 +802,11 @@ public class ApiClient {
             } catch (Exception e) {
                 Log.e(TAG, "testConnection failed", e);
                 new Handler(Looper.getMainLooper()).post(() -> 
-                    callback.onError("Connection failed: " + e.getMessage()));
-            }
         }).start();
     }
     
     /**
+     * Test connection with current settings.
      * Test connection with current settings.
      * 使用当前配置测试连接
      */
