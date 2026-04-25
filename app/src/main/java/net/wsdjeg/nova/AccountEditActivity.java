@@ -11,9 +11,6 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
-import android.widget.RadioButton;
-import android.widget.RadioGroup;
-import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AlertDialog;
@@ -37,7 +34,6 @@ public class AccountEditActivity extends AppCompatActivity {
     private EditText etHost;
     private EditText etPort;
     private EditText etApiKey;
-    private RadioGroup rgColorPicker;
     private Button btnSave;
     private Button btnTest;
     private Button btnDelete;
@@ -67,7 +63,6 @@ public class AccountEditActivity extends AppCompatActivity {
         etHost = findViewById(R.id.et_host);
         etPort = findViewById(R.id.et_port);
         etApiKey = findViewById(R.id.et_api_key);
-        rgColorPicker = findViewById(R.id.rg_color_picker);
         btnSave = findViewById(R.id.btn_save);
         btnTest = findViewById(R.id.btn_test_connection);
         btnDelete = findViewById(R.id.btn_delete);
@@ -86,7 +81,7 @@ public class AccountEditActivity extends AppCompatActivity {
         
         colorViews = new View[9]; // 0=默认, 1-8=颜色
         
-        // 创建默认选项（渐变圆形 + "A" 字母）
+        // 创建默认选项（渐变圆形）
         View autoView = new View(this);
         LinearLayout.LayoutParams autoParams = new LinearLayout.LayoutParams(size, size);
         autoParams.setMargins(margin, margin, margin, margin);
