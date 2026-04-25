@@ -5,10 +5,11 @@ import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.LinearLayout;
 import android.widget.RadioButton;
-import android.widget.RadioGroup;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AlertDialog;
@@ -31,10 +32,9 @@ public class AccountEditActivity extends AppCompatActivity {
     private EditText etHost;
     private EditText etPort;
     private EditText etApiKey;
-    private RadioGroup rgColor;
-    private RadioGroup rgColor2;
     private RadioButton rbColorDefault;
     private RadioButton[] rbColors = new RadioButton[8];
+    private LinearLayout[] colorLayouts = new LinearLayout[9]; // 0-7 for colors, 8 for default
     private Button btnSave;
     private Button btnTest;
     private Button btnDelete;
@@ -60,9 +60,12 @@ public class AccountEditActivity extends AppCompatActivity {
         etHost = findViewById(R.id.et_host);
         etPort = findViewById(R.id.et_port);
         etApiKey = findViewById(R.id.et_api_key);
-        rgColor = findViewById(R.id.rg_color);
-        rgColor2 = findViewById(R.id.rg_color_2);
+        
+        // 默认选项
         rbColorDefault = findViewById(R.id.rb_color_default);
+        colorLayouts[8] = findViewById(R.id.color_default);
+        
+        // 颜色选项
         rbColors[0] = findViewById(R.id.rb_color_0);
         rbColors[1] = findViewById(R.id.rb_color_1);
         rbColors[2] = findViewById(R.id.rb_color_2);
@@ -71,6 +74,16 @@ public class AccountEditActivity extends AppCompatActivity {
         rbColors[5] = findViewById(R.id.rb_color_5);
         rbColors[6] = findViewById(R.id.rb_color_6);
         rbColors[7] = findViewById(R.id.rb_color_7);
+        
+        colorLayouts[0] = findViewById(R.id.color_0);
+        colorLayouts[1] = findViewById(R.id.color_1);
+        colorLayouts[2] = findViewById(R.id.color_2);
+        colorLayouts[3] = findViewById(R.id.color_3);
+        colorLayouts[4] = findViewById(R.id.color_4);
+        colorLayouts[5] = findViewById(R.id.color_5);
+        colorLayouts[6] = findViewById(R.id.color_6);
+        colorLayouts[7] = findViewById(R.id.color_7);
+        
         btnSave = findViewById(R.id.btn_save);
         btnTest = findViewById(R.id.btn_test_connection);
         btnDelete = findViewById(R.id.btn_delete);
@@ -116,6 +129,7 @@ public class AccountEditActivity extends AppCompatActivity {
     }
     
     private void selectColorRadioButton(int colorIndex) {
+        clearAllColorSelections();
         if (colorIndex < 0 || colorIndex >= 8) {
             rbColorDefault.setChecked(true);
         } else {
@@ -123,10 +137,26 @@ public class AccountEditActivity extends AppCompatActivity {
         }
     }
     
+    private void clearAllColorSelections() {
+        rbColorDefault.setChecked(false);
+        for (int i = 0; i < rbColors.length; i++) {
+            rbColors[i].setChecked(false);
+        }
+    }
+    
     private void setupListeners() {
         btnSave.setOnClickListener(v -> saveAccount());
         btnTest.setOnClickListener(v -> testConnection());
         btnDelete.setOnClickListener(v -> deleteAccount());
+        
+        // 点击默认布局
+        colorLayouts[8].setOnClickListener(v -> selectColorRadioButton(-1));
+        
+        // 点击颜色布局
+        for (int i = 0; i < 8; i++) {
+            final int index = i;
+            colorLayouts[i].setOnClickListener(v -> selectColorRadioButton(index));
+        }
         
         // 颜色选择监听 - 点击颜色按钮时取消默认选择
         for (int i = 0; i < rbColors.length; i++) {
@@ -280,7 +310,7 @@ public class AccountEditActivity extends AppCompatActivity {
             @Override
             public void onError(String error) {
                 runOnUiThread(() -> {
-                    new AlertDialog.Builder(AccountEditActivity.this)
+                    new AlertDialog.Builder(AccountEditActivity)
                         .setTitle("连接失败")
                         .setMessage(error)
                         .setPositiveButton("确定", null)
