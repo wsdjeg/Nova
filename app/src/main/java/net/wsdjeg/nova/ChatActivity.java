@@ -27,6 +27,15 @@ import java.util.List;
 public class ChatActivity extends AppCompatActivity {
     
     private static final String TAG = "ChatActivity";
+    private static final int REFRESH_INTERVAL_MS = 3000; // 3秒刷新一次
+    private static final int STATE_NORMAL = 0;
+    private static final int STATE_SENDING = 1;
+    
+    private Toolbar toolbar;
+    private TextView tvSessionTitle;
+    private TextView tvSessionInfo;
+    private TextView tvSessionPath;
+    private RecyclerView rvMessages;
     private EditText etMessage;
     private Button btnSend;
     private MessageAdapter adapter;
@@ -46,8 +55,6 @@ public class ChatActivity extends AppCompatActivity {
     private boolean isAutoRefreshEnabled = true;
     private int lastMessageCount = 0;
     
-    // 按钮状态
-    private int buttonState = STATE_NORMAL;
     private boolean isInProgress = false; // 从 API 获取的会话状态
 
     @Override
