@@ -27,7 +27,8 @@
     <color name="error">#F44336</color>
     <color name="success">#4CAF50</color>
     <color name="warning">#FF9800</color>
-    
+    <color name="primary_light">#642196F3</color> <!-- 40% alpha of primary -->
+    <color name="divider">#1F000000</color> <!-- subtle divider -->
     <!-- Message colors - Blue theme -->
     <color name="user_message_bg">#2196F3</color>
     <color name="ai_message_bg">#E0E0E0</color>
