@@ -48,11 +48,20 @@ public class AccountManager {
                 Account account = new Account();
                 account.setId(json.getString("id"));
                 account.setName(json.optString("name", ""));
-                account.setUrl(json.getString("url"));
+                
+                // 兼容旧数据：优先读取 host/port，如果没有则读取 url
+                if (json.has("host")) {
+                    account.setHost(json.getString("host"));
+                    account.setPort(json.optInt("port", 8080));
+                } else {
+                    account.setUrl(json.optString("url", ""));
+                }
+                
                 account.setApiKey(json.optString("apiKey", ""));
                 account.setActive(json.optBoolean("isActive", false));
                 account.setCreatedAt(json.optLong("createdAt", System.currentTimeMillis()));
                 account.setLastUsedAt(json.optLong("lastUsedAt", System.currentTimeMillis()));
+                account.setColorIndex(json.optInt("colorIndex", -1));  // 默认使用全局设置
                 accounts.add(account);
             }
         } catch (JSONException e) {
@@ -83,11 +92,14 @@ public class AccountManager {
                 JSONObject json = new JSONObject();
                 json.put("id", account.getId());
                 json.put("name", account.getName());
-                json.put("url", account.getUrl());
+                json.put("host", account.getHost());
+                json.put("port", account.getPort());
+                json.put("url", account.getUrl());  // 兼容旧版本
                 json.put("apiKey", account.getApiKey() != null ? account.getApiKey() : "");
                 json.put("isActive", account.isActive());
                 json.put("createdAt", account.getCreatedAt());
                 json.put("lastUsedAt", account.getLastUsedAt());
+                json.put("colorIndex", account.getColorIndex());
                 jsonArray.put(json);
             }
             prefs.edit()
@@ -227,7 +239,19 @@ public class AccountManager {
     }
 
     /**
-     * 检查 URL 是否已存在
+     * 检查 Host 是否已存在
+     */
+    public boolean isHostExists(String host) {
+        for (Account account : accounts) {
+            if (account.getHost().equals(host)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * 检查 URL 是否已存在（兼容旧方法）
      */
     public boolean isUrlExists(String url) {
         for (Account account : accounts) {
@@ -282,5 +306,28 @@ public class AccountManager {
      */
     public void switchAccount(String accountId) {
         switchToAccount(accountId);
+    }
+    
+    /**
+     * 获取账号的颜色
+     * 优先级：账号自己的颜色 > 全局设置
+     * @param account 账号
+     * @param settingsManager 设置管理器
+     * @return 颜色字符串
+     */
+    public static String getAccountColor(Account account, SettingsManager settingsManager) {
+        // 如果账号设置了自定义颜色，优先使用
+        if (account.hasCustomColor()) {
+            return SettingsManager.ACCOUNT_TAG_COLORS[account.getColorIndex()];
+        }
+        
+        // 检查全局设置是否为自动模式
+        if (settingsManager.isAutoColorMode()) {
+            // 自动分配颜色
+            return SettingsManager.getAutoAssignedColor(account.getId());
+        }
+        
+        // 使用全局默认颜色
+        return settingsManager.getAccountTagColor();
     }
 }

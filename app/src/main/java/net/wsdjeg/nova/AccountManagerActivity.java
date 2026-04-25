@@ -3,12 +3,9 @@ package net.wsdjeg.nova;
 import android.app.AlertDialog;
 import android.content.Intent;
 import android.os.Bundle;
-import android.text.TextUtils;
-import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
-import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.Toast;
 
@@ -26,6 +23,9 @@ public class AccountManagerActivity extends AppCompatActivity implements Account
     private AccountAdapter adapter;
     private AccountManager accountManager;
     private LinearLayout emptyView;
+    
+    private static final int REQUEST_ADD_ACCOUNT = 100;
+    private static final int REQUEST_EDIT_ACCOUNT = 101;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -55,7 +55,10 @@ public class AccountManagerActivity extends AppCompatActivity implements Account
         recyclerView.setAdapter(adapter);
         
         // 添加账号按钮 (FAB)
-        findViewById(R.id.fab_add_account).setOnClickListener(v -> showAddAccountDialog());
+        findViewById(R.id.fab_add_account).setOnClickListener(v -> {
+            Intent intent = new Intent(this, AccountEditActivity.class);
+            startActivityForResult(intent, REQUEST_ADD_ACCOUNT);
+        });
     }
     
     private void loadAccounts() {
@@ -71,83 +74,6 @@ public class AccountManagerActivity extends AppCompatActivity implements Account
             emptyView.setVisibility(View.GONE);
             recyclerView.setVisibility(View.VISIBLE);
         }
-    }
-    
-    /**
-     * 显示添加账号对话框
-     */
-    private void showAddAccountDialog() {
-        showAccountDialog(null);
-    }
-    
-    /**
-     * 显示编辑账号对话框
-     */
-    private void showEditAccountDialog(Account account) {
-        showAccountDialog(account);
-    }
-    
-    /**
-     * 通用的账号编辑对话框
-     */
-    private void showAccountDialog(Account existingAccount) {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle(existingAccount == null ? "添加账号" : "编辑账号");
-        
-        View view = LayoutInflater.from(this).inflate(R.layout.dialog_account, null);
-        EditText etName = view.findViewById(R.id.et_account_name);
-        EditText etUrl = view.findViewById(R.id.et_account_url);
-        EditText etApiKey = view.findViewById(R.id.et_account_api_key);
-        
-        // 如果是编辑，填充现有数据
-        if (existingAccount != null) {
-            etName.setText(existingAccount.getName());
-            etUrl.setText(existingAccount.getUrl());
-            etApiKey.setText(existingAccount.getApiKey());
-        } else {
-            // 默认 URL
-            etUrl.setText("http://192.168.1.100:8080");
-        }
-        
-        builder.setView(view);
-        
-        builder.setPositiveButton(existingAccount == null ? "添加" : "保存", (dialog, which) -> {
-            String name = etName.getText().toString().trim();
-            String url = etUrl.getText().toString().trim();
-            String apiKey = etApiKey.getText().toString().trim();
-            
-            // 验证
-            if (TextUtils.isEmpty(url)) {
-                Toast.makeText(this, "请输入服务器地址", Toast.LENGTH_SHORT).show();
-                return;
-            }
-            
-            // 保存
-            if (existingAccount == null) {
-                // 添加新账号
-                Account account = new Account(name, url, apiKey.isEmpty() ? null : apiKey);
-                // 如果是第一个账号，自动设为激活
-                if (accountManager.getAccountCount() == 0) {
-                    account.setActive(true);
-                }
-                accountManager.addAccount(account);
-                Toast.makeText(this, "账号已添加", Toast.LENGTH_SHORT).show();
-            } else {
-                // 更新现有账号
-                existingAccount.setName(name);
-                existingAccount.setUrl(url);
-                if (!apiKey.isEmpty()) {
-                    existingAccount.setApiKey(apiKey);
-                }
-                accountManager.updateAccount(existingAccount);
-                Toast.makeText(this, "账号已更新", Toast.LENGTH_SHORT).show();
-            }
-            
-            loadAccounts();
-        });
-        
-        builder.setNegativeButton("取消", null);
-        builder.show();
     }
     
     /**
@@ -187,7 +113,7 @@ public class AccountManagerActivity extends AppCompatActivity implements Account
             .setItems(options, (dialog, which) -> {
                 switch (which) {
                     case 0: // 编辑
-                        showEditAccountDialog(account);
+                        openEditAccount(account);
                         break;
                     case 1: // 切换
                         if (!account.isActive()) {
@@ -208,12 +134,34 @@ public class AccountManagerActivity extends AppCompatActivity implements Account
     
     @Override
     public void onEditClick(Account account) {
-        showEditAccountDialog(account);
+        openEditAccount(account);
     }
     
     @Override
     public void onDeleteClick(Account account) {
         showDeleteConfirmDialog(account);
+    }
+    
+    /**
+     * 打开账号编辑页面
+     */
+    private void openEditAccount(Account account) {
+        Intent intent = new Intent(this, AccountEditActivity.class);
+        intent.putExtra(AccountEditActivity.EXTRA_ACCOUNT_ID, account.getId());
+        intent.putExtra(AccountEditActivity.EXTRA_ACCOUNT_NAME, account.getName());
+        intent.putExtra(AccountEditActivity.EXTRA_ACCOUNT_HOST, account.getHost());
+        intent.putExtra(AccountEditActivity.EXTRA_ACCOUNT_PORT, account.getPort());
+        intent.putExtra(AccountEditActivity.EXTRA_ACCOUNT_API_KEY, account.getApiKey());
+        intent.putExtra(AccountEditActivity.EXTRA_ACCOUNT_COLOR_INDEX, account.getColorIndex());
+        startActivityForResult(intent, REQUEST_EDIT_ACCOUNT);
+    }
+    
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (resultCode == RESULT_OK) {
+            loadAccounts();
+        }
     }
     
     // ========== 菜单 ==========
@@ -232,7 +180,8 @@ public class AccountManagerActivity extends AppCompatActivity implements Account
             onBackPressed();
             return true;
         } else if (id == R.id.action_add_account) {
-            showAddAccountDialog();
+            Intent intent = new Intent(this, AccountEditActivity.class);
+            startActivityForResult(intent, REQUEST_ADD_ACCOUNT);
             return true;
         }
         

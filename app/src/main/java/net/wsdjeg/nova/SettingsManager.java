@@ -17,6 +17,9 @@ public class SettingsManager {
     public static final int THEME_LIGHT = 1;
     public static final int THEME_DARK = 2;
     
+    // 自动分配颜色模式（使用索引 -1 表示自动）
+    public static final int AUTO_COLOR_INDEX = -1;
+    
     // 账户标签颜色选项
     public static final String[] ACCOUNT_TAG_COLORS = {
         "#FF6B6B",  // 红色
@@ -69,7 +72,7 @@ public class SettingsManager {
     
     /**
      * 设置账户标签颜色索引
-     * @param colorIndex 颜色索引 (0-7)
+     * @param colorIndex 颜色索引 (0-7)，或 AUTO_COLOR_INDEX (-1) 表示自动分配
      */
     public void setAccountTagColorIndex(int colorIndex) {
         prefs.edit()
@@ -79,22 +82,47 @@ public class SettingsManager {
     
     /**
      * 获取账户标签颜色索引
-     * @return 颜色索引 (0-7)，默认为 2 (蓝色)
+     * @return 颜色索引 (0-7)，或 AUTO_COLOR_INDEX (-1) 表示自动分配
      */
     public int getAccountTagColorIndex() {
         return prefs.getInt(KEY_ACCOUNT_TAG_COLOR_INDEX, 2); // 默认蓝色
     }
     
     /**
+     * 是否使用自动分配颜色模式
+     */
+    public boolean isAutoColorMode() {
+        return getAccountTagColorIndex() == AUTO_COLOR_INDEX;
+    }
+    
+    /**
      * 获取账户标签颜色
-     * @return 颜色字符串 (如 "#45B7D1")
+     * @return 颜色字符串 (如 "#45B7D1")，如果是自动模式返回 null
      */
     public String getAccountTagColor() {
         int index = getAccountTagColorIndex();
+        if (index == AUTO_COLOR_INDEX) {
+            return null; // 自动模式
+        }
         if (index >= 0 && index < ACCOUNT_TAG_COLORS.length) {
             return ACCOUNT_TAG_COLORS[index];
         }
         return ACCOUNT_TAG_COLORS[2]; // 默认蓝色
+    }
+    
+    /**
+     * 根据账号ID自动分配颜色
+     * 使用账号ID的哈希值映射到颜色数组
+     * @param accountId 账号ID
+     * @return 颜色字符串
+     */
+    public static String getAutoAssignedColor(String accountId) {
+        if (accountId == null || accountId.isEmpty()) {
+            return ACCOUNT_TAG_COLORS[2]; // 默认蓝色
+        }
+        int hash = Math.abs(accountId.hashCode());
+        int index = hash % ACCOUNT_TAG_COLORS.length;
+        return ACCOUNT_TAG_COLORS[index];
     }
 
     public String getUrl() {

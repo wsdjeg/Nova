@@ -20,6 +20,7 @@ public class SessionAdapter extends RecyclerView.Adapter<SessionAdapter.SessionV
     private List<Session> sessions;
     private OnSessionClickListener listener;
     private AccountManager accountManager;
+    private SettingsManager settingsManager;
     
     /**
      * 会话点击监听器接口
@@ -39,6 +40,13 @@ public class SessionAdapter extends RecyclerView.Adapter<SessionAdapter.SessionV
      */
     public void setAccountManager(AccountManager accountManager) {
         this.accountManager = accountManager;
+    }
+    
+    /**
+     * 设置设置管理器（用于获取全局颜色设置）
+     */
+    public void setSettingsManager(SettingsManager settingsManager) {
+        this.settingsManager = settingsManager;
     }
     
     @NonNull
@@ -77,9 +85,9 @@ public class SessionAdapter extends RecyclerView.Adapter<SessionAdapter.SessionV
             Account account = accountManager.getAccount(accountId);
             if (account != null) {
                 holder.textAccount.setVisibility(View.VISIBLE);
-                holder.textAccount.setText(account.getName());
-                // 设置账号标签背景色
-                setAccountBadgeColor(holder.textAccount, accountId);
+                holder.textAccount.setText(account.getDisplayName());
+                // 设置账号标签背景色（使用新的优先级逻辑）
+                setAccountBadgeColor(holder.textAccount, account);
             } else {
                 holder.textAccount.setVisibility(View.GONE);
             }
@@ -113,12 +121,17 @@ public class SessionAdapter extends RecyclerView.Adapter<SessionAdapter.SessionV
     
     /**
      * 为账号标签设置颜色
-     * 使用用户在设置中选择的颜色
+     * 优先级：账号自定义颜色 > 全局设置
+     * 全局设置可以是：统一颜色 或 自动分配
      */
-    private void setAccountBadgeColor(TextView textView, String accountId) {
-        // 获取用户设置的颜色
-        SettingsManager settingsManager = new SettingsManager(textView.getContext());
-        String colorHex = settingsManager.getAccountTagColor();
+    private void setAccountBadgeColor(TextView textView, Account account) {
+        // 如果没有设置管理器，创建一个临时实例
+        if (settingsManager == null) {
+            settingsManager = new SettingsManager(textView.getContext());
+        }
+        
+        // 使用 AccountManager 的统一颜色获取方法
+        String colorHex = AccountManager.getAccountColor(account, settingsManager);
         int color = Color.parseColor(colorHex);
         
         GradientDrawable drawable = new GradientDrawable();

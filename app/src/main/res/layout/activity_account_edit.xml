@@ -1,101 +1,230 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:padding="16dp">
-
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="账号名称"
-        android:textSize="14sp"
-        android:textColor="@color/text_secondary"/>
-
-    <EditText
-        android:id="@+id/et_account_name"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:hint="例如：Home, Office, VPS"
-        android:inputType="text"
-        android:maxLines="1"
-        android:layout_marginTop="4dp"/>
-
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="服务器地址"
-        android:textSize="14sp"
-        android:textColor="@color/text_secondary"
-        android:layout_marginTop="16dp"/>
-
-    <EditText
-        android:id="@+id/et_server_url"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:hint="例如：http://192.168.1.100:8080"
-        android:inputType="textUri"
-        android:maxLines="1"
-        android:layout_marginTop="4dp"/>
-
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="API密钥（可选）"
-        android:textSize="14sp"
-        android:textColor="@color/text_secondary"
-        android:layout_marginTop="16dp"/>
-
-    <EditText
-        android:id="@+id/et_api_key"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:hint="如果服务器需要认证"
-        android:inputType="textPassword"
-        android:maxLines="1"
-        android:layout_marginTop="4dp"/>
+    android:fillViewport="true">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:layout_marginTop="24dp">
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="账号名称"
+            android:textSize="14sp"
+            android:textColor="@color/text_secondary"/>
+
+        <EditText
+            android:id="@+id/et_account_name"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="例如：Home, Office, VPS"
+            android:inputType="text"
+            android:maxLines="1"
+            android:layout_marginTop="4dp"/>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="服务器地址"
+            android:textSize="14sp"
+            android:textColor="@color/text_secondary"
+            android:layout_marginTop="16dp"/>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="4dp">
+
+            <EditText
+                android:id="@+id/et_host"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:hint="IP 或域名"
+                android:inputType="textUri"
+                android:maxLines="1"/>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text=":"
+                android:textSize="18sp"
+                android:layout_gravity="center_vertical"
+                android:padding="4dp"/>
+
+            <EditText
+                android:id="@+id/et_port"
+                android:layout_width="80dp"
+                android:layout_height="wrap_content"
+                android:hint="端口"
+                android:inputType="number"
+                android:maxLines="1"
+                android:text="8080"/>
+
+        </LinearLayout>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="API密钥（可选）"
+            android:textSize="14sp"
+            android:textColor="@color/text_secondary"
+            android:layout_marginTop="16dp"/>
+
+        <EditText
+            android:id="@+id/et_api_key"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="如果服务器需要认证"
+            android:inputType="textPassword"
+            android:maxLines="1"
+            android:layout_marginTop="4dp"/>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="标签颜色"
+            android:textSize="14sp"
+            android:textColor="@color/text_secondary"
+            android:layout_marginTop="16dp"/>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="账号颜色会话列表中的标签颜色，不设置则使用全局设置"
+            android:textSize="12sp"
+            android:textColor="@color/text_hint"
+            android:layout_marginTop="2dp"/>
+
+        <RadioGroup
+            android:id="@+id/rg_color"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="8dp">
+
+            <RadioButton
+                android:id="@+id/rb_color_default"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="默认"
+                android:checked="true"/>
+
+            <RadioButton
+                android:id="@+id/rb_color_0"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text=""
+                android:buttonTint="#FF6B6B"/>
+
+            <RadioButton
+                android:id="@+id/rb_color_1"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text=""
+                android:buttonTint="#4ECDC4"/>
+
+            <RadioButton
+                android:id="@+id/rb_color_2"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text=""
+                android:buttonTint="#45B7D1"/>
+
+            <RadioButton
+                android:id="@+id/rb_color_3"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text=""
+                android:buttonTint="#96CEB4"/>
+
+        </RadioGroup>
+
+        <RadioGroup
+            android:id="@+id/rg_color_2"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="4dp">
+
+            <RadioButton
+                android:id="@+id/rb_color_4"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text=""
+                android:buttonTint="#FFEAA7"/>
+
+            <RadioButton
+                android:id="@+id/rb_color_5"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text=""
+                android:buttonTint="#DDA0DD"/>
+
+            <RadioButton
+                android:id="@+id/rb_color_6"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text=""
+                android:buttonTint="#98D8C8"/>
+
+            <RadioButton
+                android:id="@+id/rb_color_7"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text=""
+                android:buttonTint="#F7DC6F"/>
+
+        </RadioGroup>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="24dp">
+
+            <Button
+                android:id="@+id/btn_test_connection"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="测试连接"
+                android:layout_marginEnd="8dp"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"/>
+
+            <Button
+                android:id="@+id/btn_save"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="保存"
+                android:layout_marginStart="8dp"/>
+
+        </LinearLayout>
 
         <Button
-            android:id="@+id/btn_test_connection"
-            android:layout_width="0dp"
+            android:id="@+id/btn_delete"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="测试连接"
-            android:layout_marginEnd="8dp"
-            style="@style/Widget.MaterialComponents.Button.OutlinedButton"/>
+            android:text="删除账号"
+            android:layout_marginTop="16dp"
+            android:visibility="gone"
+            style="@style/Widget.MaterialComponents.Button.TextButton"
+            android:textColor="@color/error"/>
 
-        <Button
-            android:id="@+id/btn_save"
-            android:layout_width="0dp"
+        <ProgressBar
+            android:id="@+id/progress_bar"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="保存"
-            android:layout_marginStart="8dp"/>
+            android:layout_gravity="center"
+            android:layout_marginTop="24dp"
+            android:visibility="gone"/>
 
     </LinearLayout>
 
-    <Button
-        android:id="@+id/btn_delete"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="删除账号"
-        android:layout_marginTop="16dp"
-        android:visibility="gone"
-        style="@style/Widget.MaterialComponents.Button.TextButton"
-        android:textColor="@color/error"/>
-
-    <ProgressBar
-        android:id="@+id/progress_bar"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="center"
-        android:layout_marginTop="24dp"
-        android:visibility="gone"/>
-
-</LinearLayout>
+</ScrollView>
