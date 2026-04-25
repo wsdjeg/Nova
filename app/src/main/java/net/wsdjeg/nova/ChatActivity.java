@@ -568,13 +568,13 @@ public class ChatActivity extends AppCompatActivity {
                     setButtonStateNormal();
                     addMessage("错误: " + error, false);
                     Toast.makeText(ChatActivity.this, "请求失败: " + error, Toast.LENGTH_SHORT).show();
-                });
             }
         });
-    
+    }
     /**
      * 停止生成
      */
+
     private void stopGeneration() {
         if (apiClient == null || currentSessionId == null) {
             return;
