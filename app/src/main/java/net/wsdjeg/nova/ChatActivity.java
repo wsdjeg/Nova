@@ -86,24 +86,36 @@ public class ChatActivity extends AppCompatActivity {
         
         // 不显示标题文字，改为显示会话信息
         toolbar.setTitle("");
-        
         settingsManager = new SettingsManager(this);
         sessionManager = new SessionManager(this);
         accountManager = AccountManager.getInstance(this);
         
-        // 获取当前激活账号
-        Account activeAccount = accountManager.getActiveAccount();
-        if (activeAccount == null) {
+        // 根据 session 所属账号获取正确的 ApiClient
+        // 首先尝试从 SessionManager 获取 session 的账号信息
+        Session session = sessionManager.getSession(currentSessionId);
+        Account sessionAccount = null;
+        
+        if (session != null && session.getAccountId() != null && !session.getAccountId().isEmpty()) {
+            // 根据 session 的 accountId 获取对应的账号
+            sessionAccount = accountManager.getAccountById(session.getAccountId());
+        }
+        
+        // 如果 session 没有关联账号或账号不存在，使用当前激活账号
+        if (sessionAccount == null) {
+            sessionAccount = accountManager.getActiveAccount();
+        }
+        
+        if (sessionAccount == null) {
             Toast.makeText(this, "请先添加账号", Toast.LENGTH_SHORT).show();
             finish();
             return;
         }
         
-        accountId = activeAccount.getId();
+        accountId = sessionAccount.getId();
         
-        // 使用当前账号的 URL 和 API Key 创建 ApiClient
-        String baseUrl = activeAccount.getUrl();
-        String apiKey = activeAccount.getApiKey();
+        // 使用 session 所属账号的 URL 和 API Key 创建 ApiClient
+        String baseUrl = sessionAccount.getUrl();
+        String apiKey = sessionAccount.getApiKey();
         
         if (baseUrl == null || baseUrl.isEmpty() || apiKey == null || apiKey.isEmpty()) {
             Toast.makeText(this, "账号配置不完整，请检查 URL 和 API Key", Toast.LENGTH_SHORT).show();
@@ -112,7 +124,6 @@ public class ChatActivity extends AppCompatActivity {
         }
         
         apiClient = new ApiClient(baseUrl, apiKey);
-        
         // 保存当前 session
         settingsManager.setSession(currentSessionId);
         sessionManager.saveCurrentSession(currentSessionId);
