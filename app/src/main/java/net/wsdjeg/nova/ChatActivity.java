@@ -5,6 +5,7 @@ import android.graphics.Color;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -25,18 +26,7 @@ import java.util.List;
  */
 public class ChatActivity extends AppCompatActivity {
     
-    public static final String EXTRA_SESSION_ID = "session_id";
-    public static final String EXTRA_SESSION_TITLE = "session_title";
-    
-    private static final int REFRESH_INTERVAL_MS = 3000; // 3秒刷新一次
-    private static final int STATE_NORMAL = 0;
-    private static final int STATE_SENDING = 1;
-    
-    private Toolbar toolbar;
-    private TextView tvSessionTitle;
-    private TextView tvSessionInfo;
-    private TextView tvSessionPath;
-    private RecyclerView rvMessages;
+    private static final String TAG = "ChatActivity";
     private EditText etMessage;
     private Button btnSend;
     private MessageAdapter adapter;
@@ -95,14 +85,24 @@ public class ChatActivity extends AppCompatActivity {
         Session session = sessionManager.getSession(currentSessionId);
         Account sessionAccount = null;
         
+        // 调试日志
+        Log.d(TAG, "Initializing ChatActivity with sessionId: " + currentSessionId);
+        if (session != null) {
+            Log.d(TAG, "Session found: accountId=" + session.getAccountId() + ", cwd=" + session.getCwd());
+        } else {
+            Log.w(TAG, "Session NOT found locally!");
+        }
+        
         if (session != null && session.getAccountId() != null && !session.getAccountId().isEmpty()) {
             // 根据 session 的 accountId 获取对应的账号
             sessionAccount = accountManager.getAccountById(session.getAccountId());
+            Log.d(TAG, "Using session's account: " + session.getAccountId());
         }
         
         // 如果 session 没有关联账号或账号不存在，使用当前激活账号
         if (sessionAccount == null) {
             sessionAccount = accountManager.getActiveAccount();
+            Log.d(TAG, "Using active account instead");
         }
         
         if (sessionAccount == null) {
@@ -112,6 +112,7 @@ public class ChatActivity extends AppCompatActivity {
         }
         
         accountId = sessionAccount.getId();
+        Log.d(TAG, "Final account: " + accountId + ", URL: " + sessionAccount.getUrl());
         
         // 使用 session 所属账号的 URL 和 API Key 创建 ApiClient
         String baseUrl = sessionAccount.getUrl();
@@ -568,6 +569,16 @@ public class ChatActivity extends AppCompatActivity {
             return;
         }
         
+        // 调试信息
+        Session session = sessionManager.getSession(currentSessionId);
+        String debugInfo = "Session ID: " + currentSessionId;
+        if (session != null) {
+            debugInfo += "\nAccount ID: " + session.getAccountId();
+        } else {
+            debugInfo += "\nSession not found locally!";
+        }
+        Log.d("ChatActivity", "Stopping session: " + debugInfo);
+        
         btnSend.setEnabled(false);
         btnSend.setText("停止中...");
         
@@ -587,12 +598,25 @@ public class ChatActivity extends AppCompatActivity {
             @Override
             public void onError(String error) {
                 runOnUiThread(() -> {
-                    Toast.makeText(ChatActivity.this, "停止失败: " + error, Toast.LENGTH_SHORT).show();
-                    // 恢复按钮状态
-                    if (isInProgress) {
-                        setButtonStateSending();
-                    } else {
+                    Log.e("ChatActivity", "Stop failed: " + error + "\n" + debugInfo);
+                    
+                    // 如果 session 不存在，提示用户并返回列表
+                    if (error.contains("not found") || error.contains("不存在")) {
+                        new androidx.appcompat.app.AlertDialog.Builder(ChatActivity.this)
+                            .setTitle("会话不存在")
+                            .setMessage("该会话在服务器上不存在，可能已被删除。是否返回会话列表？")
+                            .setPositiveButton("返回列表", (d, w) -> finish())
+                            .setNegativeButton("取消", null)
+                            .show();
                         setButtonStateNormal();
+                    } else {
+                        Toast.makeText(ChatActivity.this, "停止失败: " + error, Toast.LENGTH_SHORT).show();
+                        // 恢复按钮状态
+                        if (isInProgress) {
+                            setButtonStateSending();
+                        } else {
+                            setButtonStateNormal();
+                        }
                     }
                 });
             }
