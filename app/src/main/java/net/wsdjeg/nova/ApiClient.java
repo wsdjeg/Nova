@@ -802,11 +802,12 @@ public class ApiClient {
             } catch (Exception e) {
                 Log.e(TAG, "testConnection failed", e);
                 new Handler(Looper.getMainLooper()).post(() -> 
+                    callback.onError("Network error: " + e.getMessage()));
+            }
         }).start();
     }
     
     /**
-     * Test connection with current settings.
      * Test connection with current settings.
      * 使用当前配置测试连接
      */
