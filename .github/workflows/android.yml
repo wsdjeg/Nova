@@ -9,6 +9,10 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    outputs:
+      version_name: ${{ steps.version.outputs.VERSION_NAME }}
+      version_code: ${{ steps.version.outputs.VERSION_CODE }}
+      build_time: ${{ steps.version.outputs.BUILD_TIME }}
 
     steps:
     - uses: actions/checkout@v4
@@ -50,26 +54,44 @@ jobs:
     - name: Rename APK
       run: |
         mv app/build/outputs/apk/debug/app-debug.apk app/build/outputs/apk/debug/ChatApp.apk
+
+    - name: Upload APK artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ChatApp-apk
+        path: app/build/outputs/apk/debug/ChatApp.apk
+        retention-days: 1
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+
+    steps:
+    - uses: actions/checkout@v4
     
-    # 删除旧的 prerelease，然后创建新的
+    - name: Download APK artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: ChatApp-apk
+        path: ./apk
+    
     - name: Delete old prerelease
-      if: github.event_name == 'push'
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         gh release delete prerelease --yes --cleanup-tag 2>/dev/null || true
     
     - name: Create PreRelease
-      if: github.event_name == 'push'
       uses: softprops/action-gh-release@v1
       with:
         tag_name: prerelease
-        name: PreRelease v${{ steps.version.outputs.VERSION_NAME }}
+        name: PreRelease v${{ needs.build.outputs.version_name }}
         body: |
           ## 自动构建 PreRelease
           
-          **版本**: ${{ steps.version.outputs.VERSION_NAME }} (Build ${{ steps.version.outputs.VERSION_CODE }})
-          **构建时间**: ${{ steps.version.outputs.BUILD_TIME }}
+          **版本**: ${{ needs.build.outputs.version_name }} (Build ${{ needs.build.outputs.version_code }})
+          **构建时间**: ${{ needs.build.outputs.build_time }}
           **Commit**: ${{ github.sha }}
           
           ### 下载说明
@@ -79,6 +101,6 @@ jobs:
           ${{ github.event.head_commit.message }}
         draft: false
         prerelease: true
-        files: app/build/outputs/apk/debug/ChatApp.apk
+        files: ./apk/ChatApp.apk
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
