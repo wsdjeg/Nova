@@ -584,11 +584,11 @@ public class ChatActivity extends AppCompatActivity {
         
         // 调试信息
         Session session = sessionManager.getSession(currentSessionId);
-        String debugInfo = "Session ID: " + currentSessionId;
+        final String debugInfo;
         if (session != null) {
-            debugInfo += "\nAccount ID: " + session.getAccountId();
+            debugInfo = "Session ID: " + currentSessionId + "\nAccount ID: " + session.getAccountId();
         } else {
-            debugInfo += "\nSession not found locally!";
+            debugInfo = "Session ID: " + currentSessionId + "\nSession not found locally!";
         }
         Log.d("ChatActivity", "Stopping session: " + debugInfo);
         
