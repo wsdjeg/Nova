@@ -11,6 +11,8 @@ public class SettingsManager {
     private static final String KEY_SESSION = "session";
     private static final String KEY_THEME_MODE = "theme_mode";
     private static final String KEY_ACCOUNT_TAG_COLOR_INDEX = "account_tag_color_index";
+    private static final String KEY_DEFAULT_PROVIDER = "default_provider";
+    private static final String KEY_DEFAULT_MODEL = "default_model";
     
     // 主题模式常量
     public static final int THEME_SYSTEM = 0;
@@ -50,6 +52,42 @@ public class SettingsManager {
         prefs.edit()
             .putString(KEY_SESSION, session)
             .apply();
+    }
+    
+    /**
+     * 设置默认 Provider
+     * @param provider AI Provider 名称（如 "openai", "anthropic"）
+     */
+    public void setDefaultProvider(String provider) {
+        prefs.edit()
+            .putString(KEY_DEFAULT_PROVIDER, provider)
+            .apply();
+    }
+    
+    /**
+     * 获取默认 Provider
+     * @return 默认 Provider 名称，未设置返回空字符串
+     */
+    public String getDefaultProvider() {
+        return prefs.getString(KEY_DEFAULT_PROVIDER, "");
+    }
+    
+    /**
+     * 设置默认 Model
+     * @param model Model 名称（如 "gpt-4o", "claude-3-5-sonnet-20241022"）
+     */
+    public void setDefaultModel(String model) {
+        prefs.edit()
+            .putString(KEY_DEFAULT_MODEL, model)
+            .apply();
+    }
+    
+    /**
+     * 获取默认 Model
+     * @return 默认 Model 名称，未设置返回空字符串
+     */
+    public String getDefaultModel() {
+        return prefs.getString(KEY_DEFAULT_MODEL, "");
     }
     
     /**

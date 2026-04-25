@@ -95,6 +95,16 @@ public class SessionAdapter extends RecyclerView.Adapter<SessionAdapter.SessionV
             holder.textAccount.setVisibility(View.GONE);
         }
         
+        // 显示 provider/model 标签（如果有信息）
+        String provider = session.getProvider();
+        String model = session.getModel();
+        if (provider != null && !provider.isEmpty() && model != null && !model.isEmpty()) {
+            holder.textProviderModel.setVisibility(View.VISIBLE);
+            holder.textProviderModel.setText(provider + " / " + model);
+        } else {
+            holder.textProviderModel.setVisibility(View.GONE);
+        }
+        
         // 显示 in_progress 状态的 spinner
         if (session.isInProgress()) {
             holder.progressSpinner.setVisibility(View.VISIBLE);
@@ -203,6 +213,7 @@ public class SessionAdapter extends RecyclerView.Adapter<SessionAdapter.SessionV
         TextView textTime;
         TextView textCount;
         TextView textAccount;  // 账号标签
+        TextView textProviderModel;  // Provider/Model 标签
         ProgressBar progressSpinner;  // in_progress 状态指示器
         
         SessionViewHolder(View itemView) {
@@ -212,6 +223,7 @@ public class SessionAdapter extends RecyclerView.Adapter<SessionAdapter.SessionV
             textTime = itemView.findViewById(R.id.textSessionTime);
             textCount = itemView.findViewById(R.id.textSessionCount);
             textAccount = itemView.findViewById(R.id.textAccount);
+            textProviderModel = itemView.findViewById(R.id.textProviderModel);
             progressSpinner = itemView.findViewById(R.id.progressSpinner);
         }
     }

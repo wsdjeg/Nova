@@ -519,9 +519,13 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
         
         ApiClient accountApiClient = new ApiClient(baseUrl, apiKey);
         
+        // 从设置获取默认的 provider 和 model
+        String defaultProvider = settingsManager.getDefaultProvider();
+        String defaultModel = settingsManager.getDefaultModel();
+        
         Toast.makeText(this, "正在创建新会话...", Toast.LENGTH_SHORT).show();
         
-        accountApiClient.createSession(null, null, null, new ApiClient.CreateSessionCallback() {
+        accountApiClient.createSession(null, defaultProvider, defaultModel, new ApiClient.CreateSessionCallback() {
             @Override
             public void onSuccess(Session session) {
                 runOnUiThread(() -> {
@@ -543,6 +547,16 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
                 });
             }
             
+            @Override
+            public void onError(String error) {
+                runOnUiThread(() -> {
+                    Toast.makeText(SessionListActivity.this, 
+                        "创建会话失败: " + error, 
+                        Toast.LENGTH_SHORT).show();
+                });
+            }
+        });
+    }
             @Override
             public void onError(String error) {
                 runOnUiThread(() -> {

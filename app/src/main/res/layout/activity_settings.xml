@@ -26,6 +26,49 @@
             android:orientation="vertical"
             android:padding="16dp">
 
+            <!-- 新建会话默认设置 -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="新建会话默认设置"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="16dp" />
+
+            <!-- Provider 设置 -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Provider"
+                android:textSize="16sp"
+                android:layout_marginBottom="4dp" />
+
+            <EditText
+                android:id="@+id/et_provider"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="例如: openai, anthropic (留空使用服务端默认)"
+                android:inputType="text"
+                android:singleLine="true"
+                android:layout_marginBottom="16dp" />
+
+            <!-- Model 设置 -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Model"
+                android:textSize="16sp"
+                android:layout_marginBottom="4dp" />
+
+            <EditText
+                android:id="@+id/et_model"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="例如: gpt-4o, claude-3-5-sonnet (留空使用服务端默认)"
+                android:inputType="text"
+                android:singleLine="true"
+                android:layout_marginBottom="24dp" />
+
             <!-- 外观设置 -->
             <TextView
                 android:layout_width="match_parent"

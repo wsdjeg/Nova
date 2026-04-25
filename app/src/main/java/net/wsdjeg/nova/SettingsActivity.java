@@ -6,7 +6,7 @@ import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.view.MenuItem;
 import android.view.View;
-import android.widget.ImageView;
+import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.RadioButton;
 import android.widget.RadioGroup;
@@ -25,6 +25,7 @@ public class SettingsActivity extends AppCompatActivity {
     private RadioGroup rgTheme;
     private RadioButton rbSystem, rbLight, rbDark;
     private LinearLayout colorPickerContainer;
+    private EditText etDefaultProvider, etDefaultModel;
     private SettingsManager settingsManager;
     
     private int selectedColorIndex = 2; // 默认蓝色
@@ -53,6 +54,8 @@ public class SettingsActivity extends AppCompatActivity {
         rbLight = findViewById(R.id.rb_theme_light);
         rbDark = findViewById(R.id.rb_theme_dark);
         colorPickerContainer = findViewById(R.id.color_picker_container);
+        etDefaultProvider = findViewById(R.id.et_default_provider);
+        etDefaultModel = findViewById(R.id.et_default_model);
         
         // 主题选择监听
         rgTheme.setOnCheckedChangeListener((group, checkedId) -> {
@@ -71,6 +74,22 @@ public class SettingsActivity extends AppCompatActivity {
             Intent resultIntent = new Intent();
             resultIntent.putExtra(EXTRA_THEME_CHANGED, true);
             setResult(RESULT_OK, resultIntent);
+        });
+        
+        // Provider 输入监听 - 保存设置
+        etDefaultProvider.setOnFocusChangeListener((v, hasFocus) -> {
+            if (!hasFocus) {
+                String provider = etDefaultProvider.getText().toString().trim();
+                settingsManager.setDefaultProvider(provider);
+            }
+        });
+        
+        // Model 输入监听 - 保存设置
+        etDefaultModel.setOnFocusChangeListener((v, hasFocus) -> {
+            if (!hasFocus) {
+                String model = etDefaultModel.getText().toString().trim();
+                settingsManager.setDefaultModel(model);
+            }
         });
         
         // 初始化颜色选择器
@@ -216,6 +235,10 @@ public class SettingsActivity extends AppCompatActivity {
         // 转换存储索引到显示索引：-1 -> 0（自动），0-7 -> 1-8
         selectedColorIndex = (storedIndex == SettingsManager.AUTO_COLOR_INDEX) ? 0 : storedIndex + 1;
         updateColorSelection();
+        
+        // 加载默认 provider 和 model
+        etDefaultProvider.setText(settingsManager.getDefaultProvider());
+        etDefaultModel.setText(settingsManager.getDefaultModel());
     }
     
     private void applyTheme(int themeMode) {
@@ -235,9 +258,26 @@ public class SettingsActivity extends AppCompatActivity {
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         if (item.getItemId() == android.R.id.home) {
+            // 保存 provider 和 model 设置
+            String provider = etDefaultProvider.getText().toString().trim();
+            String model = etDefaultModel.getText().toString().trim();
+            settingsManager.setDefaultProvider(provider);
+            settingsManager.setDefaultModel(model);
             finish();
             return true;
         }
         return super.onOptionsItemSelected(item);
+    }
+    
+    @Override
+    protected void onPause() {
+        super.onPause();
+        // 确保在离开时保存设置
+        if (etDefaultProvider != null && etDefaultModel != null) {
+            String provider = etDefaultProvider.getText().toString().trim();
+            String model = etDefaultModel.getText().toString().trim();
+            settingsManager.setDefaultProvider(provider);
+            settingsManager.setDefaultModel(model);
+        }
     }
 }
