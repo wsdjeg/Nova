@@ -57,6 +57,22 @@ public class ApiClient {
     }
     
     /**
+     * 停止生成回调接口
+     */
+    public interface StopCallback {
+        void onSuccess();
+        void onError(String error);
+    }
+    
+    /**
+     * 重试回调接口
+     */
+    public interface RetryCallback {
+        void onSuccess();
+        void onError(String error);
+    }
+    
+    /**
      * Chat message model for API response
      */
     public static class ChatMessage {
@@ -614,6 +630,117 @@ public class ApiClient {
                 }
             } catch (Exception e) {
                 Log.e(TAG, "getSessionPreview failed", e);
+                new Handler(Looper.getMainLooper()).post(() -> 
+                    callback.onError("Network error: " + e.getMessage()));
+            }
+        }).start();
+    }
+    
+    /**
+     * Stop ongoing generation for a session.
+     * POST /session/:id/stop
+     * Returns 204 on success, 404 if session not found, 409 if not in progress.
+     */
+    public void stopSession(String sessionId, StopCallback callback) {
+        String baseUrl = getBaseUrl();
+        String apiKey = getApiKey();
+        
+        if (baseUrl.isEmpty() || apiKey.isEmpty()) {
+            callback.onError("Please configure API settings");
+            return;
+        }
+        
+        if (sessionId == null || sessionId.isEmpty()) {
+            callback.onError("Session ID is required");
+            return;
+        }
+        
+        new Thread(() -> {
+            try {
+                URL url = new URL(baseUrl + "/session/" + sessionId + "/stop");
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("POST");
+                conn.setRequestProperty("X-API-Key", apiKey);
+                conn.setConnectTimeout(5000);
+                conn.setReadTimeout(10000);
+
+                int responseCode = conn.getResponseCode();
+                
+                if (responseCode == 204) {
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onSuccess());
+                } else if (responseCode == 404) {
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onError("Session not found"));
+                } else if (responseCode == 409) {
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onError("Session is not in progress"));
+                } else if (responseCode == 401) {
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onError("Unauthorized: Invalid API Key"));
+                } else {
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onError("Error: " + responseCode));
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "stopSession failed", e);
+                new Handler(Looper.getMainLooper()).post(() -> 
+                    callback.onError("Network error: " + e.getMessage()));
+            }
+        }).start();
+    }
+    
+    /**
+     * Retry the last message for a session.
+     * POST /session/:id/retry
+     * Returns 204 on success, 404 if session not found, 409 if in progress, 400 if no message to retry.
+     */
+    public void retrySession(String sessionId, RetryCallback callback) {
+        String baseUrl = getBaseUrl();
+        String apiKey = getApiKey();
+        
+        if (baseUrl.isEmpty() || apiKey.isEmpty()) {
+            callback.onError("Please configure API settings");
+            return;
+        }
+        
+        if (sessionId == null || sessionId.isEmpty()) {
+            callback.onError("Session ID is required");
+            return;
+        }
+        
+        new Thread(() -> {
+            try {
+                URL url = new URL(baseUrl + "/session/" + sessionId + "/retry");
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("POST");
+                conn.setRequestProperty("X-API-Key", apiKey);
+                conn.setConnectTimeout(5000);
+                conn.setReadTimeout(10000);
+
+                int responseCode = conn.getResponseCode();
+                
+                if (responseCode == 204) {
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onSuccess());
+                } else if (responseCode == 404) {
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onError("Session not found"));
+                } else if (responseCode == 409) {
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onError("Session is already in progress"));
+                } else if (responseCode == 400) {
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onError("No message to retry"));
+                } else if (responseCode == 401) {
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onError("Unauthorized: Invalid API Key"));
+                } else {
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onError("Error: " + responseCode));
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "retrySession failed", e);
                 new Handler(Looper.getMainLooper()).post(() -> 
                     callback.onError("Network error: " + e.getMessage()));
             }

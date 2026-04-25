@@ -1,11 +1,13 @@
 package net.wsdjeg.nova;
 
 import android.content.Intent;
+import android.graphics.Color;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
@@ -26,7 +28,9 @@ public class ChatActivity extends AppCompatActivity {
     public static final String EXTRA_SESSION_ID = "session_id";
     public static final String EXTRA_SESSION_TITLE = "session_title";
     
-    private static final int REFRESH_INTERVAL_MS = 5000; // 5秒刷新一次
+    private static final int REFRESH_INTERVAL_MS = 3000; // 3秒刷新一次
+    private static final int STATE_NORMAL = 0;
+    private static final int STATE_SENDING = 1;
     
     private Toolbar toolbar;
     private TextView tvSessionTitle;
@@ -51,6 +55,10 @@ public class ChatActivity extends AppCompatActivity {
     private Runnable refreshRunnable;
     private boolean isAutoRefreshEnabled = true;
     private int lastMessageCount = 0;
+    
+    // 按钮状态
+    private int buttonState = STATE_NORMAL;
+    private boolean isInProgress = false; // 从 API 获取的会话状态
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -260,7 +268,44 @@ public class ChatActivity extends AppCompatActivity {
         rvMessages = findViewById(R.id.rv_messages);
         etMessage = findViewById(R.id.et_message);
         btnSend = findViewById(R.id.btn_send);
-        btnSend.setOnClickListener(v -> sendMessage());
+        btnSend.setOnClickListener(v -> onSendButtonClick());
+        
+        // 初始化按钮状态
+        setButtonStateNormal();
+    }
+    
+    /**
+     * 发送按钮点击处理
+     * 根据当前状态决定是发送消息还是停止生成
+     */
+    private void onSendButtonClick() {
+        if (buttonState == STATE_SENDING) {
+            // 当前正在发送，点击停止
+            stopGeneration();
+        } else {
+            // 正常状态，发送消息
+            sendMessage();
+        }
+    }
+    
+    /**
+     * 设置按钮为"停止"状态（发送中）
+     */
+    private void setButtonStateSending() {
+        buttonState = STATE_SENDING;
+        btnSend.setText("⏹ 停止");
+        btnSend.setBackgroundColor(Color.parseColor("#F44336")); // 红色
+        btnSend.setEnabled(true);
+    }
+    
+    /**
+     * 设置按钮为"发送"状态（正常）
+     */
+    private void setButtonStateNormal() {
+        buttonState = STATE_NORMAL;
+        btnSend.setText("发送");
+        btnSend.setBackgroundColor(Color.parseColor("#2196F3")); // 蓝色
+        btnSend.setEnabled(true);
     }
     
     private void setupRecyclerView() {
@@ -296,10 +341,17 @@ public class ChatActivity extends AppCompatActivity {
         }
     }
     
+    /**
+     * 刷新消息和会话状态
+     */
     private void refreshMessages() {
         if (apiClient == null || currentSessionId == null) {
             return;
         }
+        
+        // 同时获取消息和会话状态
+        refreshSessionStatus();
+        
         apiClient.getMessages(currentSessionId, new ApiClient.MessagesCallback() {
             @Override
             public void onSuccess(List<ApiClient.ChatMessage> chatMessages) {
@@ -342,6 +394,44 @@ public class ChatActivity extends AppCompatActivity {
                     runOnUiThread(() -> 
                         addMessage("无法加载消息: " + error + "\n\n请检查网络连接和API配置。", false));
                 }
+            }
+        });
+    }
+    
+    /**
+     * 刷新会话状态（检查是否正在生成）
+     */
+    private void refreshSessionStatus() {
+        apiClient.getSessions(new ApiClient.SessionsCallback() {
+            @Override
+            public void onSuccess(List<Session> sessions) {
+                runOnUiThread(() -> {
+                    for (Session session : sessions) {
+                        if (session.getSessionId().equals(currentSessionId)) {
+                            boolean wasInProgress = isInProgress;
+                            isInProgress = session.isInProgress();
+                            
+                            // 更新按钮状态
+                            if (isInProgress) {
+                                setButtonStateSending();
+                            } else {
+                                // 从进行中变为非进行中，说明响应完成或被停止
+                                if (wasInProgress) {
+                                    // 刷新消息以获取最新响应
+                                    lastMessageCount = 0; // 强制刷新
+                                    refreshMessages();
+                                }
+                                setButtonStateNormal();
+                            }
+                            break;
+                        }
+                    }
+                });
+            }
+
+            @Override
+            public void onError(String error) {
+                // 忽略错误，保持当前状态
             }
         });
     }
@@ -424,7 +514,9 @@ public class ChatActivity extends AppCompatActivity {
             return;
         }
         
-        btnSend.setEnabled(false);
+        // 设置按钮为"停止"状态
+        setButtonStateSending();
+        isInProgress = true;
         
         // 设置会话为进行中状态
         sessionManager.setSessionInProgress(currentSessionId, true);
@@ -436,8 +528,9 @@ public class ChatActivity extends AppCompatActivity {
                 runOnUiThread(() -> {
                     // 设置会话为非进行中状态
                     sessionManager.setSessionInProgress(currentSessionId, false);
+                    isInProgress = false;
+                    setButtonStateNormal();
                     refreshMessages();
-                    btnSend.setEnabled(true);
                 });
             }
 
@@ -446,12 +539,86 @@ public class ChatActivity extends AppCompatActivity {
                 runOnUiThread(() -> {
                     // 设置会话为非进行中状态
                     sessionManager.setSessionInProgress(currentSessionId, false);
+                    isInProgress = false;
+                    setButtonStateNormal();
                     addMessage("错误: " + error, false);
-                    btnSend.setEnabled(true);
                     Toast.makeText(ChatActivity.this, "请求失败: " + error, Toast.LENGTH_SHORT).show();
                 });
             }
         });
         rvMessages.smoothScrollToPosition(messages.size() - 1);
+    }
+    
+    /**
+     * 停止生成
+     */
+    private void stopGeneration() {
+        if (apiClient == null || currentSessionId == null) {
+            return;
+        }
+        
+        btnSend.setEnabled(false);
+        btnSend.setText("停止中...");
+        
+        apiClient.stopSession(currentSessionId, new ApiClient.StopCallback() {
+            @Override
+            public void onSuccess() {
+                runOnUiThread(() -> {
+                    Toast.makeText(ChatActivity.this, "已停止生成", Toast.LENGTH_SHORT).show();
+                    isInProgress = false;
+                    setButtonStateNormal();
+                    // 刷新消息
+                    lastMessageCount = 0;
+                    refreshMessages();
+                });
+            }
+
+            @Override
+            public void onError(String error) {
+                runOnUiThread(() -> {
+                    Toast.makeText(ChatActivity.this, "停止失败: " + error, Toast.LENGTH_SHORT).show();
+                    // 恢复按钮状态
+                    if (isInProgress) {
+                        setButtonStateSending();
+                    } else {
+                        setButtonStateNormal();
+                    }
+                });
+            }
+        });
+    }
+    
+    /**
+     * 重试最后一条消息
+     */
+    public void retryLastMessage() {
+        if (apiClient == null || currentSessionId == null) {
+            return;
+        }
+        
+        // 设置按钮为"停止"状态
+        setButtonStateSending();
+        isInProgress = true;
+        
+        apiClient.retrySession(currentSessionId, new ApiClient.RetryCallback() {
+            @Override
+            public void onSuccess() {
+                runOnUiThread(() -> {
+                    Toast.makeText(ChatActivity.this, "已重新发送", Toast.LENGTH_SHORT).show();
+                    // 刷新消息
+                    lastMessageCount = 0;
+                    refreshMessages();
+                });
+            }
+
+            @Override
+            public void onError(String error) {
+                runOnUiThread(() -> {
+                    isInProgress = false;
+                    setButtonStateNormal();
+                    Toast.makeText(ChatActivity.this, "重试失败: " + error, Toast.LENGTH_SHORT).show();
+                });
+            }
+        });
     }
 }
