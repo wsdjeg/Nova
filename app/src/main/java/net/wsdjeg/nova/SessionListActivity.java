@@ -37,7 +37,6 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
     private SessionManager sessionManager;
     private SettingsManager settingsManager;
     private AccountManager accountManager;
-    private ApiClient apiClient;
     
     // 自动刷新相关
     private Handler refreshHandler;
@@ -217,6 +216,7 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
     
     /**
      * 从服务器刷新会话列表
+     * 每个会话的 provider 和 model 来自服务器返回的数据
      */
     private void refreshSessionsFromServer() {
         Account activeAccount = accountManager.getActiveAccount();
@@ -236,7 +236,7 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
         ApiClient accountApiClient = new ApiClient(baseUrl, apiKey);
         String accountId = activeAccount.getId();
         
-        accountApiClient.getSessions(new ApiClient.SessionsCallback() {
+        accountApiClient.getSessions(accountId, new ApiClient.SessionsCallback() {
             @Override
             public void onSuccess(List<Session> serverSessions) {
                 runOnUiThread(() -> {
@@ -251,10 +251,10 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
                         
                         Session localSession = sessionManager.getSession(serverSession.getSessionId());
                         if (localSession == null) {
-                            // 新会话，直接添加
+                            // 新会话，直接添加（包含服务器返回的 provider/model）
                             sessionManager.addOrUpdateSession(serverSession, accountId);
                         } else {
-                            // 已存在的会话，更新服务器返回的字段
+                            // 已存在的会话，更新服务器返回的字段（包括 provider/model）
                             localSession.setProvider(serverSession.getProvider());
                             localSession.setModel(serverSession.getModel());
                             localSession.setCwd(serverSession.getCwd());
@@ -498,6 +498,10 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
         }
     }
     
+    /**
+     * 创建新会话
+     * 使用设置中的默认 provider 和 model，但会话创建后由服务器返回实际的 provider/model
+     */
     private void createNewSession() {
         Account activeAccount = accountManager.getActiveAccount();
         if (activeAccount == null) {
@@ -519,13 +523,13 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
         
         ApiClient accountApiClient = new ApiClient(baseUrl, apiKey);
         
-        // 从设置获取默认的 provider 和 model
+        // 从设置获取默认的 provider 和 model（仅用于创建请求）
         String defaultProvider = settingsManager.getDefaultProvider();
         String defaultModel = settingsManager.getDefaultModel();
         
         Toast.makeText(this, "正在创建新会话...", Toast.LENGTH_SHORT).show();
         
-        accountApiClient.createSession(null, defaultProvider, defaultModel, new ApiClient.CreateSessionCallback() {
+        accountApiClient.createSession(null, defaultProvider, defaultModel, activeAccount.getId(), new ApiClient.CreateSessionCallback() {
             @Override
             public void onSuccess(Session session) {
                 runOnUiThread(() -> {
@@ -533,9 +537,11 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
                     
                     session.setAccountId(accountId);
                     session.setLastMessageTime(System.currentTimeMillis());
-                    sessionManager.addOrUpdateSession(session, accountId);
+                    // session 的 provider/model 由服务器返回，已在 ApiClient 中设置
                     
+                    sessionManager.addOrUpdateSession(session, accountId);
                     sessionManager.saveCurrentSession(session.getSessionId());
+                    sessionManager.addInitializedSession(session.getSessionId());
                     
                     loadSessions();
                     
@@ -547,16 +553,6 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
                 });
             }
             
-            @Override
-            public void onError(String error) {
-                runOnUiThread(() -> {
-                    Toast.makeText(SessionListActivity.this, 
-                        "创建会话失败: " + error, 
-                        Toast.LENGTH_SHORT).show();
-                });
-            }
-        });
-    }
             @Override
             public void onError(String error) {
                 runOnUiThread(() -> {
