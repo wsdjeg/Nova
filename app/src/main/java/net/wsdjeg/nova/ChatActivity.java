@@ -312,7 +312,7 @@ public class ChatActivity extends AppCompatActivity {
      */
     private void setButtonStateSending() {
         buttonState = STATE_SENDING;
-        btnSend.setText("⏹ 停止");
+        btnSend.setText("停止");
         btnSend.setBackgroundColor(Color.parseColor("#F44336")); // 红色
         btnSend.setEnabled(true);
     }
