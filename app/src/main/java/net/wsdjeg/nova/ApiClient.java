@@ -73,6 +73,27 @@ public class ApiClient {
     }
     
     /**
+     * Provider 模型
+     */
+    public static class Provider {
+        public String name;
+        public List<String> models;
+        
+        public Provider(String name, List<String> models) {
+            this.name = name;
+            this.models = models;
+        }
+    }
+    
+    /**
+     * Provider 列表回调接口
+     */
+    public interface ProvidersCallback {
+        void onSuccess(List<Provider> providers);
+        void onError(String error);
+    }
+    
+    /**
      * Chat message model for API response
      */
     public static class ChatMessage {
@@ -339,6 +360,78 @@ public class ApiClient {
      */
     public void getSessions(SessionsCallback callback) {
         getSessions(null, callback);
+    }
+    
+    /**
+     * Get list of supported AI providers and their models.
+     * GET /providers
+     * Returns JSON array: [{name: "provider", models: ["model1", "model2"]}, ...]
+     */
+    public void getProviders(ProvidersCallback callback) {
+        String baseUrl = getBaseUrl();
+        String apiKey = getApiKey();
+        
+        if (baseUrl.isEmpty() || apiKey.isEmpty()) {
+            callback.onError("Please configure API settings");
+            return;
+        }
+        
+        new Thread(() -> {
+            try {
+                URL url = new URL(baseUrl + "/providers");
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("GET");
+                conn.setRequestProperty("X-API-Key", apiKey);
+                conn.setConnectTimeout(5000);
+                conn.setReadTimeout(10000);
+                
+                int responseCode = conn.getResponseCode();
+                
+                if (responseCode == 200) {
+                    BufferedReader br = new BufferedReader(
+                        new InputStreamReader(conn.getInputStream()));
+                    StringBuilder response = new StringBuilder();
+                    String line;
+                    while ((line = br.readLine()) != null) {
+                        response.append(line);
+                    }
+                    br.close();
+                    
+                    // Parse JSON array: [{name: "...", models: [...]}, ...]
+                    JSONArray jsonArray = new JSONArray(response.toString());
+                    List<Provider> providers = new ArrayList<>();
+                    
+                    for (int i = 0; i < jsonArray.length(); i++) {
+                        JSONObject providerObj = jsonArray.getJSONObject(i);
+                        String name = providerObj.optString("name", "");
+                        JSONArray modelsArray = providerObj.optJSONArray("models");
+                        
+                        if (!name.isEmpty()) {
+                            List<String> models = new ArrayList<>();
+                            if (modelsArray != null) {
+                                for (int j = 0; j < modelsArray.length(); j++) {
+                                    models.add(modelsArray.getString(j));
+                                }
+                            }
+                            providers.add(new Provider(name, models));
+                        }
+                    }
+                    
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onSuccess(providers));
+                } else if (responseCode == 401) {
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onError("Unauthorized: Invalid API Key"));
+                } else {
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onError("Error: " + responseCode));
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "getProviders failed", e);
+                new Handler(Looper.getMainLooper()).post(() -> 
+                    callback.onError("Network error: " + e.getMessage()));
+            }
+        }).start();
     }
     
     /**
@@ -821,5 +914,153 @@ public class ApiClient {
         }
         
         testConnection(baseUrl, apiKey, callback);
+    }
+    
+    /**
+     * Get available AI providers with their models.
+     * GET /providers
+     * Returns JSON array with provider objects: [{name, models}, ...]
+     */
+    public void getProviders(ProvidersCallback callback) {
+        String baseUrl = getBaseUrl();
+        String apiKey = getApiKey();
+        
+        if (baseUrl.isEmpty() || apiKey.isEmpty()) {
+            callback.onError("Please configure API settings");
+            return;
+        }
+        
+        new Thread(() -> {
+            try {
+                URL url = new URL(baseUrl + "/providers");
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("GET");
+                conn.setRequestProperty("X-API-Key", apiKey);
+                conn.setConnectTimeout(5000);
+                conn.setReadTimeout(10000);
+
+                int responseCode = conn.getResponseCode();
+                
+                if (responseCode == 200) {
+                    BufferedReader br = new BufferedReader(
+                        new InputStreamReader(conn.getInputStream()));
+                    StringBuilder response = new StringBuilder();
+                    String line;
+                    while ((line = br.readLine()) != null) {
+                        response.append(line);
+                    }
+                    br.close();
+                    
+                    // Parse JSON array with provider objects
+                    JSONArray jsonArray = new JSONArray(response.toString());
+                    List<Provider> providers = new ArrayList<>();
+                    
+                    for (int i = 0; i < jsonArray.length(); i++) {
+                        JSONObject providerObj = jsonArray.getJSONObject(i);
+                        String name = providerObj.optString("name", "");
+                        JSONArray modelsArray = providerObj.optJSONArray("models");
+                        
+                        if (!name.isEmpty()) {
+                            List<String> models = new ArrayList<>();
+                            if (modelsArray != null) {
+                                for (int j = 0; j < modelsArray.length(); j++) {
+                                    models.add(modelsArray.getString(j));
+                                }
+                            }
+                            providers.add(new Provider(name, models));
+                        }
+                    }
+                    
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onSuccess(providers));
+                } else if (responseCode == 401) {
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onError("Unauthorized: Invalid API Key"));
+                } else {
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onError("Error: " + responseCode));
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "getProviders failed", e);
+                new Handler(Looper.getMainLooper()).post(() -> 
+                    callback.onError("Network error: " + e.getMessage()));
+            }
+        }).start();
+    }
+    
+    /**
+     * Get providers from a specific server (static method).
+     * 静态方法，用于从指定服务器获取 providers
+     */
+    public static void getProviders(String serverUrl, String apiKey, ProvidersCallback callback) {
+        new Thread(() -> {
+            try {
+                // 确保 URL 格式正确
+                String url = serverUrl;
+                if (!url.startsWith("http://") && !url.startsWith("https://")) {
+                    url = "http://" + url;
+                }
+                
+                // 移除末尾斜杠
+                if (url.endsWith("/")) {
+                    url = url.substring(0, url.length() - 1);
+                }
+                
+                URL providersUrl = new URL(url + "/providers");
+                HttpURLConnection conn = (HttpURLConnection) providersUrl.openConnection();
+                conn.setRequestMethod("GET");
+                if (apiKey != null && !apiKey.isEmpty()) {
+                    conn.setRequestProperty("X-API-Key", apiKey);
+                }
+                conn.setConnectTimeout(5000);
+                conn.setReadTimeout(10000);
+
+                int responseCode = conn.getResponseCode();
+                
+                if (responseCode == 200) {
+                    BufferedReader br = new BufferedReader(
+                        new InputStreamReader(conn.getInputStream()));
+                    StringBuilder response = new StringBuilder();
+                    String line;
+                    while ((line = br.readLine()) != null) {
+                        response.append(line);
+                    }
+                    br.close();
+                    
+                    // Parse JSON array
+                    JSONArray jsonArray = new JSONArray(response.toString());
+                    List<Provider> providers = new ArrayList<>();
+                    
+                    for (int i = 0; i < jsonArray.length(); i++) {
+                        JSONObject providerObj = jsonArray.getJSONObject(i);
+                        String name = providerObj.optString("name", "");
+                        JSONArray modelsArray = providerObj.optJSONArray("models");
+                        
+                        if (!name.isEmpty()) {
+                            List<String> models = new ArrayList<>();
+                            if (modelsArray != null) {
+                                for (int j = 0; j < modelsArray.length(); j++) {
+                                    models.add(modelsArray.getString(j));
+                                }
+                            }
+                            providers.add(new Provider(name, models));
+                        }
+                    }
+                    
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onSuccess(providers));
+                } else if (responseCode == 401) {
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onError("Unauthorized: Invalid API Key"));
+                } else {
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onError("Error: HTTP " + responseCode));
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "getProviders static failed", e);
+                new Handler(Looper.getMainLooper()).post(() -> 
+                    callback.onError("Network error: " + e.getMessage()));
+            }
+        }).start();
     }
 }
