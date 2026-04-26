@@ -40,22 +40,19 @@ public class SettingsActivity extends AppCompatActivity {
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-        getSupportActionBar().setTitle("设置");
-        
+        etDefaultProvider = findViewById(R.id.et_provider);
+        etDefaultModel = findViewById(R.id.et_model);
         settingsManager = new SettingsManager(this);
         
         initViews();
         loadSettings();
     }
-
     private void initViews() {
         rgTheme = findViewById(R.id.rg_theme);
         rbSystem = findViewById(R.id.rb_theme_system);
         rbLight = findViewById(R.id.rb_theme_light);
         rbDark = findViewById(R.id.rb_theme_dark);
         colorPickerContainer = findViewById(R.id.color_picker_container);
-        etDefaultProvider = findViewById(R.id.et_default_provider);
-        etDefaultModel = findViewById(R.id.et_default_model);
         
         // 主题选择监听
         rgTheme.setOnCheckedChangeListener((group, checkedId) -> {
