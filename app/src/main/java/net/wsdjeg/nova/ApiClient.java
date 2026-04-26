@@ -327,32 +327,39 @@ public class ApiClient {
                     
                     // Parse JSON array with session objects
                     JSONArray jsonArray = new JSONArray(response.toString());
-                    List<Session> sessions = new ArrayList<>();
-                    
                     for (int i = 0; i < jsonArray.length(); i++) {
                         JSONObject sessionObj = jsonArray.getJSONObject(i);
                         String id = sessionObj.optString("id", "");
+                        String title = sessionObj.optString("title", "");
                         String cwd = sessionObj.optString("cwd", "");
                         String provider = sessionObj.optString("provider", "");
                         String model = sessionObj.optString("model", "");
                         boolean inProgress = sessionObj.optBoolean("in_progress", false);
+                        int messageCount = sessionObj.optInt("message_count", 0);
+                        
+                        // 解析 last_message 对象获取时间戳
+                        long lastMessageTime = System.currentTimeMillis();
+                        JSONObject lastMsgObj = sessionObj.optJSONObject("last_message");
+                        if (lastMsgObj != null) {
+                            lastMessageTime = lastMsgObj.optLong("created", System.currentTimeMillis()) * 1000;
+                        }
                         
                         if (!id.isEmpty()) {
                             Session session = new Session(id);
                             session.setAccountId(accountId);  // 设置账号 ID
+                            session.setTitle(title);          // 设置服务器返回的标题
                             session.setCwd(cwd);
                             session.setProvider(provider);
                             session.setModel(model);
                             session.setInProgress(inProgress);
+                            session.setMessageCount(messageCount);
+                            session.setLastMessageTime(lastMessageTime);
                             sessions.add(session);
                         }
                     }
                     
                     new Handler(Looper.getMainLooper()).post(() -> 
                         callback.onSuccess(sessions));
-                } else if (responseCode == 401) {
-                    new Handler(Looper.getMainLooper()).post(() -> 
-                        callback.onError("Unauthorized: Invalid API Key"));
                 } else {
                     new Handler(Looper.getMainLooper()).post(() -> 
                         callback.onError("Error: " + responseCode));

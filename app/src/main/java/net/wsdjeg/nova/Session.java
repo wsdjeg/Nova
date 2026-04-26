@@ -10,7 +10,8 @@ import java.util.Date;
 public class Session {
     private String sessionId;
     private String accountId;     // 关联的账号ID（支持多账号）
-    private String firstMessage;  // 第一个消息（用于显示标题）
+    private String title;         // 服务器返回的会话标题（优先显示）
+    private String firstMessage;  // 第一个消息（用于显示标题，备用）
     private String lastMessage;
     private long lastMessageTime;
     private int messageCount;
@@ -26,6 +27,7 @@ public class Session {
     public Session(String sessionId) {
         this.sessionId = sessionId;
         this.accountId = "";  // 默认空，表示本地会话或当前账号
+        this.title = "";
         this.firstMessage = "";
         this.lastMessage = "";
         this.lastMessageTime = System.currentTimeMillis();
@@ -41,6 +43,7 @@ public class Session {
     public Session(String sessionId, String firstMessage, String lastMessage, long lastMessageTime, int messageCount) {
         this.sessionId = sessionId;
         this.accountId = "";
+        this.title = "";
         this.firstMessage = firstMessage != null ? firstMessage : "";
         this.lastMessage = lastMessage;
         this.lastMessageTime = lastMessageTime;
@@ -62,6 +65,7 @@ public class Session {
         this.cwd = cwd != null ? cwd : "";
         this.provider = provider != null ? provider : "";
         this.model = model != null ? model : "";
+        this.title = "";
         this.firstMessage = "";
         this.lastMessage = "";
         this.lastMessageTime = System.currentTimeMillis();
@@ -157,6 +161,30 @@ public class Session {
         this.accountId = accountId != null ? accountId : "";
     }
     
+    public String getTitle() {
+        // 优先使用服务器返回的 title
+        if (title != null && !title.isEmpty()) {
+            // 如果标题太长，截取前30个字符
+            if (title.length() > 30) {
+                return title.substring(0, 30) + "...";
+            }
+            return title;
+        }
+        // 备用：使用第一个消息
+        if (firstMessage != null && !firstMessage.isEmpty()) {
+            String firstLine = firstMessage.split("\n")[0].trim();
+            if (firstLine.length() > 30) {
+                return firstLine.substring(0, 30) + "...";
+            }
+            return firstLine;
+        }
+        return "新会话";
+    }
+    
+    public void setTitle(String title) {
+        this.title = title != null ? title : "";
+    }
+    
     public String getFirstMessage() {
         return firstMessage;
     }
@@ -232,22 +260,5 @@ public class Session {
     
     public void setInProgress(boolean inProgress) {
         this.inProgress = inProgress;
-    }
-    
-    /**
-     * 获取显示标题
-     * 显示第一个消息的第一行
-     * 如果没有消息，显示 "新会话"
-     */
-    public String getTitle() {
-        if (firstMessage != null && !firstMessage.isEmpty()) {
-            // 获取第一行
-            String firstLine = firstMessage.split("\n")[0].trim();
-            if (firstLine.length() > 30) {
-                return firstLine.substring(0, 30) + "...";
-            }
-            return firstLine;
-        }
-        return "新会话";
     }
 }
