@@ -167,7 +167,6 @@ public class ChatActivity extends AppCompatActivity {
         // 加载消息（分页加载）
         loadInitialMessages();
     }
-    
     /**
      * 加载初始消息
      * since = totalMessageCount - PAGE_SIZE
@@ -177,11 +176,23 @@ public class ChatActivity extends AppCompatActivity {
             // 如果没有消息数信息，先获取会话信息
             addMessage("正在加载消息...", false);
             refreshSessionStatus(() -> {
+                // 清除加载提示
+                if (messages.size() == 1 && messages.get(0).getContent().equals("正在加载消息...")) {
+                    messages.clear();
+                }
+                
                 Session session = sessionManager.getSession(currentSessionId);
                 if (session != null) {
                     totalMessageCount = session.getMessageCount();
                     Log.d(TAG, "Updated total message count: " + totalMessageCount);
                 }
+                
+                // 如果消息数为 0，直接显示空状态，不调用 API
+                if (totalMessageCount <= 0) {
+                    addMessage("暂无消息", false);
+                    return;
+                }
+                
                 loadMessagesPage();
             });
         } else {
@@ -195,6 +206,14 @@ public class ChatActivity extends AppCompatActivity {
      */
     private void loadMessagesPage() {
         if (apiClient == null || currentSessionId == null) {
+            return;
+        }
+        
+        // 如果没有消息，直接显示空状态，不调用 API
+        if (totalMessageCount <= 0) {
+            if (messages.isEmpty()) {
+                addMessage("暂无消息", false);
+            }
             return;
         }
         
@@ -234,20 +253,6 @@ public class ChatActivity extends AppCompatActivity {
                             }
                             return;
                         }
-                        
-                        // 过滤掉 tool 消息
-                        List<ApiClient.ChatMessage> filteredMessages = new ArrayList<>();
-                        for (ApiClient.ChatMessage msg : chatMessages) {
-                            if (!"tool".equals(msg.role)) {
-                                filteredMessages.add(msg);
-                            }
-                        }
-                        
-                        // 插入到列表开头（历史消息）
-                        int oldSize = messages.size();
-                        for (int i = filteredMessages.size() - 1; i >= 0; i--) {
-                            ApiClient.ChatMessage msg = filteredMessages.get(i);
-                            boolean isUser = "user".equals(msg.role);
                             long timestamp = msg.created * 1000L;
                             messages.add(0, new Message(msg.content, isUser, timestamp));
                         }

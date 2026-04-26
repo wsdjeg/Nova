@@ -287,8 +287,12 @@ public class ApiClient {
                         int messageCount = sessionObj.optInt("message_count", 0);
                         
                         long lastMessageTime = System.currentTimeMillis();
+                        // 解析 last_message 的内容（用于预览）
+                        String lastMessageContent = "";
+                        long lastMessageTime = System.currentTimeMillis();
                         JSONObject lastMsgObj = sessionObj.optJSONObject("last_message");
                         if (lastMsgObj != null) {
+                            lastMessageContent = lastMsgObj.optString("content", "");
                             lastMessageTime = lastMsgObj.optLong("created", System.currentTimeMillis()) * 1000;
                         }
                         
@@ -296,6 +300,7 @@ public class ApiClient {
                             Session session = new Session(id);
                             session.setAccountId(accountId);
                             session.setTitle(title);
+                            session.setLastMessage(lastMessageContent);  // 设置预览内容
                             session.setCwd(cwd);
                             session.setProvider(provider);
                             session.setModel(model);
@@ -305,24 +310,6 @@ public class ApiClient {
                             sessions.add(session);
                         }
                     }
-                    
-                    new Handler(Looper.getMainLooper()).post(() -> 
-                        callback.onSuccess(sessions));
-                } else {
-                    final int code = responseCode;
-                    new Handler(Looper.getMainLooper()).post(() -> 
-                        callback.onError("Error: " + code));
-                }
-            } catch (Exception e) {
-                Log.e(TAG, "getSessions failed", e);
-                new Handler(Looper.getMainLooper()).post(() -> 
-                    callback.onError("Network error: " + e.getMessage()));
-            } finally {
-                if (br != null) {
-                    try { br.close(); } catch (Exception ignored) {}
-                }
-                if (conn != null) {
-                    conn.disconnect();
                 }
             }
         }).start();
@@ -412,42 +399,54 @@ public class ApiClient {
     public void createSession(String cwd, String provider, String model, String accountId, CreateSessionCallback callback) {
         String baseUrl = getBaseUrl();
         String apiKey = getApiKey();
-        
-        if (baseUrl.isEmpty() || apiKey.isEmpty()) {
-            callback.onError("Please configure API settings");
-            return;
-        }
-        
-        new Thread(() -> {
-            HttpURLConnection conn = null;
-            BufferedReader br = null;
-            try {
-                URL url = new URL(baseUrl + "/session/new");
-                conn = (HttpURLConnection) url.openConnection();
-                conn.setRequestMethod("POST");
-                conn.setRequestProperty("Content-Type", "application/json");
-                conn.setRequestProperty("X-API-Key", apiKey);
-                conn.setRequestProperty("Connection", "close");
-                conn.setDoOutput(true);
-                conn.setConnectTimeout(15000);
-                conn.setReadTimeout(30000);
-                conn.setUseCaches(false);
-
-                JSONObject requestBody = new JSONObject();
-                if (cwd != null && !cwd.isEmpty()) {
-                    requestBody.put("cwd", cwd);
-                }
-                if (provider != null && !provider.isEmpty()) {
-                    requestBody.put("provider", provider);
-                }
-                if (model != null && !model.isEmpty()) {
-                    requestBody.put("model", model);
-                }
-                
-                try (OutputStream os = conn.getOutputStream()) {
-                    byte[] input = requestBody.toString().getBytes(StandardCharsets.UTF_8);
-                    os.write(input, 0, input.length);
-                }
+                if (responseCode == 200) {
+                    br = new BufferedReader(new InputStreamReader(conn.getInputStream(), "UTF-8"));
+                    StringBuilder response = new StringBuilder();
+                    String line;
+                    while ((line = br.readLine()) != null) {
+                        response.append(line);
+                    }
+                    
+                    JSONArray jsonArray = new JSONArray(response.toString());
+                    List<Session> sessions = new ArrayList<>();
+                    
+                    for (int i = 0; i < jsonArray.length(); i++) {
+                        JSONObject sessionObj = jsonArray.getJSONObject(i);
+                        String id = sessionObj.optString("id", "");
+                        String title = sessionObj.optString("title", "");
+                        String cwd = sessionObj.optString("cwd", "");
+                        String provider = sessionObj.optString("provider", "");
+                        String model = sessionObj.optString("model", "");
+                        boolean inProgress = sessionObj.optBoolean("in_progress", false);
+                        int messageCount = sessionObj.optInt("message_count", 0);
+                        
+                        // 解析 last_message 的内容（用于预览）
+                        String lastMessageContent = "";
+                        long lastMessageTime = System.currentTimeMillis();
+                        JSONObject lastMsgObj = sessionObj.optJSONObject("last_message");
+                        if (lastMsgObj != null) {
+                            lastMessageContent = lastMsgObj.optString("content", "");
+                            lastMessageTime = lastMsgObj.optLong("created", System.currentTimeMillis()) * 1000;
+                        }
+                        
+                        if (!id.isEmpty()) {
+                            Session session = new Session(id);
+                            session.setAccountId(accountId);
+                            session.setTitle(title);
+                            session.setLastMessage(lastMessageContent);  // 设置预览内容
+                            session.setCwd(cwd);
+                            session.setProvider(provider);
+                            session.setModel(model);
+                            session.setInProgress(inProgress);
+                            session.setMessageCount(messageCount);
+                            session.setLastMessageTime(lastMessageTime);
+                            sessions.add(session);
+                        }
+                    }
+                    
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onSuccess(sessions));
+                } else {
 
                 int responseCode = conn.getResponseCode();
                 

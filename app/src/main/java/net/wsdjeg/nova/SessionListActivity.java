@@ -247,10 +247,14 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
                         
                         Session localSession = sessionManager.getSession(serverSession.getSessionId());
                         if (localSession == null) {
-                            // 新会话，直接添加（包含服务器返回的 provider/model）
+                            // 新会话，直接添加（包含服务器返回的所有数据）
                             sessionManager.addOrUpdateSession(serverSession, accountId);
                         } else {
-                            // 已存在的会话，更新服务器返回的字段（包括 provider/model）
+                            // 已存在的会话，更新服务器返回的所有字段
+                            localSession.setTitle(serverSession.getTitle());
+                            localSession.setLastMessage(serverSession.getLastMessage());
+                            localSession.setLastMessageTime(serverSession.getLastMessageTime());
+                            localSession.setMessageCount(serverSession.getMessageCount());
                             localSession.setProvider(serverSession.getProvider());
                             localSession.setModel(serverSession.getModel());
                             localSession.setCwd(serverSession.getCwd());
@@ -312,6 +316,7 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
             sessionManager.addInitializedSession(sessionId);
         }
     }
+    
     /**
      * 轮询会话状态（不再获取消息列表）
      * 消息列表只在打开会话时获取
@@ -319,8 +324,6 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
     private void pollSessionMessages(String accountId, ApiClient accountApiClient) {
         // 不再轮询消息，消息列表只在打开会话时获取
     }
-    
-    private void updateSingleSession(String sessionId) {
         Session updatedSession = sessionManager.getSession(sessionId);
         if (updatedSession == null) {
             return;
