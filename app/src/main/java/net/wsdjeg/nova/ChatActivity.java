@@ -18,7 +18,9 @@ import androidx.appcompat.widget.Toolbar;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 聊天界面 Activity
@@ -28,6 +30,12 @@ import java.util.List;
  * - 初始加载：since = message_count - 20
  * - 上滚到顶部：since -= 20，加载更早的消息
  * - 直到 since <= 1 停止加载
+ * 
+ * 增量刷新优化：
+ * - 使用消息指纹（created + content）检测变化
+ * - 先获取会话状态（消息总数），再决定是否需要获取新消息
+ * - 只在消息真正变化时才更新 UI
+ * - 支持流式消息的内容更新检测
  * 
  * 滚动位置保持优化：
  * - 加载历史消息时保持用户阅读位置
@@ -80,6 +88,14 @@ public class ChatActivity extends AppCompatActivity {
     private int buttonState = STATE_NORMAL;
     
     private boolean isInProgress = false; // 从 API 获取的会话状态
+    
+    // === 增量刷新优化：消息指纹缓存 ===
+    // Key: created 时间戳（秒）, Value: 消息内容
+    private Map<Long, String> messageFingerprints = new HashMap<>();
+    // 最后一条消息的 created 时间戳，用于快速判断是否有新消息
+    private long lastMessageCreatedTimestamp = 0;
+    // 最后一条消息的内容，用于检测流式更新
+    private String lastMessageContent = "";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -254,7 +270,13 @@ public class ChatActivity extends AppCompatActivity {
                             boolean isUser = "user".equals(msg.role);
                             long timestamp = msg.created * 1000L;
                             messages.add(0, new Message(msg.content, isUser, timestamp));
+                            
+                            // 更新消息指纹缓存
+                            messageFingerprints.put(msg.created, msg.content);
                         }
+                        
+                        // 更新最后一条消息的追踪信息
+                        updateLastMessageTracking();
                         
                         lastMessageCount = messages.size();
                         
@@ -364,6 +386,9 @@ public class ChatActivity extends AppCompatActivity {
                             boolean isUser = "user".equals(msg.role);
                             long timestamp = msg.created * 1000L;
                             messages.add(insertCount, new Message(msg.content, isUser, timestamp));
+                            
+                            // 更新消息指纹缓存
+                            messageFingerprints.put(msg.created, msg.content);
                             insertCount++;
                         }
                         
@@ -620,17 +645,304 @@ public class ChatActivity extends AppCompatActivity {
     
     /**
      * 刷新消息和会话状态
+     * 
+     * 优化：先获取会话状态（包含消息总数），再决定是否需要获取新消息
      */
     private void refreshMessages() {
         if (apiClient == null || currentSessionId == null) {
             return;
         }
         
-        refreshSessionStatus(null);
+        // 先获取会话状态，包括消息总数
+        refreshSessionStatusForIncrementalRefresh();
+    }
+    
+    /**
+     * 专为增量刷新设计的会话状态获取
+     * 比较服务端消息总数与本地数量，决定是否需要获取新消息
+     */
+    private void refreshSessionStatusForIncrementalRefresh() {
+        apiClient.getSessions(accountId, new ApiClient.SessionsCallback() {
+            @Override
+            public void onSuccess(List<Session> sessions) {
+                runOnUiThread(() -> {
+                    for (Session session : sessions) {
+                        if (session.getSessionId().equals(currentSessionId)) {
+                            // 更新会话状态
+                            boolean wasInProgress = isInProgress;
+                            isInProgress = session.isInProgress();
+                            
+                            // 获取服务端消息总数
+                            int serverMessageCount = session.getMessageCount();
+                            int localMessageCount = messages.size();
+                            
+                            // 更新按钮状态
+                            if (isInProgress) {
+                                setButtonStateSending();
+                            } else {
+                                if (wasInProgress) {
+                                    // 从生成状态结束，需要获取最新消息
+                                    fetchLatestMessages();
+                                }
+                                setButtonStateNormal();
+                            }
+                            
+                            // === 核心优化：检测消息数量变化 ===
+                            if (serverMessageCount > localMessageCount) {
+                                // 有新消息，获取增量部分
+                                Log.d(TAG, "Incremental refresh: serverCount=" + serverMessageCount 
+                                    + ", localCount=" + localMessageCount + ", fetching new messages");
+                                fetchIncrementalMessages(localMessageCount, serverMessageCount);
+                            } else if (serverMessageCount < localMessageCount) {
+                                // 服务端消息减少（异常情况，如会话被清理），需要重新加载
+                                Log.d(TAG, "Message count decreased, reloading: serverCount=" + serverMessageCount 
+                                    + ", localCount=" + localMessageCount);
+                                reloadMessages();
+                            } else {
+                                // 数量相同，检查最后一条消息是否有内容更新（流式消息）
+                                Log.d(TAG, "Incremental refresh: no new messages (count=" + localMessageCount + ")");
+                                // 如果正在生成，可能最后一条消息内容有变化
+                                if (isInProgress || wasInProgress) {
+                                    checkLastMessageUpdate();
+                                }
+                            }
+                            
+                            totalMessageCount = serverMessageCount;
+                            break;
+                        }
+                    }
+                });
+            }
+
+            @Override
+            public void onError(String error) {
+                Log.d(TAG, "Session status refresh failed: " + error);
+            }
+        });
+    }
+    
+    /**
+     * 获取增量消息
+     * 
+     * @param localCount 本地消息数量
+     * @param serverCount 服务端消息总数
+     */
+    private void fetchIncrementalMessages(int localCount, int serverCount) {
+        // 计算需要获取的消息数量
+        int newCount = serverCount - localCount;
         
-        if (lastMessageCount > 0) {
-            refreshNewMessages();
+        final boolean wasAtBottom = isUserAtBottom();
+        
+        // 获取最新 newCount 条消息
+        // API 的 since 参数是从第几条开始（索引从 1 开始）
+        // 我们需要获取索引 (localCount + 1) 到 serverCount 的消息
+        int sinceIndex = localCount + 1;
+        
+        Log.d(TAG, "Fetching incremental messages: since=" + sinceIndex + ", expected=" + newCount + " new messages");
+        
+        apiClient.getMessagesWithOptions(currentSessionId, sinceIndex, newCount, false, 
+            new ApiClient.MessagesCallback() {
+                @Override
+                public void onSuccess(List<ApiClient.ChatMessage> chatMessages) {
+                    runOnUiThread(() -> {
+                        if (chatMessages.isEmpty()) {
+                            Log.d(TAG, "Incremental fetch returned empty");
+                            return;
+                        }
+                        
+                        // 过滤掉 tool 消息
+                        List<ApiClient.ChatMessage> filteredMessages = new ArrayList<>();
+                        for (ApiClient.ChatMessage msg : chatMessages) {
+                            if (!"tool".equals(msg.role)) {
+                                filteredMessages.add(msg);
+                            }
+                        }
+                        
+                        if (filteredMessages.isEmpty()) {
+                            return;
+                        }
+                        
+                        // === 关键：反向添加（从旧到新）===
+                        // API 返回的消息是按 created 时间排序，最新在前
+                        // 我们需要从旧到新添加到列表末尾
+                        int insertStartIndex = messages.size();
+                        int insertCount = 0;
+                        
+                        for (int i = filteredMessages.size() - 1; i >= 0; i--) {
+                            ApiClient.ChatMessage msg = filteredMessages.get(i);
+                            boolean isUser = "user".equals(msg.role);
+                            long timestamp = msg.created * 1000L;
+                            messages.add(new Message(msg.content, isUser, timestamp));
+                            insertCount++;
+                            
+                            // 更新指纹缓存
+                            messageFingerprints.put(msg.created, msg.content);
+                        }
+                        
+                        lastMessageCount = messages.size();
+                        updateLastMessageTracking();
+                        
+                        // 精确更新 UI
+                        adapter.notifyItemRangeInserted(insertStartIndex, insertCount);
+                        
+                        Log.d(TAG, "Incremental refresh complete: inserted " + insertCount + " messages");
+                        
+                        // 只有用户之前在底部时，才自动滚动到最新消息
+                        if (wasAtBottom) {
+                            rvMessages.scrollToPosition(messages.size() - 1);
+                        }
+                        
+                        // 更新会话信息
+                        if (!messages.isEmpty()) {
+                            Message lastMsg = messages.get(messages.size() - 1);
+                            Message firstMsg = messages.get(0);
+                            sessionManager.updateMessages(
+                                currentSessionId,
+                                firstMsg.getContent(),
+                                lastMsg.getContent(),
+                                lastMessageCount,
+                                lastMsg.getTimestamp()
+                            );
+                        }
+                    });
+                }
+                
+                @Override
+                public void onError(String error) {
+                    Log.d(TAG, "Incremental fetch failed: " + error);
+                }
+            });
+    }
+    
+    /**
+     * 获取最新一条消息（用于检测流式消息更新）
+     */
+    private void fetchLatestMessages() {
+        final boolean wasAtBottom = isUserAtBottom();
+        
+        apiClient.getLastMessage(currentSessionId, new ApiClient.MessagesCallback() {
+            @Override
+            public void onSuccess(List<ApiClient.ChatMessage> chatMessages) {
+                runOnUiThread(() -> {
+                    if (chatMessages.isEmpty()) {
+                        return;
+                    }
+                    
+                    ApiClient.ChatMessage lastServerMsg = chatMessages.get(0);
+                    if ("tool".equals(lastServerMsg.role)) {
+                        return;
+                    }
+                    
+                    // 检查是否是新消息或内容有更新
+                    long serverCreated = lastServerMsg.created;
+                    String serverContent = lastServerMsg.content;
+                    
+                    boolean isNewMessage = (serverCreated != lastMessageCreatedTimestamp);
+                    boolean contentChanged = (!serverContent.equals(lastMessageContent));
+                    
+                    if (isNewMessage) {
+                        // 是一条新消息，添加到末尾
+                        boolean isUser = "user".equals(lastServerMsg.role);
+                        long timestamp = lastServerMsg.created * 1000L;
+                        messages.add(new Message(lastServerMsg.content, isUser, timestamp));
+                        
+                        messageFingerprints.put(lastServerMsg.created, lastServerMsg.content);
+                        lastMessageCount = messages.size();
+                        updateLastMessageTracking();
+                        
+                        adapter.notifyItemInserted(messages.size() - 1);
+                        
+                        if (wasAtBottom) {
+                            rvMessages.scrollToPosition(messages.size() - 1);
+                        }
+                        
+                        Log.d(TAG, "New message added from latest fetch");
+                    } else if (contentChanged) {
+                        // 最后一条消息内容有更新（流式消息）
+                        int lastIndex = messages.size() - 1;
+                        boolean isUser = "user".equals(lastServerMsg.role);
+                        messages.set(lastIndex, new Message(lastServerMsg.content, isUser, lastServerMsg.created * 1000L));
+                        
+                        messageFingerprints.put(lastServerMsg.created, lastServerMsg.content);
+                        lastMessageContent = lastServerMsg.content;
+                        
+                        adapter.notifyItemChanged(lastIndex);
+                        
+                        Log.d(TAG, "Last message content updated: len=" + lastServerMsg.content.length());
+                    }
+                });
+            }
+            
+            @Override
+            public void onError(String error) {
+                Log.d(TAG, "Latest message fetch failed: " + error);
+            }
+        });
+    }
+    
+    /**
+     * 检查最后一条消息是否有内容更新
+     * 用于流式消息生成过程中
+     */
+    private void checkLastMessageUpdate() {
+        if (messages.isEmpty()) {
+            return;
         }
+        
+        apiClient.getLastMessage(currentSessionId, new ApiClient.MessagesCallback() {
+            @Override
+            public void onSuccess(List<ApiClient.ChatMessage> chatMessages) {
+                runOnUiThread(() -> {
+                    if (chatMessages.isEmpty()) {
+                        return;
+                    }
+                    
+                    ApiClient.ChatMessage lastServerMsg = chatMessages.get(0);
+                    if ("tool".equals(lastServerMsg.role)) {
+                        return;
+                    }
+                    
+                    // 检查内容是否变化
+                    String serverContent = lastServerMsg.content;
+                    if (!serverContent.equals(lastMessageContent)) {
+                        // 内容有变化，更新最后一条消息
+                        int lastIndex = messages.size() - 1;
+                        boolean isUser = "user".equals(lastServerMsg.role);
+                        messages.set(lastIndex, new Message(lastServerMsg.content, isUser, lastServerMsg.created * 1000L));
+                        
+                        messageFingerprints.put(lastServerMsg.created, lastServerMsg.content);
+                        lastMessageContent = lastServerMsg.content;
+                        
+                        adapter.notifyItemChanged(lastIndex);
+                        
+                        Log.d(TAG, "Stream message updated: contentLen=" + serverContent.length());
+                        
+                        // 如果用户在底部，滚动到最新
+                        if (isUserAtBottom()) {
+                            rvMessages.scrollToPosition(messages.size() - 1);
+                        }
+                    }
+                });
+            }
+            
+            @Override
+            public void onError(String error) {
+                Log.d(TAG, "Check last message update failed: " + error);
+            }
+        });
+    }
+    
+    /**
+     * 重新加载所有消息
+     * 用于异常情况（如消息数量减少）
+     */
+    private void reloadMessages() {
+        messages.clear();
+        messageFingerprints.clear();
+        currentSince = 0;
+        hasMoreMessages = true;
+        
+        loadMessagesPage();
     }
     
     /**
@@ -655,77 +967,23 @@ public class ChatActivity extends AppCompatActivity {
     }
     
     /**
-     * 增量刷新：只获取新消息
-     * 优化：
-     * 1. 检测用户是否在底部，只有底部时才自动滚动
-     * 2. 使用 notifyItemRangeInserted 精确更新
+     * 更新最后一条消息的追踪信息
+     * 用于增量刷新时快速判断是否有变化
      */
-    private void refreshNewMessages() {
-        // 记录当前用户是否在底部
-        final boolean wasAtBottom = isUserAtBottom();
-        
-        apiClient.getNewMessages(currentSessionId, lastMessageCount, new ApiClient.MessagesCallback() {
-            @Override
-            public void onSuccess(List<ApiClient.ChatMessage> chatMessages) {
-                runOnUiThread(() -> {
-                    if (chatMessages.isEmpty()) {
-                        return;
-                    }
-                    
-                    // 过滤掉 tool 消息
-                    List<ApiClient.ChatMessage> newMessages = new ArrayList<>();
-                    for (ApiClient.ChatMessage msg : chatMessages) {
-                        if (!"tool".equals(msg.role)) {
-                            newMessages.add(msg);
-                        }
-                    }
-                    
-                    if (newMessages.isEmpty()) {
-                        return;
-                    }
-                    
-                    // 记录插入前的消息数量
-                    int insertStartIndex = messages.size();
-                    int insertCount = 0;
-                    
-                    for (ApiClient.ChatMessage msg : newMessages) {
-                        boolean isUser = "user".equals(msg.role);
-                        long timestamp = msg.created * 1000L;
-                        messages.add(new Message(msg.content, isUser, timestamp));
-                        insertCount++;
-                    }
-                    
-                    lastMessageCount = messages.size();
-                    
-                    // 使用精确更新替代 notifyDataSetChanged
-                    adapter.notifyItemRangeInserted(insertStartIndex, insertCount);
-                    
-                    // 只有用户之前在底部时，才自动滚动到最新消息
-                    if (wasAtBottom) {
-                        rvMessages.scrollToPosition(messages.size() - 1);
-                    }
-                    
-                    ApiClient.ChatMessage lastMsg = newMessages.get(newMessages.size() - 1);
-                    Session currentSession = sessionManager.getSession(currentSessionId);
-                    sessionManager.updateMessages(
-                        currentSessionId,
-                        currentSession != null ? currentSession.getFirstMessage() : "",
-                        lastMsg.content,
-                        lastMessageCount,
-                        lastMsg.created * 1000L
-                    );
-                });
-            }
-
-            @Override
-            public void onError(String error) {
-                Log.d(TAG, "Incremental refresh failed: " + error);
-            }
-        });
+    private void updateLastMessageTracking() {
+        if (messages != null && !messages.isEmpty()) {
+            Message lastMsg = messages.get(messages.size() - 1);
+            // Message 的 timestamp 是毫秒，需要转换为秒
+            lastMessageCreatedTimestamp = lastMsg.getTimestamp() / 1000;
+            lastMessageContent = lastMsg.getContent();
+            Log.d(TAG, "Updated last message tracking: timestamp=" + lastMessageCreatedTimestamp 
+                + ", contentLen=" + lastMessageContent.length());
+        }
     }
     
     /**
      * 刷新会话状态（检查是否正在生成）
+     * 用于手动刷新或其他需要获取状态的场景
      */
     private void refreshSessionStatus(Runnable onComplete) {
         apiClient.getSessions(accountId, new ApiClient.SessionsCallback() {
@@ -743,7 +1001,7 @@ public class ChatActivity extends AppCompatActivity {
                                 setButtonStateSending();
                             } else {
                                 if (wasInProgress) {
-                                    refreshNewMessages();
+                                    fetchLatestMessages();
                                 }
                                 setButtonStateNormal();
                             }
@@ -778,7 +1036,12 @@ public class ChatActivity extends AppCompatActivity {
         }
         
         long timestamp = System.currentTimeMillis();
-        messages.add(new Message(content, isUser, timestamp));
+        Message msg = new Message(content, isUser, timestamp);
+        messages.add(msg);
+        
+        // 更新指纹缓存
+        messageFingerprints.put(timestamp / 1000, content);
+        updateLastMessageTracking();
         
         if (adapter != null) {
             adapter.notifyItemInserted(messages.size() - 1);
@@ -864,7 +1127,7 @@ public class ChatActivity extends AppCompatActivity {
                     Toast.makeText(ChatActivity.this, "已停止生成", Toast.LENGTH_SHORT).show();
                     isInProgress = false;
                     setButtonStateNormal();
-                    refreshNewMessages();
+                    refreshMessages();
                 });
             }
 
@@ -906,7 +1169,7 @@ public class ChatActivity extends AppCompatActivity {
             public void onSuccess() {
                 runOnUiThread(() -> {
                     Toast.makeText(ChatActivity.this, "已重新发送", Toast.LENGTH_SHORT).show();
-                    refreshNewMessages();
+                    refreshMessages();
                 });
             }
 
