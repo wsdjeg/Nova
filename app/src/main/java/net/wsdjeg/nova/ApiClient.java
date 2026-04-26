@@ -570,12 +570,6 @@ public class ApiClient {
         new Thread(() -> {
             AtomicBoolean allSuccess = new AtomicBoolean(true);
             AtomicReference<String> errorMsg = new AtomicReference<>("");
-            
-            if (provider != null && !provider.isEmpty()) {
-            AtomicReference<String> errorMsg = new AtomicReference<>("");
-            
-            if (provider != null && !provider.isEmpty()) {
-            
             if (provider != null && !provider.isEmpty()) {
                 HttpURLConnection conn = null;
                 try {
