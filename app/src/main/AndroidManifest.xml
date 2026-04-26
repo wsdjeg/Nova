@@ -30,6 +30,12 @@
             android:exported="false"
             android:label="聊天" />
 
+        <!-- SessionSettingsActivity 会话设置界面 -->
+        <activity
+            android:name=".SessionSettingsActivity"
+            android:exported="false"
+            android:label="会话设置" />
+
         <!-- SettingsActivity 设置界面 -->
         <activity
             android:name=".SettingsActivity"

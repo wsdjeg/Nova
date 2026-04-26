@@ -258,7 +258,8 @@ public class ChatActivity extends AppCompatActivity {
             onBackPressed();
             return true;
         } else if (itemId == R.id.action_settings) {
-            startActivity(new Intent(this, SettingsActivity.class));
+            // 打开当前会话的设置页面（SessionSettingsActivity）
+            openSessionSettings();
             return true;
         } else if (itemId == R.id.action_refresh) {
             refreshMessages();
@@ -273,6 +274,24 @@ public class ChatActivity extends AppCompatActivity {
         return super.onOptionsItemSelected(item);
     }
     
+    /**
+     * 打开当前会话的设置页面
+     */
+    private void openSessionSettings() {
+        Session session = sessionManager.getSession(currentSessionId);
+        
+        Intent intent = new Intent(this, SessionSettingsActivity.class);
+        intent.putExtra(SessionSettingsActivity.EXTRA_SESSION_ID, currentSessionId);
+        
+        if (session != null) {
+            intent.putExtra(SessionSettingsActivity.EXTRA_ACCOUNT_ID, session.getAccountId());
+            intent.putExtra(SessionSettingsActivity.EXTRA_PROVIDER, session.getProvider());
+            intent.putExtra(SessionSettingsActivity.EXTRA_MODEL, session.getModel());
+            intent.putExtra(SessionSettingsActivity.EXTRA_CWD, session.getCwd());
+        }
+        
+        startActivity(intent);
+    }
     /**
      * 使用浏览器打开预览链接
      */
