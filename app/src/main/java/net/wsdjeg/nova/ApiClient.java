@@ -713,12 +713,13 @@ public class ApiClient {
                 new Handler(Looper.getMainLooper()).post(() -> callback.onError(errorMsg.get()));
             }
         }).start();
+    }
+    
     /**
      * Get messages for a specific session.
      * GET /messages?session=xxx
      * Returns JSON array with messages containing role, content, and created timestamp.
      */
-    public void getMessages(String sessionId, MessagesCallback callback) {
     public void getMessages(String sessionId, MessagesCallback callback) {
         String baseUrl = getBaseUrl();
         String apiKey = getApiKey();
