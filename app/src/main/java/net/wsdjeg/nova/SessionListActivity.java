@@ -42,10 +42,7 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
     private Handler refreshHandler;
     private Runnable refreshRunnable;
     private boolean isFirstRefreshDone = false;
-    // 自动刷新相关
-    private Handler refreshHandler;
-    private Runnable refreshRunnable;
-    private boolean isFirstRefreshDone = false;
+    
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
