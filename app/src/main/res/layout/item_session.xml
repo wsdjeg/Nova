@@ -11,13 +11,26 @@
     android:paddingBottom="8dp"
     android:background="?attr/selectableItemBackground">
 
-    <!-- 第一行：账号标签 + Provider/Model标签 + 会话标题 + 时间 -->
+    <!-- 
+    布局说明：
     
-    <!-- 账号标签 (显示来源账号) -->
+    第一行：账号标签 + Provider标签 + 会话标题 + 时间
+    第二行：左侧正方形区域(36dp×36dp，放Spinner) + 消息预览 + 未读数量
+    
+    关键对齐：
+    - 账号标签 minWidth = 36dp（预览两行高度）
+    - 左侧留出36dp宽的正方形区域给Spinner
+    - Spinner 大小 = 21dp（预览字体14sp × 1.5）
+    - Spinner 水平垂直居中于左侧正方形区域
+    - 预览左侧与Spinner区域右侧间隔8dp
+    -->
+
+    <!-- 账号标签 (显示来源账号，minWidth=36dp，与预览两行高度一致) -->
     <TextView
         android:id="@+id/textAccount"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:minWidth="36dp"
         android:text="Home"
         android:textSize="10sp"
         android:textColor="#1976D2"
@@ -52,7 +65,7 @@
         app:layout_constraintBottom_toBottomOf="@id/textAccount"
         app:layout_goneMarginStart="0dp" />
 
-    <!-- Barrier: 标题的起始位置取决于账号标签和Provider标签的最大右边界 -->
+    <!-- Barrier: 标题的起始位置 -->
     <androidx.constraintlayout.widget.Barrier
         android:id="@+id/barrierTitleStart"
         android:layout_width="wrap_content"
@@ -60,7 +73,7 @@
         app:barrierDirection="end"
         app:constraint_referenced_ids="textAccount,textProviderModel" />
 
-    <!-- 会话标题 (通过 Barrier 确保在所有标签后面，与账号标签高度对齐) -->
+    <!-- 会话标题 -->
     <TextView
         android:id="@+id/textSessionTitle"
         android:layout_width="0dp"
@@ -89,22 +102,18 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
-    <!-- 
-    第二行区域（Spinner + 消息预览）
-    
-    Spinner 对齐规则：
-    - 位于账号标签下方
-    - 水平居中于账号标签区域（宽度约40dp，Spinner 21dp）
-    - 垂直居中于预览的两行高度（约36dp）
-    - 大小 = 预览字体14sp × 1.5 = 21dp
-    
-    消息预览对齐规则：
-    - 左侧与标题左侧对齐
-    - 占据两行高度（minHeight=36dp）
-    -->
+    <!-- 左侧正方形区域占位（36dp×36dp，用于Spinner居中显示） -->
+    <!-- 与预览顶部对齐，高度与预览两行一致 -->
+    <Space
+        android:id="@+id/spaceSpinnerArea"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:layout_marginTop="6dp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/textSessionTitle" />
 
     <!-- Spinner (in_progress 状态图标) -->
-    <!-- 大小21dp，水平居中于账号标签宽度，垂直居中于预览两行 -->
+    <!-- 大小21dp，水平垂直居中于左侧正方形区域 -->
     <ProgressBar
         android:id="@+id/progressSpinner"
         style="?android:attr/progressBarStyleSmall"
@@ -112,26 +121,27 @@
         android:layout_height="21dp"
         android:visibility="gone"
         android:indeterminateTint="@color/primary"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="@id/textAccount"
-        app:layout_constraintTop_toTopOf="@id/textSessionPreview"
-        app:layout_constraintBottom_toBottomOf="@id/textSessionPreview" />
+        app:layout_constraintStart_toStartOf="@id/spaceSpinnerArea"
+        app:layout_constraintEnd_toEndOf="@id/spaceSpinnerArea"
+        app:layout_constraintTop_toTopOf="@id/spaceSpinnerArea"
+        app:layout_constraintBottom_toBottomOf="@id/spaceSpinnerArea" />
 
     <!-- 消息预览 -->
-    <!-- 左侧与标题左侧对齐，minHeight=36dp（两行） -->
+    <!-- 左侧留出36dp正方形区域，预览从该区域右侧+8dp开始 -->
     <TextView
         android:id="@+id/textSessionPreview"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:minHeight="36dp"
         android:layout_marginTop="6dp"
+        android:layout_marginStart="8dp"
         android:text="Message preview..."
         android:textSize="14sp"
         android:textColor="#757575"
         android:maxLines="2"
         android:ellipsize="end"
         android:gravity="top"
-        app:layout_constraintStart_toEndOf="@id/barrierTitleStart"
+        app:layout_constraintStart_toEndOf="@id/spaceSpinnerArea"
         app:layout_constraintEnd_toStartOf="@id/textSessionCount"
         app:layout_constraintTop_toBottomOf="@id/textSessionTitle" />
 
