@@ -42,11 +42,10 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
     private Handler refreshHandler;
     private Runnable refreshRunnable;
     private boolean isFirstRefreshDone = false;
-    
-    // 同步状态
-    private int syncTotal = 0;
-    private int syncCompleted = 0;
-    
+    // 自动刷新相关
+    private Handler refreshHandler;
+    private Runnable refreshRunnable;
+    private boolean isFirstRefreshDone = false;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -302,240 +301,26 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
     }
     
     /**
-     * 初始化所有会话的消息信息
+     * 初始化所有会话（不再获取消息列表）
+     * 消息列表只在打开会话时获取
      */
     private void initializeAllSessions(String accountId, String[] sessionIds, ApiClient accountApiClient) {
+        // 不再获取消息列表，只完成初始化
         if (sessionIds == null || sessionIds.length == 0) {
             return;
         }
         
-        Set<String> initializedSessions = sessionManager.loadInitializedSessions();
-        
-        syncTotal = 0;
-        syncCompleted = 0;
-        
+        // 标记所有会话为已初始化
         for (String sessionId : sessionIds) {
-            if (!initializedSessions.contains(sessionId)) {
-                syncTotal++;
-            }
-        }
-        
-        if (syncTotal > 0) {
-            updateSyncProgress();
-        }
-        
-        for (String sessionId : sessionIds) {
-            if (initializedSessions.contains(sessionId)) {
-                continue;
-            }
-            
-            final String currentSessionId = sessionId;
-            accountApiClient.getMessages(sessionId, new ApiClient.MessagesCallback() {
-                @Override
-                public void onSuccess(List<ApiClient.ChatMessage> chatMessages) {
-                    runOnUiThread(() -> {
-                        sessionManager.addInitializedSession(currentSessionId);
-                        syncCompleted++;
-                        
-                        if (chatMessages.isEmpty()) {
-                            updateSyncProgress();
-                            return;
-                        }
-                        
-                        List<ApiClient.ChatMessage> filteredMessages = new ArrayList<>();
-                        for (ApiClient.ChatMessage msg : chatMessages) {
-                            if (!"tool".equals(msg.role)) {
-                                filteredMessages.add(msg);
-                            }
-                        }
-                        
-                        if (filteredMessages.isEmpty()) {
-                            updateSyncProgress();
-                            return;
-                        }
-                        
-                        ApiClient.ChatMessage firstMsg = filteredMessages.get(0);
-                        ApiClient.ChatMessage lastMsg = filteredMessages.get(filteredMessages.size() - 1);
-                        long lastMessageTime = lastMsg.created * 1000;
-                        int messageCount = filteredMessages.size();
-                        
-                        sessionManager.updateMessages(
-                            currentSessionId,
-                            firstMsg.content,
-                            lastMsg.content,
-                            messageCount,
-                            lastMessageTime
-                        );
-                        
-                        sessionManager.saveReadMessageCount(currentSessionId, messageCount);
-                        
-                        updateSingleSession(currentSessionId);
-                        updateSyncProgress();
-                    });
-                }
-                
-                @Override
-                public void onError(String error) {
-                    runOnUiThread(() -> {
-                        // Mark as initialized anyway to avoid retry loops
-                        sessionManager.addInitializedSession(currentSessionId);
-                        syncCompleted++;
-                        updateSyncProgress();
-
-                        Toast.makeText(SessionListActivity.this,
-                                "同步会话消息失败: " + error,
-                                Toast.LENGTH_SHORT).show();
-                    });
-                }
-            });
+            sessionManager.addInitializedSession(sessionId);
         }
     }
-    
     /**
-     * 轮询所有会话的消息，检测新消息并计算未读数
-     * 改进：使用增量获取（since参数），减少网络请求
+     * 轮询会话状态（不再获取消息列表）
+     * 消息列表只在打开会话时获取
      */
     private void pollSessionMessages(String accountId, ApiClient accountApiClient) {
-        Account activeAccount = accountManager.getActiveAccount();
-        if (activeAccount == null) {
-            return;
-        }
-        
-        List<Session> currentSessions = sessionManager.loadSessions(accountId);
-        if (currentSessions.isEmpty()) {
-            return;
-        }
-        
-        Set<String> initializedSessions = sessionManager.loadInitializedSessions();
-        
-        for (Session session : currentSessions) {
-            final String sessionId = session.getSessionId();
-            
-            if (!initializedSessions.contains(sessionId)) {
-                continue;
-            }
-            
-            // 获取当前已知的消息数量
-            int knownMessageCount = session.getMessageCount();
-            int readCount = sessionManager.getReadMessageCount(sessionId);
-            
-            // 使用增量获取：只获取新消息（since=knownMessageCount）
-            // 如果 knownMessageCount 为 0，则获取所有消息
-            if (knownMessageCount > 0) {
-                accountApiClient.getNewMessages(sessionId, knownMessageCount, new ApiClient.MessagesCallback() {
-                    @Override
-                    public void onSuccess(List<ApiClient.ChatMessage> chatMessages) {
-                        runOnUiThread(() -> {
-                            if (chatMessages.isEmpty()) {
-                                // 没有新消息，更新未读数
-                                Session s = sessionManager.getSession(sessionId);
-                                if (s != null) {
-                                    int unread = s.getMessageCount() - readCount;
-                                    if (unread < 0) unread = 0;
-                                    s.setUnreadCount(unread);
-                                    sessionManager.addOrUpdateSession(s, accountId);
-                                    updateSingleSession(sessionId);
-                                }
-                                return;
-                            }
-                            
-                            // 过滤 tool 消息
-                            List<ApiClient.ChatMessage> newMessages = new ArrayList<>();
-                            for (ApiClient.ChatMessage msg : chatMessages) {
-                                if (!"tool".equals(msg.role)) {
-                                    newMessages.add(msg);
-                                }
-                            }
-                            
-                            if (newMessages.isEmpty()) {
-                                return;
-                            }
-                            
-                            // 更新消息信息
-                            ApiClient.ChatMessage lastMsg = newMessages.get(newMessages.size() - 1);
-                            int newTotalCount = knownMessageCount + newMessages.size();
-                            long lastMessageTime = lastMsg.created * 1000;
-                            
-                            // 计算未读数
-                            int unreadCount = newTotalCount - readCount;
-                            if (unreadCount < 0) {
-                                unreadCount = 0;
-                            }
-                            
-                            sessionManager.updateMessages(
-                                sessionId,
-                                session.getFirstMessage(),  // 保持原来的第一条消息
-                                lastMsg.content,
-                                newTotalCount,
-                                lastMessageTime
-                            );
-                            
-                            Session updatedSession = sessionManager.getSession(sessionId);
-                            if (updatedSession != null) {
-                                updatedSession.setUnreadCount(unreadCount);
-                                sessionManager.addOrUpdateSession(updatedSession, accountId);
-                                
-                                updateSingleSession(sessionId);
-                            }
-                        });
-                    }
-                    
-                    @Override
-                    public void onError(String error) {
-                        // 忽略单个会话的轮询错误
-                    }
-                });
-            } else {
-                // 如果本地没有消息信息，获取所有消息（首次同步）
-                accountApiClient.getMessages(sessionId, new ApiClient.MessagesCallback() {
-                    @Override
-                    public void onSuccess(List<ApiClient.ChatMessage> chatMessages) {
-                        runOnUiThread(() -> {
-                            if (chatMessages.isEmpty()) {
-                                return;
-                            }
-                            
-                            List<ApiClient.ChatMessage> filteredMessages = new ArrayList<>();
-                            for (ApiClient.ChatMessage msg : chatMessages) {
-                                if (!"tool".equals(msg.role)) {
-                                    filteredMessages.add(msg);
-                                }
-                            }
-                            
-                            if (filteredMessages.isEmpty()) {
-                                return;
-                            }
-                            
-                            ApiClient.ChatMessage firstMsg = filteredMessages.get(0);
-                            ApiClient.ChatMessage lastMsg = filteredMessages.get(filteredMessages.size() - 1);
-                            long lastMessageTime = lastMsg.created * 1000;
-                            int serverMessageCount = filteredMessages.size();
-                            
-                            sessionManager.updateMessages(
-                                sessionId,
-                                firstMsg.content,
-                                lastMsg.content,
-                                serverMessageCount,
-                                lastMessageTime
-                            );
-                            
-                            Session updatedSession = sessionManager.getSession(sessionId);
-                            if (updatedSession != null) {
-                                updatedSession.setUnreadCount(0);
-                                sessionManager.addOrUpdateSession(updatedSession, accountId);
-                                
-                                updateSingleSession(sessionId);
-                            }
-                        });
-                    }
-                    
-                    @Override
-                    public void onError(String error) {
-                        // 忽略错误
-                    }
-                });
-            }
-        }
+        // 不再轮询消息，消息列表只在打开会话时获取
     }
     
     private void updateSingleSession(String sessionId) {
@@ -550,24 +335,6 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
                 adapter.notifyItemChanged(i);
                 break;
             }
-        }
-    }
-    
-    private void updateSyncProgress() {
-        if (syncTotal == 0) {
-            return;
-        }
-        
-        if (syncCompleted < syncTotal) {
-            Toast.makeText(this, 
-                String.format("正在同步会话消息 (%d/%d)...", syncCompleted, syncTotal), 
-                Toast.LENGTH_SHORT).show();
-        } else if (syncCompleted == syncTotal) {
-            Toast.makeText(this, 
-                String.format("已同步 %d 个会话的消息", syncTotal), 
-                Toast.LENGTH_SHORT).show();
-            syncTotal = 0;
-            syncCompleted = 0;
         }
     }
     
