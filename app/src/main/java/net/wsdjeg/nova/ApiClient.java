@@ -448,10 +448,6 @@ public class ApiClient {
      * Create a new chat session.
      * Request body: {"cwd": "...", "provider": "...", "model": "..."} (all optional)
      * Returns 201 with {"id": "session-id"}
-    /**
-     * Create a new chat session.
-     * Request body: {"cwd": "...", "provider": "...", "model": "..."} (all optional)
-     * Returns 201 with {"id": "session-id"}
      * 
      * @param accountId 用于标记会话所属账号（可选）
      */
@@ -536,9 +532,6 @@ public class ApiClient {
             }
         }).start();
     }
-        }).start();
-    }
-    
     /**
      * Create a new chat session (兼容旧接口)
      */
