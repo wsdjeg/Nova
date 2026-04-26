@@ -28,6 +28,10 @@ import java.util.List;
  * - 初始加载：since = message_count - 20
  * - 上滚到顶部：since -= 20，加载更早的消息
  * - 直到 since <= 1 停止加载
+ * 
+ * 滚动位置保持优化：
+ * - 加载历史消息时保持用户阅读位置
+ * - 自动刷新时只在用户位于底部才自动滚动
  */
 public class ChatActivity extends AppCompatActivity {
     
@@ -36,6 +40,7 @@ public class ChatActivity extends AppCompatActivity {
     private static final int PAGE_SIZE = 20; // 每页加载的消息数
     private static final int STATE_NORMAL = 0;
     private static final int STATE_SENDING = 1;
+    private static final int BOTTOM_THRESHOLD = 3; // 距离底部3条消息以内视为"在底部"
     
     // Intent extras
     public static final String EXTRA_SESSION_ID = "session_id";
@@ -80,6 +85,7 @@ public class ChatActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_chat);
+        
         // 设置 Toolbar
         toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
@@ -106,7 +112,6 @@ public class ChatActivity extends AppCompatActivity {
         accountManager = AccountManager.getInstance(this);
         
         // 根据 session 所属账号获取正确的 ApiClient
-        // 首先尝试从 SessionManager 获取 session 的账号信息
         Session session = sessionManager.getSession(currentSessionId);
         Account sessionAccount = null;
         
@@ -114,7 +119,6 @@ public class ChatActivity extends AppCompatActivity {
         Log.d(TAG, "Initializing ChatActivity with sessionId: " + currentSessionId);
         if (session != null) {
             Log.d(TAG, "Session found: accountId=" + session.getAccountId() + ", cwd=" + session.getCwd());
-            // 初始化 totalMessageCount
             totalMessageCount = session.getMessageCount();
             Log.d(TAG, "Total message count from session: " + totalMessageCount);
         } else {
@@ -122,12 +126,10 @@ public class ChatActivity extends AppCompatActivity {
         }
         
         if (session != null && session.getAccountId() != null && !session.getAccountId().isEmpty()) {
-            // 根据 session 的 accountId 获取对应的账号
             sessionAccount = accountManager.getAccountById(session.getAccountId());
             Log.d(TAG, "Using session's account: " + session.getAccountId());
         }
         
-        // 如果 session 没有关联账号或账号不存在，使用当前激活账号
         if (sessionAccount == null) {
             sessionAccount = accountManager.getActiveAccount();
             Log.d(TAG, "Using active account instead");
@@ -142,7 +144,6 @@ public class ChatActivity extends AppCompatActivity {
         accountId = sessionAccount.getId();
         Log.d(TAG, "Final account: " + accountId + ", URL: " + sessionAccount.getUrl());
         
-        // 使用 session 所属账号的 URL 和 API Key 创建 ApiClient
         String baseUrl = sessionAccount.getUrl();
         String apiKey = sessionAccount.getApiKey();
         
@@ -153,30 +154,23 @@ public class ChatActivity extends AppCompatActivity {
         }
         
         apiClient = new ApiClient(baseUrl, apiKey);
-        // 保存当前 session
         settingsManager.setSession(currentSessionId);
         sessionManager.saveCurrentSession(currentSessionId);
         
-        // 加载会话信息
         loadSessionInfo();
-        
         initViews();
         setupRecyclerView();
         setupAutoRefresh();
-        
-        // 加载消息（分页加载）
         loadInitialMessages();
     }
+    
     /**
      * 加载初始消息
-     * since = totalMessageCount - PAGE_SIZE
      */
     private void loadInitialMessages() {
         if (totalMessageCount <= 0) {
-            // 如果没有消息数信息，先获取会话信息
             addMessage("正在加载消息...", false);
             refreshSessionStatus(() -> {
-                // 清除加载提示
                 if (messages.size() == 1 && messages.get(0).getContent().equals("正在加载消息...")) {
                     messages.clear();
                 }
@@ -187,7 +181,6 @@ public class ChatActivity extends AppCompatActivity {
                     Log.d(TAG, "Updated total message count: " + totalMessageCount);
                 }
                 
-                // 如果消息数为 0，直接显示空状态，不调用 API
                 if (totalMessageCount <= 0) {
                     addMessage("暂无消息", false);
                     return;
@@ -202,14 +195,12 @@ public class ChatActivity extends AppCompatActivity {
     
     /**
      * 加载一页消息
-     * 根据 currentSince 加载消息
      */
     private void loadMessagesPage() {
         if (apiClient == null || currentSessionId == null) {
             return;
         }
         
-        // 如果没有消息，直接显示空状态，不调用 API
         if (totalMessageCount <= 0) {
             if (messages.isEmpty()) {
                 addMessage("暂无消息", false);
@@ -217,15 +208,11 @@ public class ChatActivity extends AppCompatActivity {
             return;
         }
         
-        // 计算起始位置
         if (currentSince == 0) {
-            // 初始加载
             if (totalMessageCount <= PAGE_SIZE) {
-                // 消息总数少于一页，从头加载
                 currentSince = 1;
                 hasMoreMessages = false;
             } else {
-                // 从最后 20 条开始
                 currentSince = totalMessageCount - PAGE_SIZE + 1;
                 hasMoreMessages = true;
             }
@@ -242,7 +229,6 @@ public class ChatActivity extends AppCompatActivity {
                     runOnUiThread(() -> {
                         isLoadingMore = false;
                         
-                        // 清除加载提示（首次加载时）
                         if (messages.size() == 1 && messages.get(0).getContent().equals("正在加载消息...")) {
                             messages.clear();
                         }
@@ -253,14 +239,25 @@ public class ChatActivity extends AppCompatActivity {
                             }
                             return;
                         }
+                        
+                        // 过滤掉 tool 消息
+                        List<ApiClient.ChatMessage> filteredMessages = new ArrayList<>();
+                        for (ApiClient.ChatMessage msg : chatMessages) {
+                            if (!"tool".equals(msg.role)) {
+                                filteredMessages.add(msg);
+                            }
+                        }
+                        
+                        // 反向添加（从旧到新）
+                        for (int i = filteredMessages.size() - 1; i >= 0; i--) {
+                            ApiClient.ChatMessage msg = filteredMessages.get(i);
+                            boolean isUser = "user".equals(msg.role);
                             long timestamp = msg.created * 1000L;
                             messages.add(0, new Message(msg.content, isUser, timestamp));
                         }
                         
-                        // 更新 lastMessageCount
                         lastMessageCount = messages.size();
                         
-                        // 更新 SessionManager
                         if (!messages.isEmpty()) {
                             Message lastMsg = messages.get(messages.size() - 1);
                             Message firstMsg = messages.get(0);
@@ -271,17 +268,11 @@ public class ChatActivity extends AppCompatActivity {
                                 lastMessageCount,
                                 lastMsg.getTimestamp()
                             );
-                            
-                            // 更新顶部标题
                             tvSessionTitle.setText(firstMsg.getContent().split("\n")[0]);
                         }
                         
                         adapter.notifyDataSetChanged();
-                        
-                        // 首次加载时滚动到底部
-                        if (oldSize == 0 || messages.size() == filteredMessages.size()) {
-                            rvMessages.scrollToPosition(messages.size() - 1);
-                        }
+                        rvMessages.scrollToPosition(messages.size() - 1);
                     });
                 }
                 
@@ -302,6 +293,7 @@ public class ChatActivity extends AppCompatActivity {
     /**
      * 加载更早的消息
      * 上滚到顶部时调用
+     * 优化：保持用户阅读位置不跳动
      */
     private void loadOlderMessages() {
         if (isLoadingMore || !hasMoreMessages) {
@@ -316,10 +308,16 @@ public class ChatActivity extends AppCompatActivity {
         }
         
         if (newSince >= currentSince) {
-            // 没有更早的消息了
             hasMoreMessages = false;
             return;
         }
+        
+        // === 关键优化：记录当前滚动位置 ===
+        LinearLayoutManager layoutManager = (LinearLayoutManager) rvMessages.getLayoutManager();
+        int oldFirstVisiblePosition = layoutManager.findFirstVisibleItemPosition();
+        View firstVisibleView = layoutManager.getChildAt(0);
+        int oldTop = firstVisibleView != null ? firstVisibleView.getTop() : 0;
+        Log.d(TAG, "Preserving scroll: position=" + oldFirstVisiblePosition + ", top=" + oldTop);
         
         currentSince = newSince;
         Log.d(TAG, "Loading older messages: since=" + currentSince);
@@ -355,17 +353,29 @@ public class ChatActivity extends AppCompatActivity {
                             }
                         }
                         
+                        if (filteredMessages.isEmpty()) {
+                            return;
+                        }
+                        
                         // 插入到列表开头
-                        int insertPosition = 0;
+                        int insertCount = 0;
                         for (int i = filteredMessages.size() - 1; i >= 0; i--) {
                             ApiClient.ChatMessage msg = filteredMessages.get(i);
                             boolean isUser = "user".equals(msg.role);
                             long timestamp = msg.created * 1000L;
-                            messages.add(insertPosition, new Message(msg.content, isUser, timestamp));
+                            messages.add(insertCount, new Message(msg.content, isUser, timestamp));
+                            insertCount++;
                         }
                         
                         lastMessageCount = messages.size();
-                        adapter.notifyDataSetChanged();
+                        
+                        // === 关键优化：恢复滚动位置 ===
+                        adapter.notifyItemRangeInserted(0, insertCount);
+                        
+                        // 计算新的位置：原位置 + 插入的消息数 + 加载提示移除的1个位置
+                        int newPosition = oldFirstVisiblePosition + insertCount;
+                        layoutManager.scrollToPositionWithOffset(newPosition, oldTop);
+                        Log.d(TAG, "Restored scroll: newPosition=" + newPosition + ", offset=" + oldTop);
                     });
                 }
                 
@@ -374,7 +384,6 @@ public class ChatActivity extends AppCompatActivity {
                     runOnUiThread(() -> {
                         isLoadingMore = false;
                         
-                        // 移除加载提示
                         if (!messages.isEmpty() && messages.get(0).getContent().equals("加载中...")) {
                             messages.remove(0);
                             adapter.notifyItemRemoved(0);
@@ -390,14 +399,12 @@ public class ChatActivity extends AppCompatActivity {
      * 加载会话信息并显示在顶部
      */
     private void loadSessionInfo() {
-        // 从 SessionManager 获取会话信息
         Session session = sessionManager.getSession(currentSessionId);
         
         if (session != null) {
             updateSessionInfo(session);
             totalMessageCount = session.getMessageCount();
         } else {
-            // 从 API 获取会话详情
             apiClient.getSessions(new ApiClient.SessionsCallback() {
                 @Override
                 public void onSuccess(List<Session> sessions) {
@@ -415,7 +422,6 @@ public class ChatActivity extends AppCompatActivity {
                 
                 @Override
                 public void onError(String error) {
-                    // 如果无法获取，显示默认信息
                     runOnUiThread(() -> {
                         tvSessionTitle.setText("未知会话");
                         tvSessionInfo.setText("unknown | unknown");
@@ -435,16 +441,13 @@ public class ChatActivity extends AppCompatActivity {
         String model = session.getModel();
         String cwd = session.getCwd();
         
-        // 第一行：会话标题（粗体、白色）
         tvSessionTitle.setText(title != null && !title.isEmpty() ? title : "新会话");
         
-        // 第二行：provider | model（不要前面的标签）
         String infoLine = (provider != null ? provider : "unknown") 
                         + " | " 
                         + (model != null ? model : "unknown");
         tvSessionInfo.setText(infoLine);
         
-        // 第三行：CWD: session.cwd
         String pathLine = "CWD: " + (cwd != null ? cwd : "unknown");
         tvSessionPath.setText(pathLine);
     }
@@ -452,7 +455,6 @@ public class ChatActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        // 刷新会话信息（从设置返回时更新 model 等）
         loadSessionInfo();
         if (isAutoRefreshEnabled && apiClient != null) {
             startAutoRefresh();
@@ -464,8 +466,6 @@ public class ChatActivity extends AppCompatActivity {
         super.onPause();
         stopAutoRefresh();
         
-        // 离开聊天界面时，保存当前消息数作为已读数
-        // 这样返回会话列表时，该会话不会显示未读数
         if (currentSessionId != null && messages != null) {
             int currentMessageCount = messages.size();
             sessionManager.saveReadMessageCount(currentSessionId, currentMessageCount);
@@ -490,11 +490,9 @@ public class ChatActivity extends AppCompatActivity {
         int itemId = item.getItemId();
         
         if (itemId == android.R.id.home) {
-            // 返回按钮
             onBackPressed();
             return true;
         } else if (itemId == R.id.action_settings) {
-            // 打开当前会话的设置页面（SessionSettingsActivity）
             openSessionSettings();
             return true;
         } else if (itemId == R.id.action_refresh) {
@@ -502,7 +500,6 @@ public class ChatActivity extends AppCompatActivity {
             Toast.makeText(this, "已刷新", Toast.LENGTH_SHORT).show();
             return true;
         } else if (itemId == R.id.action_preview) {
-            // 预览：使用浏览器打开当前会话
             openPreviewInBrowser();
             return true;
         }
@@ -510,9 +507,6 @@ public class ChatActivity extends AppCompatActivity {
         return super.onOptionsItemSelected(item);
     }
     
-    /**
-     * 打开当前会话的设置页面
-     */
     private void openSessionSettings() {
         Session session = sessionManager.getSession(currentSessionId);
         
@@ -529,9 +523,6 @@ public class ChatActivity extends AppCompatActivity {
         startActivity(intent);
     }
     
-    /**
-     * 使用浏览器打开预览链接
-     */
     private void openPreviewInBrowser() {
         Account activeAccount = accountManager.getActiveAccount();
         if (activeAccount == null) {
@@ -551,41 +542,28 @@ public class ChatActivity extends AppCompatActivity {
         btnSend = findViewById(R.id.btn_send);
         btnSend.setOnClickListener(v -> onSendButtonClick());
         
-        // 初始化按钮状态
         setButtonStateNormal();
     }
     
-    /**
-     * 发送按钮点击处理
-     * 根据当前状态决定是发送消息还是停止生成
-     */
     private void onSendButtonClick() {
         if (buttonState == STATE_SENDING) {
-            // 当前正在发送，点击停止
             stopGeneration();
         } else {
-            // 正常状态，发送消息
             sendMessage();
         }
     }
     
-    /**
-     * 设置按钮为"停止"状态（发送中）
-     */
     private void setButtonStateSending() {
         buttonState = STATE_SENDING;
         btnSend.setText("停止");
-        btnSend.setBackgroundColor(Color.parseColor("#F44336")); // 红色
+        btnSend.setBackgroundColor(Color.parseColor("#F44336"));
         btnSend.setEnabled(true);
     }
     
-    /**
-     * 设置按钮为"发送"状态（正常）
-     */
     private void setButtonStateNormal() {
         buttonState = STATE_NORMAL;
         btnSend.setText("发送");
-        btnSend.setBackgroundColor(Color.parseColor("#2196F3")); // 蓝色
+        btnSend.setBackgroundColor(Color.parseColor("#2196F3"));
         btnSend.setEnabled(true);
     }
     
@@ -603,12 +581,10 @@ public class ChatActivity extends AppCompatActivity {
             public void onScrolled(RecyclerView recyclerView, int dx, int dy) {
                 super.onScrolled(recyclerView, dx, dy);
                 
-                // 检测是否滚动到顶部
                 LinearLayoutManager layoutManager = (LinearLayoutManager) recyclerView.getLayoutManager();
                 if (layoutManager != null) {
                     int firstVisiblePosition = layoutManager.findFirstVisibleItemPosition();
                     
-                    // 当滚动到顶部时，加载更早的消息
                     if (firstVisiblePosition == 0 && dy < 0 && !isLoadingMore && hasMoreMessages) {
                         Log.d(TAG, "Scrolled to top, loading older messages...");
                         loadOlderMessages();
@@ -644,33 +620,55 @@ public class ChatActivity extends AppCompatActivity {
     
     /**
      * 刷新消息和会话状态
-     * 改进：只获取新消息（增量刷新）
      */
     private void refreshMessages() {
         if (apiClient == null || currentSessionId == null) {
             return;
         }
         
-        // 同时获取会话状态
         refreshSessionStatus(null);
         
-        // 使用增量刷新：只获取新消息
         if (lastMessageCount > 0) {
             refreshNewMessages();
         }
-        // 如果 lastMessageCount == 0，说明还没加载完初始消息，等待初始加载完成
+    }
+    
+    /**
+     * 检测用户是否在列表底部
+     * 用于判断是否需要自动滚动到最新消息
+     */
+    private boolean isUserAtBottom() {
+        if (rvMessages == null || messages == null || messages.isEmpty()) {
+            return true;
+        }
+        
+        LinearLayoutManager layoutManager = (LinearLayoutManager) rvMessages.getLayoutManager();
+        if (layoutManager == null) {
+            return true;
+        }
+        
+        int lastVisiblePosition = layoutManager.findLastVisibleItemPosition();
+        int totalItems = messages.size();
+        
+        // 如果最后一个可见项在距离底部 BOTTOM_THRESHOLD 条消息以内，视为"在底部"
+        return lastVisiblePosition >= totalItems - 1 - BOTTOM_THRESHOLD;
     }
     
     /**
      * 增量刷新：只获取新消息
+     * 优化：
+     * 1. 检测用户是否在底部，只有底部时才自动滚动
+     * 2. 使用 notifyItemRangeInserted 精确更新
      */
     private void refreshNewMessages() {
+        // 记录当前用户是否在底部
+        final boolean wasAtBottom = isUserAtBottom();
+        
         apiClient.getNewMessages(currentSessionId, lastMessageCount, new ApiClient.MessagesCallback() {
             @Override
             public void onSuccess(List<ApiClient.ChatMessage> chatMessages) {
                 runOnUiThread(() -> {
                     if (chatMessages.isEmpty()) {
-                        // 没有新消息
                         return;
                     }
                     
@@ -686,18 +684,27 @@ public class ChatActivity extends AppCompatActivity {
                         return;
                     }
                     
-                    // 添加新消息到列表末尾
+                    // 记录插入前的消息数量
+                    int insertStartIndex = messages.size();
+                    int insertCount = 0;
+                    
                     for (ApiClient.ChatMessage msg : newMessages) {
                         boolean isUser = "user".equals(msg.role);
                         long timestamp = msg.created * 1000L;
                         messages.add(new Message(msg.content, isUser, timestamp));
+                        insertCount++;
                     }
                     
                     lastMessageCount = messages.size();
-                    adapter.notifyDataSetChanged();
-                    rvMessages.scrollToPosition(messages.size() - 1);
                     
-                    // 更新 SessionManager 中的消息信息
+                    // 使用精确更新替代 notifyDataSetChanged
+                    adapter.notifyItemRangeInserted(insertStartIndex, insertCount);
+                    
+                    // 只有用户之前在底部时，才自动滚动到最新消息
+                    if (wasAtBottom) {
+                        rvMessages.scrollToPosition(messages.size() - 1);
+                    }
+                    
                     ApiClient.ChatMessage lastMsg = newMessages.get(newMessages.size() - 1);
                     Session currentSession = sessionManager.getSession(currentSessionId);
                     sessionManager.updateMessages(
@@ -712,7 +719,6 @@ public class ChatActivity extends AppCompatActivity {
 
             @Override
             public void onError(String error) {
-                // 增量刷新失败，静默忽略
                 Log.d(TAG, "Incremental refresh failed: " + error);
             }
         });
@@ -731,16 +737,12 @@ public class ChatActivity extends AppCompatActivity {
                             boolean wasInProgress = isInProgress;
                             isInProgress = session.isInProgress();
                             
-                            // 更新消息总数
                             totalMessageCount = session.getMessageCount();
                             
-                            // 更新按钮状态
                             if (isInProgress) {
                                 setButtonStateSending();
                             } else {
-                                // 从进行中变为非进行中，说明响应完成或被停止
                                 if (wasInProgress) {
-                                    // 刷新消息以获取最新响应
                                     refreshNewMessages();
                                 }
                                 setButtonStateNormal();
@@ -757,7 +759,6 @@ public class ChatActivity extends AppCompatActivity {
 
             @Override
             public void onError(String error) {
-                // 忽略错误，保持当前状态
                 if (onComplete != null) {
                     runOnUiThread(onComplete);
                 }
@@ -765,11 +766,6 @@ public class ChatActivity extends AppCompatActivity {
         });
     }
     
-    /**
-     * 添加消息到列表
-     * @param content 消息内容
-     * @param isUser 是否为用户消息
-     */
     private void addMessage(String content, boolean isUser) {
         if (messages == null) {
             messages = new ArrayList<>();
@@ -817,19 +813,14 @@ public class ChatActivity extends AppCompatActivity {
             return;
         }
         
-        // 设置按钮为"停止"状态
         setButtonStateSending();
         isInProgress = true;
-        
-        // 设置会话为进行中状态
         sessionManager.setSessionInProgress(currentSessionId, true);
         
-        // 使用带 sessionId 参数的 sendMessage 方法
         apiClient.sendMessage(currentSessionId, content, new ApiClient.ApiCallback() {
             @Override
             public void onSuccess(String response) {
                 runOnUiThread(() -> {
-                    // 设置会话为非进行中状态
                     sessionManager.setSessionInProgress(currentSessionId, false);
                     isInProgress = false;
                     setButtonStateNormal();
@@ -840,7 +831,6 @@ public class ChatActivity extends AppCompatActivity {
             @Override
             public void onError(String error) {
                 runOnUiThread(() -> {
-                    // 设置会话为非进行中状态
                     sessionManager.setSessionInProgress(currentSessionId, false);
                     isInProgress = false;
                     setButtonStateNormal();
@@ -851,9 +841,6 @@ public class ChatActivity extends AppCompatActivity {
         });
     }
 
-    /**
-     * 停止生成
-     */
     private void stopGeneration() {
         if (apiClient == null || currentSessionId == null) {
             return;
@@ -877,7 +864,6 @@ public class ChatActivity extends AppCompatActivity {
                     Toast.makeText(ChatActivity.this, "已停止生成", Toast.LENGTH_SHORT).show();
                     isInProgress = false;
                     setButtonStateNormal();
-                    // 刷新消息
                     refreshNewMessages();
                 });
             }
@@ -887,7 +873,6 @@ public class ChatActivity extends AppCompatActivity {
                 runOnUiThread(() -> {
                     Log.e("ChatActivity", "Stop failed: " + error + "\n" + debugInfo);
                     
-                    // 如果 session 不存在，提示用户（不删除本地数据）
                     if (error.contains("not found") || error.contains("不存在")) {
                         new androidx.appcompat.app.AlertDialog.Builder(ChatActivity.this)
                             .setTitle("会话不存在")
@@ -897,7 +882,6 @@ public class ChatActivity extends AppCompatActivity {
                             .show();
                     } else {
                         Toast.makeText(ChatActivity.this, "停止失败: " + error, Toast.LENGTH_SHORT).show();
-                        // 恢复按钮状态
                         if (isInProgress) {
                             setButtonStateSending();
                         } else {
@@ -909,15 +893,11 @@ public class ChatActivity extends AppCompatActivity {
         });
     }
     
-    /**
-     * 重试最后一条消息
-     */
     public void retryLastMessage() {
         if (apiClient == null || currentSessionId == null) {
             return;
         }
         
-        // 设置按钮为"停止"状态
         setButtonStateSending();
         isInProgress = true;
         
@@ -926,7 +906,6 @@ public class ChatActivity extends AppCompatActivity {
             public void onSuccess() {
                 runOnUiThread(() -> {
                     Toast.makeText(ChatActivity.this, "已重新发送", Toast.LENGTH_SHORT).show();
-                    // 刷新消息
                     refreshNewMessages();
                 });
             }
