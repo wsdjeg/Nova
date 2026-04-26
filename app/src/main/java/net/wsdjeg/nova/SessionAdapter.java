@@ -95,20 +95,7 @@ public class SessionAdapter extends RecyclerView.Adapter<SessionAdapter.SessionV
             holder.textAccount.setVisibility(View.GONE);
         }
         
-        // 显示 provider 标签（如果有信息）
-        String provider = session.getProvider();
-        if (provider != null && !provider.isEmpty()) {
-            holder.textProviderModel.setVisibility(View.VISIBLE);
-            holder.textProviderModel.setText(provider);
-        } else {
-            holder.textProviderModel.setVisibility(View.GONE);
-        }
-        // 显示 in_progress 状态的 spinner
-        if (session.isInProgress()) {
-            holder.progressSpinner.setVisibility(View.VISIBLE);
-        } else {
-            holder.progressSpinner.setVisibility(View.GONE);
-        }
+
         
         // 点击事件
         holder.itemView.setOnClickListener(v -> {
