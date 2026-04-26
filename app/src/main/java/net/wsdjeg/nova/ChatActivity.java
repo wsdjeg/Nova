@@ -218,6 +218,8 @@ public class ChatActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
+        // 刷新会话信息（从设置返回时更新 model 等）
+        loadSessionInfo();
         if (isAutoRefreshEnabled && apiClient != null) {
             startAutoRefresh();
         }
