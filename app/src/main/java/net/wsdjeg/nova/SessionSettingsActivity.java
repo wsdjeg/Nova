@@ -131,7 +131,7 @@ public class SessionSettingsActivity extends AppCompatActivity {
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
                 if (isProviderLoaded && position >= 0 && position < providerNames.size()) {
                     String selectedProvider = providerNames.get(position);
-                    updateModelSpinner(selectedProvider);
+                    updateModelSpinner(selectedProvider, null);
                     selectedProviderIndex = position;
                 }
             }
@@ -237,6 +237,14 @@ public class SessionSettingsActivity extends AppCompatActivity {
                         currentModels.add(currentModel);
                     }
                     modelAdapter.notifyDataSetChanged();
+                    
+                    // 即使加载失败，也设置当前值
+                    if (currentModel != null && !currentModel.isEmpty()) {
+                        selectedModelIndex = 0;
+                    }
+                    if (currentProvider != null && !currentProvider.isEmpty()) {
+                        selectedProviderIndex = 0;
+                    }
                 });
             }
         });
@@ -249,16 +257,14 @@ public class SessionSettingsActivity extends AppCompatActivity {
         if (currentProvider != null && !currentProvider.isEmpty()) {
             int providerIndex = providerNames.indexOf(currentProvider);
             if (providerIndex >= 0) {
-                spinnerProvider.setSelection(providerIndex);
-                updateModelSpinner(currentProvider);
+                // 保存当前 model，因为 updateModelSpinner 会重置选择
+                final String savedModel = currentModel;
                 
-                // 设置 model
-                if (currentModel != null && !currentModel.isEmpty()) {
-                    int modelIndex = currentModels.indexOf(currentModel);
-                    if (modelIndex >= 0) {
-                        spinnerModel.setSelection(modelIndex);
-                    }
-                }
+                selectedProviderIndex = providerIndex;
+                spinnerProvider.setSelection(providerIndex);
+                
+                // 更新 model spinner 并选择正确的 model
+                updateModelSpinner(currentProvider, savedModel);
             } else {
                 // 当前 provider 不在列表中，添加到开头
                 providerNames.add(0, currentProvider);
@@ -268,16 +274,20 @@ public class SessionSettingsActivity extends AppCompatActivity {
                 }
                 providerModelsMap.put(currentProvider, models);
                 providerAdapter.notifyDataSetChanged();
+                
+                selectedProviderIndex = 0;
                 spinnerProvider.setSelection(0);
-                updateModelSpinner(currentProvider);
+                updateModelSpinner(currentProvider, currentModel);
             }
         }
     }
     
     /**
      * 更新 Model Spinner
+     * @param providerName provider 名称
+     * @param selectModel 要选择的 model，如果为 null 则选择第一个
      */
-    private void updateModelSpinner(String providerName) {
+    private void updateModelSpinner(String providerName, String selectModel) {
         List<String> models = providerModelsMap.get(providerName);
         currentModels.clear();
         if (models != null) {
@@ -285,9 +295,22 @@ public class SessionSettingsActivity extends AppCompatActivity {
         }
         modelAdapter.notifyDataSetChanged();
         
-        // 默认选择第一个 model
+        // 选择指定的 model 或第一个
         if (currentModels.size() > 0) {
-            spinnerModel.setSelection(0);
+            if (selectModel != null && !selectModel.isEmpty()) {
+                int modelIndex = currentModels.indexOf(selectModel);
+                if (modelIndex >= 0) {
+                    spinnerModel.setSelection(modelIndex);
+                    selectedModelIndex = modelIndex;
+                } else {
+                    // 如果找不到指定的 model，选择第一个
+                    spinnerModel.setSelection(0);
+                    selectedModelIndex = 0;
+                }
+            } else {
+                spinnerModel.setSelection(0);
+                selectedModelIndex = 0;
+            }
         }
     }
     
