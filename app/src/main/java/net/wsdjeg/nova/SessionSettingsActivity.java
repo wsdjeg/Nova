@@ -3,6 +3,7 @@ package net.wsdjeg.nova;
 import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.AdapterView;
@@ -21,6 +22,7 @@ import java.util.Map;
 /**
  * 会话设置页面
  * 显示当前会话的 provider 和 model，并允许从服务器获取可用的 provider/model 列表
+ * 支持修改会话配置并调用 API 更新
  */
 public class SessionSettingsActivity extends AppCompatActivity {
     
@@ -31,6 +33,10 @@ public class SessionSettingsActivity extends AppCompatActivity {
     public static final String EXTRA_PROVIDER = "provider";
     public static final String EXTRA_MODEL = "model";
     public static final String EXTRA_CWD = "cwd";
+    
+    // Result extras for returning data to caller
+    public static final String RESULT_PROVIDER = "result_provider";
+    public static final String RESULT_MODEL = "result_model";
     
     private Toolbar toolbar;
     private TextView tvSessionId;
@@ -49,6 +55,7 @@ public class SessionSettingsActivity extends AppCompatActivity {
     private ApiClient apiClient;
     private SettingsManager settingsManager;
     private AccountManager accountManager;
+    private SessionManager sessionManager;
     
     // Provider 和 Model 数据
     private List<ApiClient.Provider> providers;
@@ -83,6 +90,7 @@ public class SessionSettingsActivity extends AppCompatActivity {
         
         settingsManager = new SettingsManager(this);
         accountManager = AccountManager.getInstance(this);
+        sessionManager = SessionManager.getInstance(this);
         
         initViews();
         loadSessionInfo();
@@ -146,6 +154,12 @@ public class SessionSettingsActivity extends AppCompatActivity {
             public void onNothingSelected(AdapterView<?> parent) {
             }
         });
+    }
+    
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        getMenuInflater().inflate(R.menu.session_settings_menu, menu);
+        return true;
     }
     
     private void loadSessionInfo() {
@@ -283,7 +297,105 @@ public class SessionSettingsActivity extends AppCompatActivity {
             // 返回
             finish();
             return true;
+        } else if (item.getItemId() == R.id.action_save) {
+            // 保存设置
+            saveSessionSettings();
+            return true;
         }
         return super.onOptionsItemSelected(item);
+    }
+    
+    /**
+     * 保存会话设置
+     */
+    private void saveSessionSettings() {
+        if (!isProviderLoaded) {
+            Toast.makeText(this, "数据尚未加载完成", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        if (selectedProviderIndex < 0 || selectedProviderIndex >= providerNames.size()) {
+            Toast.makeText(this, "请选择 Provider", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        if (selectedModelIndex < 0 || selectedModelIndex >= currentModels.size()) {
+            Toast.makeText(this, "请选择 Model", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        String newProvider = providerNames.get(selectedProviderIndex);
+        String newModel = currentModels.get(selectedModelIndex);
+        
+        // 检查是否有变化
+        if (newProvider.equals(currentProvider) && newModel.equals(currentModel)) {
+            Toast.makeText(this, "配置未改变", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        progressBar.setVisibility(View.VISIBLE);
+        tvStatus.setText("正在保存...");
+        
+        Log.d(TAG, "Saving session settings: provider=" + newProvider + ", model=" + newModel);
+        
+        // 调用 API 更新会话配置
+        apiClient.updateSession(sessionId, newProvider, newModel, new ApiClient.UpdateSessionCallback() {
+            @Override
+            public void onSuccess() {
+                runOnUiThread(() -> {
+                    progressBar.setVisibility(View.GONE);
+                    tvStatus.setText("");
+                    
+                    // 更新本地 SessionManager
+                    Session session = sessionManager.getSession(sessionId);
+                    if (session != null) {
+                        session.setProvider(newProvider);
+                        session.setModel(newModel);
+                        sessionManager.updateSession(session);
+                    }
+                    
+                    // 返回结果给调用者
+                    Intent result = new Intent();
+                    result.putExtra(RESULT_PROVIDER, newProvider);
+                    result.putExtra(RESULT_MODEL, newModel);
+                    setResult(RESULT_OK, result);
+                    
+                    Toast.makeText(SessionSettingsActivity.this, "设置已保存", Toast.LENGTH_SHORT).show();
+                    finish();
+                });
+            }
+            
+            @Override
+            public void onError(String error) {
+                runOnUiThread(() -> {
+                    progressBar.setVisibility(View.GONE);
+                    tvStatus.setText("");
+                    
+                    // 如果 API 不支持，也允许保存到本地
+                    if (error.contains("PATCH") || error.contains("not supported") || error.contains("404")) {
+                        // 保存到本地 SessionManager
+                        Session session = sessionManager.getSession(sessionId);
+                        if (session != null) {
+                            session.setProvider(newProvider);
+                            session.setModel(newModel);
+                            sessionManager.updateSession(session);
+                        }
+                        
+                        // 返回结果给调用者
+                        Intent result = new Intent();
+                        result.putExtra(RESULT_PROVIDER, newProvider);
+                        result.putExtra(RESULT_MODEL, newModel);
+                        setResult(RESULT_OK, result);
+                        
+                        Toast.makeText(SessionSettingsActivity.this, 
+                            "已保存到本地（服务端不支持远程更新）", Toast.LENGTH_LONG).show();
+                        finish();
+                    } else {
+                        Toast.makeText(SessionSettingsActivity.this, 
+                            "保存失败: " + error, Toast.LENGTH_SHORT).show();
+                    }
+                });
+            }
+        });
     }
 }

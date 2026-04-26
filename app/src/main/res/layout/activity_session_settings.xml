@@ -131,7 +131,7 @@
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="提示：当前会话的 provider 和 model 在创建时已确定，无法直接修改。如需更换，请创建新会话。"
+                android:text="修改 Provider 和 Model 后，点击右上角保存按钮应用更改。"
                 android:textSize="12sp"
                 android:textColor="?android:attr/textColorSecondary"
                 android:gravity="center"

@@ -72,6 +72,14 @@ public class ApiClient {
         void onError(String error);
     }
     
+    
+    /**
+     * 更新会话回调接口
+     */
+    public interface UpdateSessionCallback {
+        void onSuccess();
+        void onError(String error);
+    }
     /**
      * Provider 模型
      */
@@ -581,6 +589,89 @@ public class ApiClient {
                 Log.e(TAG, "deleteSession failed", e);
                 new Handler(Looper.getMainLooper()).post(() -> 
                     callback.onError("Network error: " + e.getMessage()));
+            }
+        }).start();
+    }
+    
+    /**
+     * Update session configuration (provider and model).
+     * PATCH /session/:id
+     * Request body: {"provider": "...", "model": "..."}
+     * Returns 204 on success.
+     * 
+     * Note: This API endpoint may not be available on older server versions.
+     *       If the server returns 404, the update cannot be applied remotely.
+     */
+    public void updateSession(String sessionId, String provider, String model, UpdateSessionCallback callback) {
+        String baseUrl = getBaseUrl();
+        String apiKey = getApiKey();
+        
+        if (baseUrl.isEmpty() || apiKey.isEmpty()) {
+            callback.onError("Please configure API settings");
+            return;
+        }
+        
+        if (sessionId == null || sessionId.isEmpty()) {
+            callback.onError("Session ID is required");
+            return;
+        }
+        
+        new Thread(() -> {
+            try {
+                URL url = new URL(baseUrl + "/session/" + sessionId);
+                Log.d(TAG, "Update session URL: " + url.toString());
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("PATCH");
+                conn.setRequestProperty("Content-Type", "application/json");
+                conn.setRequestProperty("X-API-Key", apiKey);
+                conn.setDoOutput(true);
+                conn.setConnectTimeout(5000);
+                conn.setReadTimeout(10000);
+
+                // Build request body
+                JSONObject requestBody = new JSONObject();
+                if (provider != null && !provider.isEmpty()) {
+                    requestBody.put("provider", provider);
+                }
+                if (model != null && !model.isEmpty()) {
+                    requestBody.put("model", model);
+                }
+                
+                // Send request
+                try (OutputStream os = conn.getOutputStream()) {
+                    byte[] input = requestBody.toString().getBytes(StandardCharsets.UTF_8);
+                    os.write(input, 0, input.length);
+                }
+
+                int responseCode = conn.getResponseCode();
+                Log.d(TAG, "Update session response code: " + responseCode);
+                
+                if (responseCode == 204 || responseCode == 200) {
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onSuccess());
+                } else if (responseCode == 404) {
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onError("Session not found or API not supported"));
+                } else if (responseCode == 401) {
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onError("Unauthorized: Invalid API Key"));
+                } else if (responseCode == 400) {
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onError("Bad Request: Invalid parameters"));
+                } else {
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onError("Error: " + responseCode));
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "updateSession failed", e);
+                // Check if it's a protocol exception (method not supported)
+                if (e.getMessage() != null && e.getMessage().contains("PATCH")) {
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onError("Server does not support PATCH method. Please update chat.nvim."));
+                } else {
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onError("Network error: " + e.getMessage()));
+                }
             }
         }).start();
     }
