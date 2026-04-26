@@ -342,6 +342,11 @@ public class ApiClient {
                     conn.disconnect();
                 }
             }
+        }).start();
+    }
+    
+    public void getProviders(ProvidersCallback callback) {
+        String baseUrl = getBaseUrl();
         String apiKey = getApiKey();
         
         if (baseUrl.isEmpty() || apiKey.isEmpty()) {
