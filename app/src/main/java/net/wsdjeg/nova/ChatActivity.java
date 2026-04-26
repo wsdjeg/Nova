@@ -23,11 +23,17 @@ import java.util.List;
 /**
  * 聊天界面 Activity
  * 显示单个会话的消息列表
+ * 
+ * 分页加载逻辑：
+ * - 初始加载：since = message_count - 20
+ * - 上滚到顶部：since -= 20，加载更早的消息
+ * - 直到 since <= 1 停止加载
  */
 public class ChatActivity extends AppCompatActivity {
     
     private static final String TAG = "ChatActivity";
     private static final int REFRESH_INTERVAL_MS = 3000; // 3秒刷新一次
+    private static final int PAGE_SIZE = 20; // 每页加载的消息数
     private static final int STATE_NORMAL = 0;
     private static final int STATE_SENDING = 1;
     
@@ -58,6 +64,12 @@ public class ChatActivity extends AppCompatActivity {
     private Runnable refreshRunnable;
     private boolean isAutoRefreshEnabled = true;
     private int lastMessageCount = 0;
+    
+    // 分页加载相关
+    private int totalMessageCount = 0; // 从 Session 获取的消息总数
+    private int currentSince = 0;       // 当前加载的起始位置
+    private boolean isLoadingMore = false; // 是否正在加载更多
+    private boolean hasMoreMessages = true; // 是否还有更多历史消息
     
     // 按钮状态
     private int buttonState = STATE_NORMAL;
@@ -102,6 +114,9 @@ public class ChatActivity extends AppCompatActivity {
         Log.d(TAG, "Initializing ChatActivity with sessionId: " + currentSessionId);
         if (session != null) {
             Log.d(TAG, "Session found: accountId=" + session.getAccountId() + ", cwd=" + session.getCwd());
+            // 初始化 totalMessageCount
+            totalMessageCount = session.getMessageCount();
+            Log.d(TAG, "Total message count from session: " + totalMessageCount);
         } else {
             Log.w(TAG, "Session NOT found locally!");
         }
@@ -149,9 +164,221 @@ public class ChatActivity extends AppCompatActivity {
         setupRecyclerView();
         setupAutoRefresh();
         
-        // 加载消息
-        addMessage("正在加载消息...", false);
-        refreshMessages();
+        // 加载消息（分页加载）
+        loadInitialMessages();
+    }
+    
+    /**
+     * 加载初始消息
+     * since = totalMessageCount - PAGE_SIZE
+     */
+    private void loadInitialMessages() {
+        if (totalMessageCount <= 0) {
+            // 如果没有消息数信息，先获取会话信息
+            addMessage("正在加载消息...", false);
+            refreshSessionStatus(() -> {
+                Session session = sessionManager.getSession(currentSessionId);
+                if (session != null) {
+                    totalMessageCount = session.getMessageCount();
+                    Log.d(TAG, "Updated total message count: " + totalMessageCount);
+                }
+                loadMessagesPage();
+            });
+        } else {
+            loadMessagesPage();
+        }
+    }
+    
+    /**
+     * 加载一页消息
+     * 根据 currentSince 加载消息
+     */
+    private void loadMessagesPage() {
+        if (apiClient == null || currentSessionId == null) {
+            return;
+        }
+        
+        // 计算起始位置
+        if (currentSince == 0) {
+            // 初始加载
+            if (totalMessageCount <= PAGE_SIZE) {
+                // 消息总数少于一页，从头加载
+                currentSince = 1;
+                hasMoreMessages = false;
+            } else {
+                // 从最后 20 条开始
+                currentSince = totalMessageCount - PAGE_SIZE + 1;
+                hasMoreMessages = true;
+            }
+        }
+        
+        Log.d(TAG, "Loading messages: since=" + currentSince + ", total=" + totalMessageCount);
+        
+        isLoadingMore = true;
+        
+        apiClient.getMessagesWithOptions(currentSessionId, currentSince, PAGE_SIZE, false, 
+            new ApiClient.MessagesCallback() {
+                @Override
+                public void onSuccess(List<ApiClient.ChatMessage> chatMessages) {
+                    runOnUiThread(() -> {
+                        isLoadingMore = false;
+                        
+                        // 清除加载提示（首次加载时）
+                        if (messages.size() == 1 && messages.get(0).getContent().equals("正在加载消息...")) {
+                            messages.clear();
+                        }
+                        
+                        if (chatMessages.isEmpty()) {
+                            if (messages.isEmpty()) {
+                                addMessage("暂无消息", false);
+                            }
+                            return;
+                        }
+                        
+                        // 过滤掉 tool 消息
+                        List<ApiClient.ChatMessage> filteredMessages = new ArrayList<>();
+                        for (ApiClient.ChatMessage msg : chatMessages) {
+                            if (!"tool".equals(msg.role)) {
+                                filteredMessages.add(msg);
+                            }
+                        }
+                        
+                        // 插入到列表开头（历史消息）
+                        int oldSize = messages.size();
+                        for (int i = filteredMessages.size() - 1; i >= 0; i--) {
+                            ApiClient.ChatMessage msg = filteredMessages.get(i);
+                            boolean isUser = "user".equals(msg.role);
+                            long timestamp = msg.created * 1000L;
+                            messages.add(0, new Message(msg.content, isUser, timestamp));
+                        }
+                        
+                        // 更新 lastMessageCount
+                        lastMessageCount = messages.size();
+                        
+                        // 更新 SessionManager
+                        if (!messages.isEmpty()) {
+                            Message lastMsg = messages.get(messages.size() - 1);
+                            Message firstMsg = messages.get(0);
+                            sessionManager.updateMessages(
+                                currentSessionId,
+                                firstMsg.getContent(),
+                                lastMsg.getContent(),
+                                lastMessageCount,
+                                lastMsg.getTimestamp()
+                            );
+                            
+                            // 更新顶部标题
+                            tvSessionTitle.setText(firstMsg.getContent().split("\n")[0]);
+                        }
+                        
+                        adapter.notifyDataSetChanged();
+                        
+                        // 首次加载时滚动到底部
+                        if (oldSize == 0 || messages.size() == filteredMessages.size()) {
+                            rvMessages.scrollToPosition(messages.size() - 1);
+                        }
+                    });
+                }
+                
+                @Override
+                public void onError(String error) {
+                    runOnUiThread(() -> {
+                        isLoadingMore = false;
+                        if (messages.isEmpty()) {
+                            messages.clear();
+                            addMessage("加载失败: " + error, false);
+                        }
+                        Toast.makeText(ChatActivity.this, "加载失败: " + error, Toast.LENGTH_SHORT).show();
+                    });
+                }
+            });
+    }
+    
+    /**
+     * 加载更早的消息
+     * 上滚到顶部时调用
+     */
+    private void loadOlderMessages() {
+        if (isLoadingMore || !hasMoreMessages) {
+            return;
+        }
+        
+        // 计算新的起始位置
+        int newSince = currentSince - PAGE_SIZE;
+        if (newSince <= 1) {
+            newSince = 1;
+            hasMoreMessages = false;
+        }
+        
+        if (newSince >= currentSince) {
+            // 没有更早的消息了
+            hasMoreMessages = false;
+            return;
+        }
+        
+        currentSince = newSince;
+        Log.d(TAG, "Loading older messages: since=" + currentSince);
+        
+        isLoadingMore = true;
+        // 显示加载提示
+        messages.add(0, new Message("加载中...", false, System.currentTimeMillis()));
+        adapter.notifyItemInserted(0);
+        
+        apiClient.getMessagesWithOptions(currentSessionId, currentSince, PAGE_SIZE, false,
+            new ApiClient.MessagesCallback() {
+                @Override
+                public void onSuccess(List<ApiClient.ChatMessage> chatMessages) {
+                    runOnUiThread(() -> {
+                        isLoadingMore = false;
+                        
+                        // 移除加载提示
+                        if (!messages.isEmpty() && messages.get(0).getContent().equals("加载中...")) {
+                            messages.remove(0);
+                            adapter.notifyItemRemoved(0);
+                        }
+                        
+                        if (chatMessages.isEmpty()) {
+                            hasMoreMessages = false;
+                            return;
+                        }
+                        
+                        // 过滤掉 tool 消息
+                        List<ApiClient.ChatMessage> filteredMessages = new ArrayList<>();
+                        for (ApiClient.ChatMessage msg : chatMessages) {
+                            if (!"tool".equals(msg.role)) {
+                                filteredMessages.add(msg);
+                            }
+                        }
+                        
+                        // 插入到列表开头
+                        int insertPosition = 0;
+                        for (int i = filteredMessages.size() - 1; i >= 0; i--) {
+                            ApiClient.ChatMessage msg = filteredMessages.get(i);
+                            boolean isUser = "user".equals(msg.role);
+                            long timestamp = msg.created * 1000L;
+                            messages.add(insertPosition, new Message(msg.content, isUser, timestamp));
+                        }
+                        
+                        lastMessageCount = messages.size();
+                        adapter.notifyDataSetChanged();
+                    });
+                }
+                
+                @Override
+                public void onError(String error) {
+                    runOnUiThread(() -> {
+                        isLoadingMore = false;
+                        
+                        // 移除加载提示
+                        if (!messages.isEmpty() && messages.get(0).getContent().equals("加载中...")) {
+                            messages.remove(0);
+                            adapter.notifyItemRemoved(0);
+                        }
+                        
+                        Toast.makeText(ChatActivity.this, "加载历史消息失败: " + error, Toast.LENGTH_SHORT).show();
+                    });
+                }
+            });
     }
     
     /**
@@ -163,6 +390,7 @@ public class ChatActivity extends AppCompatActivity {
         
         if (session != null) {
             updateSessionInfo(session);
+            totalMessageCount = session.getMessageCount();
         } else {
             // 从 API 获取会话详情
             apiClient.getSessions(new ApiClient.SessionsCallback() {
@@ -173,6 +401,7 @@ public class ChatActivity extends AppCompatActivity {
                             if (s.getSessionId().equals(currentSessionId)) {
                                 sessionManager.updateSession(s);
                                 updateSessionInfo(s);
+                                totalMessageCount = s.getMessageCount();
                                 break;
                             }
                         }
@@ -362,6 +591,26 @@ public class ChatActivity extends AppCompatActivity {
         layoutManager.setStackFromEnd(true);
         rvMessages.setLayoutManager(layoutManager);
         rvMessages.setAdapter(adapter);
+        
+        // 添加滚动监听器，检测上滚到顶部
+        rvMessages.addOnScrollListener(new RecyclerView.OnScrollListener() {
+            @Override
+            public void onScrolled(RecyclerView recyclerView, int dx, int dy) {
+                super.onScrolled(recyclerView, dx, dy);
+                
+                // 检测是否滚动到顶部
+                LinearLayoutManager layoutManager = (LinearLayoutManager) recyclerView.getLayoutManager();
+                if (layoutManager != null) {
+                    int firstVisiblePosition = layoutManager.findFirstVisibleItemPosition();
+                    
+                    // 当滚动到顶部时，加载更早的消息
+                    if (firstVisiblePosition == 0 && dy < 0 && !isLoadingMore && hasMoreMessages) {
+                        Log.d(TAG, "Scrolled to top, loading older messages...");
+                        loadOlderMessages();
+                    }
+                }
+            }
+        });
     }
     
     private void setupAutoRefresh() {
@@ -390,23 +639,21 @@ public class ChatActivity extends AppCompatActivity {
     
     /**
      * 刷新消息和会话状态
-     * 改进：使用增量刷新减少网络请求
+     * 改进：只获取新消息（增量刷新）
      */
     private void refreshMessages() {
         if (apiClient == null || currentSessionId == null) {
             return;
         }
         
-        // 同时获取消息和会话状态
-        refreshSessionStatus();
+        // 同时获取会话状态
+        refreshSessionStatus(null);
         
-        // 使用增量刷新：如果已有消息，只获取新消息
+        // 使用增量刷新：只获取新消息
         if (lastMessageCount > 0) {
             refreshNewMessages();
-        } else {
-            // 首次加载，获取所有消息
-            refreshAllMessages();
         }
+        // 如果 lastMessageCount == 0，说明还没加载完初始消息，等待初始加载完成
     }
     
     /**
@@ -434,14 +681,14 @@ public class ChatActivity extends AppCompatActivity {
                         return;
                     }
                     
-                    // 添加新消息到列表
+                    // 添加新消息到列表末尾
                     for (ApiClient.ChatMessage msg : newMessages) {
                         boolean isUser = "user".equals(msg.role);
                         long timestamp = msg.created * 1000L;
                         messages.add(new Message(msg.content, isUser, timestamp));
                     }
                     
-                    lastMessageCount += newMessages.size();
+                    lastMessageCount = messages.size();
                     adapter.notifyDataSetChanged();
                     rvMessages.scrollToPosition(messages.size() - 1);
                     
@@ -460,60 +707,8 @@ public class ChatActivity extends AppCompatActivity {
 
             @Override
             public void onError(String error) {
-                // 增量刷新失败，可能是服务器不支持，尝试全量刷新
-                refreshAllMessages();
-            }
-        });
-    }
-    
-    /**
-     * 全量刷新：获取所有消息
-     */
-    private void refreshAllMessages() {
-        apiClient.getMessages(currentSessionId, new ApiClient.MessagesCallback() {
-            @Override
-            public void onSuccess(List<ApiClient.ChatMessage> chatMessages) {
-                runOnUiThread(() -> {
-                    if (chatMessages.size() != lastMessageCount) {
-                        updateMessagesList(chatMessages);
-                        lastMessageCount = chatMessages.size();
-                        
-                        // 更新 SessionManager 中的消息信息
-                        if (!chatMessages.isEmpty()) {
-                            ApiClient.ChatMessage lastMsg = chatMessages.get(chatMessages.size() - 1);
-                            // 查找第一条用户消息作为标题
-                            String firstUserMessage = null;
-                            for (ApiClient.ChatMessage msg : chatMessages) {
-                                if ("user".equals(msg.role)) {
-                                    firstUserMessage = msg.content;
-                                    break;
-                                }
-                            }
-                            sessionManager.updateMessages(
-                                currentSessionId,
-                                firstUserMessage,  // 第一条用户消息作为标题
-                                lastMsg.content,
-                                chatMessages.size(),
-                                lastMsg.created * 1000L  // lastMessageTime in ms
-                            );
-                            
-                            // 更新顶部标题
-                            if (firstUserMessage != null) {
-                                tvSessionTitle.setText(firstUserMessage);
-                            }
-                        }
-                    }
-                });
-            }
-
-            @Override
-            public void onError(String error) {
-                if (messages.size() <= 1) {
-                    runOnUiThread(() -> {
-                        addMessage("加载失败: " + error, false);
-                        Toast.makeText(ChatActivity.this, "加载失败: " + error, Toast.LENGTH_SHORT).show();
-                    });
-                }
+                // 增量刷新失败，静默忽略
+                Log.d(TAG, "Incremental refresh failed: " + error);
             }
         });
     }
@@ -521,7 +716,7 @@ public class ChatActivity extends AppCompatActivity {
     /**
      * 刷新会话状态（检查是否正在生成）
      */
-    private void refreshSessionStatus() {
+    private void refreshSessionStatus(Runnable onComplete) {
         apiClient.getSessions(new ApiClient.SessionsCallback() {
             @Override
             public void onSuccess(List<Session> sessions) {
@@ -531,6 +726,9 @@ public class ChatActivity extends AppCompatActivity {
                             boolean wasInProgress = isInProgress;
                             isInProgress = session.isInProgress();
                             
+                            // 更新消息总数
+                            totalMessageCount = session.getMessageCount();
+                            
                             // 更新按钮状态
                             if (isInProgress) {
                                 setButtonStateSending();
@@ -538,13 +736,16 @@ public class ChatActivity extends AppCompatActivity {
                                 // 从进行中变为非进行中，说明响应完成或被停止
                                 if (wasInProgress) {
                                     // 刷新消息以获取最新响应
-                                    lastMessageCount = 0; // 强制刷新
-                                    refreshMessages();
+                                    refreshNewMessages();
                                 }
                                 setButtonStateNormal();
                             }
                             break;
                         }
+                    }
+                    
+                    if (onComplete != null) {
+                        onComplete.run();
                     }
                 });
             }
@@ -552,34 +753,11 @@ public class ChatActivity extends AppCompatActivity {
             @Override
             public void onError(String error) {
                 // 忽略错误，保持当前状态
+                if (onComplete != null) {
+                    runOnUiThread(onComplete);
+                }
             }
         });
-    }
-    
-    private void updateMessagesList(List<ApiClient.ChatMessage> chatMessages) {
-        int scrollPosition = ((LinearLayoutManager) rvMessages.getLayoutManager())
-                .findFirstVisibleItemPosition();
-        boolean shouldScrollToBottom = scrollPosition >= messages.size() - 2;
-        
-        messages.clear();
-        
-        for (ApiClient.ChatMessage msg : chatMessages) {
-            // 过滤掉 role == "tool" 的消息
-            if ("tool".equals(msg.role)) {
-                continue;
-            }
-            boolean isUser = "user".equals(msg.role);
-            // Lua os.time() 返回的是秒，Java 需要毫秒
-            long timestamp = msg.created * 1000L;
-            messages.add(new Message(msg.content, isUser, timestamp));
-        }
-        
-        adapter.notifyDataSetChanged();
-        
-        if (shouldScrollToBottom && messages.size() > 0) {
-            // 直接跳转到底部，避免长时间滚动动画
-            rvMessages.scrollToPosition(messages.size() - 1);
-        }
     }
     
     /**
@@ -695,8 +873,7 @@ public class ChatActivity extends AppCompatActivity {
                     isInProgress = false;
                     setButtonStateNormal();
                     // 刷新消息
-                    lastMessageCount = 0;
-                    refreshMessages();
+                    refreshNewMessages();
                 });
             }
 
@@ -745,8 +922,7 @@ public class ChatActivity extends AppCompatActivity {
                 runOnUiThread(() -> {
                     Toast.makeText(ChatActivity.this, "已重新发送", Toast.LENGTH_SHORT).show();
                     // 刷新消息
-                    lastMessageCount = 0;
-                    refreshMessages();
+                    refreshNewMessages();
                 });
             }
 
