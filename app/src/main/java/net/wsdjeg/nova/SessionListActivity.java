@@ -519,8 +519,6 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
                                 lastMessageTime
                             );
                             
-                            sessionManager.saveReadMessageCount(sessionId, serverMessageCount);
-                            
                             Session updatedSession = sessionManager.getSession(sessionId);
                             if (updatedSession != null) {
                                 updatedSession.setUnreadCount(0);
@@ -537,17 +535,6 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
                     }
                 });
             }
-        }
-    }
-                        }
-                    });
-                }
-                
-                @Override
-                public void onError(String error) {
-                    // 忽略单个会话的轮询错误
-                }
-            });
         }
     }
     
