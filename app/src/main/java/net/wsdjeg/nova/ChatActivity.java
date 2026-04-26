@@ -294,6 +294,7 @@ public class ChatActivity extends AppCompatActivity {
         
         startActivity(intent);
     }
+    
     /**
      * 使用浏览器打开预览链接
      */
@@ -387,9 +388,6 @@ public class ChatActivity extends AppCompatActivity {
         }
     }
     
-    /**
-     * 刷新消息和会话状态
-     */
     /**
      * 刷新消息和会话状态
      * 改进：使用增量刷新减少网络请求
@@ -511,7 +509,15 @@ public class ChatActivity extends AppCompatActivity {
             @Override
             public void onError(String error) {
                 if (messages.size() <= 1) {
-                    runOnUiThread(() -> 
+                    runOnUiThread(() -> {
+                        addMessage("加载失败: " + error, false);
+                        Toast.makeText(ChatActivity.this, "加载失败: " + error, Toast.LENGTH_SHORT).show();
+                    });
+                }
+            }
+        });
+    }
+    
     /**
      * 刷新会话状态（检查是否正在生成）
      */
@@ -647,6 +653,7 @@ public class ChatActivity extends AppCompatActivity {
                     refreshMessages();
                 });
             }
+            
             @Override
             public void onError(String error) {
                 runOnUiThread(() -> {
@@ -661,7 +668,6 @@ public class ChatActivity extends AppCompatActivity {
         });
     }
 
-    /**
     /**
      * 停止生成
      */
