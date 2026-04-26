@@ -285,11 +285,9 @@ public class ApiClient {
                         String model = sessionObj.optString("model", "");
                         boolean inProgress = sessionObj.optBoolean("in_progress", false);
                         int messageCount = sessionObj.optInt("message_count", 0);
-                        
                         long lastMessageTime = System.currentTimeMillis();
                         // 解析 last_message 的内容（用于预览）
                         String lastMessageContent = "";
-                        long lastMessageTime = System.currentTimeMillis();
                         JSONObject lastMsgObj = sessionObj.optJSONObject("last_message");
                         if (lastMsgObj != null) {
                             lastMessageContent = lastMsgObj.optString("content", "");
@@ -300,7 +298,7 @@ public class ApiClient {
                             Session session = new Session(id);
                             session.setAccountId(accountId);
                             session.setTitle(title);
-                            session.setLastMessage(lastMessageContent);  // 设置预览内容
+                            session.setLastMessage(lastMessageContent);
                             session.setCwd(cwd);
                             session.setProvider(provider);
                             session.setModel(model);
@@ -310,13 +308,27 @@ public class ApiClient {
                             sessions.add(session);
                         }
                     }
+                    
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onSuccess(sessions));
+                } else {
+                    final int code = responseCode;
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onError("Error: " + code));
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "getSessions failed", e);
+                new Handler(Looper.getMainLooper()).post(() -> 
+                    callback.onError("Network error: " + e.getMessage()));
+            } finally {
+                if (br != null) {
+                    try { br.close(); } catch (Exception ignored) {}
+                }
+                if (conn != null) {
+                    conn.disconnect();
                 }
             }
         }).start();
-    }
-    
-    public void getSessions(SessionsCallback callback) {
-        getSessions(null, callback);
     }
     
     public void getProviders(ProvidersCallback callback) {
