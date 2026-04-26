@@ -411,55 +411,45 @@ public class ApiClient {
     public void createSession(String cwd, String provider, String model, String accountId, CreateSessionCallback callback) {
         String baseUrl = getBaseUrl();
         String apiKey = getApiKey();
-                if (responseCode == 200) {
-                    br = new BufferedReader(new InputStreamReader(conn.getInputStream(), "UTF-8"));
-                    StringBuilder response = new StringBuilder();
-                    String line;
-                    while ((line = br.readLine()) != null) {
-                        response.append(line);
-                    }
-                    
-                    JSONArray jsonArray = new JSONArray(response.toString());
-                    List<Session> sessions = new ArrayList<>();
-                    
-                    for (int i = 0; i < jsonArray.length(); i++) {
-                        JSONObject sessionObj = jsonArray.getJSONObject(i);
-                        String id = sessionObj.optString("id", "");
-                        String title = sessionObj.optString("title", "");
-                        String cwd = sessionObj.optString("cwd", "");
-                        String provider = sessionObj.optString("provider", "");
-                        String model = sessionObj.optString("model", "");
-                        boolean inProgress = sessionObj.optBoolean("in_progress", false);
-                        int messageCount = sessionObj.optInt("message_count", 0);
-                        
-                        // 解析 last_message 的内容（用于预览）
-                        String lastMessageContent = "";
-                        long lastMessageTime = System.currentTimeMillis();
-                        JSONObject lastMsgObj = sessionObj.optJSONObject("last_message");
-                        if (lastMsgObj != null) {
-                            lastMessageContent = lastMsgObj.optString("content", "");
-                            lastMessageTime = lastMsgObj.optLong("created", System.currentTimeMillis()) * 1000;
-                        }
-                        
-                        if (!id.isEmpty()) {
-                            Session session = new Session(id);
-                            session.setAccountId(accountId);
-                            session.setTitle(title);
-                            session.setLastMessage(lastMessageContent);  // 设置预览内容
-                            session.setCwd(cwd);
-                            session.setProvider(provider);
-                            session.setModel(model);
-                            session.setInProgress(inProgress);
-                            session.setMessageCount(messageCount);
-                            session.setLastMessageTime(lastMessageTime);
-                            sessions.add(session);
-                        }
-                    }
-                    
-                    new Handler(Looper.getMainLooper()).post(() -> 
-                        callback.onSuccess(sessions));
-                } else {
-
+        
+        if (baseUrl.isEmpty() || apiKey.isEmpty()) {
+            callback.onError("Please configure API settings");
+            return;
+        }
+        
+        new Thread(() -> {
+            HttpURLConnection conn = null;
+            BufferedReader br = null;
+            try {
+                URL url = new URL(baseUrl + "/session");
+                conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("POST");
+                conn.setRequestProperty("Content-Type", "application/json");
+                conn.setRequestProperty("X-API-Key", apiKey);
+                conn.setRequestProperty("Connection", "close");
+                conn.setDoOutput(true);
+                conn.setConnectTimeout(15000);
+                conn.setReadTimeout(30000);
+                conn.setUseCaches(false);
+                
+                // Build request body
+                JSONObject requestBody = new JSONObject();
+                if (cwd != null && !cwd.isEmpty()) {
+                    requestBody.put("cwd", cwd);
+                }
+                if (provider != null && !provider.isEmpty()) {
+                    requestBody.put("provider", provider);
+                }
+                if (model != null && !model.isEmpty()) {
+                    requestBody.put("model", model);
+                }
+                
+                // Send request
+                OutputStream os = conn.getOutputStream();
+                os.write(requestBody.toString().getBytes("UTF-8"));
+                os.flush();
+                os.close();
+                
                 int responseCode = conn.getResponseCode();
                 
                 if (responseCode == 201) {
@@ -577,14 +567,14 @@ public class ApiClient {
             return;
         }
         
-        if (sessionId == null || sessionId.isEmpty()) {
-            callback.onError("Session ID is required");
-            return;
-        }
-        
         new Thread(() -> {
             AtomicBoolean allSuccess = new AtomicBoolean(true);
             AtomicReference<String> errorMsg = new AtomicReference<>("");
+            
+            if (provider != null && !provider.isEmpty()) {
+            AtomicReference<String> errorMsg = new AtomicReference<>("");
+            
+            if (provider != null && !provider.isEmpty()) {
             
             if (provider != null && !provider.isEmpty()) {
                 HttpURLConnection conn = null;
