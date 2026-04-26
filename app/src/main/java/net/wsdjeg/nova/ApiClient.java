@@ -11,6 +11,8 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -595,12 +597,10 @@ public class ApiClient {
     
     /**
      * Update session configuration (provider and model).
-     * PATCH /session/:id
-     * Request body: {"provider": "...", "model": "..."}
+     * Uses two separate PUT endpoints:
+     * - PUT /session/:id/provider
+     * - PUT /session/:id/model
      * Returns 204 on success.
-     * 
-     * Note: This API endpoint may not be available on older server versions.
-     *       If the server returns 404, the update cannot be applied remotely.
      */
     public void updateSession(String sessionId, String provider, String model, UpdateSessionCallback callback) {
         String baseUrl = getBaseUrl();
@@ -617,70 +617,108 @@ public class ApiClient {
         }
         
         new Thread(() -> {
-            try {
-                URL url = new URL(baseUrl + "/session/" + sessionId);
-                Log.d(TAG, "Update session URL: " + url.toString());
-                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-                conn.setRequestMethod("PATCH");
-                conn.setRequestProperty("Content-Type", "application/json");
-                conn.setRequestProperty("X-API-Key", apiKey);
-                conn.setDoOutput(true);
-                conn.setConnectTimeout(5000);
-                conn.setReadTimeout(10000);
+            AtomicBoolean allSuccess = new AtomicBoolean(true);
+            AtomicReference<String> errorMsg = new AtomicReference<>("");
+            
+            // Update provider if changed
+            if (provider != null && !provider.isEmpty()) {
+                try {
+                    URL url = new URL(baseUrl + "/session/" + sessionId + "/provider");
+                    Log.d(TAG, "Update provider URL: " + url.toString());
+                    HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                    conn.setRequestMethod("PUT");
+                    conn.setRequestProperty("Content-Type", "application/json");
+                    conn.setRequestProperty("X-API-Key", apiKey);
+                    conn.setDoOutput(true);
+                    conn.setConnectTimeout(5000);
+                    conn.setReadTimeout(10000);
 
-                // Build request body
-                JSONObject requestBody = new JSONObject();
-                if (provider != null && !provider.isEmpty()) {
+                    JSONObject requestBody = new JSONObject();
                     requestBody.put("provider", provider);
-                }
-                if (model != null && !model.isEmpty()) {
-                    requestBody.put("model", model);
-                }
-                
-                // Send request
-                try (OutputStream os = conn.getOutputStream()) {
-                    byte[] input = requestBody.toString().getBytes(StandardCharsets.UTF_8);
-                    os.write(input, 0, input.length);
-                }
+                    
+                    try (OutputStream os = conn.getOutputStream()) {
+                        byte[] input = requestBody.toString().getBytes(StandardCharsets.UTF_8);
+                        os.write(input, 0, input.length);
+                    }
 
-                int responseCode = conn.getResponseCode();
-                Log.d(TAG, "Update session response code: " + responseCode);
-                
-                if (responseCode == 204 || responseCode == 200) {
-                    new Handler(Looper.getMainLooper()).post(() -> 
-                        callback.onSuccess());
-                } else if (responseCode == 404) {
-                    new Handler(Looper.getMainLooper()).post(() -> 
-                        callback.onError("Session not found or API not supported"));
-                } else if (responseCode == 401) {
-                    new Handler(Looper.getMainLooper()).post(() -> 
-                        callback.onError("Unauthorized: Invalid API Key"));
-                } else if (responseCode == 400) {
-                    new Handler(Looper.getMainLooper()).post(() -> 
-                        callback.onError("Bad Request: Invalid parameters"));
-                } else {
-                    new Handler(Looper.getMainLooper()).post(() -> 
-                        callback.onError("Error: " + responseCode));
-                }
-            } catch (Exception e) {
-                Log.e(TAG, "updateSession failed", e);
-                // Check if it's a protocol exception (method not supported)
-                if (e.getMessage() != null && e.getMessage().contains("PATCH")) {
-                    new Handler(Looper.getMainLooper()).post(() -> 
-                        callback.onError("Server does not support PATCH method. Please update chat.nvim."));
-                } else {
-                    new Handler(Looper.getMainLooper()).post(() -> 
-                        callback.onError("Network error: " + e.getMessage()));
+                    int responseCode = conn.getResponseCode();
+                    Log.d(TAG, "Update provider response: " + responseCode);
+                    
+                    if (responseCode != 204 && responseCode != 200) {
+                        allSuccess.set(false);
+                        if (responseCode == 404) {
+                            errorMsg.set("Session not found");
+                        } else if (responseCode == 401) {
+                            errorMsg.set("Unauthorized: Invalid API Key");
+                        } else if (responseCode == 400) {
+                            errorMsg.set("Invalid provider");
+                        } else {
+                            errorMsg.set("Provider update failed: " + responseCode);
+                        }
+                    }
+                } catch (Exception e) {
+                    Log.e(TAG, "Update provider failed", e);
+                    allSuccess.set(false);
+                    errorMsg.set("Network error: " + e.getMessage());
                 }
             }
+            
+            // Update model if provider update succeeded
+            if (allSuccess.get() && model != null && !model.isEmpty()) {
+                try {
+                    URL url = new URL(baseUrl + "/session/" + sessionId + "/model");
+                    Log.d(TAG, "Update model URL: " + url.toString());
+                    HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                    conn.setRequestMethod("PUT");
+                    conn.setRequestProperty("Content-Type", "application/json");
+                    conn.setRequestProperty("X-API-Key", apiKey);
+                    conn.setDoOutput(true);
+                    conn.setConnectTimeout(5000);
+                    conn.setReadTimeout(10000);
+
+                    JSONObject requestBody = new JSONObject();
+                    requestBody.put("model", model);
+                    
+                    try (OutputStream os = conn.getOutputStream()) {
+                        byte[] input = requestBody.toString().getBytes(StandardCharsets.UTF_8);
+                        os.write(input, 0, input.length);
+                    }
+
+                    int responseCode = conn.getResponseCode();
+                    Log.d(TAG, "Update model response: " + responseCode);
+                    
+                    if (responseCode != 204 && responseCode != 200) {
+                        allSuccess.set(false);
+                        if (responseCode == 404) {
+                            errorMsg.set("Session not found");
+                        } else if (responseCode == 401) {
+                            errorMsg.set("Unauthorized: Invalid API Key");
+                        } else if (responseCode == 400) {
+                            errorMsg.set("Invalid model");
+                        } else {
+                            errorMsg.set("Model update failed: " + responseCode);
+                        }
+                    }
+                } catch (Exception e) {
+                    Log.e(TAG, "Update model failed", e);
+                    allSuccess.set(false);
+                    errorMsg.set("Network error: " + e.getMessage());
+                }
+            }
+            
+            // Return result
+            if (allSuccess.get()) {
+                new Handler(Looper.getMainLooper()).post(() -> callback.onSuccess());
+            } else {
+                new Handler(Looper.getMainLooper()).post(() -> callback.onError(errorMsg.get()));
+            }
         }).start();
-    }
-    
     /**
      * Get messages for a specific session.
      * GET /messages?session=xxx
      * Returns JSON array with messages containing role, content, and created timestamp.
      */
+    public void getMessages(String sessionId, MessagesCallback callback) {
     public void getMessages(String sessionId, MessagesCallback callback) {
         String baseUrl = getBaseUrl();
         String apiKey = getApiKey();
