@@ -297,6 +297,20 @@ public class ApiClient {
                         if (!id.isEmpty()) {
                             Session session = new Session(id);
                             session.setAccountId(accountId);
+                            // 如果 title 为空，使用 last_message.content 的第一行作为备用
+                            if (title == null || title.isEmpty()) {
+                                if (lastMessageContent != null && !lastMessageContent.isEmpty()) {
+                                    // 取第一行作为标题
+                                    String firstLine = lastMessageContent.split("\n")[0].trim();
+                                    if (firstLine.length() > 50) {
+                                        firstLine = firstLine.substring(0, 50) + "...";
+                                    }
+                                    title = firstLine;
+                                } else if (cwd != null && !cwd.isEmpty()) {
+                                    // 如果没有消息，使用 cwd 作为标题
+                                    title = cwd;
+                                }
+                            }
                             session.setTitle(title);
                             session.setLastMessage(lastMessageContent);
                             session.setCwd(cwd);
@@ -328,11 +342,6 @@ public class ApiClient {
                     conn.disconnect();
                 }
             }
-        }).start();
-    }
-    
-    public void getProviders(ProvidersCallback callback) {
-        String baseUrl = getBaseUrl();
         String apiKey = getApiKey();
         
         if (baseUrl.isEmpty() || apiKey.isEmpty()) {
