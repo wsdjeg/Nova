@@ -377,6 +377,18 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
                 @Override
                 public void onError(String error) {
                     runOnUiThread(() -> {
+                        // Mark as initialized anyway to avoid retry loops
+                        sessionManager.addInitializedSession(currentSessionId);
+                        syncCompleted++;
+                        updateSyncProgress();
+
+                        Toast.makeText(SessionListActivity.this,
+                                "同步会话消息失败: " + error,
+                                Toast.LENGTH_SHORT).show();
+                    });
+                }
+            });
+        }
     }
     
     /**
