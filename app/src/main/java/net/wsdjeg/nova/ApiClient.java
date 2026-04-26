@@ -806,6 +806,140 @@ public class ApiClient {
     }
     
     /**
+     * Get messages for a specific session with options.
+     * GET /messages?session=xxx&since=N&limit=N&last=true
+     * 
+     * @param sessionId Session ID
+     * @param since     Starting index (0-based), -1 means no limit
+     * @param limit     Maximum number of messages to return, -1 means no limit
+     * @param last      If true, only return the last message
+     * @param callback  Callback for success/error
+     */
+    public void getMessagesWithOptions(String sessionId, int since, int limit, boolean last, MessagesCallback callback) {
+        String baseUrl = getBaseUrl();
+        String apiKey = getApiKey();
+        
+        if (baseUrl.isEmpty() || apiKey.isEmpty()) {
+            callback.onError("Please configure API settings");
+            return;
+        }
+        
+        if (sessionId == null || sessionId.isEmpty()) {
+            sessionId = getSession();
+            if (sessionId.isEmpty()) {
+                callback.onError("Please configure Session ID");
+                return;
+            }
+        }
+        
+        final String finalSessionId = sessionId;
+        
+        new Thread(() -> {
+            try {
+                // Build URL with query parameters
+                StringBuilder urlBuilder = new StringBuilder(baseUrl + "/messages?session=" + finalSessionId);
+                
+                if (since >= 0) {
+                    urlBuilder.append("&since=").append(since);
+                }
+                if (limit > 0) {
+                    urlBuilder.append("&limit=").append(limit);
+                }
+                if (last) {
+                    urlBuilder.append("&last=true");
+                }
+                
+                URL url = new URL(urlBuilder.toString());
+                Log.d(TAG, "getMessagesWithOptions URL: " + url.toString());
+                
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("GET");
+                conn.setRequestProperty("X-API-Key", apiKey);
+                conn.setConnectTimeout(10000);
+                conn.setReadTimeout(30000);  // 使用较短的超时，因为是增量请求
+                
+                int responseCode = conn.getResponseCode();
+                
+                if (responseCode == 200) {
+                    BufferedReader br = new BufferedReader(
+                        new InputStreamReader(conn.getInputStream()));
+                    StringBuilder response = new StringBuilder();
+                    String line;
+                    while ((line = br.readLine()) != null) {
+                        response.append(line);
+                    }
+                    br.close();
+                    
+                    // Parse JSON array
+                    JSONArray jsonArray = new JSONArray(response.toString());
+                    List<ChatMessage> messages = new ArrayList<>();
+                    
+                    for (int i = 0; i < jsonArray.length(); i++) {
+                        JSONObject msg = jsonArray.getJSONObject(i);
+                        String role = msg.optString("role", "");
+                        String content = msg.optString("content", "");
+                        long created = msg.optLong("created", System.currentTimeMillis() / 1000);
+                        
+                        if (!content.isEmpty()) {
+                            messages.add(new ChatMessage(role, content, created));
+                        }
+                    }
+                    
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onSuccess(messages));
+                } else if (responseCode == 401) {
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onError("Unauthorized: Invalid API Key"));
+                } else if (responseCode == 404) {
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onError("Session not found"));
+                } else if (responseCode == 400) {
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onError("Bad Request: Invalid parameters"));
+                } else {
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onError("Error: " + responseCode));
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "getMessagesWithOptions failed", e);
+                new Handler(Looper.getMainLooper()).post(() -> 
+                    callback.onError("Network error: " + e.getMessage()));
+            }
+        }).start();
+    }
+    
+    /**
+     * Get last message for a specific session (for preview).
+     * Uses last=true parameter to efficiently get just the last message.
+     */
+    public void getLastMessage(String sessionId, MessagesCallback callback) {
+        getMessagesWithOptions(sessionId, -1, -1, true, callback);
+    }
+    
+    /**
+     * Get new messages since a specific index.
+     * Uses since parameter for incremental polling.
+     * 
+     * @param sessionId Session ID
+     * @param sinceIndex Starting index (e.g., if you have 10 messages, use since=10 to get new ones)
+     * @param callback  Callback
+     */
+    public void getNewMessages(String sessionId, int sinceIndex, MessagesCallback callback) {
+        getMessagesWithOptions(sessionId, sinceIndex, -1, false, callback);
+    }
+    
+    /**
+     * Get messages for pagination (scrolling to top).
+     * 
+     * @param sessionId Session ID
+     * @param limit     Number of messages to get
+     * @param callback  Callback
+     */
+    public void getMessagesPaginated(String sessionId, int limit, MessagesCallback callback) {
+        getMessagesWithOptions(sessionId, -1, limit, false, callback);
+    }
+    
+    /**
      * Get HTML preview of a session.
      * GET /session?id=session-id
      * Returns HTML content.
