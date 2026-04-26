@@ -324,19 +324,6 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
     private void pollSessionMessages(String accountId, ApiClient accountApiClient) {
         // 不再轮询消息，消息列表只在打开会话时获取
     }
-        Session updatedSession = sessionManager.getSession(sessionId);
-        if (updatedSession == null) {
-            return;
-        }
-        
-        for (int i = 0; i < sessions.size(); i++) {
-            if (sessions.get(i).getSessionId().equals(sessionId)) {
-                sessions.set(i, updatedSession);
-                adapter.notifyItemChanged(i);
-                break;
-            }
-        }
-    }
     
     /**
      * 创建新会话
