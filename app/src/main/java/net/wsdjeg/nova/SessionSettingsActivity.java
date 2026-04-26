@@ -90,7 +90,7 @@ public class SessionSettingsActivity extends AppCompatActivity {
         
         settingsManager = new SettingsManager(this);
         accountManager = AccountManager.getInstance(this);
-        sessionManager = SessionManager.getInstance(this);
+        sessionManager = new SessionManager(this);
         
         initViews();
         loadSessionInfo();
