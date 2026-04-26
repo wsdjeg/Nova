@@ -405,7 +405,7 @@ public class ChatActivity extends AppCompatActivity {
             updateSessionInfo(session);
             totalMessageCount = session.getMessageCount();
         } else {
-            apiClient.getSessions(new ApiClient.SessionsCallback() {
+            apiClient.getSessions(accountId, new ApiClient.SessionsCallback() {
                 @Override
                 public void onSuccess(List<Session> sessions) {
                     runOnUiThread(() -> {
@@ -728,7 +728,7 @@ public class ChatActivity extends AppCompatActivity {
      * 刷新会话状态（检查是否正在生成）
      */
     private void refreshSessionStatus(Runnable onComplete) {
-        apiClient.getSessions(new ApiClient.SessionsCallback() {
+        apiClient.getSessions(accountId, new ApiClient.SessionsCallback() {
             @Override
             public void onSuccess(List<Session> sessions) {
                 runOnUiThread(() -> {
