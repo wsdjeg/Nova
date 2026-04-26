@@ -81,9 +81,11 @@ public class SessionAdapter extends RecyclerView.Adapter<SessionAdapter.SessionV
         
         // 显示账号标签（如果有账号信息）
         String accountId = session.getAccountId();
+        boolean hasAccount = false;
         if (accountId != null && !accountId.isEmpty() && accountManager != null) {
             Account account = accountManager.getAccount(accountId);
             if (account != null) {
+                hasAccount = true;
                 holder.textAccount.setVisibility(View.VISIBLE);
                 holder.textAccount.setText(account.getDisplayName());
                 // 设置账号标签背景色（使用新的优先级逻辑）
@@ -95,7 +97,25 @@ public class SessionAdapter extends RecyclerView.Adapter<SessionAdapter.SessionV
             holder.textAccount.setVisibility(View.GONE);
         }
         
-
+        // 显示 Provider/Model 标签
+        String provider = session.getProvider();
+        String model = session.getModel();
+        if (provider != null && !provider.isEmpty() && model != null && !model.isEmpty()) {
+            holder.textProviderModel.setVisibility(View.VISIBLE);
+            holder.textProviderModel.setText(provider + " / " + model);
+        } else if (provider != null && !provider.isEmpty()) {
+            holder.textProviderModel.setVisibility(View.VISIBLE);
+            holder.textProviderModel.setText(provider);
+        } else {
+            holder.textProviderModel.setVisibility(View.GONE);
+        }
+        
+        // 显示 Spinner（当会话正在进行时）
+        if (session.isInProgress()) {
+            holder.progressSpinner.setVisibility(View.VISIBLE);
+        } else {
+            holder.progressSpinner.setVisibility(View.GONE);
+        }
         
         // 点击事件
         holder.itemView.setOnClickListener(v -> {
