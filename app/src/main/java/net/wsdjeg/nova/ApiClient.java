@@ -157,15 +157,19 @@ public class ApiClient {
         }
         
         new Thread(() -> {
+            HttpURLConnection conn = null;
+            BufferedReader br = null;
             try {
                 URL url = new URL(baseUrl + "/");
-                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("POST");
                 conn.setRequestProperty("Content-Type", "application/json");
                 conn.setRequestProperty("X-API-Key", apiKey);
+                conn.setRequestProperty("Connection", "close");
                 conn.setDoOutput(true);
-                conn.setConnectTimeout(10000);
-                conn.setReadTimeout(30000);
+                conn.setConnectTimeout(15000);
+                conn.setReadTimeout(60000);
+                conn.setUseCaches(false);
 
                 JSONObject requestBody = new JSONObject();
                 requestBody.put("session", sessionId);
@@ -182,20 +186,19 @@ public class ApiClient {
                     new Handler(Looper.getMainLooper()).post(() -> 
                         callback.onSuccess("Message sent successfully"));
                 } else if (responseCode == 200 || responseCode == 201) {
-                    BufferedReader br = new BufferedReader(
-                        new InputStreamReader(conn.getInputStream()));
+                    br = new BufferedReader(new InputStreamReader(conn.getInputStream(), "UTF-8"));
                     StringBuilder response = new StringBuilder();
                     String line;
                     while ((line = br.readLine()) != null) {
                         response.append(line);
                     }
-                    br.close();
                     
                     String result = response.toString();
                     try {
                         JSONObject jsonResponse = new JSONObject(result);
                         result = jsonResponse.optString("response", result);
                     } catch (Exception e) {
+                        // Ignore JSON parsing errors
                     }
                     
                     final String finalResult = result;
@@ -213,13 +216,21 @@ public class ApiClient {
                         errorMessage = "Error: " + responseCode;
                     }
                     
+                    final String errorMsg = errorMessage;
                     new Handler(Looper.getMainLooper()).post(() -> 
-                        callback.onError(errorMessage));
+                        callback.onError(errorMsg));
                 }
             } catch (Exception e) {
                 Log.e(TAG, "sendMessage failed", e);
                 new Handler(Looper.getMainLooper()).post(() -> 
                     callback.onError("Network error: " + e.getMessage()));
+            } finally {
+                if (br != null) {
+                    try { br.close(); } catch (Exception ignored) {}
+                }
+                if (conn != null) {
+                    conn.disconnect();
+                }
             }
         }).start();
     }
@@ -239,24 +250,28 @@ public class ApiClient {
         }
         
         new Thread(() -> {
+            HttpURLConnection conn = null;
+            BufferedReader br = null;
             try {
                 URL url = new URL(baseUrl + "/sessions");
-                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("GET");
                 conn.setRequestProperty("X-API-Key", apiKey);
-                conn.setConnectTimeout(5000);
-                conn.setReadTimeout(10000);
+                conn.setRequestProperty("Connection", "close");
+                conn.setRequestProperty("Accept", "application/json");
+                conn.setConnectTimeout(15000);
+                conn.setReadTimeout(30000);
+                conn.setUseCaches(false);
                 
                 int responseCode = conn.getResponseCode();
                 
                 if (responseCode == 200) {
-                    BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+                    br = new BufferedReader(new InputStreamReader(conn.getInputStream(), "UTF-8"));
                     StringBuilder response = new StringBuilder();
                     String line;
                     while ((line = br.readLine()) != null) {
                         response.append(line);
                     }
-                    br.close();
                     
                     JSONArray jsonArray = new JSONArray(response.toString());
                     List<Session> sessions = new ArrayList<>();
@@ -294,13 +309,21 @@ public class ApiClient {
                     new Handler(Looper.getMainLooper()).post(() -> 
                         callback.onSuccess(sessions));
                 } else {
+                    final int code = responseCode;
                     new Handler(Looper.getMainLooper()).post(() -> 
-                        callback.onError("Error: " + responseCode));
+                        callback.onError("Error: " + code));
                 }
             } catch (Exception e) {
                 Log.e(TAG, "getSessions failed", e);
                 new Handler(Looper.getMainLooper()).post(() -> 
                     callback.onError("Network error: " + e.getMessage()));
+            } finally {
+                if (br != null) {
+                    try { br.close(); } catch (Exception ignored) {}
+                }
+                if (conn != null) {
+                    conn.disconnect();
+                }
             }
         }).start();
     }
@@ -319,25 +342,28 @@ public class ApiClient {
         }
         
         new Thread(() -> {
+            HttpURLConnection conn = null;
+            BufferedReader br = null;
             try {
                 URL url = new URL(baseUrl + "/providers");
-                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("GET");
                 conn.setRequestProperty("X-API-Key", apiKey);
-                conn.setConnectTimeout(5000);
-                conn.setReadTimeout(10000);
+                conn.setRequestProperty("Connection", "close");
+                conn.setRequestProperty("Accept", "application/json");
+                conn.setConnectTimeout(15000);
+                conn.setReadTimeout(30000);
+                conn.setUseCaches(false);
                 
                 int responseCode = conn.getResponseCode();
                 
                 if (responseCode == 200) {
-                    BufferedReader br = new BufferedReader(
-                        new InputStreamReader(conn.getInputStream()));
+                    br = new BufferedReader(new InputStreamReader(conn.getInputStream(), "UTF-8"));
                     StringBuilder response = new StringBuilder();
                     String line;
                     while ((line = br.readLine()) != null) {
                         response.append(line);
                     }
-                    br.close();
                     
                     JSONArray jsonArray = new JSONArray(response.toString());
                     List<Provider> providers = new ArrayList<>();
@@ -364,13 +390,21 @@ public class ApiClient {
                     new Handler(Looper.getMainLooper()).post(() -> 
                         callback.onError("Unauthorized: Invalid API Key"));
                 } else {
+                    final int code = responseCode;
                     new Handler(Looper.getMainLooper()).post(() -> 
-                        callback.onError("Error: " + responseCode));
+                        callback.onError("Error: " + code));
                 }
             } catch (Exception e) {
                 Log.e(TAG, "getProviders failed", e);
                 new Handler(Looper.getMainLooper()).post(() -> 
                     callback.onError("Network error: " + e.getMessage()));
+            } finally {
+                if (br != null) {
+                    try { br.close(); } catch (Exception ignored) {}
+                }
+                if (conn != null) {
+                    conn.disconnect();
+                }
             }
         }).start();
     }
@@ -385,15 +419,19 @@ public class ApiClient {
         }
         
         new Thread(() -> {
+            HttpURLConnection conn = null;
+            BufferedReader br = null;
             try {
                 URL url = new URL(baseUrl + "/session/new");
-                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("POST");
                 conn.setRequestProperty("Content-Type", "application/json");
                 conn.setRequestProperty("X-API-Key", apiKey);
+                conn.setRequestProperty("Connection", "close");
                 conn.setDoOutput(true);
-                conn.setConnectTimeout(10000);
+                conn.setConnectTimeout(15000);
                 conn.setReadTimeout(30000);
+                conn.setUseCaches(false);
 
                 JSONObject requestBody = new JSONObject();
                 if (cwd != null && !cwd.isEmpty()) {
@@ -414,14 +452,12 @@ public class ApiClient {
                 int responseCode = conn.getResponseCode();
                 
                 if (responseCode == 201) {
-                    BufferedReader br = new BufferedReader(
-                        new InputStreamReader(conn.getInputStream()));
+                    br = new BufferedReader(new InputStreamReader(conn.getInputStream(), "UTF-8"));
                     StringBuilder response = new StringBuilder();
                     String line;
                     while ((line = br.readLine()) != null) {
                         response.append(line);
                     }
-                    br.close();
                     
                     JSONObject jsonResponse = new JSONObject(response.toString());
                     String sessionId = jsonResponse.getString("id");
@@ -441,13 +477,21 @@ public class ApiClient {
                     new Handler(Looper.getMainLooper()).post(() -> 
                         callback.onError("Bad Request: Invalid parameters"));
                 } else {
+                    final int code = responseCode;
                     new Handler(Looper.getMainLooper()).post(() -> 
-                        callback.onError("Error: " + responseCode));
+                        callback.onError("Error: " + code));
                 }
             } catch (Exception e) {
                 Log.e(TAG, "createSession failed", e);
                 new Handler(Looper.getMainLooper()).post(() -> 
                     callback.onError("Network error: " + e.getMessage()));
+            } finally {
+                if (br != null) {
+                    try { br.close(); } catch (Exception ignored) {}
+                }
+                if (conn != null) {
+                    conn.disconnect();
+                }
             }
         }).start();
     }
@@ -471,13 +515,16 @@ public class ApiClient {
         }
         
         new Thread(() -> {
+            HttpURLConnection conn = null;
             try {
                 URL url = new URL(baseUrl + "/session/" + sessionId);
-                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("DELETE");
                 conn.setRequestProperty("X-API-Key", apiKey);
-                conn.setConnectTimeout(5000);
-                conn.setReadTimeout(10000);
+                conn.setRequestProperty("Connection", "close");
+                conn.setConnectTimeout(15000);
+                conn.setReadTimeout(30000);
+                conn.setUseCaches(false);
 
                 int responseCode = conn.getResponseCode();
                 
@@ -494,13 +541,18 @@ public class ApiClient {
                     new Handler(Looper.getMainLooper()).post(() -> 
                         callback.onError("Unauthorized: Invalid API Key"));
                 } else {
+                    final int code = responseCode;
                     new Handler(Looper.getMainLooper()).post(() -> 
-                        callback.onError("Error: " + responseCode));
+                        callback.onError("Error: " + code));
                 }
             } catch (Exception e) {
                 Log.e(TAG, "deleteSession failed", e);
                 new Handler(Looper.getMainLooper()).post(() -> 
                     callback.onError("Network error: " + e.getMessage()));
+            } finally {
+                if (conn != null) {
+                    conn.disconnect();
+                }
             }
         }).start();
     }
@@ -524,15 +576,18 @@ public class ApiClient {
             AtomicReference<String> errorMsg = new AtomicReference<>("");
             
             if (provider != null && !provider.isEmpty()) {
+                HttpURLConnection conn = null;
                 try {
                     URL url = new URL(baseUrl + "/session/" + sessionId + "/provider");
-                    HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                    conn = (HttpURLConnection) url.openConnection();
                     conn.setRequestMethod("PUT");
                     conn.setRequestProperty("Content-Type", "application/json");
                     conn.setRequestProperty("X-API-Key", apiKey);
+                    conn.setRequestProperty("Connection", "close");
                     conn.setDoOutput(true);
-                    conn.setConnectTimeout(5000);
-                    conn.setReadTimeout(10000);
+                    conn.setConnectTimeout(15000);
+                    conn.setReadTimeout(30000);
+                    conn.setUseCaches(false);
 
                     JSONObject requestBody = new JSONObject();
                     requestBody.put("provider", provider);
@@ -560,19 +615,26 @@ public class ApiClient {
                     Log.e(TAG, "Update provider failed", e);
                     allSuccess.set(false);
                     errorMsg.set("Network error: " + e.getMessage());
+                } finally {
+                    if (conn != null) {
+                        conn.disconnect();
+                    }
                 }
             }
             
             if (allSuccess.get() && model != null && !model.isEmpty()) {
+                HttpURLConnection conn = null;
                 try {
                     URL url = new URL(baseUrl + "/session/" + sessionId + "/model");
-                    HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                    conn = (HttpURLConnection) url.openConnection();
                     conn.setRequestMethod("PUT");
                     conn.setRequestProperty("Content-Type", "application/json");
                     conn.setRequestProperty("X-API-Key", apiKey);
+                    conn.setRequestProperty("Connection", "close");
                     conn.setDoOutput(true);
-                    conn.setConnectTimeout(5000);
-                    conn.setReadTimeout(10000);
+                    conn.setConnectTimeout(15000);
+                    conn.setReadTimeout(30000);
+                    conn.setUseCaches(false);
 
                     JSONObject requestBody = new JSONObject();
                     requestBody.put("model", model);
@@ -600,6 +662,10 @@ public class ApiClient {
                     Log.e(TAG, "Update model failed", e);
                     allSuccess.set(false);
                     errorMsg.set("Network error: " + e.getMessage());
+                } finally {
+                    if (conn != null) {
+                        conn.disconnect();
+                    }
                 }
             }
             
@@ -631,25 +697,29 @@ public class ApiClient {
         final String finalSessionId = sessionId;
         
         new Thread(() -> {
+            HttpURLConnection conn = null;
+            BufferedReader br = null;
             try {
                 URL url = new URL(baseUrl + "/messages?session=" + finalSessionId);
-                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("GET");
                 conn.setRequestProperty("X-API-Key", apiKey);
-                conn.setConnectTimeout(10000);
+                conn.setRequestProperty("Connection", "close");
+                conn.setRequestProperty("Accept", "application/json");
+                conn.setConnectTimeout(15000);
                 conn.setReadTimeout(60000);
+                conn.setUseCaches(false);
+                conn.setDoInput(true);
                 
                 int responseCode = conn.getResponseCode();
                 
                 if (responseCode == 200) {
-                    BufferedReader br = new BufferedReader(
-                        new InputStreamReader(conn.getInputStream()));
+                    br = new BufferedReader(new InputStreamReader(conn.getInputStream(), "UTF-8"));
                     StringBuilder response = new StringBuilder();
                     String line;
                     while ((line = br.readLine()) != null) {
                         response.append(line);
                     }
-                    br.close();
                     
                     JSONArray jsonArray = new JSONArray(response.toString());
                     List<ChatMessage> messages = new ArrayList<>();
@@ -677,13 +747,29 @@ public class ApiClient {
                     new Handler(Looper.getMainLooper()).post(() -> 
                         callback.onError("Bad Request: Missing session ID"));
                 } else {
+                    final int code = responseCode;
                     new Handler(Looper.getMainLooper()).post(() -> 
-                        callback.onError("Error: " + responseCode));
+                        callback.onError("Error: " + code));
                 }
+            } catch (java.net.SocketException e) {
+                Log.e(TAG, "getMessages SocketException: " + e.getMessage());
+                new Handler(Looper.getMainLooper()).post(() -> 
+                    callback.onError("Connection error: " + e.getMessage()));
+            } catch (java.io.IOException e) {
+                Log.e(TAG, "getMessages IOException: " + e.getMessage());
+                new Handler(Looper.getMainLooper()).post(() -> 
+                    callback.onError("Network error: " + e.getMessage()));
             } catch (Exception e) {
                 Log.e(TAG, "getMessages failed", e);
                 new Handler(Looper.getMainLooper()).post(() -> 
-                    callback.onError("Network error: " + e.getMessage()));
+                    callback.onError("Error: " + e.getMessage()));
+            } finally {
+                if (br != null) {
+                    try { br.close(); } catch (Exception ignored) {}
+                }
+                if (conn != null) {
+                    conn.disconnect();
+                }
             }
         }).start();
     }
@@ -708,6 +794,8 @@ public class ApiClient {
         final String finalSessionId = sessionId;
         
         new Thread(() -> {
+            HttpURLConnection conn = null;
+            BufferedReader br = null;
             try {
                 StringBuilder urlBuilder = new StringBuilder(baseUrl + "/messages?session=" + finalSessionId);
                 
@@ -722,23 +810,25 @@ public class ApiClient {
                 }
                 
                 URL url = new URL(urlBuilder.toString());
-                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("GET");
                 conn.setRequestProperty("X-API-Key", apiKey);
-                conn.setConnectTimeout(10000);
-                conn.setReadTimeout(30000);
+                conn.setRequestProperty("Connection", "close");
+                conn.setRequestProperty("Accept", "application/json");
+                conn.setConnectTimeout(15000);
+                conn.setReadTimeout(60000);
+                conn.setUseCaches(false);
+                conn.setDoInput(true);
                 
                 int responseCode = conn.getResponseCode();
                 
                 if (responseCode == 200) {
-                    BufferedReader br = new BufferedReader(
-                        new InputStreamReader(conn.getInputStream()));
+                    br = new BufferedReader(new InputStreamReader(conn.getInputStream(), "UTF-8"));
                     StringBuilder response = new StringBuilder();
                     String line;
                     while ((line = br.readLine()) != null) {
                         response.append(line);
                     }
-                    br.close();
                     
                     JSONArray jsonArray = new JSONArray(response.toString());
                     List<ChatMessage> messages = new ArrayList<>();
@@ -766,13 +856,29 @@ public class ApiClient {
                     new Handler(Looper.getMainLooper()).post(() -> 
                         callback.onError("Bad Request: Invalid parameters"));
                 } else {
+                    final int code = responseCode;
                     new Handler(Looper.getMainLooper()).post(() -> 
-                        callback.onError("Error: " + responseCode));
+                        callback.onError("Error: " + code));
                 }
+            } catch (java.net.SocketException e) {
+                Log.e(TAG, "getMessagesWithOptions SocketException: " + e.getMessage());
+                new Handler(Looper.getMainLooper()).post(() -> 
+                    callback.onError("Connection error: " + e.getMessage()));
+            } catch (java.io.IOException e) {
+                Log.e(TAG, "getMessagesWithOptions IOException: " + e.getMessage());
+                new Handler(Looper.getMainLooper()).post(() -> 
+                    callback.onError("Network error: " + e.getMessage()));
             } catch (Exception e) {
                 Log.e(TAG, "getMessagesWithOptions failed", e);
                 new Handler(Looper.getMainLooper()).post(() -> 
-                    callback.onError("Network error: " + e.getMessage()));
+                    callback.onError("Error: " + e.getMessage()));
+            } finally {
+                if (br != null) {
+                    try { br.close(); } catch (Exception ignored) {}
+                }
+                if (conn != null) {
+                    conn.disconnect();
+                }
             }
         }).start();
     }
@@ -799,25 +905,27 @@ public class ApiClient {
         }
         
         new Thread(() -> {
+            HttpURLConnection conn = null;
+            BufferedReader br = null;
             try {
                 URL url = new URL(baseUrl + "/session?id=" + sessionId);
-                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("GET");
                 conn.setRequestProperty("X-API-Key", apiKey);
-                conn.setConnectTimeout(5000);
-                conn.setReadTimeout(10000);
+                conn.setRequestProperty("Connection", "close");
+                conn.setConnectTimeout(15000);
+                conn.setReadTimeout(30000);
+                conn.setUseCaches(false);
 
                 int responseCode = conn.getResponseCode();
                 
                 if (responseCode == 200) {
-                    BufferedReader br = new BufferedReader(
-                        new InputStreamReader(conn.getInputStream()));
+                    br = new BufferedReader(new InputStreamReader(conn.getInputStream(), "UTF-8"));
                     StringBuilder response = new StringBuilder();
                     String line;
                     while ((line = br.readLine()) != null) {
                         response.append(line);
                     }
-                    br.close();
                     
                     final String html = response.toString();
                     new Handler(Looper.getMainLooper()).post(() -> 
@@ -837,6 +945,13 @@ public class ApiClient {
                 Log.e(TAG, "getSessionPreview failed", e);
                 new Handler(Looper.getMainLooper()).post(() -> 
                     callback.onError("Network error: " + e.getMessage()));
+            } finally {
+                if (br != null) {
+                    try { br.close(); } catch (Exception ignored) {}
+                }
+                if (conn != null) {
+                    conn.disconnect();
+                }
             }
         }).start();
     }
@@ -856,15 +971,18 @@ public class ApiClient {
         }
         
         new Thread(() -> {
+            HttpURLConnection conn = null;
             try {
                 URL url = new URL(baseUrl + "/session/" + sessionId + "/stop");
-                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("POST");
                 conn.setRequestProperty("X-API-Key", apiKey);
+                conn.setRequestProperty("Connection", "close");
                 conn.setRequestProperty("Accept", "*/*");
                 conn.setDoOutput(true);
-                conn.setConnectTimeout(5000);
-                conn.setReadTimeout(10000);
+                conn.setConnectTimeout(15000);
+                conn.setReadTimeout(30000);
+                conn.setUseCaches(false);
                 
                 conn.getOutputStream().close();
 
@@ -883,13 +1001,18 @@ public class ApiClient {
                     new Handler(Looper.getMainLooper()).post(() -> 
                         callback.onError("Unauthorized: Invalid API Key"));
                 } else {
+                    final int code = responseCode;
                     new Handler(Looper.getMainLooper()).post(() -> 
-                        callback.onError("Error: " + responseCode));
+                        callback.onError("Error: " + code));
                 }
             } catch (Exception e) {
                 Log.e(TAG, "stopSession failed", e);
                 new Handler(Looper.getMainLooper()).post(() -> 
                     callback.onError("Network error: " + e.getMessage()));
+            } finally {
+                if (conn != null) {
+                    conn.disconnect();
+                }
             }
         }).start();
     }
@@ -909,15 +1032,18 @@ public class ApiClient {
         }
         
         new Thread(() -> {
+            HttpURLConnection conn = null;
             try {
                 URL url = new URL(baseUrl + "/session/" + sessionId + "/retry");
-                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("POST");
                 conn.setRequestProperty("X-API-Key", apiKey);
+                conn.setRequestProperty("Connection", "close");
                 conn.setRequestProperty("Accept", "*/*");
                 conn.setDoOutput(true);
-                conn.setConnectTimeout(5000);
-                conn.setReadTimeout(10000);
+                conn.setConnectTimeout(15000);
+                conn.setReadTimeout(30000);
+                conn.setUseCaches(false);
                 
                 conn.getOutputStream().close();
 
@@ -939,19 +1065,25 @@ public class ApiClient {
                     new Handler(Looper.getMainLooper()).post(() -> 
                         callback.onError("Unauthorized: Invalid API Key"));
                 } else {
+                    final int code = responseCode;
                     new Handler(Looper.getMainLooper()).post(() -> 
-                        callback.onError("Error: " + responseCode));
+                        callback.onError("Error: " + code));
                 }
             } catch (Exception e) {
                 Log.e(TAG, "retrySession failed", e);
                 new Handler(Looper.getMainLooper()).post(() -> 
                     callback.onError("Network error: " + e.getMessage()));
+            } finally {
+                if (conn != null) {
+                    conn.disconnect();
+                }
             }
         }).start();
     }
     
     public static void testConnection(String serverUrl, String apiKey, ApiCallback callback) {
         new Thread(() -> {
+            HttpURLConnection conn = null;
             try {
                 String url = serverUrl;
                 if (!url.startsWith("http://") && !url.startsWith("https://")) {
@@ -963,13 +1095,15 @@ public class ApiClient {
                 }
                 
                 URL testUrl = new URL(url + "/sessions");
-                HttpURLConnection conn = (HttpURLConnection) testUrl.openConnection();
+                conn = (HttpURLConnection) testUrl.openConnection();
                 conn.setRequestMethod("GET");
                 if (apiKey != null && !apiKey.isEmpty()) {
                     conn.setRequestProperty("X-API-Key", apiKey);
                 }
-                conn.setConnectTimeout(5000);
-                conn.setReadTimeout(10000);
+                conn.setRequestProperty("Connection", "close");
+                conn.setConnectTimeout(10000);
+                conn.setReadTimeout(15000);
+                conn.setUseCaches(false);
 
                 int responseCode = conn.getResponseCode();
                 
@@ -980,13 +1114,18 @@ public class ApiClient {
                     new Handler(Looper.getMainLooper()).post(() -> 
                         callback.onError("Unauthorized: Invalid API Key"));
                 } else {
+                    final int code = responseCode;
                     new Handler(Looper.getMainLooper()).post(() -> 
-                        callback.onError("Error: HTTP " + responseCode));
+                        callback.onError("Error: HTTP " + code));
                 }
             } catch (Exception e) {
                 Log.e(TAG, "testConnection failed", e);
                 new Handler(Looper.getMainLooper()).post(() -> 
                     callback.onError("Network error: " + e.getMessage()));
+            } finally {
+                if (conn != null) {
+                    conn.disconnect();
+                }
             }
         }).start();
     }
@@ -1005,6 +1144,8 @@ public class ApiClient {
     
     public static void getProviders(String serverUrl, String apiKey, ProvidersCallback callback) {
         new Thread(() -> {
+            HttpURLConnection conn = null;
+            BufferedReader br = null;
             try {
                 String url = serverUrl;
                 if (!url.startsWith("http://") && !url.startsWith("https://")) {
@@ -1016,25 +1157,26 @@ public class ApiClient {
                 }
                 
                 URL providersUrl = new URL(url + "/providers");
-                HttpURLConnection conn = (HttpURLConnection) providersUrl.openConnection();
+                conn = (HttpURLConnection) providersUrl.openConnection();
                 conn.setRequestMethod("GET");
                 if (apiKey != null && !apiKey.isEmpty()) {
                     conn.setRequestProperty("X-API-Key", apiKey);
                 }
-                conn.setConnectTimeout(5000);
-                conn.setReadTimeout(10000);
+                conn.setRequestProperty("Connection", "close");
+                conn.setRequestProperty("Accept", "application/json");
+                conn.setConnectTimeout(15000);
+                conn.setReadTimeout(30000);
+                conn.setUseCaches(false);
 
                 int responseCode = conn.getResponseCode();
                 
                 if (responseCode == 200) {
-                    BufferedReader br = new BufferedReader(
-                        new InputStreamReader(conn.getInputStream()));
+                    br = new BufferedReader(new InputStreamReader(conn.getInputStream(), "UTF-8"));
                     StringBuilder response = new StringBuilder();
                     String line;
                     while ((line = br.readLine()) != null) {
                         response.append(line);
                     }
-                    br.close();
                     
                     JSONArray jsonArray = new JSONArray(response.toString());
                     List<Provider> providers = new ArrayList<>();
@@ -1061,13 +1203,21 @@ public class ApiClient {
                     new Handler(Looper.getMainLooper()).post(() -> 
                         callback.onError("Unauthorized: Invalid API Key"));
                 } else {
+                    final int code = responseCode;
                     new Handler(Looper.getMainLooper()).post(() -> 
-                        callback.onError("Error: HTTP " + responseCode));
+                        callback.onError("Error: HTTP " + code));
                 }
             } catch (Exception e) {
                 Log.e(TAG, "getProviders static failed", e);
                 new Handler(Looper.getMainLooper()).post(() -> 
                     callback.onError("Network error: " + e.getMessage()));
+            } finally {
+                if (br != null) {
+                    try { br.close(); } catch (Exception ignored) {}
+                }
+                if (conn != null) {
+                    conn.disconnect();
+                }
             }
         }).start();
     }
