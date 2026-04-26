@@ -24,8 +24,8 @@ public class ApiClient {
     private static final String TAG = "ApiClient";
     
     private final SettingsManager settingsManager;
-    private final String overrideBaseUrl;   // 覆盖的 baseUrl（用于多账号）
-    private final String overrideApiKey;    // 覆盖的 apiKey（用于多账号）
+    private final String overrideBaseUrl;
+    private final String overrideApiKey;
     
     public interface ApiCallback {
         void onSuccess(String response);
@@ -42,49 +42,36 @@ public class ApiClient {
         void onError(String error);
     }
     
-    /**
-     * 创建会话回调接口
-     */
     public interface CreateSessionCallback {
         void onSuccess(Session session);
         void onError(String error);
     }
     
-    /**
-     * 删除会话回调接口
-     */
     public interface DeleteSessionCallback {
         void onSuccess();
         void onError(String error);
     }
     
-    /**
-     * 停止生成回调接口
-     */
     public interface StopCallback {
         void onSuccess();
         void onError(String error);
     }
     
-    /**
-     * 重试回调接口
-     */
     public interface RetryCallback {
         void onSuccess();
         void onError(String error);
     }
     
-    
-    /**
-     * 更新会话回调接口
-     */
     public interface UpdateSessionCallback {
         void onSuccess();
         void onError(String error);
     }
-    /**
-     * Provider 模型
-     */
+    
+    public interface ProvidersCallback {
+        void onSuccess(List<Provider> providers);
+        void onError(String error);
+    }
+    
     public static class Provider {
         public String name;
         public List<String> models;
@@ -95,21 +82,10 @@ public class ApiClient {
         }
     }
     
-    /**
-     * Provider 列表回调接口
-     */
-    public interface ProvidersCallback {
-        void onSuccess(List<Provider> providers);
-        void onError(String error);
-    }
-    
-    /**
-     * Chat message model for API response
-     */
     public static class ChatMessage {
         public String role;
         public String content;
-        public long created; // Lua os.time() 时间戳（秒）
+        public long created;
         
         public ChatMessage(String role, String content, long created) {
             this.role = role;
@@ -118,27 +94,18 @@ public class ApiClient {
         }
     }
     
-    /**
-     * 默认构造函数：使用 SettingsManager 的设置
-     */
     public ApiClient(SettingsManager settingsManager) {
         this.settingsManager = settingsManager;
         this.overrideBaseUrl = null;
         this.overrideApiKey = null;
     }
     
-    /**
-     * 多账号构造函数：直接指定 baseUrl 和 apiKey
-     */
     public ApiClient(String baseUrl, String apiKey) {
         this.settingsManager = null;
         this.overrideBaseUrl = baseUrl;
         this.overrideApiKey = apiKey;
     }
     
-    /**
-     * 获取 baseUrl（优先使用覆盖值）
-     */
     private String getBaseUrl() {
         if (overrideBaseUrl != null) {
             return overrideBaseUrl;
@@ -149,9 +116,6 @@ public class ApiClient {
         return "";
     }
     
-    /**
-     * 获取 apiKey（优先使用覆盖值）
-     */
     private String getApiKey() {
         if (overrideApiKey != null) {
             return overrideApiKey;
@@ -162,9 +126,6 @@ public class ApiClient {
         return "";
     }
     
-    /**
-     * 获取 session（仅从 SettingsManager 获取）
-     */
     private String getSession() {
         if (settingsManager != null) {
             return settingsManager.getSession();
@@ -172,19 +133,10 @@ public class ApiClient {
         return "";
     }
     
-    /**
-     * 检查是否有有效的 API 设置
-     */
     public boolean hasValidSettings() {
         return !getBaseUrl().isEmpty() && !getApiKey().isEmpty();
     }
     
-    /**
-     * Send a message to a specific chat session (指定 session ID).
-     * POST /
-     * Request body: {"session": "session-id", "content": "message"}
-     * Returns 204 on success.
-     */
     public void sendMessage(String sessionId, String content, ApiCallback callback) {
         String baseUrl = getBaseUrl();
         String apiKey = getApiKey();
@@ -215,26 +167,21 @@ public class ApiClient {
                 conn.setConnectTimeout(10000);
                 conn.setReadTimeout(30000);
 
-                // Build request body: {"session": "...", "content": "..."}
                 JSONObject requestBody = new JSONObject();
                 requestBody.put("session", sessionId);
                 requestBody.put("content", content);
                 
-                // Send request
                 try (OutputStream os = conn.getOutputStream()) {
                     byte[] input = requestBody.toString().getBytes(StandardCharsets.UTF_8);
                     os.write(input, 0, input.length);
                 }
 
-                // Read response
                 int responseCode = conn.getResponseCode();
                 
                 if (responseCode == 204) {
-                    // Success - 204 No Content
                     new Handler(Looper.getMainLooper()).post(() -> 
                         callback.onSuccess("Message sent successfully"));
                 } else if (responseCode == 200 || responseCode == 201) {
-                    // Read success response
                     BufferedReader br = new BufferedReader(
                         new InputStreamReader(conn.getInputStream()));
                     StringBuilder response = new StringBuilder();
@@ -245,19 +192,16 @@ public class ApiClient {
                     br.close();
                     
                     String result = response.toString();
-                    // Try to extract response field
                     try {
                         JSONObject jsonResponse = new JSONObject(result);
                         result = jsonResponse.optString("response", result);
                     } catch (Exception e) {
-                        // Not JSON, use raw response
                     }
                     
                     final String finalResult = result;
                     new Handler(Looper.getMainLooper()).post(() -> 
                         callback.onSuccess(finalResult));
                 } else {
-                    // Error response
                     String errorMessage;
                     if (responseCode == 401) {
                         errorMessage = "Unauthorized: Invalid API Key";
@@ -280,22 +224,11 @@ public class ApiClient {
         }).start();
     }
     
-    /**
-     * Send a message to the current session (从 SettingsManager 获取 session).
-     * 兼容旧版本方法。
-     */
     public void sendMessage(String content, ApiCallback callback) {
         String session = getSession();
         sendMessage(session, content, callback);
     }
     
-    /**
-     * Get all active sessions with details.
-     * GET /sessions
-     * Returns JSON array with session objects: [{id, cwd, provider, model}, ...]
-     * 
-     * @param accountId 用于标记会话所属账号（可选）
-     */
     public void getSessions(String accountId, SessionsCallback callback) {
         String baseUrl = getBaseUrl();
         String apiKey = getApiKey();
@@ -325,8 +258,9 @@ public class ApiClient {
                     }
                     br.close();
                     
-                    // Parse JSON array with session objects
                     JSONArray jsonArray = new JSONArray(response.toString());
+                    List<Session> sessions = new ArrayList<>();
+                    
                     for (int i = 0; i < jsonArray.length(); i++) {
                         JSONObject sessionObj = jsonArray.getJSONObject(i);
                         String id = sessionObj.optString("id", "");
@@ -337,7 +271,6 @@ public class ApiClient {
                         boolean inProgress = sessionObj.optBoolean("in_progress", false);
                         int messageCount = sessionObj.optInt("message_count", 0);
                         
-                        // 解析 last_message 对象获取时间戳
                         long lastMessageTime = System.currentTimeMillis();
                         JSONObject lastMsgObj = sessionObj.optJSONObject("last_message");
                         if (lastMsgObj != null) {
@@ -346,8 +279,8 @@ public class ApiClient {
                         
                         if (!id.isEmpty()) {
                             Session session = new Session(id);
-                            session.setAccountId(accountId);  // 设置账号 ID
-                            session.setTitle(title);          // 设置服务器返回的标题
+                            session.setAccountId(accountId);
+                            session.setTitle(title);
                             session.setCwd(cwd);
                             session.setProvider(provider);
                             session.setModel(model);
@@ -372,18 +305,10 @@ public class ApiClient {
         }).start();
     }
     
-    /**
-     * Get all active sessions (兼容旧接口)
-     */
     public void getSessions(SessionsCallback callback) {
         getSessions(null, callback);
     }
     
-    /**
-     * Get list of supported AI providers and their models.
-     * GET /providers
-     * Returns JSON array: [{name: "provider", models: ["model1", "model2"]}, ...]
-     */
     public void getProviders(ProvidersCallback callback) {
         String baseUrl = getBaseUrl();
         String apiKey = getApiKey();
@@ -414,7 +339,6 @@ public class ApiClient {
                     }
                     br.close();
                     
-                    // Parse JSON array: [{name: "...", models: [...]}, ...]
                     JSONArray jsonArray = new JSONArray(response.toString());
                     List<Provider> providers = new ArrayList<>();
                     
@@ -451,13 +375,6 @@ public class ApiClient {
         }).start();
     }
     
-    /**
-     * Create a new chat session.
-     * Request body: {"cwd": "...", "provider": "...", "model": "..."} (all optional)
-     * Returns 201 with {"id": "session-id"}
-     * 
-     * @param accountId 用于标记会话所属账号（可选）
-     */
     public void createSession(String cwd, String provider, String model, String accountId, CreateSessionCallback callback) {
         String baseUrl = getBaseUrl();
         String apiKey = getApiKey();
@@ -478,7 +395,6 @@ public class ApiClient {
                 conn.setConnectTimeout(10000);
                 conn.setReadTimeout(30000);
 
-                // Build request body (all fields optional)
                 JSONObject requestBody = new JSONObject();
                 if (cwd != null && !cwd.isEmpty()) {
                     requestBody.put("cwd", cwd);
@@ -490,7 +406,6 @@ public class ApiClient {
                     requestBody.put("model", model);
                 }
                 
-                // Send request
                 try (OutputStream os = conn.getOutputStream()) {
                     byte[] input = requestBody.toString().getBytes(StandardCharsets.UTF_8);
                     os.write(input, 0, input.length);
@@ -499,7 +414,6 @@ public class ApiClient {
                 int responseCode = conn.getResponseCode();
                 
                 if (responseCode == 201) {
-                    // Read response to get session ID
                     BufferedReader br = new BufferedReader(
                         new InputStreamReader(conn.getInputStream()));
                     StringBuilder response = new StringBuilder();
@@ -509,13 +423,11 @@ public class ApiClient {
                     }
                     br.close();
                     
-                    // Parse response: {"id": "session-id"}
                     JSONObject jsonResponse = new JSONObject(response.toString());
                     String sessionId = jsonResponse.getString("id");
                     
-                    // Create session object with returned ID
                     Session session = new Session(sessionId);
-                    session.setAccountId(accountId);  // 设置账号 ID
+                    session.setAccountId(accountId);
                     session.setCwd(cwd != null ? cwd : "");
                     session.setProvider(provider != null ? provider : "");
                     session.setModel(model != null ? model : "");
@@ -539,18 +451,11 @@ public class ApiClient {
             }
         }).start();
     }
-    /**
-     * Create a new chat session (兼容旧接口)
-     */
+    
     public void createSession(String cwd, String provider, String model, CreateSessionCallback callback) {
         createSession(cwd, provider, model, null, callback);
     }
     
-    /**
-     * Delete a specific session.
-     * DELETE /session/:id
-     * Returns 204 on success, 409 if session is in progress.
-     */
     public void deleteSession(String sessionId, DeleteSessionCallback callback) {
         String baseUrl = getBaseUrl();
         String apiKey = getApiKey();
@@ -577,7 +482,6 @@ public class ApiClient {
                 int responseCode = conn.getResponseCode();
                 
                 if (responseCode == 204) {
-                    // Success - 204 No Content
                     new Handler(Looper.getMainLooper()).post(() -> 
                         callback.onSuccess());
                 } else if (responseCode == 404) {
@@ -601,13 +505,6 @@ public class ApiClient {
         }).start();
     }
     
-    /**
-     * Update session configuration (provider and model).
-     * Uses two separate PUT endpoints:
-     * - PUT /session/:id/provider
-     * - PUT /session/:id/model
-     * Returns 204 on success.
-     */
     public void updateSession(String sessionId, String provider, String model, UpdateSessionCallback callback) {
         String baseUrl = getBaseUrl();
         String apiKey = getApiKey();
@@ -626,11 +523,9 @@ public class ApiClient {
             AtomicBoolean allSuccess = new AtomicBoolean(true);
             AtomicReference<String> errorMsg = new AtomicReference<>("");
             
-            // Update provider if changed
             if (provider != null && !provider.isEmpty()) {
                 try {
                     URL url = new URL(baseUrl + "/session/" + sessionId + "/provider");
-                    Log.d(TAG, "Update provider URL: " + url.toString());
                     HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                     conn.setRequestMethod("PUT");
                     conn.setRequestProperty("Content-Type", "application/json");
@@ -648,7 +543,6 @@ public class ApiClient {
                     }
 
                     int responseCode = conn.getResponseCode();
-                    Log.d(TAG, "Update provider response: " + responseCode);
                     
                     if (responseCode != 204 && responseCode != 200) {
                         allSuccess.set(false);
@@ -669,11 +563,9 @@ public class ApiClient {
                 }
             }
             
-            // Update model if provider update succeeded
             if (allSuccess.get() && model != null && !model.isEmpty()) {
                 try {
                     URL url = new URL(baseUrl + "/session/" + sessionId + "/model");
-                    Log.d(TAG, "Update model URL: " + url.toString());
                     HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                     conn.setRequestMethod("PUT");
                     conn.setRequestProperty("Content-Type", "application/json");
@@ -691,7 +583,6 @@ public class ApiClient {
                     }
 
                     int responseCode = conn.getResponseCode();
-                    Log.d(TAG, "Update model response: " + responseCode);
                     
                     if (responseCode != 204 && responseCode != 200) {
                         allSuccess.set(false);
@@ -712,7 +603,6 @@ public class ApiClient {
                 }
             }
             
-            // Return result
             if (allSuccess.get()) {
                 new Handler(Looper.getMainLooper()).post(() -> callback.onSuccess());
             } else {
@@ -721,11 +611,6 @@ public class ApiClient {
         }).start();
     }
     
-    /**
-     * Get messages for a specific session.
-     * GET /messages?session=xxx
-     * Returns JSON array with messages containing role, content, and created timestamp.
-     */
     public void getMessages(String sessionId, MessagesCallback callback) {
         String baseUrl = getBaseUrl();
         String apiKey = getApiKey();
@@ -752,7 +637,8 @@ public class ApiClient {
                 conn.setRequestMethod("GET");
                 conn.setRequestProperty("X-API-Key", apiKey);
                 conn.setConnectTimeout(10000);
-                conn.setReadTimeout(60000);  // 60 秒，消息多时需要更长时间
+                conn.setReadTimeout(60000);
+                
                 int responseCode = conn.getResponseCode();
                 
                 if (responseCode == 200) {
@@ -765,7 +651,6 @@ public class ApiClient {
                     }
                     br.close();
                     
-                    // Parse JSON array
                     JSONArray jsonArray = new JSONArray(response.toString());
                     List<ChatMessage> messages = new ArrayList<>();
                     
@@ -773,10 +658,8 @@ public class ApiClient {
                         JSONObject msg = jsonArray.getJSONObject(i);
                         String role = msg.optString("role", "");
                         String content = msg.optString("content", "");
-                        // 获取 created 时间戳，如果不存在则使用当前时间
                         long created = msg.optLong("created", System.currentTimeMillis() / 1000);
                         
-                        // Only add messages with content
                         if (!content.isEmpty()) {
                             messages.add(new ChatMessage(role, content, created));
                         }
@@ -805,16 +688,6 @@ public class ApiClient {
         }).start();
     }
     
-    /**
-     * Get messages for a specific session with options.
-     * GET /messages?session=xxx&since=N&limit=N&last=true
-     * 
-     * @param sessionId Session ID
-     * @param since     Starting index (0-based), -1 means no limit
-     * @param limit     Maximum number of messages to return, -1 means no limit
-     * @param last      If true, only return the last message
-     * @param callback  Callback for success/error
-     */
     public void getMessagesWithOptions(String sessionId, int since, int limit, boolean last, MessagesCallback callback) {
         String baseUrl = getBaseUrl();
         String apiKey = getApiKey();
@@ -836,7 +709,6 @@ public class ApiClient {
         
         new Thread(() -> {
             try {
-                // Build URL with query parameters
                 StringBuilder urlBuilder = new StringBuilder(baseUrl + "/messages?session=" + finalSessionId);
                 
                 if (since >= 0) {
@@ -850,13 +722,11 @@ public class ApiClient {
                 }
                 
                 URL url = new URL(urlBuilder.toString());
-                Log.d(TAG, "getMessagesWithOptions URL: " + url.toString());
-                
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("GET");
                 conn.setRequestProperty("X-API-Key", apiKey);
                 conn.setConnectTimeout(10000);
-                conn.setReadTimeout(30000);  // 使用较短的超时，因为是增量请求
+                conn.setReadTimeout(30000);
                 
                 int responseCode = conn.getResponseCode();
                 
@@ -870,7 +740,6 @@ public class ApiClient {
                     }
                     br.close();
                     
-                    // Parse JSON array
                     JSONArray jsonArray = new JSONArray(response.toString());
                     List<ChatMessage> messages = new ArrayList<>();
                     
@@ -908,42 +777,18 @@ public class ApiClient {
         }).start();
     }
     
-    /**
-     * Get last message for a specific session (for preview).
-     * Uses last=true parameter to efficiently get just the last message.
-     */
     public void getLastMessage(String sessionId, MessagesCallback callback) {
         getMessagesWithOptions(sessionId, -1, -1, true, callback);
     }
     
-    /**
-     * Get new messages since a specific index.
-     * Uses since parameter for incremental polling.
-     * 
-     * @param sessionId Session ID
-     * @param sinceIndex Starting index (e.g., if you have 10 messages, use since=10 to get new ones)
-     * @param callback  Callback
-     */
     public void getNewMessages(String sessionId, int sinceIndex, MessagesCallback callback) {
         getMessagesWithOptions(sessionId, sinceIndex, -1, false, callback);
     }
     
-    /**
-     * Get messages for pagination (scrolling to top).
-     * 
-     * @param sessionId Session ID
-     * @param limit     Number of messages to get
-     * @param callback  Callback
-     */
     public void getMessagesPaginated(String sessionId, int limit, MessagesCallback callback) {
         getMessagesWithOptions(sessionId, -1, limit, false, callback);
     }
     
-    /**
-     * Get HTML preview of a session.
-     * GET /session?id=session-id
-     * Returns HTML content.
-     */
     public void getSessionPreview(String sessionId, ApiCallback callback) {
         String baseUrl = getBaseUrl();
         String apiKey = getApiKey();
@@ -996,11 +841,6 @@ public class ApiClient {
         }).start();
     }
     
-    /**
-     * Stop ongoing generation for a session.
-     * POST /session/:id/stop
-     * Returns 204 on success, 404 if session not found, 409 if not in progress.
-     */
     public void stopSession(String sessionId, StopCallback callback) {
         String baseUrl = getBaseUrl();
         String apiKey = getApiKey();
@@ -1018,7 +858,6 @@ public class ApiClient {
         new Thread(() -> {
             try {
                 URL url = new URL(baseUrl + "/session/" + sessionId + "/stop");
-                Log.d(TAG, "Stop session URL: " + url.toString());
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("POST");
                 conn.setRequestProperty("X-API-Key", apiKey);
@@ -1027,11 +866,9 @@ public class ApiClient {
                 conn.setConnectTimeout(5000);
                 conn.setReadTimeout(10000);
                 
-                // 对于没有请求体的 POST，写入空内容
                 conn.getOutputStream().close();
 
                 int responseCode = conn.getResponseCode();
-                Log.d(TAG, "Stop session response code: " + responseCode);
                 
                 if (responseCode == 204) {
                     new Handler(Looper.getMainLooper()).post(() -> 
@@ -1057,11 +894,6 @@ public class ApiClient {
         }).start();
     }
     
-    /**
-     * Retry the last message for a session.
-     * POST /session/:id/retry
-     * Returns 204 on success, 404 if session not found, 409 if in progress, 400 if no message to retry.
-     */
     public void retrySession(String sessionId, RetryCallback callback) {
         String baseUrl = getBaseUrl();
         String apiKey = getApiKey();
@@ -1079,7 +911,6 @@ public class ApiClient {
         new Thread(() -> {
             try {
                 URL url = new URL(baseUrl + "/session/" + sessionId + "/retry");
-                Log.d(TAG, "Retry session URL: " + url.toString());
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("POST");
                 conn.setRequestProperty("X-API-Key", apiKey);
@@ -1088,11 +919,9 @@ public class ApiClient {
                 conn.setConnectTimeout(5000);
                 conn.setReadTimeout(10000);
                 
-                // 对于没有请求体的 POST，写入空内容
                 conn.getOutputStream().close();
 
                 int responseCode = conn.getResponseCode();
-                Log.d(TAG, "Retry session response code: " + responseCode);
                 
                 if (responseCode == 204) {
                     new Handler(Looper.getMainLooper()).post(() -> 
@@ -1121,21 +950,14 @@ public class ApiClient {
         }).start();
     }
     
-    /**
-     * Test connection to a server.
-     * 静态方法，用于测试与指定服务器的连接
-     * GET /sessions 端点用于验证连接和认证
-     */
     public static void testConnection(String serverUrl, String apiKey, ApiCallback callback) {
         new Thread(() -> {
             try {
-                // 确保 URL 格式正确
                 String url = serverUrl;
                 if (!url.startsWith("http://") && !url.startsWith("https://")) {
                     url = "http://" + url;
                 }
                 
-                // 移除末尾斜杠
                 if (url.endsWith("/")) {
                     url = url.substring(0, url.length() - 1);
                 }
@@ -1169,14 +991,6 @@ public class ApiClient {
         }).start();
     }
     
-    /**
-     * Test connection with current settings.
-     * 使用当前配置测试连接
-     */
-    /**
-     * Test connection with current settings.
-     * 使用当前配置测试连接
-     */
     public void testConnection(ApiCallback callback) {
         String baseUrl = getBaseUrl();
         String apiKey = getApiKey();
@@ -1189,20 +1003,14 @@ public class ApiClient {
         testConnection(baseUrl, apiKey, callback);
     }
     
-    /**
-     * Get providers from a specific server (static method).
-     * 静态方法，用于从指定服务器获取 providers
-     */
     public static void getProviders(String serverUrl, String apiKey, ProvidersCallback callback) {
         new Thread(() -> {
             try {
-                // 确保 URL 格式正确
                 String url = serverUrl;
                 if (!url.startsWith("http://") && !url.startsWith("https://")) {
                     url = "http://" + url;
                 }
                 
-                // 移除末尾斜杠
                 if (url.endsWith("/")) {
                     url = url.substring(0, url.length() - 1);
                 }
@@ -1228,7 +1036,6 @@ public class ApiClient {
                     }
                     br.close();
                     
-                    // Parse JSON array
                     JSONArray jsonArray = new JSONArray(response.toString());
                     List<Provider> providers = new ArrayList<>();
                     
