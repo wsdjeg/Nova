@@ -377,16 +377,11 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
                 @Override
                 public void onError(String error) {
                     runOnUiThread(() -> {
-                        syncCompleted++;
-                        updateSyncProgress();
-                    });
-                }
-            });
-        }
     }
     
     /**
      * 轮询所有会话的消息，检测新消息并计算未读数
+     * 改进：使用增量获取（since参数），减少网络请求
      */
     private void pollSessionMessages(String accountId, ApiClient accountApiClient) {
         Account activeAccount = accountManager.getActiveAccount();
@@ -408,51 +403,130 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
                 continue;
             }
             
-            accountApiClient.getMessages(sessionId, new ApiClient.MessagesCallback() {
-                @Override
-                public void onSuccess(List<ApiClient.ChatMessage> chatMessages) {
-                    runOnUiThread(() -> {
-                        if (chatMessages.isEmpty()) {
-                            return;
-                        }
-                        
-                        List<ApiClient.ChatMessage> filteredMessages = new ArrayList<>();
-                        for (ApiClient.ChatMessage msg : chatMessages) {
-                            if (!"tool".equals(msg.role)) {
-                                filteredMessages.add(msg);
+            // 获取当前已知的消息数量
+            int knownMessageCount = session.getMessageCount();
+            int readCount = sessionManager.getReadMessageCount(sessionId);
+            
+            // 使用增量获取：只获取新消息（since=knownMessageCount）
+            // 如果 knownMessageCount 为 0，则获取所有消息
+            if (knownMessageCount > 0) {
+                accountApiClient.getNewMessages(sessionId, knownMessageCount, new ApiClient.MessagesCallback() {
+                    @Override
+                    public void onSuccess(List<ApiClient.ChatMessage> chatMessages) {
+                        runOnUiThread(() -> {
+                            if (chatMessages.isEmpty()) {
+                                // 没有新消息，更新未读数
+                                Session s = sessionManager.getSession(sessionId);
+                                if (s != null) {
+                                    int unread = s.getMessageCount() - readCount;
+                                    if (unread < 0) unread = 0;
+                                    s.setUnreadCount(unread);
+                                    sessionManager.addOrUpdateSession(s, accountId);
+                                    updateSingleSession(sessionId);
+                                }
+                                return;
                             }
-                        }
-                        
-                        if (filteredMessages.isEmpty()) {
-                            return;
-                        }
-                        
-                        ApiClient.ChatMessage firstMsg = filteredMessages.get(0);
-                        ApiClient.ChatMessage lastMsg = filteredMessages.get(filteredMessages.size() - 1);
-                        long lastMessageTime = lastMsg.created * 1000;
-                        int serverMessageCount = filteredMessages.size();
-                        
-                        int readCount = sessionManager.getReadMessageCount(sessionId);
-                        
-                        int unreadCount = serverMessageCount - readCount;
-                        if (unreadCount < 0) {
-                            unreadCount = 0;
-                        }
-                        
-                        sessionManager.updateMessages(
-                            sessionId,
-                            firstMsg.content,
-                            lastMsg.content,
-                            serverMessageCount,
-                            lastMessageTime
-                        );
-                        
-                        Session updatedSession = sessionManager.getSession(sessionId);
-                        if (updatedSession != null) {
-                            updatedSession.setUnreadCount(unreadCount);
-                            sessionManager.addOrUpdateSession(updatedSession, accountId);
                             
-                            updateSingleSession(sessionId);
+                            // 过滤 tool 消息
+                            List<ApiClient.ChatMessage> newMessages = new ArrayList<>();
+                            for (ApiClient.ChatMessage msg : chatMessages) {
+                                if (!"tool".equals(msg.role)) {
+                                    newMessages.add(msg);
+                                }
+                            }
+                            
+                            if (newMessages.isEmpty()) {
+                                return;
+                            }
+                            
+                            // 更新消息信息
+                            ApiClient.ChatMessage lastMsg = newMessages.get(newMessages.size() - 1);
+                            int newTotalCount = knownMessageCount + newMessages.size();
+                            long lastMessageTime = lastMsg.created * 1000;
+                            
+                            // 计算未读数
+                            int unreadCount = newTotalCount - readCount;
+                            if (unreadCount < 0) {
+                                unreadCount = 0;
+                            }
+                            
+                            sessionManager.updateMessages(
+                                sessionId,
+                                session.getFirstMessage(),  // 保持原来的第一条消息
+                                lastMsg.content,
+                                newTotalCount,
+                                lastMessageTime
+                            );
+                            
+                            Session updatedSession = sessionManager.getSession(sessionId);
+                            if (updatedSession != null) {
+                                updatedSession.setUnreadCount(unreadCount);
+                                sessionManager.addOrUpdateSession(updatedSession, accountId);
+                                
+                                updateSingleSession(sessionId);
+                            }
+                        });
+                    }
+                    
+                    @Override
+                    public void onError(String error) {
+                        // 忽略单个会话的轮询错误
+                    }
+                });
+            } else {
+                // 如果本地没有消息信息，获取所有消息（首次同步）
+                accountApiClient.getMessages(sessionId, new ApiClient.MessagesCallback() {
+                    @Override
+                    public void onSuccess(List<ApiClient.ChatMessage> chatMessages) {
+                        runOnUiThread(() -> {
+                            if (chatMessages.isEmpty()) {
+                                return;
+                            }
+                            
+                            List<ApiClient.ChatMessage> filteredMessages = new ArrayList<>();
+                            for (ApiClient.ChatMessage msg : chatMessages) {
+                                if (!"tool".equals(msg.role)) {
+                                    filteredMessages.add(msg);
+                                }
+                            }
+                            
+                            if (filteredMessages.isEmpty()) {
+                                return;
+                            }
+                            
+                            ApiClient.ChatMessage firstMsg = filteredMessages.get(0);
+                            ApiClient.ChatMessage lastMsg = filteredMessages.get(filteredMessages.size() - 1);
+                            long lastMessageTime = lastMsg.created * 1000;
+                            int serverMessageCount = filteredMessages.size();
+                            
+                            sessionManager.updateMessages(
+                                sessionId,
+                                firstMsg.content,
+                                lastMsg.content,
+                                serverMessageCount,
+                                lastMessageTime
+                            );
+                            
+                            sessionManager.saveReadMessageCount(sessionId, serverMessageCount);
+                            
+                            Session updatedSession = sessionManager.getSession(sessionId);
+                            if (updatedSession != null) {
+                                updatedSession.setUnreadCount(0);
+                                sessionManager.addOrUpdateSession(updatedSession, accountId);
+                                
+                                updateSingleSession(sessionId);
+                            }
+                        });
+                    }
+                    
+                    @Override
+                    public void onError(String error) {
+                        // 忽略错误
+                    }
+                });
+            }
+        }
+    }
                         }
                     });
                 }
