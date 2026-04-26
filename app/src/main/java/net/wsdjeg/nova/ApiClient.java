@@ -904,6 +904,10 @@ public class ApiClient {
      * Test connection with current settings.
      * 使用当前配置测试连接
      */
+    /**
+     * Test connection with current settings.
+     * 使用当前配置测试连接
+     */
     public void testConnection(ApiCallback callback) {
         String baseUrl = getBaseUrl();
         String apiKey = getApiKey();
@@ -914,78 +918,6 @@ public class ApiClient {
         }
         
         testConnection(baseUrl, apiKey, callback);
-    }
-    
-    /**
-     * Get available AI providers with their models.
-     * GET /providers
-     * Returns JSON array with provider objects: [{name, models}, ...]
-     */
-    public void getProviders(ProvidersCallback callback) {
-        String baseUrl = getBaseUrl();
-        String apiKey = getApiKey();
-        
-        if (baseUrl.isEmpty() || apiKey.isEmpty()) {
-            callback.onError("Please configure API settings");
-            return;
-        }
-        
-        new Thread(() -> {
-            try {
-                URL url = new URL(baseUrl + "/providers");
-                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-                conn.setRequestMethod("GET");
-                conn.setRequestProperty("X-API-Key", apiKey);
-                conn.setConnectTimeout(5000);
-                conn.setReadTimeout(10000);
-
-                int responseCode = conn.getResponseCode();
-                
-                if (responseCode == 200) {
-                    BufferedReader br = new BufferedReader(
-                        new InputStreamReader(conn.getInputStream()));
-                    StringBuilder response = new StringBuilder();
-                    String line;
-                    while ((line = br.readLine()) != null) {
-                        response.append(line);
-                    }
-                    br.close();
-                    
-                    // Parse JSON array with provider objects
-                    JSONArray jsonArray = new JSONArray(response.toString());
-                    List<Provider> providers = new ArrayList<>();
-                    
-                    for (int i = 0; i < jsonArray.length(); i++) {
-                        JSONObject providerObj = jsonArray.getJSONObject(i);
-                        String name = providerObj.optString("name", "");
-                        JSONArray modelsArray = providerObj.optJSONArray("models");
-                        
-                        if (!name.isEmpty()) {
-                            List<String> models = new ArrayList<>();
-                            if (modelsArray != null) {
-                                for (int j = 0; j < modelsArray.length(); j++) {
-                                    models.add(modelsArray.getString(j));
-                                }
-                            }
-                            providers.add(new Provider(name, models));
-                        }
-                    }
-                    
-                    new Handler(Looper.getMainLooper()).post(() -> 
-                        callback.onSuccess(providers));
-                } else if (responseCode == 401) {
-                    new Handler(Looper.getMainLooper()).post(() -> 
-                        callback.onError("Unauthorized: Invalid API Key"));
-                } else {
-                    new Handler(Looper.getMainLooper()).post(() -> 
-                        callback.onError("Error: " + responseCode));
-                }
-            } catch (Exception e) {
-                Log.e(TAG, "getProviders failed", e);
-                new Handler(Looper.getMainLooper()).post(() -> 
-                    callback.onError("Network error: " + e.getMessage()));
-            }
-        }).start();
     }
     
     /**
