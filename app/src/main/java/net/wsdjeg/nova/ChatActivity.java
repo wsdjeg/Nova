@@ -390,6 +390,10 @@ public class ChatActivity extends AppCompatActivity {
     /**
      * 刷新消息和会话状态
      */
+    /**
+     * 刷新消息和会话状态
+     * 改进：使用增量刷新减少网络请求
+     */
     private void refreshMessages() {
         if (apiClient == null || currentSessionId == null) {
             return;
@@ -398,6 +402,76 @@ public class ChatActivity extends AppCompatActivity {
         // 同时获取消息和会话状态
         refreshSessionStatus();
         
+        // 使用增量刷新：如果已有消息，只获取新消息
+        if (lastMessageCount > 0) {
+            refreshNewMessages();
+        } else {
+            // 首次加载，获取所有消息
+            refreshAllMessages();
+        }
+    }
+    
+    /**
+     * 增量刷新：只获取新消息
+     */
+    private void refreshNewMessages() {
+        apiClient.getNewMessages(currentSessionId, lastMessageCount, new ApiClient.MessagesCallback() {
+            @Override
+            public void onSuccess(List<ApiClient.ChatMessage> chatMessages) {
+                runOnUiThread(() -> {
+                    if (chatMessages.isEmpty()) {
+                        // 没有新消息
+                        return;
+                    }
+                    
+                    // 过滤掉 tool 消息
+                    List<ApiClient.ChatMessage> newMessages = new ArrayList<>();
+                    for (ApiClient.ChatMessage msg : chatMessages) {
+                        if (!"tool".equals(msg.role)) {
+                            newMessages.add(msg);
+                        }
+                    }
+                    
+                    if (newMessages.isEmpty()) {
+                        return;
+                    }
+                    
+                    // 添加新消息到列表
+                    for (ApiClient.ChatMessage msg : newMessages) {
+                        boolean isUser = "user".equals(msg.role);
+                        long timestamp = msg.created * 1000L;
+                        messages.add(new Message(msg.content, isUser, timestamp));
+                    }
+                    
+                    lastMessageCount += newMessages.size();
+                    adapter.notifyDataSetChanged();
+                    rvMessages.scrollToPosition(messages.size() - 1);
+                    
+                    // 更新 SessionManager 中的消息信息
+                    ApiClient.ChatMessage lastMsg = newMessages.get(newMessages.size() - 1);
+                    Session currentSession = sessionManager.getSession(currentSessionId);
+                    sessionManager.updateMessages(
+                        currentSessionId,
+                        currentSession != null ? currentSession.getFirstMessage() : "",
+                        lastMsg.content,
+                        lastMessageCount,
+                        lastMsg.created * 1000L
+                    );
+                });
+            }
+
+            @Override
+            public void onError(String error) {
+                // 增量刷新失败，可能是服务器不支持，尝试全量刷新
+                refreshAllMessages();
+            }
+        });
+    }
+    
+    /**
+     * 全量刷新：获取所有消息
+     */
+    private void refreshAllMessages() {
         apiClient.getMessages(currentSessionId, new ApiClient.MessagesCallback() {
             @Override
             public void onSuccess(List<ApiClient.ChatMessage> chatMessages) {
@@ -438,12 +512,6 @@ public class ChatActivity extends AppCompatActivity {
             public void onError(String error) {
                 if (messages.size() <= 1) {
                     runOnUiThread(() -> 
-                        addMessage("无法加载消息: " + error + "\n\n请检查网络连接和API配置。", false));
-                }
-            }
-        });
-    }
-    
     /**
      * 刷新会话状态（检查是否正在生成）
      */
