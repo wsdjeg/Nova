@@ -448,6 +448,10 @@ public class ApiClient {
      * Create a new chat session.
      * Request body: {"cwd": "...", "provider": "...", "model": "..."} (all optional)
      * Returns 201 with {"id": "session-id"}
+    /**
+     * Create a new chat session.
+     * Request body: {"cwd": "...", "provider": "...", "model": "..."} (all optional)
+     * Returns 201 with {"id": "session-id"}
      * 
      * @param accountId 用于标记会话所属账号（可选）
      */
@@ -468,8 +472,8 @@ public class ApiClient {
                 conn.setRequestProperty("Content-Type", "application/json");
                 conn.setRequestProperty("X-API-Key", apiKey);
                 conn.setDoOutput(true);
-                conn.setConnectTimeout(5000);
-                conn.setReadTimeout(10000);
+                conn.setConnectTimeout(10000);
+                conn.setReadTimeout(30000);
 
                 // Build request body (all fields optional)
                 JSONObject requestBody = new JSONObject();
@@ -530,6 +534,8 @@ public class ApiClient {
                 new Handler(Looper.getMainLooper()).post(() -> 
                     callback.onError("Network error: " + e.getMessage()));
             }
+        }).start();
+    }
         }).start();
     }
     
@@ -745,9 +751,8 @@ public class ApiClient {
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("GET");
                 conn.setRequestProperty("X-API-Key", apiKey);
-                conn.setConnectTimeout(5000);
-                conn.setReadTimeout(10000);
-
+                conn.setConnectTimeout(10000);
+                conn.setReadTimeout(60000);  // 60 秒，消息多时需要更长时间
                 int responseCode = conn.getResponseCode();
                 
                 if (responseCode == 200) {
