@@ -393,9 +393,11 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
     
     private void openChatActivity(String sessionId) {
         Session session = sessionManager.getSession(sessionId);
+        String sessionTitle = null;
         if (session != null) {
             int currentMessageCount = session.getMessageCount();
             sessionManager.saveReadMessageCount(sessionId, currentMessageCount);
+            sessionTitle = session.getTitle();
         }
         
         sessionManager.clearUnreadCount(sessionId);
@@ -404,6 +406,7 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
         sessionManager.saveCurrentSession(sessionId);
         Intent intent = new Intent(this, ChatActivity.class);
         intent.putExtra("session_id", sessionId);
+        intent.putExtra("session_title", sessionTitle);
         startActivity(intent);
     }
     
