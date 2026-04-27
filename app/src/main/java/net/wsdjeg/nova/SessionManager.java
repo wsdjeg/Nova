@@ -54,6 +54,7 @@ public class SessionManager {
                 json.put("model", session.getModel());
                 json.put("cwd", session.getCwd());
                 json.put("in_progress", session.isInProgress());
+                json.put("firstMessageIndex", session.getFirstMessageIndex());
                 jsonArray.put(json);
             } catch (JSONException e) {
                 e.printStackTrace();
@@ -91,6 +92,7 @@ public class SessionManager {
                 session.setModel(json.optString("model", ""));
                 session.setCwd(json.optString("cwd", ""));
                 session.setInProgress(json.optBoolean("in_progress", false));
+                session.setFirstMessageIndex(json.optInt("firstMessageIndex", 0));
                 sessions.add(session);
             }
         } catch (JSONException e) {
@@ -190,6 +192,22 @@ public class SessionManager {
                 session.setLastMessage(lastMessage);
                 session.setLastMessageTime(lastMessageTime);
                 session.setMessageCount(messageCount);
+                break;
+            }
+        }
+        
+        saveSessions(sessions);
+    }
+    
+    /**
+     * 更新会话的 firstMessageIndex
+     */
+    public void updateFirstMessageIndex(String sessionId, int firstMessageIndex) {
+        List<Session> sessions = loadSessions();
+        
+        for (Session session : sessions) {
+            if (session.getSessionId().equals(sessionId)) {
+                session.setFirstMessageIndex(firstMessageIndex);
                 break;
             }
         }

@@ -24,6 +24,11 @@ public class Session {
     private String cwd;          // Working directory
     private boolean inProgress;  // 会话是否正在进行中
     
+    // 分页加载相关：当前已加载的最旧消息索引（索引从 1 开始）
+    // firstMessageIndex = 1 表示已加载到第一条消息
+    // firstMessageIndex = 0 表示尚未初始化
+    private int firstMessageIndex = 0;
+    
     public Session(String sessionId) {
         this.sessionId = sessionId;
         this.accountId = "";  // 默认空，表示本地会话或当前账号
@@ -38,6 +43,7 @@ public class Session {
         this.model = "";
         this.cwd = "";
         this.inProgress = false;
+        this.firstMessageIndex = 0;
     }
     
     public Session(String sessionId, String firstMessage, String lastMessage, long lastMessageTime, int messageCount) {
@@ -54,6 +60,7 @@ public class Session {
         this.model = "";
         this.cwd = "";
         this.inProgress = false;
+        this.firstMessageIndex = 0;
     }
     
     /**
@@ -73,6 +80,7 @@ public class Session {
         this.preview = "";
         this.unreadCount = 0;
         this.inProgress = false;
+        this.firstMessageIndex = 0;
     }
     
     // 兼容旧版本的构造函数
@@ -142,6 +150,72 @@ public class Session {
         this.preview = generatePreview(lastMessageContent);
         this.messageCount = count;
         this.lastMessageTime = time;
+    }
+    
+    /**
+     * 计算首次加载时的 since 值
+     * @param pageSize 每页消息数（默认 20）
+     * @return since 值（从第几条消息开始加载）
+     */
+    public int calculateInitialSince(int pageSize) {
+        if (messageCount <= 0) {
+            return 1;
+        }
+        if (messageCount <= pageSize) {
+            return 1;
+        }
+        // 加载最后 pageSize 条消息
+        return messageCount - pageSize + 1;
+    }
+    
+    /**
+     * 初始化 firstMessageIndex
+     * @param pageSize 每页消息数
+     */
+    public void initializeFirstMessageIndex(int pageSize) {
+        if (firstMessageIndex == 0) {
+            firstMessageIndex = calculateInitialSince(pageSize);
+        }
+    }
+    
+    /**
+     * 是否还有更早的消息可加载
+     * @return true 如果 firstMessageIndex > 1
+     */
+    public boolean hasOlderMessages() {
+        return firstMessageIndex > 1;
+    }
+    
+    /**
+     * 计算加载更早消息的 since 值
+     * @param pageSize 每页消息数
+     * @return 新的 since 值，如果已到第一条则返回当前值
+     */
+    public int calculateOlderSince(int pageSize) {
+        if (firstMessageIndex <= 1) {
+            return 1;
+        }
+        int newSince = firstMessageIndex - pageSize;
+        if (newSince < 1) {
+            newSince = 1;
+        }
+        return newSince;
+    }
+    
+    /**
+     * 更新 firstMessageIndex（加载更早消息后）
+     * @param newSince 新的 since 值
+     */
+    public void updateFirstMessageIndex(int newSince) {
+        firstMessageIndex = newSince;
+    }
+    
+    /**
+     * 是否已加载到第一条消息
+     * @return true 如果 firstMessageIndex == 1
+     */
+    public boolean isAtFirstMessage() {
+        return firstMessageIndex == 1;
     }
     
     // Getters and Setters
@@ -260,5 +334,13 @@ public class Session {
     
     public void setInProgress(boolean inProgress) {
         this.inProgress = inProgress;
+    }
+    
+    public int getFirstMessageIndex() {
+        return firstMessageIndex;
+    }
+    
+    public void setFirstMessageIndex(int firstMessageIndex) {
+        this.firstMessageIndex = firstMessageIndex;
     }
 }

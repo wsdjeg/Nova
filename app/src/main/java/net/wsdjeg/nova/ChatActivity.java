@@ -26,10 +26,15 @@ import java.util.Map;
  * 聊天界面 Activity
  * 显示单个会话的消息列表
  * 
- * 分页加载逻辑：
- * - 初始加载：since = message_count - 20
- * - 上滚到顶部：since -= 20，加载更早的消息
- * - 直到 since <= 1 停止加载
+ * 分页加载逻辑（使用 Session.firstMessageIndex）：
+ * - firstMessageIndex: 当前已加载的最旧消息索引（索引从 1 开始）
+ * - 首次加载：
+ *   - 如果 messageCount <= PAGE_SIZE: since = 1, firstMessageIndex = 1
+ *   - 如果 messageCount > PAGE_SIZE: since = messageCount - PAGE_SIZE + 1, firstMessageIndex = since
+ * - 下拉加载更多：
+ *   - since = max(firstMessageIndex - PAGE_SIZE, 1)
+ *   - 更新 firstMessageIndex = since
+ *   - 如果 firstMessageIndex == 1: 显示"已到第一条消息"，禁止下拉加载
  * 
  * 增量刷新优化：
  * - 使用消息指纹（created + content）检测变化
@@ -81,7 +86,6 @@ public class ChatActivity extends AppCompatActivity {
     
     // 分页加载相关
     private int totalMessageCount = 0; // 从 Session 获取的消息总数
-    private int currentSince = 0;       // 当前加载的起始位置
     private boolean isLoadingMore = false; // 是否正在加载更多
     private boolean hasMoreMessages = true; // 是否还有更多历史消息
     
@@ -187,18 +191,21 @@ public class ChatActivity extends AppCompatActivity {
     
     /**
      * 加载初始消息
+     * 使用 Session.firstMessageIndex 来决定加载范围
      */
     private void loadInitialMessages() {
-        if (totalMessageCount <= 0) {
+        Session session = sessionManager.getSession(currentSessionId);
+        
+        if (session == null || session.getMessageCount() <= 0) {
             addMessage("正在加载消息...", false);
             refreshSessionStatus(() -> {
                 if (messages.size() == 1 && messages.get(0).getContent().equals("正在加载消息...")) {
                     messages.clear();
                 }
                 
-                Session session = sessionManager.getSession(currentSessionId);
-                if (session != null) {
-                    totalMessageCount = session.getMessageCount();
+                Session updatedSession = sessionManager.getSession(currentSessionId);
+                if (updatedSession != null) {
+                    totalMessageCount = updatedSession.getMessageCount();
                     Log.d(TAG, "Updated total message count: " + totalMessageCount);
                 }
                 
@@ -210,12 +217,14 @@ public class ChatActivity extends AppCompatActivity {
                 loadMessagesPage();
             });
         } else {
+            totalMessageCount = session.getMessageCount();
             loadMessagesPage();
         }
     }
     
     /**
      * 加载一页消息
+     * 基于 Session.firstMessageIndex 计算加载范围
      */
     private void loadMessagesPage() {
         if (apiClient == null || currentSessionId == null) {
@@ -229,21 +238,35 @@ public class ChatActivity extends AppCompatActivity {
             return;
         }
         
-        if (currentSince == 0) {
+        Session session = sessionManager.getSession(currentSessionId);
+        int firstMessageIndex = session != null ? session.getFirstMessageIndex() : 0;
+        int since;
+        
+        // 首次加载时，firstMessageIndex 为 0，需要初始化
+        if (firstMessageIndex == 0) {
             if (totalMessageCount <= PAGE_SIZE) {
-                currentSince = 1;
+                // 消息总数 <= 20，从第一条开始加载
+                since = 1;
                 hasMoreMessages = false;
             } else {
-                currentSince = totalMessageCount - PAGE_SIZE + 1;
+                // 消息总数 > 20，加载最新的 20 条
+                since = totalMessageCount - PAGE_SIZE + 1;
                 hasMoreMessages = true;
             }
+            // 保存 firstMessageIndex
+            sessionManager.updateFirstMessageIndex(currentSessionId, since);
+            Log.d(TAG, "Initialized firstMessageIndex: " + since);
+        } else {
+            since = firstMessageIndex;
+            // 根据 firstMessageIndex 判断是否还有更多消息
+            hasMoreMessages = (since > 1);
         }
         
-        Log.d(TAG, "Loading messages: since=" + currentSince + ", total=" + totalMessageCount);
+        Log.d(TAG, "Loading messages: since=" + since + ", total=" + totalMessageCount + ", hasMore=" + hasMoreMessages);
         
         isLoadingMore = true;
         
-        apiClient.getMessagesWithOptions(currentSessionId, currentSince, PAGE_SIZE, false, 
+        apiClient.getMessagesWithOptions(currentSessionId, since, PAGE_SIZE, false, 
             new ApiClient.MessagesCallback() {
                 @Override
                 public void onSuccess(List<ApiClient.ChatMessage> chatMessages) {
@@ -287,7 +310,6 @@ public class ChatActivity extends AppCompatActivity {
                         lastMessageCount = messages.size();
                         
                         // 更新本地会话信息（用于会话列表显示）
-                        // 注意：不更新会话标题，标题只从 /sessions API 获取
                         if (!messages.isEmpty()) {
                             Message lastMsg = messages.get(messages.size() - 1);
                             Message firstMsg = messages.get(0);
@@ -302,6 +324,12 @@ public class ChatActivity extends AppCompatActivity {
                         
                         adapter.notifyDataSetChanged();
                         rvMessages.scrollToPosition(messages.size() - 1);
+                        
+                        // 更新 hasMoreMessages 状态
+                        Session currentSession = sessionManager.getSession(currentSessionId);
+                        if (currentSession != null && currentSession.getFirstMessageIndex() == 1) {
+                            hasMoreMessages = false;
+                        }
                     });
                 }
                 
@@ -321,31 +349,38 @@ public class ChatActivity extends AppCompatActivity {
     
     /**
      * 加载更早的消息
+     * 基于 Session.firstMessageIndex 计算新的加载范围
      */
     private void loadOlderMessages() {
         if (isLoadingMore || !hasMoreMessages) {
             return;
         }
         
-        // 计算新的 since 值，使用临时变量以满足 lambda 的 effectively final 要求
-        int candidateSince = currentSince - PAGE_SIZE;
-        if (candidateSince <= 1) {
-            candidateSince = 1;
+        Session session = sessionManager.getSession(currentSessionId);
+        int currentFirstIndex = session != null ? session.getFirstMessageIndex() : 0;
+        
+        if (currentFirstIndex <= 1) {
+            // 已经到第一条消息
+            hasMoreMessages = false;
+            Toast.makeText(this, "已到第一条消息", Toast.LENGTH_SHORT).show();
+            return;
         }
         
-        // 如果计算值没有向前移动，停止加载
-        if (candidateSince >= currentSince) {
+        // 计算新的 since: max(firstMessageIndex - PAGE_SIZE, 1)
+        int newSince = Math.max(currentFirstIndex - PAGE_SIZE, 1);
+        
+        // 如果新的 since 没有向前移动，停止加载
+        if (newSince >= currentFirstIndex) {
             hasMoreMessages = false;
             return;
         }
         
-        // 根据最终值更新 hasMoreMessages
-        if (candidateSince == 1) {
-            hasMoreMessages = false;
-        }
-        
         // 创建 effectively final 变量供 lambda 使用
-        final int newSince = candidateSince;
+        final int since = newSince;
+        final int insertCount = currentFirstIndex - newSince; // 本次加载的消息数量
+        
+        Log.d(TAG, "Loading older messages: currentFirstIndex=" + currentFirstIndex 
+            + ", newSince=" + since + ", insertCount=" + insertCount);
         
         // === 关键优化：记录当前滚动位置 ===
         LinearLayoutManager layoutManager = (LinearLayoutManager) rvMessages.getLayoutManager();
@@ -357,7 +392,9 @@ public class ChatActivity extends AppCompatActivity {
         // 先显示加载提示
         addMessageAtTop("加载中...");
         
-        apiClient.getMessagesWithOptions(currentSessionId, newSince, PAGE_SIZE, false,
+        isLoadingMore = true;
+        
+        apiClient.getMessagesWithOptions(currentSessionId, since, insertCount, false,
             new ApiClient.MessagesCallback() {
                 @Override
                 public void onSuccess(List<ApiClient.ChatMessage> chatMessages) {
@@ -388,30 +425,38 @@ public class ChatActivity extends AppCompatActivity {
                         }
                         
                         // 插入到列表开头
-                        int insertCount = 0;
+                        int addedCount = 0;
                         for (int i = filteredMessages.size() - 1; i >= 0; i--) {
                             ApiClient.ChatMessage msg = filteredMessages.get(i);
                             boolean isUser = "user".equals(msg.role);
                             long timestamp = msg.created * 1000L;
-                            messages.add(insertCount, new Message(msg.content, isUser, timestamp));
+                            messages.add(addedCount, new Message(msg.content, isUser, timestamp));
                             
                             // 更新消息指纹缓存
                             messageFingerprints.put(msg.created, msg.content);
-                            insertCount++;
+                            addedCount++;
                         }
                         
                         lastMessageCount = messages.size();
                         
                         // === 关键优化：恢复滚动位置 ===
-                        adapter.notifyItemRangeInserted(0, insertCount);
+                        adapter.notifyItemRangeInserted(0, addedCount);
                         
-                        // 计算新的位置：原位置 + 插入的消息数 + 加载提示移除的1个位置
-                        int newPosition = oldFirstVisiblePosition + insertCount;
+                        // 计算新的位置：原位置 + 插入的消息数
+                        int newPosition = oldFirstVisiblePosition + addedCount;
                         layoutManager.scrollToPositionWithOffset(newPosition, oldTop);
                         Log.d(TAG, "Restored scroll: newPosition=" + newPosition + ", offset=" + oldTop);
                         
-                        // 更新 since
-                        currentSince = newSince;
+                        // 更新 firstMessageIndex
+                        sessionManager.updateFirstMessageIndex(currentSessionId, since);
+                        
+                        // 如果 since == 1，标记没有更多消息
+                        if (since == 1) {
+                            hasMoreMessages = false;
+                            Log.d(TAG, "Reached first message, hasMoreMessages = false");
+                        }
+                        
+                        Log.d(TAG, "Updated firstMessageIndex to: " + since);
                     });
                 }
                 
@@ -616,9 +661,17 @@ public class ChatActivity extends AppCompatActivity {
                 if (layoutManager != null) {
                     int firstVisiblePosition = layoutManager.findFirstVisibleItemPosition();
                     
+                    // 滚动到顶部且有更多消息时，加载更早的消息
                     if (firstVisiblePosition == 0 && dy < 0 && !isLoadingMore && hasMoreMessages) {
                         Log.d(TAG, "Scrolled to top, loading older messages...");
                         loadOlderMessages();
+                    }
+                    
+                    // 如果 firstMessageIndex == 1，显示"已到第一条消息"
+                    Session session = sessionManager.getSession(currentSessionId);
+                    if (session != null && session.getFirstMessageIndex() == 1 && firstVisiblePosition == 0) {
+                        // 可选：在顶部显示提示
+                        // 目前用 Toast 提示
                     }
                 }
             }
@@ -967,8 +1020,11 @@ public class ChatActivity extends AppCompatActivity {
     private void reloadMessages() {
         messages.clear();
         messageFingerprints.clear();
-        currentSince = 0;
+        
+        // 重置 firstMessageIndex，重新初始化
+        sessionManager.updateFirstMessageIndex(currentSessionId, 0);
         hasMoreMessages = true;
+        
         loadMessagesPage();
     }
     
