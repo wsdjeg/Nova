@@ -782,14 +782,28 @@ public class ChatActivity extends AppCompatActivity {
     }
     
     private void clearSession() {
-        messages.clear();
-        messageFingerprints.clear();
-        processedServerMessageCount = 0;
-        adapter.refreshData();
-        addMessage("会话已清空", false);
+        if (apiClient == null) return;
+        apiClient.clearSession(currentSessionId, new ApiClient.ClearCallback() {
+            @Override
+            public void onSuccess() {
+                runOnUiThread(() -> {
+                    messages.clear();
+                    messageFingerprints.clear();
+                    processedServerMessageCount = 0;
+                    adapter.refreshData();
+                    addMessage("会话已清空", false);
+                    Toast.makeText(ChatActivity.this, "会话已清空", Toast.LENGTH_SHORT).show();
+                });
+            }
+            
+            @Override
+            public void onError(String error) {
+                runOnUiThread(() -> {
+                    Toast.makeText(ChatActivity.this, "清空失败: " + error, Toast.LENGTH_SHORT).show();
+                });
+            }
+        });
     }
-    
-    private void deleteSession() {
         new android.app.AlertDialog.Builder(this)
             .setTitle("删除会话")
             .setMessage("确定要删除此会话吗？")
