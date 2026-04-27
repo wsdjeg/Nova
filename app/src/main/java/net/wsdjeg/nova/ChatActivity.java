@@ -236,13 +236,6 @@ public class ChatActivity extends AppCompatActivity {
         return true;
     }
     
-    private void updateMenuVisibility(Menu menu) {
-        MenuItem stopItem = menu.findItem(R.id.action_stop);
-        if (stopItem != null) {
-            stopItem.setVisible(isInProgress);
-        }
-    }
-    
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         int id = item.getItemId();
@@ -255,8 +248,8 @@ public class ChatActivity extends AppCompatActivity {
         } else if (id == R.id.action_delete_session) {
             deleteSession();
             return true;
-        } else if (id == R.id.action_stop) {
-            stopSession();
+        } else if (id == R.id.action_preview) {
+            showPreviewDialog();
             return true;
         } else if (id == R.id.action_settings) {
             startActivity(new Intent(this, SettingsActivity.class));
