@@ -112,22 +112,26 @@ public class SessionAdapter extends RecyclerView.Adapter<SessionAdapter.SessionV
         }
         
         // 右侧区域：spinner 或 时间（互斥）
+        // spinner显示时隐藏未读数量（方案1）
         if (session.isInProgress()) {
+            // 正在进行：显示spinner，隐藏时间和未读数量
             holder.progressSpinner.setVisibility(View.VISIBLE);
             holder.textTime.setVisibility(View.GONE);
+            holder.textCount.setVisibility(View.GONE);
         } else {
+            // 未在进行：显示时间，根据未读数量显示徽章
             holder.progressSpinner.setVisibility(View.GONE);
             holder.textTime.setVisibility(View.VISIBLE);
             holder.textTime.setText(session.getFormattedTime());
-        }
-        
-        // 未读数量（右上角徽章）
-        int unreadCount = session.getUnreadCount();
-        if (unreadCount > 0) {
-            holder.textCount.setVisibility(View.VISIBLE);
-            holder.textCount.setText(unreadCount > 99 ? "99+" : String.valueOf(unreadCount));
-        } else {
-            holder.textCount.setVisibility(View.GONE);
+            
+            // 未读数量（右上角徽章）
+            int unreadCount = session.getUnreadCount();
+            if (unreadCount > 0) {
+                holder.textCount.setVisibility(View.VISIBLE);
+                holder.textCount.setText(unreadCount > 99 ? "99+" : String.valueOf(unreadCount));
+            } else {
+                holder.textCount.setVisibility(View.GONE);
+            }
         }
         
         // 点击事件
