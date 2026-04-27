@@ -633,6 +633,9 @@ public class ChatActivity extends AppCompatActivity {
                 return msg.getContent();
             }
         }
+        return "";
+    }
+    
     /**
      * 统计可显示消息数量
      */
@@ -646,14 +649,10 @@ public class ChatActivity extends AppCompatActivity {
         return count;
     }
     
-    /**
-     * 滚动到最后一条可显示的消息
-     */
     private void scrollToLastDisplayable() {
         if (adapter == null || rvMessages == null) return;
         int visibleCount = adapter.getItemCount();
         if (visibleCount > 0) {
-            // 使用 post 确保在布局完成后滚动
             rvMessages.post(() -> {
                 rvMessages.scrollToPosition(visibleCount - 1);
             });
