@@ -92,16 +92,16 @@ public class Session {
     }
     
     /**
-     * 生成消息预览（截取前50个字符，带角色图标）
-     * assistant: 🤖 + 内容
-     * user: 👤 + 内容
+     * 生成消息预览（只显示 content，截取前50个字符）
+     * 用户需求：只显示 content，不需要角色图标
      */
     private String generatePreview(String message) {
-        return generatePreview(message, lastMessageRole);
+        return generatePreview(message, null);
     }
     
     /**
-     * 生成消息预览（带角色图标）
+     * 生成消息预览（只显示 content，截取前50个字符）
+     * 不添加角色图标，只显示纯文本内容
      */
     private String generatePreview(String message, String role) {
         if (message == null || message.isEmpty()) {
@@ -112,12 +112,7 @@ public class Session {
         if (singleLine.length() > 50) {
             singleLine = singleLine.substring(0, 50) + "...";
         }
-        // 添加角色图标
-        if (role != null && role.equals("assistant")) {
-            return "🤖 " + singleLine;
-        } else if (role != null && role.equals("user")) {
-            return "👤 " + singleLine;
-        }
+        // 只显示 content，不添加角色图标
         return singleLine;
     }
     
@@ -291,7 +286,7 @@ public class Session {
     
     public void setLastMessage(String lastMessage) {
         this.lastMessage = lastMessage;
-        this.preview = generatePreview(lastMessage, this.lastMessageRole);
+        this.preview = generatePreview(lastMessage);
     }
     
     /**
@@ -300,7 +295,7 @@ public class Session {
     public void setLastMessageWithRole(String lastMessage, String role) {
         this.lastMessage = lastMessage;
         this.lastMessageRole = role;
-        this.preview = generatePreview(lastMessage, role);
+        this.preview = generatePreview(lastMessage);
     }
     
     /**
@@ -315,7 +310,7 @@ public class Session {
      */
     public void setLastMessageRole(String role) {
         this.lastMessageRole = role;
-        this.preview = generatePreview(this.lastMessage, role);
+        this.preview = generatePreview(this.lastMessage);
     }
     
     public long getLastMessageTime() {
