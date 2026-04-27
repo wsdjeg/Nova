@@ -210,6 +210,7 @@ public class ChatActivity extends AppCompatActivity {
     }
     
     /**
+    /**
      * 加载一页消息
      */
     private void loadMessagesPage() {
@@ -280,6 +281,8 @@ public class ChatActivity extends AppCompatActivity {
                         
                         lastMessageCount = messages.size();
                         
+                        // 更新本地会话信息（用于会话列表显示）
+                        // 注意：不更新会话标题，标题只从 /sessions API 获取
                         if (!messages.isEmpty()) {
                             Message lastMsg = messages.get(messages.size() - 1);
                             Message firstMsg = messages.get(0);
@@ -290,7 +293,6 @@ public class ChatActivity extends AppCompatActivity {
                                 lastMessageCount,
                                 lastMsg.getTimestamp()
                             );
-                            tvSessionTitle.setText(firstMsg.getContent().split("\n")[0]);
                         }
                         
                         adapter.notifyDataSetChanged();
@@ -314,15 +316,11 @@ public class ChatActivity extends AppCompatActivity {
     
     /**
      * 加载更早的消息
-     * 上滚到顶部时调用
-     * 优化：保持用户阅读位置不跳动
      */
     private void loadOlderMessages() {
         if (isLoadingMore || !hasMoreMessages) {
             return;
         }
-        
-        // 计算新的起始位置
         int newSince = currentSince - PAGE_SIZE;
         if (newSince <= 1) {
             newSince = 1;
