@@ -142,32 +142,31 @@ String ip = settingsManager.getIpAddress();  // 方法不存在！
 ✅ 正确示例（先验证再使用）:
 1. 先用 @search_text 或 @read_file 检查源码
 2. 确认 SettingsManager 类中有 getUrl() 方法
-3. 然后使用: String ip = settingsManager.getUrl();
-```
-
-**验证方法：**
-1. 使用 `@find_files` 找到目标文件
-2. 使用 `@read_file` 或 `@search_text` 查看实际代码
-3. 确认 class/function/variable 确实存在
-4. 然后才能在代码中引用
-
-**禁止行为：**
-- 禁止凭记忆或猜测调用方法
-- 禁止假设某个类有某个方法
-- 禁止不看源码就写代码
-
 ### API 实现规范
 
 Nova 作为 chat.nvim 的移动端客户端，需要实现 HTTP API 与服务端通信。
 
+**⚠️ 禁止下载 API 文档到本地！**
+
+```
+❌ 禁止行为:
+- 禁止使用 @fetch_web 的 output 参数保存文档到文件
+- 禁止创建 api_doc.md 或任何本地 API 文档文件
+- 禁止将 API 文档内容写入项目目录
+
+✅ 正确做法:
+- 使用 @fetch_web 直接在线查阅
+- 查阅后直接根据文档内容实现代码
+- 不保留任何文档副本
+```
+
 **获取最新 API 文档：**
 
-当需要实现或修改 API 相关功能时，使用 `@fetch_web` 获取最新的 API 文档：
+当需要实现或修改 API 相关功能时，使用 `@fetch_web` 直接查阅在线文档：
 
 ```
 @fetch_web url="https://raw.githubusercontent.com/wsdjeg/chat.nvim/refs/heads/master/docs/api/http.md"
 ```
-
 该文档包含：
 - API 端点定义
 - 请求/响应格式
@@ -175,11 +174,15 @@ Nova 作为 chat.nvim 的移动端客户端，需要实现 HTTP API 与服务端
 - 错误处理
 - 代码示例
 
-**注意：** API 文档会持续更新，每次修改 API 相关代码时都应先获取最新文档确认。
+**为什么不保存文档？**
+- API 文档会持续更新，本地文档容易过时
+- 在线查阅确保每次都获取最新版本
+- 减少项目文件维护负担
+- 避免"离线文档与实际 API 不一致"的问题
+
+**注意：** 每次修改 API 相关代码时都应先查阅最新文档确认。
 
 ### Git 工作流
-
-**⚠️ 重要：Git 工具必须逐个执行！**
 
 使用 git 相关工具时，必须一个一个发送执行，**严禁**一次发送多个 git 工具调用！
 
