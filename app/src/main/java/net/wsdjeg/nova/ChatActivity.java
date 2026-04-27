@@ -57,9 +57,6 @@ public class ChatActivity extends AppCompatActivity {
     private Toolbar toolbar;
     private TextView tvSessionTitle;
     private TextView tvSessionInfo;
-    private Toolbar toolbar;
-    private TextView tvSessionTitle;
-    private TextView tvSessionInfo;
     private TextView tvSessionPath;
     private RecyclerView rvMessages;
     private EditText etMessage;
@@ -104,19 +101,8 @@ public class ChatActivity extends AppCompatActivity {
     private int lastCheckedContentLength = -1;
     // 用于跟踪是否刚刚完成生成（只触发一次检查）
     private boolean justFinishedGeneration = false;
-    private boolean isInProgress = false; // 从 API 获取的会话状态
     
-    // === 增量刷新优化：消息指纹缓存 ===
-    // Key: created 时间戳（秒）, Value: 消息内容
-    private Map<Long, String> messageFingerprints = new HashMap<>();
-    // 最后一条消息的 created 时间戳（秒），用于快速判断是否有新消息
-    private long lastMessageCreatedTimestamp = -1;  // 初始化为 -1，表示未设置
-    // 最后一条消息的内容，用于检测流式更新
-    private String lastMessageContent = null;  // 初始化为 null，表示未设置
-    // 最后一次检查时的消息内容长度，用于避免频繁更新
-    private int lastCheckedContentLength = -1;
-    // 用于跟踪是否刚刚完成生成（只触发一次检查）
-    private boolean justFinishedGeneration = false;
+    @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_chat);
@@ -228,7 +214,6 @@ public class ChatActivity extends AppCompatActivity {
         }
     }
     
-    /**
     /**
      * 加载一页消息
      */
@@ -359,7 +344,11 @@ public class ChatActivity extends AppCompatActivity {
         View firstVisibleView = layoutManager.getChildAt(0);
         int oldTop = firstVisibleView != null ? firstVisibleView.getTop() : 0;
         Log.d(TAG, "Preserving scroll: position=" + oldFirstVisiblePosition + ", top=" + oldTop);
-        apiClient.getMessagesWithOptions(currentSessionId, currentSince, PAGE_SIZE, false,
+        
+        // 先显示加载提示
+        addMessageAtTop("加载中...");
+        
+        apiClient.getMessagesWithOptions(currentSessionId, newSince, PAGE_SIZE, false,
             new ApiClient.MessagesCallback() {
                 @Override
                 public void onSuccess(List<ApiClient.ChatMessage> chatMessages) {
@@ -411,6 +400,9 @@ public class ChatActivity extends AppCompatActivity {
                         int newPosition = oldFirstVisiblePosition + insertCount;
                         layoutManager.scrollToPositionWithOffset(newPosition, oldTop);
                         Log.d(TAG, "Restored scroll: newPosition=" + newPosition + ", offset=" + oldTop);
+                        
+                        // 更新 since
+                        currentSince = newSince;
                     });
                 }
                 
@@ -431,6 +423,19 @@ public class ChatActivity extends AppCompatActivity {
     }
     
     /**
+     * 在列表顶部添加消息
+     */
+    private void addMessageAtTop(String content) {
+        if (messages == null) {
+            messages = new ArrayList<>();
+        }
+        messages.add(0, new Message(content, false, System.currentTimeMillis()));
+        if (adapter != null) {
+            adapter.notifyItemInserted(0);
+        }
+    }
+    
+    /**
      * 加载会话信息并显示在顶部
      * 注意：标题不在此处更新，只在 SessionListActivity 获取会话列表时更新
      */
@@ -448,6 +453,7 @@ public class ChatActivity extends AppCompatActivity {
             tvSessionPath.setText("CWD: unknown");
         }
     }
+    
     /**
      * 更新顶部会话信息显示（三行）
      */
@@ -633,6 +639,7 @@ public class ChatActivity extends AppCompatActivity {
             refreshHandler.removeCallbacks(refreshRunnable);
         }
     }
+    
     /**
      * 刷新消息和会话状态
      * 
@@ -713,6 +720,7 @@ public class ChatActivity extends AppCompatActivity {
             }
         });
     }
+    
     /**
      * 获取增量消息
      * 
@@ -734,7 +742,6 @@ public class ChatActivity extends AppCompatActivity {
         
         apiClient.getMessagesWithOptions(currentSessionId, sinceIndex, newCount, false, 
             new ApiClient.MessagesCallback() {
-                @Override
                 @Override
                 public void onSuccess(List<ApiClient.ChatMessage> chatMessages) {
                     runOnUiThread(() -> {
@@ -873,8 +880,6 @@ public class ChatActivity extends AppCompatActivity {
         });
     }
     
-    /**
-     * 检查最后一条消息是否有内容更新
     /**
      * 检查最后一条消息是否有内容更新
      * 用于流式消息生成过程中
