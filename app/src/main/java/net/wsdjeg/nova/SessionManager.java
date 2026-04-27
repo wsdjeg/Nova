@@ -44,6 +44,7 @@ public class SessionManager {
             try {
                 json.put("sessionId", session.getSessionId());
                 json.put("accountId", session.getAccountId());
+                json.put("title", session.getTitle());
                 json.put("firstMessage", session.getFirstMessage());
                 json.put("lastMessage", session.getLastMessage());
                 json.put("lastMessageTime", session.getLastMessageTime());
@@ -84,6 +85,7 @@ public class SessionManager {
                     json.optInt("messageCount", 0)
                 );
                 session.setAccountId(json.optString("accountId", ""));
+                session.setTitle(json.optString("title", ""));
                 session.setUnreadCount(json.optInt("unreadCount", 0));
                 session.setProvider(json.optString("provider", ""));
                 session.setModel(json.optString("model", ""));
