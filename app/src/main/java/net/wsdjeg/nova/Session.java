@@ -13,6 +13,7 @@ public class Session {
     private String title;         // 服务器返回的会话标题（优先显示）
     private String firstMessage;  // 第一个消息（用于显示标题，备用）
     private String lastMessage;
+    private String lastMessageRole;  // 最后一条消息的角色（user/assistant）
     private long lastMessageTime;
     private int messageCount;
     private String preview;
@@ -23,7 +24,6 @@ public class Session {
     private String model;        // Model name
     private String cwd;          // Working directory
     private boolean inProgress;  // 会话是否正在进行中
-    
     // 分页加载相关：当前已加载的最旧消息索引（索引从 1 开始）
     // firstMessageIndex = 1 表示已加载到第一条消息
     // firstMessageIndex = 0 表示尚未初始化
@@ -35,6 +35,7 @@ public class Session {
         this.title = "";
         this.firstMessage = "";
         this.lastMessage = "";
+        this.lastMessageRole = "";
         this.lastMessageTime = System.currentTimeMillis();
         this.messageCount = 0;
         this.preview = "";
@@ -52,6 +53,7 @@ public class Session {
         this.title = "";
         this.firstMessage = firstMessage != null ? firstMessage : "";
         this.lastMessage = lastMessage;
+        this.lastMessageRole = "";
         this.lastMessageTime = lastMessageTime;
         this.messageCount = messageCount;
         this.preview = generatePreview(lastMessage);
@@ -75,6 +77,7 @@ public class Session {
         this.title = "";
         this.firstMessage = "";
         this.lastMessage = "";
+        this.lastMessageRole = "";
         this.lastMessageTime = System.currentTimeMillis();
         this.messageCount = 0;
         this.preview = "";
@@ -89,16 +92,31 @@ public class Session {
     }
     
     /**
-     * 生成消息预览（截取前50个字符）
+     * 生成消息预览（截取前50个字符，带角色图标）
+     * assistant: 🤖 + 内容
+     * user: 👤 + 内容
      */
     private String generatePreview(String message) {
+        return generatePreview(message, lastMessageRole);
+    }
+    
+    /**
+     * 生成消息预览（带角色图标）
+     */
+    private String generatePreview(String message, String role) {
         if (message == null || message.isEmpty()) {
             return "";
         }
         // 去除换行符，显示单行预览
         String singleLine = message.replace("\n", " ").trim();
         if (singleLine.length() > 50) {
-            return singleLine.substring(0, 50) + "...";
+            singleLine = singleLine.substring(0, 50) + "...";
+        }
+        // 添加角色图标
+        if (role != null && role.equals("assistant")) {
+            return "🤖 " + singleLine;
+        } else if (role != null && role.equals("user")) {
+            return "👤 " + singleLine;
         }
         return singleLine;
     }
@@ -273,7 +291,31 @@ public class Session {
     
     public void setLastMessage(String lastMessage) {
         this.lastMessage = lastMessage;
-        this.preview = generatePreview(lastMessage);
+        this.preview = generatePreview(lastMessage, this.lastMessageRole);
+    }
+    
+    /**
+     * 设置最后消息内容和角色
+     */
+    public void setLastMessageWithRole(String lastMessage, String role) {
+        this.lastMessage = lastMessage;
+        this.lastMessageRole = role;
+        this.preview = generatePreview(lastMessage, role);
+    }
+    
+    /**
+     * 获取最后消息角色
+     */
+    public String getLastMessageRole() {
+        return lastMessageRole;
+    }
+    
+    /**
+     * 设置最后消息角色
+     */
+    public void setLastMessageRole(String role) {
+        this.lastMessageRole = role;
+        this.preview = generatePreview(this.lastMessage, role);
     }
     
     public long getLastMessageTime() {
