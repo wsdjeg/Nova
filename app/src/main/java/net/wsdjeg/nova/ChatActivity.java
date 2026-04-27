@@ -36,6 +36,8 @@ import java.util.Map;
  * - 使用 processedServerMessageCount 追踪服务器消息总数
  * - 因为本地 messages.size() != 服务器 message_count（服务器包含 tool 消息）
  * - sinceIndex = processedServerMessageCount + 1
+ * 
+ * ⚠️ 滚动规范：所有滚动必须使用 scrollToPosition（无动画），强制定位到最后位置
  */
 public class ChatActivity extends AppCompatActivity {
     
@@ -185,11 +187,9 @@ public class ChatActivity extends AppCompatActivity {
             }
         });
         
-        // 点击滚动到底部
+        // 点击滚动到底部 - 使用 scrollToPosition（无动画，直接定位）
         fabScrollBottom.setOnClickListener(v -> {
-            if (adapter.getItemCount() > 0) {
-                rvMessages.smoothScrollToPosition(adapter.getItemCount() - 1);
-            }
+            forceScrollToBottom();
         });
         
         // 发送按钮点击事件
@@ -378,7 +378,8 @@ public class ChatActivity extends AppCompatActivity {
                     
                     Log.d(TAG, "Incremental: fetched " + chatMessages.size() + " server, displayable=" + displayableCount + ", processed=" + processedServerMessageCount);
                     
-                    if (wasAtBottom) scrollToLastDisplayable();
+                    // 强制滚动到底部（无动画）
+                    if (wasAtBottom) forceScrollToBottom();
                     
                     if (displayableCount > 0) {
                         Message lastDisplayable = getLastDisplayableMessage();
@@ -461,7 +462,9 @@ public class ChatActivity extends AppCompatActivity {
                             lastDisplayable.getTimestamp());
                     }
                     adapter.refreshData();
-                    scrollToLastDisplayable();
+                    
+                    // 强制滚动到底部（无动画）
+                    forceScrollToBottom();
                 });
             }
             
@@ -539,6 +542,7 @@ public class ChatActivity extends AppCompatActivity {
                             displayCount++;
                         }
                     }
+                    // 加载更早消息时，保持当前位置（无动画）
                     rvMessages.scrollToPosition(displayCount);
                     
                     Log.d(TAG, "Loaded older: " + chatMessages.size() + " server messages, newSince=" + newSince);
@@ -590,7 +594,9 @@ public class ChatActivity extends AppCompatActivity {
                         lastMessageContent = serverContent;
                         adapter.refreshData();
                         Log.d(TAG, "Stream updated: len=" + serverContent.length());
-                        if (isUserAtBottom()) rvMessages.scrollToPosition(adapter.getItemCount() - 1);
+                        
+                        // 强制滚动到底部（无动画）
+                        if (isUserAtBottom()) forceScrollToBottom();
                     }
                 });
             }
@@ -661,12 +667,19 @@ public class ChatActivity extends AppCompatActivity {
         return count;
     }
     
-    private void scrollToLastDisplayable() {
-        if (adapter == null || rvMessages == null) return;
-        int visibleCount = adapter.getItemCount();
-        if (visibleCount > 0) {
+    /**
+     * ⚠️ 强制滚动到底部 - 无动画，直接定位到最后位置
+     * 这是唯一推荐的滚动到底部方法
+     */
+    private void forceScrollToBottom() {
+        if (rvMessages == null || adapter == null) return;
+        int itemCount = adapter.getItemCount();
+        if (itemCount > 0) {
+            // 立即滚动，无动画
+            rvMessages.scrollToPosition(itemCount - 1);
+            // 双重确保：在布局完成后再次强制滚动
             rvMessages.post(() -> {
-                rvMessages.scrollToPosition(visibleCount - 1);
+                rvMessages.scrollToPosition(itemCount - 1);
             });
         }
     }
@@ -730,10 +743,9 @@ public class ChatActivity extends AppCompatActivity {
         String role = isUser ? "user" : "assistant";
         messages.add(new Message(content, role, System.currentTimeMillis()));
         adapter.refreshData();
-        int visiblePos = adapter.getItemCount() - 1;
-        if (rvMessages != null && visiblePos >= 0) {
-            rvMessages.scrollToPosition(visiblePos);
-        }
+        
+        // 强制滚动到底部（无动画）
+        forceScrollToBottom();
     }
     
     private void sendMessage() {
@@ -888,6 +900,7 @@ public class ChatActivity extends AppCompatActivity {
             }
         });
     }
+    
     private void stopSession() {
         if (apiClient == null) return;
         apiClient.stopSession(currentSessionId, new ApiClient.StopCallback() {
