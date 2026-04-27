@@ -71,7 +71,7 @@ Nova 是一个 Android AI 聊天助手应用，作为 [chat.nvim](https://nvim.c
 
 ---
 
-## ⚠️⚠️⚠️ 核心开发流程（必须严格遵守）⚠️⚠️⚠️
+## ⚠️⚠️⚠️ 核心开发流程（必须严格遵守）⚠⚠️⚠️
 
 ### 🔴 强制流程：验证 → Add → Commit → Push
 
@@ -126,6 +126,61 @@ Nova 是一个 Android AI 聊天助手应用，作为 [chat.nvim](https://nvim.c
 
 ---
 
+## ⚠️⚠️⚠️ 文件修复规范（必须严格遵守）⚠️⚠️⚠️
+
+### 🔴 强制使用 action="overwrite" 修复文件
+
+**当需要修复整个文件或大段代码时，必须使用 `action="overwrite"` 重写整个文件！**
+
+```
+❌ 错误示例（多次小修改容易出错）:
+@write_file action="replace" line_start=100 line_to=105 content="..."
+@write_file action="replace" line_start=200 line_to=210 content="..."
+@write_file action="insert" line_start=150 content="..."
+→ 多次操作容易遗漏、错位，导致语法错误！
+
+✅ 正确示例（一次性重写整个文件）:
+1. 先用 @read_file 读取完整文件内容
+2. 在本地修复所有问题
+3. 使用 @write_file action="overwrite" content="完整修复后的内容"
+4. 一次性完成所有修复
+```
+
+### 为什么必须用 overwrite？
+
+1. **避免行号错位**: 每次 replace/insert/delete 都会改变后续行号
+2. **避免遗漏问题**: 多次小修容易漏改某些地方
+3. **确保一致性**: 整个文件一次性修复，保证代码完整
+4. **减少 git 操作**: 一次修复 → 一次提交 → 一次推送
+
+### 修复文件的标准流程
+
+```
+1. @read_file filepath="问题文件"                    # 读取完整内容
+   ↓
+2. 在回复中分析问题并准备完整修复内容
+   ↓
+3. @write_file 
+     filepath="问题文件" 
+     action="overwrite" 
+     content="完整修复后的文件内容"
+   ↓
+4. @read_file filepath="问题文件"                    # 验证修复结果
+   ↓
+5. @git_add → @git_commit → @git_push              # 提交推送
+```
+
+### ❌ 禁止的修复方式
+
+```
+❌ 使用 action="replace" 多次修复同一文件
+❌ 使用 action="insert" 和 action="delete" 交替操作
+❌ 在没有完整读取文件的情况下盲目修改
+❌ 修复后不验证就直接提交
+```
+
+---
+
 ## 开发规范
 
 ### 代码修改规范
@@ -142,6 +197,20 @@ String ip = settingsManager.getIpAddress();  // 方法不存在！
 ✅ 正确示例（先验证再使用）:
 1. 先用 @search_text 或 @read_file 检查源码
 2. 确认 SettingsManager 类中有 getUrl() 方法
+3. 然后使用: String ip = settingsManager.getUrl();
+```
+
+**验证方法：**
+1. 使用 `@find_files` 找到目标文件
+2. 使用 `@read_file` 或 `@search_text` 查看实际代码
+3. 确认 class/function/variable 确实存在
+4. 然后才能在代码中引用
+
+**禁止行为：**
+- 禁止凭记忆或猜测调用方法
+- 禁止假设某个类有某个方法
+- 禁止不看源码就写代码
+
 ### API 实现规范
 
 Nova 作为 chat.nvim 的移动端客户端，需要实现 HTTP API 与服务端通信。
@@ -167,6 +236,7 @@ Nova 作为 chat.nvim 的移动端客户端，需要实现 HTTP API 与服务端
 ```
 @fetch_web url="https://raw.githubusercontent.com/wsdjeg/chat.nvim/refs/heads/master/docs/api/http.md"
 ```
+
 该文档包含：
 - API 端点定义
 - 请求/响应格式
@@ -183,6 +253,8 @@ Nova 作为 chat.nvim 的移动端客户端，需要实现 HTTP API 与服务端
 **注意：** 每次修改 API 相关代码时都应先查阅最新文档确认。
 
 ### Git 工作流
+
+**⚠️ 重要：Git 工具必须逐个执行！**
 
 使用 git 相关工具时，必须一个一个发送执行，**严禁**一次发送多个 git 工具调用！
 
