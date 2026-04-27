@@ -185,7 +185,8 @@ public class ChatActivity extends AppCompatActivity {
                     int firstVisible = lm.findFirstVisibleItemPosition();
                     isAtTop = (firstVisible == 0);
                     
-                    // 下拉加载逻辑
+                    // 下拉加载逻辑 - 状态机控制
+                    // 只有在非加载状态时才处理下拉
                     if (isAtTop && hasMoreMessages && !isLoadingMore) {
                         // dy < 0 表示手指向上滑（想看更早的内容）
                         if (dy < 0) {
@@ -194,6 +195,9 @@ public class ChatActivity extends AppCompatActivity {
                             
                             // 超过阈值触发加载
                             if (pullDistance >= PULL_THRESHOLD) {
+                                // ⚠️ 关键：触发加载前立即重置 pullDistance
+                                // 防止加载过程中再次触发
+                                pullDistance = 0;
                                 loadOlderMessages();
                             }
                         } else if (dy > 0) {
@@ -202,8 +206,13 @@ public class ChatActivity extends AppCompatActivity {
                             hideLoadMoreHint();
                         }
                     } else {
+                        // 非顶部或正在加载时，重置下拉距离
                         pullDistance = 0;
-                        hideLoadMoreHint();
+                        // 只有在非加载状态时才隐藏提示
+                        // 加载状态时保持显示"正在加载..."
+                        if (!isLoadingMore) {
+                            hideLoadMoreHint();
+                        }
                     }
                     
                     // 控制滚动到底部按钮显示/隐藏
@@ -225,6 +234,7 @@ public class ChatActivity extends AppCompatActivity {
                 // 滚动停止时重置下拉距离
                 if (newState == RecyclerView.SCROLL_STATE_IDLE) {
                     pullDistance = 0;
+                    // 只有在非加载状态时才隐藏提示
                     if (!isLoadingMore) {
                         hideLoadMoreHint();
                     }
@@ -553,6 +563,12 @@ public class ChatActivity extends AppCompatActivity {
     
     /**
      * 加载更早的消息
+     * 
+     * 状态机流程：
+     * 1. 触发加载：pullDistance >= PULL_THRESHOLD → 立即重置 pullDistance = 0
+     * 2. 加载开始：isLoadingMore = true，显示"正在加载..."
+     * 3. 加载完成：先定位滚动位置，再延迟重置 isLoadingMore = false
+     * 4. 状态恢复：用户可以继续下拉加载更多
      */
     private void loadOlderMessages() {
         if (isLoadingMore || !hasMoreMessages) return;
@@ -574,6 +590,7 @@ public class ChatActivity extends AppCompatActivity {
             return;
         }
         
+        // ⚠️ 关键：设置加载状态，显示"正在加载..."
         isLoadingMore = true;
         updateLoadMoreHint();
         
@@ -581,10 +598,9 @@ public class ChatActivity extends AppCompatActivity {
             @Override
             public void onSuccess(List<ApiClient.ChatMessage> chatMessages) {
                 runOnUiThread(() -> {
-                    isLoadingMore = false;
-                    
                     if (chatMessages.isEmpty()) {
                         hasMoreMessages = false;
+                        isLoadingMore = false;
                         hideLoadMoreHint();
                         return;
                     }
@@ -628,6 +644,13 @@ public class ChatActivity extends AppCompatActivity {
                     showLoadCompleteHint(newDisplayableCount);
                     
                     Log.d(TAG, "Loaded older: " + chatMessages.size() + " server messages, newDisplayable=" + newDisplayableCount + ", newSince=" + newSince);
+                    
+                    // ⚠️ 关键：延迟重置 isLoadingMore，等滚动定位完成
+                    // 这样在滚动过程中用户继续下拉不会触发新的加载
+                    rvMessages.postDelayed(() -> {
+                        isLoadingMore = false;
+                        hideLoadMoreHint();
+                    }, 500); // 延迟 500ms 确保滚动完成
                 });
             }
             
