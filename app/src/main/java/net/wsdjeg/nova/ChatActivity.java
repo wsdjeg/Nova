@@ -265,8 +265,9 @@ public class ChatActivity extends AppCompatActivity {
                             }
                         }
                         
-                        // 反向添加（从旧到新）
-                        for (int i = filteredMessages.size() - 1; i >= 0; i--) {
+                        // API 返回消息按 created 时间排序，最新在前 [newest, older, oldest]
+                        // 正向遍历并添加到开头，得到从旧到新的顺序 [oldest, older, newest]
+                        for (int i = 0; i < filteredMessages.size(); i++) {
                             ApiClient.ChatMessage msg = filteredMessages.get(i);
                             boolean isUser = "user".equals(msg.role);
                             long timestamp = msg.created * 1000L;
@@ -321,6 +322,7 @@ public class ChatActivity extends AppCompatActivity {
         if (isLoadingMore || !hasMoreMessages) {
             return;
         }
+        
         int newSince = currentSince - PAGE_SIZE;
         if (newSince <= 1) {
             newSince = 1;
@@ -338,15 +340,6 @@ public class ChatActivity extends AppCompatActivity {
         View firstVisibleView = layoutManager.getChildAt(0);
         int oldTop = firstVisibleView != null ? firstVisibleView.getTop() : 0;
         Log.d(TAG, "Preserving scroll: position=" + oldFirstVisiblePosition + ", top=" + oldTop);
-        
-        currentSince = newSince;
-        Log.d(TAG, "Loading older messages: since=" + currentSince);
-        
-        isLoadingMore = true;
-        // 显示加载提示
-        messages.add(0, new Message("加载中...", false, System.currentTimeMillis()));
-        adapter.notifyItemInserted(0);
-        
         apiClient.getMessagesWithOptions(currentSessionId, currentSince, PAGE_SIZE, false,
             new ApiClient.MessagesCallback() {
                 @Override
