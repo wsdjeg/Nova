@@ -7,21 +7,54 @@
     android:minHeight="72dp"
     android:paddingStart="12dp"
     android:paddingEnd="12dp"
-    android:paddingTop="12dp"
-    android:paddingBottom="8dp"
+    android:paddingTop="10dp"
+    android:paddingBottom="10dp"
     android:background="?attr/selectableItemBackground">
 
     <!-- 
     布局说明：
     
-    第一行：账号标签 + Spinner区域 + 标题 + 时间 + 未读数量
+    左侧内容区（标题、provider、cwd）
+    右侧36dp区域（垂直居中，显示spinner或时间）
+    
+    第一行：账号标签 + 标题
     第二行：provider | model
     第三行：cwd
     
-    账号标签和 Spinner 位置保持不变
+    右侧区域：spinner（进行中）或 时间（已完成），垂直居中
     -->
 
-    <!-- 账号标签 (显示来源账号) -->
+    <!-- 右侧区域容器：36dp宽，垂直居中于三行内容 -->
+    <FrameLayout
+        android:id="@+id/rightArea"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent">
+
+        <!-- 时间（默认显示） -->
+        <TextView
+            android:id="@+id/textSessionTime"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:text="12:00"
+            android:textSize="12sp"
+            android:textColor="#9E9E9E" />
+
+        <!-- Spinner（进行中时显示，覆盖时间） -->
+        <ProgressBar
+            android:id="@+id/progressSpinner"
+            style="?android:attr/progressBarStyleSmall"
+            android:layout_width="21dp"
+            android:layout_height="21dp"
+            android:layout_gravity="center"
+            android:visibility="gone"
+            android:indeterminateTint="@color/primary" />
+    </FrameLayout>
+
+    <!-- 账号标签 -->
     <TextView
         android:id="@+id/textAccount"
         android:layout_width="wrap_content"
@@ -47,22 +80,7 @@
         app:barrierDirection="end"
         app:constraint_referenced_ids="textAccount" />
 
-    <!-- Spinner 区域 (21dp × 21dp) -->
-    <!-- 位于账号标签右侧，与账号标签顶部对齐 -->
-    <ProgressBar
-        android:id="@+id/progressSpinner"
-        style="?android:attr/progressBarStyleSmall"
-        android:layout_width="21dp"
-        android:layout_height="21dp"
-        android:visibility="gone"
-        android:indeterminateTint="@color/primary"
-        android:layout_marginStart="8dp"
-        app:layout_constraintStart_toEndOf="@id/barrierTitleStart"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintBottom_toBottomOf="@id/textAccount" />
-
-    <!-- 会话标题 -->
-    <!-- 位于 Spinner 右侧（如果 Spinner 不可见则位于账号标签右侧） -->
+    <!-- 第一行：标题 -->
     <TextView
         android:id="@+id/textSessionTitle"
         android:layout_width="0dp"
@@ -74,42 +92,10 @@
         android:maxLines="1"
         android:ellipsize="end"
         android:layout_marginStart="8dp"
-        app:layout_constraintStart_toEndOf="@id/progressSpinner"
-        app:layout_constraintEnd_toStartOf="@id/textSessionTime"
+        app:layout_constraintStart_toEndOf="@id/barrierTitleStart"
+        app:layout_constraintEnd_toStartOf="@id/rightArea"
         app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintBottom_toBottomOf="@id/textAccount"
-        app:layout_goneMarginStart="8dp" />
-
-    <!-- 时间 -->
-    <TextView
-        android:id="@+id/textSessionTime"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="12:00"
-        android:textSize="12sp"
-        android:textColor="#9E9E9E"
-        android:layout_marginEnd="8dp"
-        app:layout_constraintEnd_toStartOf="@id/textSessionCount"
-        app:layout_constraintTop_toTopOf="parent" />
-
-    <!-- 消息数量徽章 -->
-    <TextView
-        android:id="@+id/textSessionCount"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="99"
-        android:textSize="12sp"
-        android:textColor="#FFFFFF"
-        android:background="@drawable/session_count_bg"
-        android:paddingStart="6dp"
-        android:paddingEnd="6dp"
-        android:paddingTop="2dp"
-        android:paddingBottom="2dp"
-        android:minWidth="20dp"
-        android:gravity="center"
-        android:visibility="gone"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_goneMarginStart="0dp" />
 
     <!-- 第二行：Provider | Model -->
     <TextView
@@ -121,9 +107,9 @@
         android:textColor="#616161"
         android:maxLines="1"
         android:ellipsize="end"
-        android:layout_marginTop="4dp"
+        android:layout_marginTop="2dp"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintEnd_toStartOf="@id/rightArea"
         app:layout_constraintTop_toBottomOf="@id/textSessionTitle" />
 
     <!-- 第三行：cwd -->
@@ -132,21 +118,41 @@
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:text="/home/user/project"
-        android:textSize="12sp"
+        android:textSize="11sp"
         android:textColor="#9E9E9E"
         android:maxLines="1"
         android:ellipsize="start"
         android:layout_marginTop="2dp"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintEnd_toStartOf="@id/rightArea"
         app:layout_constraintTop_toBottomOf="@id/textProviderModel" />
+
+    <!-- 未读数量徽章（覆盖在右侧区域上角） -->
+    <TextView
+        android:id="@+id/textSessionCount"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="99"
+        android:textSize="10sp"
+        android:textColor="#FFFFFF"
+        android:background="@drawable/session_count_bg"
+        android:paddingStart="4dp"
+        android:paddingEnd="4dp"
+        android:paddingTop="1dp"
+        android:paddingBottom="1dp"
+        android:minWidth="16dp"
+        android:gravity="center"
+        android:visibility="gone"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        android:translationY="-4dp"
+        android:translationX="4dp" />
 
     <!-- 分割线 -->
     <View
         android:layout_width="0dp"
         android:layout_height="1dp"
         android:background="#E0E0E0"
-        android:layout_marginTop="8dp"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintBottom_toBottomOf="parent" />

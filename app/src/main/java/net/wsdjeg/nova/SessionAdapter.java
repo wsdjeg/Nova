@@ -5,6 +5,7 @@ import android.graphics.drawable.GradientDrawable;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.FrameLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import androidx.annotation.NonNull;
@@ -17,9 +18,10 @@ import java.util.List;
  * 支持多账号聚合显示
  * 
  * 布局：
- * 第一行：账号标签 + Spinner + 标题 + 时间 + 未读数量
+ * 第一行：账号标签 + 标题
  * 第二行：provider | model
  * 第三行：cwd
+ * 右侧：spinner 或 时间（垂直居中）
  */
 public class SessionAdapter extends RecyclerView.Adapter<SessionAdapter.SessionViewHolder> {
     private List<Session> sessions;
@@ -66,21 +68,6 @@ public class SessionAdapter extends RecyclerView.Adapter<SessionAdapter.SessionV
     public void onBindViewHolder(@NonNull SessionViewHolder holder, int position) {
         Session session = sessions.get(position);
         
-        // 第一行：标题
-        holder.textTitle.setText(session.getTitle());
-        
-        // 第一行：时间
-        holder.textTime.setText(session.getFormattedTime());
-        
-        // 第一行：未读消息数量
-        int unreadCount = session.getUnreadCount();
-        if (unreadCount > 0) {
-            holder.textCount.setVisibility(View.VISIBLE);
-            holder.textCount.setText(unreadCount > 99 ? "99+" : String.valueOf(unreadCount));
-        } else {
-            holder.textCount.setVisibility(View.GONE);
-        }
-        
         // 第一行：账号标签
         String accountId = session.getAccountId();
         if (accountId != null && !accountId.isEmpty() && accountManager != null) {
@@ -96,12 +83,8 @@ public class SessionAdapter extends RecyclerView.Adapter<SessionAdapter.SessionV
             holder.textAccount.setVisibility(View.GONE);
         }
         
-        // 第一行：Spinner（当会话正在进行时）
-        if (session.isInProgress()) {
-            holder.progressSpinner.setVisibility(View.VISIBLE);
-        } else {
-            holder.progressSpinner.setVisibility(View.GONE);
-        }
+        // 第一行：标题
+        holder.textTitle.setText(session.getTitle());
         
         // 第二行：provider | model
         String provider = session.getProvider();
@@ -126,6 +109,25 @@ public class SessionAdapter extends RecyclerView.Adapter<SessionAdapter.SessionV
             holder.textCwd.setText(cwd);
         } else {
             holder.textCwd.setVisibility(View.GONE);
+        }
+        
+        // 右侧区域：spinner 或 时间（互斥）
+        if (session.isInProgress()) {
+            holder.progressSpinner.setVisibility(View.VISIBLE);
+            holder.textTime.setVisibility(View.GONE);
+        } else {
+            holder.progressSpinner.setVisibility(View.GONE);
+            holder.textTime.setVisibility(View.VISIBLE);
+            holder.textTime.setText(session.getFormattedTime());
+        }
+        
+        // 未读数量（右上角徽章）
+        int unreadCount = session.getUnreadCount();
+        if (unreadCount > 0) {
+            holder.textCount.setVisibility(View.VISIBLE);
+            holder.textCount.setText(unreadCount > 99 ? "99+" : String.valueOf(unreadCount));
+        } else {
+            holder.textCount.setVisibility(View.GONE);
         }
         
         // 点击事件
@@ -226,6 +228,7 @@ public class SessionAdapter extends RecyclerView.Adapter<SessionAdapter.SessionV
         TextView textProviderModel;
         TextView textCwd;
         ProgressBar progressSpinner;
+        FrameLayout rightArea;
         
         SessionViewHolder(View itemView) {
             super(itemView);
@@ -236,6 +239,7 @@ public class SessionAdapter extends RecyclerView.Adapter<SessionAdapter.SessionV
             textProviderModel = itemView.findViewById(R.id.textProviderModel);
             textCwd = itemView.findViewById(R.id.textSessionCwd);
             progressSpinner = itemView.findViewById(R.id.progressSpinner);
+            rightArea = itemView.findViewById(R.id.rightArea);
         }
     }
 }
