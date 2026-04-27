@@ -413,6 +413,7 @@ public class ChatActivity extends AppCompatActivity {
     
     /**
      * 加载会话信息并显示在顶部
+     * 注意：标题不在此处更新，只在 SessionListActivity 获取会话列表时更新
      */
     private void loadSessionInfo() {
         Session session = sessionManager.getSession(currentSessionId);
@@ -421,33 +422,13 @@ public class ChatActivity extends AppCompatActivity {
             updateSessionInfo(session);
             totalMessageCount = session.getMessageCount();
         } else {
-            apiClient.getSessions(accountId, new ApiClient.SessionsCallback() {
-                @Override
-                public void onSuccess(List<Session> sessions) {
-                    runOnUiThread(() -> {
-                        for (Session s : sessions) {
-                            if (s.getSessionId().equals(currentSessionId)) {
-                                sessionManager.updateSession(s);
-                                updateSessionInfo(s);
-                                totalMessageCount = s.getMessageCount();
-                                break;
-                            }
-                        }
-                    });
-                }
-                
-                @Override
-                public void onError(String error) {
-                    runOnUiThread(() -> {
-                        tvSessionTitle.setText("未知会话");
-                        tvSessionInfo.setText("unknown | unknown");
-                        tvSessionPath.setText("CWD: unknown");
-                    });
-                }
-            });
+            // 本地没有 session 信息，显示默认值
+            // 不调用 getSessions API，标题只在会话列表刷新时更新
+            tvSessionTitle.setText("新会话");
+            tvSessionInfo.setText("unknown | unknown");
+            tvSessionPath.setText("CWD: unknown");
         }
     }
-    
     /**
      * 更新顶部会话信息显示（三行）
      */
