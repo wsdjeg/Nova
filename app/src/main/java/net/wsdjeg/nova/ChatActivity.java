@@ -175,7 +175,7 @@ public class ChatActivity extends AppCompatActivity {
         
         // 初始化加载
         messages.add(new Message("正在加载消息...", false));
-        adapter.notifyDataSetChanged();
+        adapter.refreshData();
         
         refreshSessionStatus(() -> loadMessagesPage());
         
@@ -356,7 +356,7 @@ public class ChatActivity extends AppCompatActivity {
                     int displayableCount = countDisplayableMessages();
                     lastMessageCount = displayableCount;
                     updateLastMessageTracking();
-                    adapter.notifyDataSetChanged();
+                    adapter.refreshData();
                     
                     Log.d(TAG, "Incremental: fetched " + chatMessages.size() + " server, displayable=" + displayableCount + ", processed=" + processedServerMessageCount);
                     
@@ -457,7 +457,7 @@ public class ChatActivity extends AppCompatActivity {
                             lastDisplayable.getTimestamp());
                     }
                     
-                    adapter.notifyDataSetChanged();
+                    adapter.refreshData();
                     scrollToLastDisplayable();
                     
                     Session current = sessionManager.getSession(currentSessionId);
@@ -530,7 +530,7 @@ public class ChatActivity extends AppCompatActivity {
                     sessionManager.updateFirstMessageIndex(currentSessionId, newSince);
                     hasMoreMessages = (newSince > 1);
                     
-                    adapter.notifyDataSetChanged();
+                    adapter.refreshData();
                     
                     // 计算显示的消息数量用于滚动定位
                     int displayCount = 0;
@@ -588,7 +588,7 @@ public class ChatActivity extends AppCompatActivity {
                         messages.set(lastIdx, new Message(serverContent, "user".equals(latestFiltered.role), latestFiltered.created * 1000L));
                         messageFingerprints.put(latestFiltered.created, serverContent);
                         lastMessageContent = serverContent;
-                        adapter.notifyItemChanged(lastIdx);
+                        adapter.refreshData();
                         Log.d(TAG, "Stream updated: len=" + serverContent.length());
                         if (isUserAtBottom()) rvMessages.scrollToPosition(adapter.getItemCount() - 1);
                     }
@@ -726,7 +726,7 @@ public class ChatActivity extends AppCompatActivity {
         }
         String role = isUser ? "user" : "assistant";
         messages.add(new Message(content, role, System.currentTimeMillis()));
-        adapter.notifyItemInserted(messages.size() - 1);
+        adapter.refreshData();
         int visiblePos = adapter.getItemCount() - 1;
         if (rvMessages != null && visiblePos >= 0) {
             rvMessages.scrollToPosition(visiblePos);
@@ -792,7 +792,7 @@ public class ChatActivity extends AppCompatActivity {
         messages.clear();
         messageFingerprints.clear();
         processedServerMessageCount = 0;
-        adapter.notifyDataSetChanged();
+        adapter.refreshData();
         addMessage("会话已清空", false);
     }
     
@@ -848,7 +848,7 @@ public class ChatActivity extends AppCompatActivity {
     private void retrySession() {
         if (apiClient == null) return;
         setButtonStateSending();
-        apiClient.retrySession(currentSessionId, new ApiClient.MessageCallback() {
+        apiClient.retrySession(currentSessionId, new ApiClient.RetryCallback() {
             @Override
             public void onSuccess() {
                 runOnUiThread(() -> {

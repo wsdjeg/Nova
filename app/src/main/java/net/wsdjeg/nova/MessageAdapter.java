@@ -112,28 +112,26 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
     }
     
     /**
-     * 通知数据变化（重写以更新可见消息列表）
+     * 刷新数据（更新可见消息列表并通知适配器）
+     * 注意：不能重写 notifyDataSetChanged() 因为它是 final 方法
      */
-    @Override
-    public void notifyDataSetChanged() {
+    public void refreshData() {
         updateVisibleMessages();
         super.notifyDataSetChanged();
     }
     
     /**
-     * 通知项插入
+     * 通知消息插入
      */
-    @Override
-    public void notifyItemRangeInserted(int positionStart, int itemCount) {
+    public void notifyMessageInserted() {
         updateVisibleMessages();
         super.notifyDataSetChanged();
     }
     
     /**
-     * 通知项插入（单个）
+     * 通知消息范围插入
      */
-    @Override
-    public void notifyItemInserted(int position) {
+    public void notifyMessagesRangeInserted(int positionStart, int itemCount) {
         updateVisibleMessages();
         super.notifyDataSetChanged();
     }
