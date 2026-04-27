@@ -676,6 +676,10 @@ public class ChatActivity extends AppCompatActivity {
         }
     }
     
+    private void refreshSessionStatus() {
+        refreshSessionStatus(null);
+    }
+    
     private void refreshSessionStatus(Runnable onComplete) {
         apiClient.getSessions(accountId, new ApiClient.SessionsCallback() {
             @Override
@@ -733,21 +737,21 @@ public class ChatActivity extends AppCompatActivity {
         }
         
         etMessage.setText("");
-        setButtonStateSending();
-        
+        // 发送消息后立即刷新状态，按钮状态由 session.in_progress 决定
         addMessage(content, true);
         
         apiClient.sendMessage(currentSessionId, content, new ApiClient.MessageCallback() {
             @Override
             public void onSuccess() {
                 Log.d(TAG, "Message sent successfully");
+                // 发送成功后刷新 session 状态
+                refreshSessionStatus();
             }
             
             @Override
             public void onError(String error) {
                 runOnUiThread(() -> {
                     Toast.makeText(ChatActivity.this, "发送失败: " + error, Toast.LENGTH_SHORT).show();
-                    setButtonStateNormal();
                 });
             }
         });
@@ -817,9 +821,8 @@ public class ChatActivity extends AppCompatActivity {
             public void onSuccess() {
                 runOnUiThread(() -> {
                     Toast.makeText(ChatActivity.this, "已停止", Toast.LENGTH_SHORT).show();
-                    setButtonStateNormal();
-                    isInProgress = false;
-                    refreshMessages();
+                    // 触发状态刷新，由 session 的 in_progress 属性决定按钮状态
+                    refreshSessionStatus();
                 });
             }
             
@@ -834,12 +837,13 @@ public class ChatActivity extends AppCompatActivity {
     
     private void retrySession() {
         if (apiClient == null) return;
-        setButtonStateSending();
         apiClient.retrySession(currentSessionId, new ApiClient.RetryCallback() {
             @Override
             public void onSuccess() {
                 runOnUiThread(() -> {
                     Toast.makeText(ChatActivity.this, "正在重试...", Toast.LENGTH_SHORT).show();
+                    // 触发状态刷新，由 session 的 in_progress 属性决定按钮状态
+                    refreshSessionStatus();
                 });
             }
             
@@ -847,11 +851,8 @@ public class ChatActivity extends AppCompatActivity {
             public void onError(String error) {
                 runOnUiThread(() -> {
                     Toast.makeText(ChatActivity.this, "重试失败: " + error, Toast.LENGTH_SHORT).show();
-                    setButtonStateNormal();
                 });
             }
         });
-    }
-}
     }
 }
