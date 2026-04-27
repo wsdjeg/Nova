@@ -412,6 +412,7 @@ public class ChatActivity extends AppCompatActivity {
                         
                         // 更新 since
                         currentSince = newSince;
+                    });
                 }
                 
                 @Override
