@@ -6,18 +6,20 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
-import com.google.android.material.floatingactionbutton.FloatingActionButton;
-import android.view.Menu;
-import android.view.MenuItem;
 import android.view.View;
+import android.view.ViewTreeObserver;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
+
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+
+import com.google.android.material.floatingactionbutton.FloatingActionButton;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -90,6 +92,9 @@ public class ChatActivity extends AppCompatActivity {
     
     // 追踪服务器消息总数（用于增量刷新，因为本地消息数 != 服务器消息数）
     private int processedServerMessageCount = 0;
+    
+    // 滚动监听器（用于防止重复添加）
+    private ViewTreeObserver.OnGlobalLayoutListener pendingScrollListener = null;
     
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -463,8 +468,8 @@ public class ChatActivity extends AppCompatActivity {
                     }
                     adapter.refreshData();
                     
-                    // 强制滚动到底部（无动画）
-                    forceScrollToBottom();
+                    // 强制滚动到底部（无动画）- 使用 ViewTreeObserver 确保布局完成
+                    forceScrollToBottomWithLayoutObserver();
                 });
             }
             
@@ -669,19 +674,52 @@ public class ChatActivity extends AppCompatActivity {
     
     /**
      * ⚠️ 强制滚动到底部 - 无动画，直接定位到最后位置
-     * 这是唯一推荐的滚动到底部方法
+     * 用于一般情况下的滚动
      */
     private void forceScrollToBottom() {
         if (rvMessages == null || adapter == null) return;
         int itemCount = adapter.getItemCount();
         if (itemCount > 0) {
-            // 立即滚动，无动画
             rvMessages.scrollToPosition(itemCount - 1);
-            // 双重确保：在布局完成后再次强制滚动
-            rvMessages.post(() -> {
-                rvMessages.scrollToPosition(itemCount - 1);
-            });
         }
+    }
+    
+    /**
+     * ⚠️ 强制滚动到底部 - 使用 ViewTreeObserver 确保布局完成后滚动
+     * 用于初始加载消息后确保滚动到底部
+     */
+    private void forceScrollToBottomWithLayoutObserver() {
+        if (rvMessages == null || adapter == null) return;
+        
+        // 移除之前的监听器（如果有）
+        if (pendingScrollListener != null) {
+            rvMessages.getViewTreeObserver().removeOnGlobalLayoutListener(pendingScrollListener);
+        }
+        
+        final int targetPosition = adapter.getItemCount() - 1;
+        if (targetPosition < 0) return;
+        
+        // 立即尝试滚动
+        rvMessages.scrollToPosition(targetPosition);
+        
+        // 创建并保存监听器引用
+        pendingScrollListener = new ViewTreeObserver.OnGlobalLayoutListener() {
+            @Override
+            public void onGlobalLayout() {
+                // 移除监听器
+                rvMessages.getViewTreeObserver().removeOnGlobalLayoutListener(this);
+                pendingScrollListener = null;
+                
+                // 布局完成后再次滚动到底部
+                int newPosition = adapter.getItemCount() - 1;
+                if (newPosition >= 0) {
+                    rvMessages.scrollToPosition(newPosition);
+                }
+            }
+        };
+        
+        // 添加监听器
+        rvMessages.getViewTreeObserver().addOnGlobalLayoutListener(pendingScrollListener);
     }
     
     private boolean isUserAtBottom() {
