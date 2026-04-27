@@ -327,16 +327,25 @@ public class ChatActivity extends AppCompatActivity {
             return;
         }
         
-        int newSince = currentSince - PAGE_SIZE;
-        if (newSince <= 1) {
-            newSince = 1;
-            hasMoreMessages = false;
+        // 计算新的 since 值，使用临时变量以满足 lambda 的 effectively final 要求
+        int candidateSince = currentSince - PAGE_SIZE;
+        if (candidateSince <= 1) {
+            candidateSince = 1;
         }
         
-        if (newSince >= currentSince) {
+        // 如果计算值没有向前移动，停止加载
+        if (candidateSince >= currentSince) {
             hasMoreMessages = false;
             return;
         }
+        
+        // 根据最终值更新 hasMoreMessages
+        if (candidateSince == 1) {
+            hasMoreMessages = false;
+        }
+        
+        // 创建 effectively final 变量供 lambda 使用
+        final int newSince = candidateSince;
         
         // === 关键优化：记录当前滚动位置 ===
         LinearLayoutManager layoutManager = (LinearLayoutManager) rvMessages.getLayoutManager();
@@ -403,7 +412,6 @@ public class ChatActivity extends AppCompatActivity {
                         
                         // 更新 since
                         currentSince = newSince;
-                    });
                 }
                 
                 @Override
