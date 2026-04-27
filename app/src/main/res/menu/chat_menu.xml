@@ -13,6 +13,14 @@
                 android:title="刷新" />
             
             <item
+                android:id="@+id/action_clear_session"
+                android:title="清空会话" />
+            
+            <item
+                android:id="@+id/action_delete_session"
+                android:title="删除会话" />
+            
+            <item
                 android:id="@+id/action_preview"
                 android:title="预览" />
             
