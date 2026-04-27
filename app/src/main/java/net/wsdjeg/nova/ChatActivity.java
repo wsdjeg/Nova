@@ -633,9 +633,6 @@ public class ChatActivity extends AppCompatActivity {
                 return msg.getContent();
             }
         }
-        return "";
-    }
-    
     /**
      * 统计可显示消息数量
      */
@@ -656,7 +653,10 @@ public class ChatActivity extends AppCompatActivity {
         if (adapter == null || rvMessages == null) return;
         int visibleCount = adapter.getItemCount();
         if (visibleCount > 0) {
-            rvMessages.scrollToPosition(visibleCount - 1);
+            // 使用 post 确保在布局完成后滚动
+            rvMessages.post(() -> {
+                rvMessages.scrollToPosition(visibleCount - 1);
+            });
         }
     }
     
