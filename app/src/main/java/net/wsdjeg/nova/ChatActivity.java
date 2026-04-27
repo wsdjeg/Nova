@@ -256,12 +256,11 @@ public class ChatActivity extends AppCompatActivity {
                         case LOAD_STATE_LOADING:
                             // 加载中，忽略所有滚动事件
                             break;
-                            
                         case LOAD_STATE_LOADED:
-                            // 加载完成，等待滚动稳定后回到 AT_TOP
-                            if (newState == RecyclerView.SCROLL_STATE_IDLE || !isAtTop) {
-                                loadState = LOAD_STATE_AT_TOP;
-                                showLoadMoreHint("下拉加载更多消息");
+                            // 加载完成后，如果用户离开顶部则回到 IDLE
+                            if (!isAtTop) {
+                                loadState = LOAD_STATE_IDLE;
+                                hideLoadMoreHint();
                             }
                             break;
                     }
