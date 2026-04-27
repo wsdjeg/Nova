@@ -17,7 +17,7 @@
     左侧内容区（标题、provider、cwd）
     右侧36dp区域（垂直居中，显示spinner或时间）
     
-    第一行：账号标签 + 标题
+    第一行：账号标签 + 标题（垂直居中对齐）
     第二行：provider | model
     第三行：cwd
     
@@ -54,7 +54,7 @@
             android:indeterminateTint="@color/primary" />
     </FrameLayout>
 
-    <!-- 账号标签 -->
+    <!-- 账号标签（垂直居中于标题） -->
     <TextView
         android:id="@+id/textAccount"
         android:layout_width="wrap_content"
@@ -70,17 +70,10 @@
         android:paddingBottom="2dp"
         android:visibility="gone"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintBottom_toBottomOf="@id/textSessionTitle"
+        app:layout_constraintTop_toTopOf="@id/textSessionTitle" />
 
-    <!-- Barrier: 标题的起始位置 -->
-    <androidx.constraintlayout.widget.Barrier
-        android:id="@+id/barrierTitleStart"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        app:barrierDirection="end"
-        app:constraint_referenced_ids="textAccount" />
-
-    <!-- 第一行：标题 -->
+    <!-- 第一行：标题（账号标签存在时右移8dp，不存在时从左边开始） -->
     <TextView
         android:id="@+id/textSessionTitle"
         android:layout_width="0dp"
@@ -91,10 +84,10 @@
         android:textStyle="bold"
         android:maxLines="1"
         android:ellipsize="end"
-        android:layout_marginStart="8dp"
-        app:layout_constraintStart_toEndOf="@id/barrierTitleStart"
+        app:layout_constraintStart_toEndOf="@id/textAccount"
         app:layout_constraintEnd_toStartOf="@id/rightArea"
         app:layout_constraintTop_toTopOf="parent"
+        android:layout_marginStart="8dp"
         app:layout_goneMarginStart="0dp" />
 
     <!-- 第二行：Provider | Model -->
