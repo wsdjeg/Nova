@@ -57,6 +57,9 @@ public class ChatActivity extends AppCompatActivity {
     private Toolbar toolbar;
     private TextView tvSessionTitle;
     private TextView tvSessionInfo;
+    private Toolbar toolbar;
+    private TextView tvSessionTitle;
+    private TextView tvSessionInfo;
     private TextView tvSessionPath;
     private RecyclerView rvMessages;
     private EditText etMessage;
@@ -67,6 +70,11 @@ public class ChatActivity extends AppCompatActivity {
     private SettingsManager settingsManager;
     private SessionManager sessionManager;
     private AccountManager accountManager;
+    
+    // 会话相关
+    private String currentSessionId;
+    private String currentSessionTitle;
+    private String accountId;
     
     // 自动刷新相关
     private Handler refreshHandler;
@@ -83,6 +91,19 @@ public class ChatActivity extends AppCompatActivity {
     // 按钮状态
     private int buttonState = STATE_NORMAL;
     
+    private boolean isInProgress = false; // 从 API 获取的会话状态
+    
+    // === 增量刷新优化：消息指纹缓存 ===
+    // Key: created 时间戳（秒）, Value: 消息内容
+    private Map<Long, String> messageFingerprints = new HashMap<>();
+    // 最后一条消息的 created 时间戳（秒），用于快速判断是否有新消息
+    private long lastMessageCreatedTimestamp = -1;  // 初始化为 -1，表示未设置
+    // 最后一条消息的内容，用于检测流式更新
+    private String lastMessageContent = null;  // 初始化为 null，表示未设置
+    // 最后一次检查时的消息内容长度，用于避免频繁更新
+    private int lastCheckedContentLength = -1;
+    // 用于跟踪是否刚刚完成生成（只触发一次检查）
+    private boolean justFinishedGeneration = false;
     private boolean isInProgress = false; // 从 API 获取的会话状态
     
     // === 增量刷新优化：消息指纹缓存 ===
@@ -955,6 +976,7 @@ public class ChatActivity extends AppCompatActivity {
         int totalItems = messages.size();
         
         // 如果最后一个可见项在距离底部 BOTTOM_THRESHOLD 条消息以内，视为"在底部"
+        return (totalItems - lastVisiblePosition) <= BOTTOM_THRESHOLD;
     }
     
     /**
