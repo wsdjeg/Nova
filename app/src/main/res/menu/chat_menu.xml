@@ -7,12 +7,7 @@
         android:title="停止"
         android:visible="false"
         app:showAsAction="ifRoom" />
-    
-    <item
-        android:id="@+id/action_retry"
-        android:title="重试"
-        android:visible="false"
-        app:showAsAction="ifRoom" />
+
     
     <item
         android:id="@+id/action_more"
