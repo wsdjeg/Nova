@@ -6,7 +6,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
-import android.view.Menu;
+import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
@@ -54,7 +54,8 @@ public class ChatActivity extends AppCompatActivity {
     private TextView tvSessionPath;
     private RecyclerView rvMessages;
     private EditText etMessage;
-    private Button btnSend;
+    private RecyclerView rvMessages;
+    private FloatingActionButton fabScrollBottom;
     private MessageAdapter adapter;
     private List<Message> messages;
     private ApiClient apiClient;
@@ -150,31 +151,45 @@ public class ChatActivity extends AppCompatActivity {
         rvMessages = findViewById(R.id.rv_messages);
         etMessage = findViewById(R.id.et_message);
         btnSend = findViewById(R.id.btn_send);
+        fabScrollBottom = findViewById(R.id.fab_scroll_bottom);
         
         messages = new ArrayList<>();
         adapter = new MessageAdapter(messages, this);
         rvMessages.setAdapter(adapter);
         rvMessages.setLayoutManager(new LinearLayoutManager(this));
         rvMessages.setItemAnimator(null);  // 禁用 item 动画
-        // 下拉加载更早消息
+        
+        // 下拉加载更早消息 + 控制滚动到底部按钮
         rvMessages.addOnScrollListener(new RecyclerView.OnScrollListener() {
             @Override
             public void onScrolled(RecyclerView recyclerView, int dx, int dy) {
                 LinearLayoutManager lm = (LinearLayoutManager) recyclerView.getLayoutManager();
-                if (lm != null && lm.findFirstVisibleItemPosition() == 0 && !isLoadingMore && hasMoreMessages) {
-                    loadOlderMessages();
+                if (lm != null) {
+                    // 下拉加载更多
+                    if (lm.findFirstVisibleItemPosition() == 0 && !isLoadingMore && hasMoreMessages) {
+                        loadOlderMessages();
+                    }
+                    
+                    // 控制滚动到底部按钮显示/隐藏
+                    int lastVisible = lm.findLastVisibleItemPosition();
+                    int total = adapter.getItemCount();
+                    boolean isAtBottom = (total == 0) || (lastVisible >= total - BOTTOM_THRESHOLD);
+                    
+                    if (isAtBottom) {
+                        fabScrollBottom.setVisibility(View.GONE);
+                    } else {
+                        fabScrollBottom.setVisibility(View.VISIBLE);
+                    }
                 }
             }
         });
         
-        btnSend.setOnClickListener(v -> {
-            if (isInProgress) {
-                stopSession();
-            } else {
-                sendMessage();
+        // 点击滚动到底部
+        fabScrollBottom.setOnClickListener(v -> {
+            if (adapter.getItemCount() > 0) {
+                rvMessages.smoothScrollToPosition(adapter.getItemCount() - 1);
             }
         });
-        
         tvSessionTitle.setText(currentSessionTitle != null ? currentSessionTitle : currentSessionId);
         
         updateSessionInfo();

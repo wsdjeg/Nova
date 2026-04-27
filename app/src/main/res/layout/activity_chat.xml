@@ -47,7 +47,6 @@
                 android:ellipsize="middle" />
             
             <!-- Line 3: CWD path -->
-            <!-- Line 3: CWD path -->
             <TextView
                 android:id="@+id/tv_session_path"
                 android:layout_width="wrap_content"
@@ -69,6 +68,21 @@
         android:layout_below="@id/toolbar"
         android:scrollbars="vertical"
         android:padding="8dp" />
+
+    <!-- Scroll to Bottom FAB -->
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/fab_scroll_bottom"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_above="@id/inputLayout"
+        android:layout_alignParentEnd="true"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="16dp"
+        android:src="@drawable/ic_arrow_down"
+        android:visibility="gone"
+        android:contentDescription="滚动到底部"
+        app:backgroundTint="#FFFFFF"
+        app:fabSize="mini" />
 
     <!-- Input Area -->
     <LinearLayout
