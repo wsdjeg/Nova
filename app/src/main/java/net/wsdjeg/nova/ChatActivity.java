@@ -237,12 +237,6 @@ public class ChatActivity extends AppCompatActivity {
         if (id == R.id.action_refresh) {
             reloadMessages();
             return true;
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        int id = item.getItemId();
-        if (id == R.id.action_refresh) {
-            reloadMessages();
-            return true;
         } else if (id == R.id.action_clear_session) {
             clearSession();
             return true;
@@ -258,6 +252,8 @@ public class ChatActivity extends AppCompatActivity {
         }
         return super.onOptionsItemSelected(item);
     }
+    
+    private void updateSessionInfo() {
         Session session = sessionManager.getSession(currentSessionId);
         if (session != null) {
             tvSessionInfo.setText("Provider: " + session.getProvider() + " | Model: " + session.getModel());
