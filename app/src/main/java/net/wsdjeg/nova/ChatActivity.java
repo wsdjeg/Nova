@@ -7,6 +7,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
+import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
@@ -54,7 +55,7 @@ public class ChatActivity extends AppCompatActivity {
     private TextView tvSessionPath;
     private RecyclerView rvMessages;
     private EditText etMessage;
-    private RecyclerView rvMessages;
+    private Button btnSend;
     private FloatingActionButton fabScrollBottom;
     private MessageAdapter adapter;
     private List<Message> messages;
@@ -190,6 +191,16 @@ public class ChatActivity extends AppCompatActivity {
                 rvMessages.smoothScrollToPosition(adapter.getItemCount() - 1);
             }
         });
+        
+        // 发送按钮点击事件
+        btnSend.setOnClickListener(v -> {
+            if (buttonState == STATE_SENDING) {
+                stopSession();
+            } else {
+                sendMessage();
+            }
+        });
+        
         tvSessionTitle.setText(currentSessionTitle != null ? currentSessionTitle : currentSessionId);
         
         updateSessionInfo();
@@ -231,6 +242,7 @@ public class ChatActivity extends AppCompatActivity {
             stopItem.setVisible(isInProgress);
         }
     }
+    
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         int id = item.getItemId();
