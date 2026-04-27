@@ -4,7 +4,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:minHeight="88dp"
+    android:minHeight="72dp"
     android:paddingStart="12dp"
     android:paddingEnd="12dp"
     android:paddingTop="12dp"
@@ -14,23 +14,18 @@
     <!-- 
     布局说明：
     
-    第一行：账号标签 + Provider标签 + 会话标题 + 时间
-    第二行：左侧正方形区域(36dp×36dp，放Spinner) + 消息预览 + 未读数量
+    第一行：账号标签 + Spinner区域 + 标题 + 时间 + 未读数量
+    第二行：provider | model
+    第三行：cwd
     
-    关键对齐：
-    - 账号标签 minWidth = 36dp（预览两行高度）
-    - 左侧留出36dp宽的正方形区域给Spinner
-    - Spinner 大小 = 21dp（预览字体14sp × 1.5）
-    - Spinner 水平垂直居中于左侧正方形区域
-    - 预览左侧与Spinner区域右侧间隔8dp
+    账号标签和 Spinner 位置保持不变
     -->
 
-    <!-- 账号标签 (显示来源账号，minWidth=36dp，与预览两行高度一致) -->
+    <!-- 账号标签 (显示来源账号) -->
     <TextView
         android:id="@+id/textAccount"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:minWidth="36dp"
         android:text="Home"
         android:textSize="10sp"
         android:textColor="#1976D2"
@@ -44,36 +39,30 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
-    <!-- Provider/Model 标签 -->
-    <TextView
-        android:id="@+id/textProviderModel"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="openai / gpt-4o"
-        android:textSize="10sp"
-        android:textColor="#4CAF50"
-        android:textStyle="bold"
-        android:background="@drawable/provider_tag_bg"
-        android:paddingStart="6dp"
-        android:paddingEnd="6dp"
-        android:paddingTop="2dp"
-        android:paddingBottom="2dp"
-        android:layout_marginStart="8dp"
-        android:visibility="gone"
-        app:layout_constraintStart_toEndOf="@id/textAccount"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintBottom_toBottomOf="@id/textAccount"
-        app:layout_goneMarginStart="0dp" />
-
     <!-- Barrier: 标题的起始位置 -->
     <androidx.constraintlayout.widget.Barrier
         android:id="@+id/barrierTitleStart"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         app:barrierDirection="end"
-        app:constraint_referenced_ids="textAccount,textProviderModel" />
+        app:constraint_referenced_ids="textAccount" />
+
+    <!-- Spinner 区域 (21dp × 21dp) -->
+    <!-- 位于账号标签右侧，与账号标签顶部对齐 -->
+    <ProgressBar
+        android:id="@+id/progressSpinner"
+        style="?android:attr/progressBarStyleSmall"
+        android:layout_width="21dp"
+        android:layout_height="21dp"
+        android:visibility="gone"
+        android:indeterminateTint="@color/primary"
+        android:layout_marginStart="8dp"
+        app:layout_constraintStart_toEndOf="@id/barrierTitleStart"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="@id/textAccount" />
 
     <!-- 会话标题 -->
+    <!-- 位于 Spinner 右侧（如果 Spinner 不可见则位于账号标签右侧） -->
     <TextView
         android:id="@+id/textSessionTitle"
         android:layout_width="0dp"
@@ -85,10 +74,11 @@
         android:maxLines="1"
         android:ellipsize="end"
         android:layout_marginStart="8dp"
-        app:layout_constraintStart_toEndOf="@id/barrierTitleStart"
+        app:layout_constraintStart_toEndOf="@id/progressSpinner"
         app:layout_constraintEnd_toStartOf="@id/textSessionTime"
         app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintBottom_toBottomOf="@id/textAccount" />
+        app:layout_constraintBottom_toBottomOf="@id/textAccount"
+        app:layout_goneMarginStart="8dp" />
 
     <!-- 时间 -->
     <TextView
@@ -98,59 +88,15 @@
         android:text="12:00"
         android:textSize="12sp"
         android:textColor="#9E9E9E"
-        android:layout_marginStart="8dp"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
-
-    <!-- 左侧正方形区域占位（36dp×36dp，用于Spinner居中显示） -->
-    <!-- 与预览顶部对齐，高度与预览两行一致 -->
-    <Space
-        android:id="@+id/spaceSpinnerArea"
-        android:layout_width="36dp"
-        android:layout_height="36dp"
-        android:layout_marginTop="6dp"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/textSessionTitle" />
-
-    <!-- Spinner (in_progress 状态图标) -->
-    <!-- 大小21dp，水平垂直居中于左侧正方形区域 -->
-    <ProgressBar
-        android:id="@+id/progressSpinner"
-        style="?android:attr/progressBarStyleSmall"
-        android:layout_width="21dp"
-        android:layout_height="21dp"
-        android:visibility="gone"
-        android:indeterminateTint="@color/primary"
-        app:layout_constraintStart_toStartOf="@id/spaceSpinnerArea"
-        app:layout_constraintEnd_toEndOf="@id/spaceSpinnerArea"
-        app:layout_constraintTop_toTopOf="@id/spaceSpinnerArea"
-        app:layout_constraintBottom_toBottomOf="@id/spaceSpinnerArea" />
-
-    <!-- 消息预览 -->
-    <!-- 左侧留出36dp正方形区域，预览从该区域右侧+8dp开始 -->
-    <TextView
-        android:id="@+id/textSessionPreview"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:minHeight="36dp"
-        android:layout_marginTop="6dp"
-        android:layout_marginStart="8dp"
-        android:text="Message preview..."
-        android:textSize="14sp"
-        android:textColor="#757575"
-        android:maxLines="2"
-        android:ellipsize="end"
-        android:gravity="top"
-        app:layout_constraintStart_toEndOf="@id/spaceSpinnerArea"
+        android:layout_marginEnd="8dp"
         app:layout_constraintEnd_toStartOf="@id/textSessionCount"
-        app:layout_constraintTop_toBottomOf="@id/textSessionTitle" />
+        app:layout_constraintTop_toTopOf="parent" />
 
     <!-- 消息数量徽章 -->
     <TextView
         android:id="@+id/textSessionCount"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
         android:text="99"
         android:textSize="12sp"
         android:textColor="#FFFFFF"
@@ -161,15 +107,46 @@
         android:paddingBottom="2dp"
         android:minWidth="20dp"
         android:gravity="center"
+        android:visibility="gone"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/textSessionTime" />
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <!-- 第二行：Provider | Model -->
+    <TextView
+        android:id="@+id/textProviderModel"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:text="openai | gpt-4o"
+        android:textSize="12sp"
+        android:textColor="#616161"
+        android:maxLines="1"
+        android:ellipsize="end"
+        android:layout_marginTop="4dp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/textSessionTitle" />
+
+    <!-- 第三行：cwd -->
+    <TextView
+        android:id="@+id/textSessionCwd"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:text="/home/user/project"
+        android:textSize="12sp"
+        android:textColor="#9E9E9E"
+        android:maxLines="1"
+        android:ellipsize="start"
+        android:layout_marginTop="2dp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/textProviderModel" />
 
     <!-- 分割线 -->
     <View
         android:layout_width="0dp"
         android:layout_height="1dp"
         android:background="#E0E0E0"
-        android:layout_marginTop="6dp"
+        android:layout_marginTop="8dp"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintBottom_toBottomOf="parent" />

@@ -15,6 +15,11 @@ import java.util.List;
  * 会话列表适配器
  * 用于在 RecyclerView 中显示会话列表
  * 支持多账号聚合显示
+ * 
+ * 布局：
+ * 第一行：账号标签 + Spinner + 标题 + 时间 + 未读数量
+ * 第二行：provider | model
+ * 第三行：cwd
  */
 public class SessionAdapter extends RecyclerView.Adapter<SessionAdapter.SessionViewHolder> {
     private List<Session> sessions;
@@ -61,16 +66,13 @@ public class SessionAdapter extends RecyclerView.Adapter<SessionAdapter.SessionV
     public void onBindViewHolder(@NonNull SessionViewHolder holder, int position) {
         Session session = sessions.get(position);
         
-        // 设置会话标题
+        // 第一行：标题
         holder.textTitle.setText(session.getTitle());
         
-        // 设置最后消息预览
-        holder.textPreview.setText(session.getPreview());
-        
-        // 设置时间（使用 TimeUtils 统一格式化）
+        // 第一行：时间
         holder.textTime.setText(session.getFormattedTime());
         
-        // 设置未读消息数量
+        // 第一行：未读消息数量
         int unreadCount = session.getUnreadCount();
         if (unreadCount > 0) {
             holder.textCount.setVisibility(View.VISIBLE);
@@ -79,14 +81,13 @@ public class SessionAdapter extends RecyclerView.Adapter<SessionAdapter.SessionV
             holder.textCount.setVisibility(View.GONE);
         }
         
-        // 显示账号标签（如果有账号信息）
+        // 第一行：账号标签
         String accountId = session.getAccountId();
         if (accountId != null && !accountId.isEmpty() && accountManager != null) {
             Account account = accountManager.getAccount(accountId);
             if (account != null) {
                 holder.textAccount.setVisibility(View.VISIBLE);
                 holder.textAccount.setText(account.getDisplayName());
-                // 设置账号标签背景色（使用新的优先级逻辑）
                 setAccountBadgeColor(holder.textAccount, account);
             } else {
                 holder.textAccount.setVisibility(View.GONE);
@@ -95,14 +96,36 @@ public class SessionAdapter extends RecyclerView.Adapter<SessionAdapter.SessionV
             holder.textAccount.setVisibility(View.GONE);
         }
         
-        // 不显示 Provider/Model 标签（已在聊天界面顶部显示）
-        holder.textProviderModel.setVisibility(View.GONE);
-        
-        // 显示 Spinner（当会话正在进行时）
+        // 第一行：Spinner（当会话正在进行时）
         if (session.isInProgress()) {
             holder.progressSpinner.setVisibility(View.VISIBLE);
         } else {
             holder.progressSpinner.setVisibility(View.GONE);
+        }
+        
+        // 第二行：provider | model
+        String provider = session.getProvider();
+        String model = session.getModel();
+        if (provider != null && !provider.isEmpty() && model != null && !model.isEmpty()) {
+            holder.textProviderModel.setVisibility(View.VISIBLE);
+            holder.textProviderModel.setText(provider + " | " + model);
+        } else if (provider != null && !provider.isEmpty()) {
+            holder.textProviderModel.setVisibility(View.VISIBLE);
+            holder.textProviderModel.setText(provider);
+        } else if (model != null && !model.isEmpty()) {
+            holder.textProviderModel.setVisibility(View.VISIBLE);
+            holder.textProviderModel.setText(model);
+        } else {
+            holder.textProviderModel.setVisibility(View.GONE);
+        }
+        
+        // 第三行：cwd
+        String cwd = session.getCwd();
+        if (cwd != null && !cwd.isEmpty()) {
+            holder.textCwd.setVisibility(View.VISIBLE);
+            holder.textCwd.setText(cwd);
+        } else {
+            holder.textCwd.setVisibility(View.GONE);
         }
         
         // 点击事件
@@ -125,15 +148,12 @@ public class SessionAdapter extends RecyclerView.Adapter<SessionAdapter.SessionV
     /**
      * 为账号标签设置颜色
      * 优先级：账号自定义颜色 > 全局设置
-     * 全局设置可以是：统一颜色 或 自动分配
      */
     private void setAccountBadgeColor(TextView textView, Account account) {
-        // 如果没有设置管理器，创建一个临时实例
         if (settingsManager == null) {
             settingsManager = new SettingsManager(textView.getContext());
         }
         
-        // 使用 AccountManager 的统一颜色获取方法
         String colorHex = AccountManager.getAccountColor(account, settingsManager);
         int color = Color.parseColor(colorHex);
         
@@ -150,12 +170,10 @@ public class SessionAdapter extends RecyclerView.Adapter<SessionAdapter.SessionV
      * 根据背景色获取对比色（黑色或白色）
      */
     private int getContrastColor(int backgroundColor) {
-        // 计算亮度
         double luminance = (0.299 * Color.red(backgroundColor) 
                           + 0.587 * Color.green(backgroundColor) 
                           + 0.114 * Color.blue(backgroundColor)) / 255;
         
-        // 亮色背景用深色文字，暗色背景用浅色文字
         return luminance > 0.5 ? Color.parseColor("#212121") : Color.parseColor("#FFFFFF");
     }
     
@@ -202,21 +220,21 @@ public class SessionAdapter extends RecyclerView.Adapter<SessionAdapter.SessionV
     
     static class SessionViewHolder extends RecyclerView.ViewHolder {
         TextView textTitle;
-        TextView textPreview;
         TextView textTime;
         TextView textCount;
-        TextView textAccount;  // 账号标签
-        TextView textProviderModel;  // Provider/Model 标签
-        ProgressBar progressSpinner;  // in_progress 状态指示器
+        TextView textAccount;
+        TextView textProviderModel;
+        TextView textCwd;
+        ProgressBar progressSpinner;
         
         SessionViewHolder(View itemView) {
             super(itemView);
             textTitle = itemView.findViewById(R.id.textSessionTitle);
-            textPreview = itemView.findViewById(R.id.textSessionPreview);
             textTime = itemView.findViewById(R.id.textSessionTime);
             textCount = itemView.findViewById(R.id.textSessionCount);
             textAccount = itemView.findViewById(R.id.textAccount);
             textProviderModel = itemView.findViewById(R.id.textProviderModel);
+            textCwd = itemView.findViewById(R.id.textSessionCwd);
             progressSpinner = itemView.findViewById(R.id.progressSpinner);
         }
     }
