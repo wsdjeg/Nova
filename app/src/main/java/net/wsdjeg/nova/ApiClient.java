@@ -73,6 +73,11 @@ public class ApiClient {
         void onError(String error);
     }
     
+    
+    public interface ClearCallback {
+        void onSuccess();
+        void onError(String error);
+    }
     public interface ProvidersCallback {
         void onSuccess(List<Provider> providers);
         void onError(String error);
@@ -1030,6 +1035,62 @@ public class ApiClient {
                 }
             } catch (Exception e) {
                 Log.e(TAG, "stopSession failed", e);
+                new Handler(Looper.getMainLooper()).post(() -> 
+                    callback.onError("Network error: " + e.getMessage()));
+            } finally {
+                if (conn != null) {
+                    conn.disconnect();
+                }
+            }
+    
+    public void clearSession(String sessionId, ClearCallback callback) {
+        String baseUrl = getBaseUrl();
+        String apiKey = getApiKey();
+        
+        if (baseUrl.isEmpty() || apiKey.isEmpty()) {
+            callback.onError("Please configure API settings");
+            return;
+        }
+        
+        if (sessionId == null || sessionId.isEmpty()) {
+            callback.onError("Session ID is required");
+            return;
+        }
+        
+        new Thread(() -> {
+            HttpURLConnection conn = null;
+            try {
+                URL url = new URL(baseUrl + "/session/" + sessionId + "/clear");
+                conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("POST");
+                conn.setRequestProperty("X-API-Key", apiKey);
+                conn.setRequestProperty("Connection", "close");
+                conn.setRequestProperty("Accept", "*/*");
+                conn.setDoOutput(true);
+                conn.setConnectTimeout(15000);
+                conn.setReadTimeout(30000);
+                conn.setUseCaches(false);
+                
+                conn.getOutputStream().close();
+
+                int responseCode = conn.getResponseCode();
+                
+                if (responseCode == 204 || responseCode == 200) {
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onSuccess());
+                } else if (responseCode == 404) {
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onError("Session not found"));
+                } else if (responseCode == 401) {
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onError("Unauthorized: Invalid API Key"));
+                } else {
+                    final int code = responseCode;
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onError("Error: " + code));
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "clearSession failed", e);
                 new Handler(Looper.getMainLooper()).post(() -> 
                     callback.onError("Network error: " + e.getMessage()));
             } finally {

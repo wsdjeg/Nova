@@ -842,6 +842,52 @@ public class ChatActivity extends AppCompatActivity {
             .show();
     }
     
+    /**
+     * 控制菜单项可见性
+     */
+    private void updateMenuVisibility(Menu menu) {
+        if (menu == null) return;
+        
+        MenuItem refresh = menu.findItem(R.id.action_refresh);
+        MenuItem clear = menu.findItem(R.id.action_clear_session);
+        MenuItem delete = menu.findItem(R.id.action_delete_session);
+        MenuItem preview = menu.findItem(R.id.action_preview);
+        
+        // 正在生成时禁用相关操作
+        boolean enabled = !isInProgress;
+        
+        if (refresh != null) refresh.setEnabled(enabled);
+        if (clear != null) clear.setEnabled(enabled);
+        if (delete != null) delete.setEnabled(enabled);
+        if (preview != null) preview.setEnabled(true);
+    }
+    
+    /**
+     * 显示会话预览对话框
+     */
+    private void showPreviewDialog() {
+        if (apiClient == null || currentSessionId == null) return;
+        
+        apiClient.getSessionPreview(currentSessionId, new ApiClient.ApiCallback() {
+            @Override
+            public void onSuccess(String html) {
+                runOnUiThread(() -> {
+                    new android.app.AlertDialog.Builder(ChatActivity.this)
+                        .setTitle("预览")
+                        .setMessage(html)
+                        .setPositiveButton(android.R.string.ok, null)
+                        .show();
+                });
+            }
+            
+            @Override
+            public void onError(String error) {
+                runOnUiThread(() ->
+                    Toast.makeText(ChatActivity.this, "预览失败: " + error, Toast.LENGTH_SHORT).show()
+                );
+            }
+        });
+    }
     private void stopSession() {
         if (apiClient == null) return;
         apiClient.stopSession(currentSessionId, new ApiClient.StopCallback() {
