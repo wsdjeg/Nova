@@ -298,18 +298,13 @@ public class ApiClient {
                             Session session = new Session(id);
                             session.setAccountId(accountId);
                             // 如果 title 为空，使用 last_message.content 的第一行作为备用
-                            if (title == null || title.isEmpty()) {
-                                if (lastMessageContent != null && !lastMessageContent.isEmpty()) {
-                                    // 取第一行作为标题
-                                    String firstLine = lastMessageContent.split("\n")[0].trim();
-                                    if (firstLine.length() > 50) {
-                                        firstLine = firstLine.substring(0, 50) + "...";
-                                    }
-                                    title = firstLine;
-                                } else if (cwd != null && !cwd.isEmpty()) {
-                                    // 如果没有消息，使用 cwd 作为标题
-                                    title = cwd;
+                            // 注意：不使用 cwd 作为标题，Session.getTitle() 会返回"新会话"作为默认值
+                            if ((title == null || title.isEmpty()) && lastMessageContent != null && !lastMessageContent.isEmpty()) {
+                                String firstLine = lastMessageContent.split("\n")[0].trim();
+                                if (firstLine.length() > 50) {
+                                    firstLine = firstLine.substring(0, 50) + "...";
                                 }
+                                title = firstLine;
                             }
                             session.setTitle(title);
                             session.setLastMessage(lastMessageContent);
@@ -422,7 +417,7 @@ public class ApiClient {
         }).start();
     }
     
-    public void createSession(String cwd, String provider, String model, String accountId, CreateSessionCallback callback) {
+    public void createSession
         String baseUrl = getBaseUrl();
         String apiKey = getApiKey();
         
