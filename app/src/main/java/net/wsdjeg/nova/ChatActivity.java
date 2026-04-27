@@ -325,6 +325,7 @@ public class ChatActivity extends AppCompatActivity {
             }
         });
     }
+    
     /**
      * 从指定索引获取新消息
      * API 返回升序，正向遍历添加到末尾
@@ -367,6 +368,10 @@ public class ChatActivity extends AppCompatActivity {
                             sessionManager.updateMessages(currentSessionId,
                                 getFirstDisplayableContent(),
                                 lastDisplayable.getContent(),
+                                displayableCount,
+                                lastDisplayable.getTimestamp());
+                        }
+                    }
                 });
             }
             
@@ -383,11 +388,6 @@ public class ChatActivity extends AppCompatActivity {
     private void loadMessagesPage() {
         if (apiClient == null || currentSessionId == null) return;
         
-        if (totalMessageCount <= 0) {
-            if (messages.isEmpty()) addMessage("暂无消息", false);
-            processedServerMessageCount = 0;
-            return;
-        }
         if (totalMessageCount <= 0) {
             if (messages.isEmpty()) addMessage("暂无消息", false);
             processedServerMessageCount = 0;
@@ -477,6 +477,7 @@ public class ChatActivity extends AppCompatActivity {
             }
         });
     }
+    
     /**
      * 加载更早的消息
      */
@@ -519,7 +520,7 @@ public class ChatActivity extends AppCompatActivity {
                             Message message = new Message(
                                 msg.content != null ? msg.content : "",
                                 msg.role,
-                                msg.created * 1000L
+                                msg.created
                             );
                             messages.add(0, message);
                             messageFingerprints.put(msg.created, msg.content);
@@ -537,6 +538,7 @@ public class ChatActivity extends AppCompatActivity {
                         if (msg.content != null && !msg.content.isEmpty() && !"tool".equals(msg.role)) {
                             displayCount++;
                         }
+                    }
                     rvMessages.scrollToPosition(displayCount);
                     
                     Log.d(TAG, "Loaded older: " + chatMessages.size() + " server messages, newSince=" + newSince);
@@ -547,6 +549,8 @@ public class ChatActivity extends AppCompatActivity {
             public void onError(String error) {
                 runOnUiThread(() -> {
                     isLoadingMore = false;
+                    Toast.makeText(ChatActivity.this, "加载失败: " + error, Toast.LENGTH_SHORT).show();
+                });
             }
         });
     }
@@ -586,7 +590,7 @@ public class ChatActivity extends AppCompatActivity {
                         lastMessageContent = serverContent;
                         adapter.notifyItemChanged(lastIdx);
                         Log.d(TAG, "Stream updated: len=" + serverContent.length());
-                        if (isUserAtBottom()) rvMessages.scrollToPosition(messages.size() - 1);
+                        if (isUserAtBottom()) rvMessages.scrollToPosition(adapter.getItemCount() - 1);
                     }
                 });
             }
@@ -597,6 +601,7 @@ public class ChatActivity extends AppCompatActivity {
             }
         });
     }
+    
     private void reloadMessages() {
         messages.clear();
         messageFingerprints.clear();
@@ -645,8 +650,6 @@ public class ChatActivity extends AppCompatActivity {
     
     /**
      * 统计可显示消息数量
-    /**
-     * 统计可显示消息数量
      */
     private int countDisplayableMessages() {
         int count = 0;
@@ -657,6 +660,7 @@ public class ChatActivity extends AppCompatActivity {
         }
         return count;
     }
+    
     /**
      * 滚动到最后一条可显示的消息
      */
@@ -684,6 +688,7 @@ public class ChatActivity extends AppCompatActivity {
             lastMessageContent = last.getContent();
         }
     }
+    
     private void refreshSessionStatus(Runnable onComplete) {
         apiClient.getSessions(accountId, new ApiClient.SessionsCallback() {
             @Override
@@ -781,6 +786,8 @@ public class ChatActivity extends AppCompatActivity {
         if (chatMenu != null) {
             updateMenuVisibility(chatMenu);
         }
+    }
+    
     private void clearSession() {
         messages.clear();
         messageFingerprints.clear();
@@ -790,6 +797,9 @@ public class ChatActivity extends AppCompatActivity {
     }
     
     private void deleteSession() {
+        new android.app.AlertDialog.Builder(this)
+            .setTitle("删除会话")
+            .setMessage("确定要删除此会话吗？")
             .setPositiveButton("删除", (dialog, which) -> {
                 apiClient.deleteSession(currentSessionId, new ApiClient.DeleteSessionCallback() {
                     @Override

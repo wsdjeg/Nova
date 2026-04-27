@@ -49,8 +49,6 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
     
     /**
      * 更新可见消息列表
-    /**
-     * 更新可见消息列表
      * 过滤掉 tool 类型和空 content 的消息
      */
     private void updateVisibleMessages() {
@@ -58,9 +56,6 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
         for (Message msg : messages) {
             if (msg.shouldDisplay()) {
                 visibleMessages.add(msg);
-            }
-        }
-    }
             }
         }
     }
@@ -131,7 +126,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
     @Override
     public void notifyItemRangeInserted(int positionStart, int itemCount) {
         updateVisibleMessages();
-        super.notifyDataSetChanged();  // 简化处理，重新计算可见列表
+        super.notifyDataSetChanged();
     }
     
     /**
