@@ -6,6 +6,8 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewTreeObserver;
 import android.widget.Button;
@@ -387,6 +389,7 @@ public class ChatActivity extends AppCompatActivity {
                     if (wasAtBottom) forceScrollToBottom();
                     
                     // 会话预览只由 /sessions API 返回，不再在此更新
+                });
             }
             
             @Override
