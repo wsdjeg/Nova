@@ -1042,6 +1042,8 @@ public class ApiClient {
                     conn.disconnect();
                 }
             }
+        }).start();
+    }
     
     public void clearSession(String sessionId, ClearCallback callback) {
         String baseUrl = getBaseUrl();
