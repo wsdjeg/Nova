@@ -212,15 +212,16 @@ public class ChatActivity extends AppCompatActivity {
     
     private void updateMenuVisibility(Menu menu) {
         MenuItem stopItem = menu.findItem(R.id.action_stop);
-        MenuItem retryItem = menu.findItem(R.id.action_retry);
         if (stopItem != null) {
             stopItem.setVisible(isInProgress);
         }
-        if (retryItem != null) {
-            retryItem.setVisible(!isInProgress && messages != null && !messages.isEmpty());
-        }
     }
-    
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        int id = item.getItemId();
+        if (id == R.id.action_refresh) {
+            reloadMessages();
+            return true;
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         int id = item.getItemId();
@@ -236,17 +237,12 @@ public class ChatActivity extends AppCompatActivity {
         } else if (id == R.id.action_stop) {
             stopSession();
             return true;
-        } else if (id == R.id.action_retry) {
-            retrySession();
-            return true;
         } else if (id == R.id.action_settings) {
             startActivity(new Intent(this, SettingsActivity.class));
             return true;
         }
         return super.onOptionsItemSelected(item);
     }
-    
-    private void updateSessionInfo() {
         Session session = sessionManager.getSession(currentSessionId);
         if (session != null) {
             tvSessionInfo.setText("Provider: " + session.getProvider() + " | Model: " + session.getModel());
@@ -846,27 +842,6 @@ public class ChatActivity extends AppCompatActivity {
             public void onError(String error) {
                 runOnUiThread(() -> {
                     Toast.makeText(ChatActivity.this, "停止失败: " + error, Toast.LENGTH_SHORT).show();
-                });
-            }
-        });
-    }
-    
-    private void retrySession() {
-        if (apiClient == null) return;
-        apiClient.retrySession(currentSessionId, new ApiClient.RetryCallback() {
-            @Override
-            public void onSuccess() {
-                runOnUiThread(() -> {
-                    Toast.makeText(ChatActivity.this, "正在重试...", Toast.LENGTH_SHORT).show();
-                    // 触发状态刷新，由 session 的 in_progress 属性决定按钮状态
-                    refreshSessionStatus();
-                });
-            }
-            
-            @Override
-            public void onError(String error) {
-                runOnUiThread(() -> {
-                    Toast.makeText(ChatActivity.this, "重试失败: " + error, Toast.LENGTH_SHORT).show();
                 });
             }
         });
