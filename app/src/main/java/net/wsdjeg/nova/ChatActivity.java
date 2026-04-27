@@ -432,11 +432,12 @@ public class ChatActivity extends AppCompatActivity {
                         messages.add(new Message(msg.content, msg.role, msg.created));
                         messageFingerprints.put(msg.created, msg.content != null ? msg.content : "");
                     }
-                    
                     processedServerMessageCount = totalMessageCount;
                     lastMessageCount = messages.size();
-                    
                     Log.d(TAG, "Loaded: local=" + messages.size() + ", serverTotal=" + totalMessageCount);
+                    
+                    // 保存当前加载位置，用于加载更早消息
+                    sessionManager.updateFirstMessageIndex(currentSessionId, since);
                     
                     // 更新会话信息
                     Message lastDisplayable = getLastDisplayableMessage();
@@ -447,7 +448,6 @@ public class ChatActivity extends AppCompatActivity {
                             countDisplayableMessages(),
                             lastDisplayable.getTimestamp());
                     }
-                    
                     adapter.refreshData();
                     scrollToLastDisplayable();
                 });
@@ -461,7 +461,6 @@ public class ChatActivity extends AppCompatActivity {
                     messageFingerprints.clear();
                     addMessage("加载失败: " + error, false);
                     adapter.refreshData();
-                    Toast.makeText(ChatActivity.this, "加载失败: " + error, Toast.LENGTH_SHORT).show();
                 });
             }
         });
