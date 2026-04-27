@@ -268,8 +268,8 @@ public class ChatActivity extends AppCompatActivity {
     private void updateSessionInfo() {
         Session session = sessionManager.getSession(currentSessionId);
         if (session != null) {
-            tvSessionInfo.setText("Provider: " + session.getProvider() + " | Model: " + session.getModel());
-            tvSessionPath.setText(session.getCwd() != null ? session.getCwd() : "");
+            tvSessionInfo.setText(session.getProvider() + " | " + session.getModel());
+            tvSessionPath.setText("cwd: " + (session.getCwd() != null ? session.getCwd() : ""));
         }
     }
     
