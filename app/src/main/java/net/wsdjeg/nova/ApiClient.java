@@ -316,30 +316,31 @@ public class ApiClient {
                         int messageCount = sessionObj.optInt("message_count", 0);
                         long lastMessageTime = System.currentTimeMillis();
                         String lastMessageContent = "";
+                        String lastMessageRole = "";
+                        
                         JSONObject lastMsgObj = sessionObj.optJSONObject("last_message");
                         if (lastMsgObj != null) {
                             lastMessageContent = lastMsgObj.optString("content", "");
+                            lastMessageRole = lastMsgObj.optString("role", "");
                             lastMessageTime = lastMsgObj.optLong("created", System.currentTimeMillis()) * 1000;
+                            Log.d(TAG, "Session " + id + " last_message: content=" + lastMessageContent + ", role=" + lastMessageRole);
+                        } else {
+                            Log.w(TAG, "Session " + id + " last_message is NULL!");
                         }
                         
                         if (!id.isEmpty()) {
                             Session session = new Session(id);
                             session.setAccountId(accountId);
-                            if ((title == null || title.isEmpty()) && lastMessageContent != null && !lastMessageContent.isEmpty()) {
-                                String firstLine = lastMessageContent.split("\n")[0].trim();
-                                if (firstLine.length() > 50) {
-                                    firstLine = firstLine.substring(0, 50) + "...";
-                                }
-                                title = firstLine;
-                            }
                             session.setTitle(title);
-                            session.setLastMessage(lastMessageContent);
                             session.setCwd(cwd);
                             session.setProvider(provider);
                             session.setModel(model);
                             session.setInProgress(inProgress);
+                            session.setLastMessage(lastMessageContent);
+                            session.setLastMessageRole(lastMessageRole);
                             session.setMessageCount(messageCount);
                             session.setLastMessageTime(lastMessageTime);
+                            Log.d(TAG, "Session " + id + " preview: " + session.getPreview());
                             sessions.add(session);
                         }
                     }
