@@ -165,6 +165,8 @@ public class ChatActivity extends AppCompatActivity {
                     loadOlderMessages();
                 }
             }
+        });
+        
         btnSend.setOnClickListener(v -> {
             if (isInProgress) {
                 stopSession();
