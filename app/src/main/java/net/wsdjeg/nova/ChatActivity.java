@@ -79,6 +79,7 @@ public class ChatActivity extends AppCompatActivity {
     private Menu chatMenu;
     
     // 消息指纹缓存（用于检测变化）
+    private Map<Long, String> messageFingerprints = new HashMap<>();
     private long lastMessageCreatedTimestamp = -1;
     private String lastMessageContent = null;
     private int lastCheckedContentLength = -1;
@@ -196,9 +197,9 @@ public class ChatActivity extends AppCompatActivity {
     }
     
     @Override
-    @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         getMenuInflater().inflate(R.menu.chat_menu, menu);
+        chatMenu = menu;
         updateMenuVisibility(menu);
         return true;
     }
@@ -247,8 +248,8 @@ public class ChatActivity extends AppCompatActivity {
         }
     }
     
-    
     private void startAutoRefresh() {
+        if (refreshHandler == null) {
             refreshHandler = new Handler(Looper.getMainLooper());
         }
         stopAutoRefresh();
