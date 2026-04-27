@@ -386,17 +386,7 @@ public class ChatActivity extends AppCompatActivity {
                     // 强制滚动到底部（无动画）
                     if (wasAtBottom) forceScrollToBottom();
                     
-                    if (displayableCount > 0) {
-                        Message lastDisplayable = getLastDisplayableMessage();
-                        if (lastDisplayable != null) {
-                            sessionManager.updateMessages(currentSessionId,
-                                getFirstDisplayableContent(),
-                                lastDisplayable.getContent(),
-                                displayableCount,
-                                lastDisplayable.getTimestamp());
-                        }
-                    }
-                });
+                    // 会话预览只由 /sessions API 返回，不再在此更新
             }
             
             @Override
@@ -456,16 +446,6 @@ public class ChatActivity extends AppCompatActivity {
                     
                     // 保存当前加载位置，用于加载更早消息
                     sessionManager.updateFirstMessageIndex(currentSessionId, since);
-                    
-                    // 更新会话信息
-                    Message lastDisplayable = getLastDisplayableMessage();
-                    if (lastDisplayable != null) {
-                        sessionManager.updateMessages(currentSessionId,
-                            getFirstDisplayableContent(),
-                            lastDisplayable.getContent(),
-                            countDisplayableMessages(),
-                            lastDisplayable.getTimestamp());
-                    }
                     adapter.refreshData();
                     
                     // 强制滚动到底部（无动画）- 使用 ViewTreeObserver 确保布局完成
