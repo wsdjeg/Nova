@@ -417,7 +417,7 @@ public class ApiClient {
         }).start();
     }
     
-    public void createSession
+    public void createSession(String cwd, String provider, String model, String accountId, CreateSessionCallback callback) {
         String baseUrl = getBaseUrl();
         String apiKey = getApiKey();
         
@@ -425,7 +425,6 @@ public class ApiClient {
             callback.onError("Please configure API settings");
             return;
         }
-        
         new Thread(() -> {
             HttpURLConnection conn = null;
             BufferedReader br = null;
