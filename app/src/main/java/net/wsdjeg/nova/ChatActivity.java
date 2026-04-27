@@ -165,9 +165,13 @@ public class ChatActivity extends AppCompatActivity {
                     loadOlderMessages();
                 }
             }
+        btnSend.setOnClickListener(v -> {
+            if (isInProgress) {
+                stopSession();
+            } else {
+                sendMessage();
+            }
         });
-        
-        btnSend.setOnClickListener(v -> sendMessage());
         
         tvSessionTitle.setText(currentSessionTitle != null ? currentSessionTitle : currentSessionId);
         
@@ -753,7 +757,7 @@ public class ChatActivity extends AppCompatActivity {
         buttonState = STATE_NORMAL;
         btnSend.setText("发送");
         btnSend.setEnabled(true);
-        btnSend.setBackgroundColor(Color.parseColor("#4CAF50"));
+        btnSend.setBackgroundColor(Color.parseColor("#2196F3")); // 蓝色，与顶部工具栏一致
         isInProgress = false;
         if (chatMenu != null) {
             updateMenuVisibility(chatMenu);
@@ -762,9 +766,9 @@ public class ChatActivity extends AppCompatActivity {
     
     private void setButtonStateSending() {
         buttonState = STATE_SENDING;
-        btnSend.setText("发送中...");
-        btnSend.setEnabled(false);
-        btnSend.setBackgroundColor(Color.parseColor("#9E9E9E"));
+        btnSend.setText("停止");
+        btnSend.setEnabled(true); // 可点击以停止
+        btnSend.setBackgroundColor(Color.parseColor("#F44336")); // 红色背景
         isInProgress = true;
         if (chatMenu != null) {
             updateMenuVisibility(chatMenu);
@@ -847,5 +851,7 @@ public class ChatActivity extends AppCompatActivity {
                 });
             }
         });
+    }
+}
     }
 }
