@@ -804,6 +804,8 @@ public class ChatActivity extends AppCompatActivity {
             }
         });
     }
+    
+    private void deleteSession() {
         new android.app.AlertDialog.Builder(this)
             .setTitle("删除会话")
             .setMessage("确定要删除此会话吗？")
