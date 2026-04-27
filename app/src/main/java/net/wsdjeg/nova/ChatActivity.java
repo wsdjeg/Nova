@@ -155,7 +155,7 @@ public class ChatActivity extends AppCompatActivity {
         adapter = new MessageAdapter(messages, this);
         rvMessages.setAdapter(adapter);
         rvMessages.setLayoutManager(new LinearLayoutManager(this));
-        
+        rvMessages.setItemAnimator(null);  // 禁用 item 动画
         // 下拉加载更早消息
         rvMessages.addOnScrollListener(new RecyclerView.OnScrollListener() {
             @Override
