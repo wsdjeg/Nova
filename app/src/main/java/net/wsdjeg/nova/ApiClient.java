@@ -68,11 +68,6 @@ public class ApiClient {
         void onError(String error);
     }
     
-    public interface ClearCallback {
-        void onSuccess();
-        void onError(String error);
-    }
-    
     public interface UpdateSessionCallback {
         void onSuccess();
         void onError(String error);
@@ -267,6 +262,8 @@ public class ApiClient {
                 callback.onError(error);
             }
         });
+    }
+    
     public void getSessions(String accountId, SessionsCallback callback) {
         String baseUrl = getBaseUrl();
         String apiKey = getApiKey();
@@ -314,11 +311,9 @@ public class ApiClient {
                         int messageCount = sessionObj.optInt("message_count", 0);
                         long lastMessageTime = System.currentTimeMillis();
                         String lastMessageContent = "";
-                        String lastMessageRole = "";
                         JSONObject lastMsgObj = sessionObj.optJSONObject("last_message");
                         if (lastMsgObj != null) {
                             lastMessageContent = lastMsgObj.optString("content", "");
-                            lastMessageRole = lastMsgObj.optString("role", "");
                             lastMessageTime = lastMsgObj.optLong("created", System.currentTimeMillis()) * 1000;
                         }
                         
@@ -333,7 +328,7 @@ public class ApiClient {
                                 title = firstLine;
                             }
                             session.setTitle(title);
-                            session.setLastMessageWithRole(lastMessageContent, lastMessageRole);
+                            session.setLastMessage(lastMessageContent);
                             session.setCwd(cwd);
                             session.setProvider(provider);
                             session.setModel(model);
@@ -366,8 +361,6 @@ public class ApiClient {
         }).start();
     }
     
-    }
-    
     public void getProviders(ProvidersCallback callback) {
         String baseUrl = getBaseUrl();
         String apiKey = getApiKey();
@@ -378,6 +371,10 @@ public class ApiClient {
         }
         
         new Thread(() -> {
+            HttpURLConnection conn = null;
+            BufferedReader br = null;
+            try {
+                URL url = new URL(baseUrl + "/providers");
                 conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("GET");
                 conn.setRequestProperty("X-API-Key", apiKey);
@@ -448,18 +445,18 @@ public class ApiClient {
         if (baseUrl.isEmpty() || apiKey.isEmpty()) {
             callback.onError("Please configure API settings");
             return;
+        }
+        new Thread(() -> {
+            HttpURLConnection conn = null;
+            BufferedReader br = null;
+            try {
+                URL url = new URL(baseUrl + "/session");
                 conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("POST");
                 conn.setRequestProperty("Content-Type", "application/json");
                 conn.setRequestProperty("X-API-Key", apiKey);
                 conn.setRequestProperty("Connection", "close");
                 conn.setDoOutput(true);
-                conn.setConnectTimeout(15000);
-            BufferedReader br = null;
-            try {
-                URL url = new URL(baseUrl + "/session");
-                conn = (HttpURLConnection) url.openConnection();
-                conn.setRequestMethod("POST");
                 conn.setConnectTimeout(15000);
                 conn.setReadTimeout(30000);
                 conn.setUseCaches(false);
@@ -1097,67 +1094,6 @@ public class ApiClient {
                 }
             } catch (Exception e) {
                 Log.e(TAG, "retrySession failed", e);
-                new Handler(Looper.getMainLooper()).post(() -> 
-                    callback.onError("Network error: " + e.getMessage()));
-            } finally {
-                if (conn != null) {
-                    conn.disconnect();
-                }
-            }
-        }).start();
-    }
-    
-    public void clearSession(String sessionId, ClearCallback callback) {
-        String baseUrl = getBaseUrl();
-        String apiKey = getApiKey();
-        
-        if (baseUrl.isEmpty() || apiKey.isEmpty()) {
-            callback.onError("Please configure API settings");
-            return;
-        }
-        
-        if (sessionId == null || sessionId.isEmpty()) {
-            callback.onError("Session ID is required");
-            return;
-        }
-        
-        new Thread(() -> {
-            HttpURLConnection conn = null;
-            try {
-                URL url = new URL(baseUrl + "/session/" + sessionId + "/clear");
-                conn = (HttpURLConnection) url.openConnection();
-                conn.setRequestMethod("POST");
-                conn.setRequestProperty("X-API-Key", apiKey);
-                conn.setRequestProperty("Connection", "close");
-                conn.setRequestProperty("Accept", "*/*");
-                conn.setDoOutput(true);
-                conn.setConnectTimeout(15000);
-                conn.setReadTimeout(30000);
-                conn.setUseCaches(false);
-                
-                conn.getOutputStream().close();
-
-                int responseCode = conn.getResponseCode();
-                
-                if (responseCode == 204) {
-                    new Handler(Looper.getMainLooper()).post(() -> 
-                        callback.onSuccess());
-                } else if (responseCode == 404) {
-                    new Handler(Looper.getMainLooper()).post(() -> 
-                        callback.onError("Session not found"));
-                } else if (responseCode == 409) {
-                    new Handler(Looper.getMainLooper()).post(() -> 
-                        callback.onError("Session is in progress, cannot clear"));
-                } else if (responseCode == 401) {
-                    new Handler(Looper.getMainLooper()).post(() -> 
-                        callback.onError("Unauthorized: Invalid API Key"));
-                } else {
-                    final int code = responseCode;
-                    new Handler(Looper.getMainLooper()).post(() -> 
-                        callback.onError("Error: " + code));
-                }
-            } catch (Exception e) {
-                Log.e(TAG, "clearSession failed", e);
                 new Handler(Looper.getMainLooper()).post(() -> 
                     callback.onError("Network error: " + e.getMessage()));
             } finally {
