@@ -68,10 +68,6 @@ public class ChatActivity extends AppCompatActivity {
     private SessionManager sessionManager;
     private AccountManager accountManager;
     
-    private String currentSessionId;
-    private String currentSessionTitle;
-    private String accountId;
-    
     // 自动刷新相关
     private Handler refreshHandler;
     private Runnable refreshRunnable;
@@ -92,12 +88,14 @@ public class ChatActivity extends AppCompatActivity {
     // === 增量刷新优化：消息指纹缓存 ===
     // Key: created 时间戳（秒）, Value: 消息内容
     private Map<Long, String> messageFingerprints = new HashMap<>();
-    // 最后一条消息的 created 时间戳，用于快速判断是否有新消息
-    private long lastMessageCreatedTimestamp = 0;
+    // 最后一条消息的 created 时间戳（秒），用于快速判断是否有新消息
+    private long lastMessageCreatedTimestamp = -1;  // 初始化为 -1，表示未设置
     // 最后一条消息的内容，用于检测流式更新
-    private String lastMessageContent = "";
-
-    @Override
+    private String lastMessageContent = null;  // 初始化为 null，表示未设置
+    // 最后一次检查时的消息内容长度，用于避免频繁更新
+    private int lastCheckedContentLength = -1;
+    // 用于跟踪是否刚刚完成生成（只触发一次检查）
+    private boolean justFinishedGeneration = false;
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_chat);
@@ -614,7 +612,6 @@ public class ChatActivity extends AppCompatActivity {
             refreshHandler.removeCallbacks(refreshRunnable);
         }
     }
-    
     /**
      * 刷新消息和会话状态
      * 
@@ -640,8 +637,9 @@ public class ChatActivity extends AppCompatActivity {
                 runOnUiThread(() -> {
                     for (Session session : sessions) {
                         if (session.getSessionId().equals(currentSessionId)) {
-                            // 更新会话状态
+                            // 保存之前的状态
                             boolean wasInProgress = isInProgress;
+                            // 更新当前状态
                             isInProgress = session.isInProgress();
                             
                             // 获取服务端消息总数
@@ -652,11 +650,14 @@ public class ChatActivity extends AppCompatActivity {
                             if (isInProgress) {
                                 setButtonStateSending();
                             } else {
+                                // 从生成状态结束
                                 if (wasInProgress) {
-                                    // 从生成状态结束，需要获取最新消息
+                                    setButtonStateNormal();
+                                    // 刚刚结束生成，获取最新消息
                                     fetchLatestMessages();
+                                } else {
+                                    setButtonStateNormal();
                                 }
-                                setButtonStateNormal();
                             }
                             
                             // === 核心优化：检测消息数量变化 ===
@@ -671,10 +672,9 @@ public class ChatActivity extends AppCompatActivity {
                                     + ", localCount=" + localMessageCount);
                                 reloadMessages();
                             } else {
-                                // 数量相同，检查最后一条消息是否有内容更新（流式消息）
-                                Log.d(TAG, "Incremental refresh: no new messages (count=" + localMessageCount + ")");
-                                // 如果正在生成，可能最后一条消息内容有变化
-                                if (isInProgress || wasInProgress) {
+                                // 数量相同
+                                // 只有正在生成时才检查最后一条消息的更新（流式消息）
+                                if (isInProgress) {
                                     checkLastMessageUpdate();
                                 }
                             }
@@ -692,7 +692,6 @@ public class ChatActivity extends AppCompatActivity {
             }
         });
     }
-    
     /**
      * 获取增量消息
      * 
@@ -714,6 +713,7 @@ public class ChatActivity extends AppCompatActivity {
         
         apiClient.getMessagesWithOptions(currentSessionId, sinceIndex, newCount, false, 
             new ApiClient.MessagesCallback() {
+                @Override
                 @Override
                 public void onSuccess(List<ApiClient.ChatMessage> chatMessages) {
                     runOnUiThread(() -> {
@@ -854,10 +854,19 @@ public class ChatActivity extends AppCompatActivity {
     
     /**
      * 检查最后一条消息是否有内容更新
+    /**
+     * 检查最后一条消息是否有内容更新
      * 用于流式消息生成过程中
      */
     private void checkLastMessageUpdate() {
         if (messages.isEmpty()) {
+            return;
+        }
+        
+        // 如果还没有设置 lastMessageContent，先初始化它
+        if (lastMessageContent == null) {
+            updateLastMessageTracking();
+            Log.d(TAG, "Initialized last message tracking in checkLastMessageUpdate");
             return;
         }
         
@@ -876,7 +885,15 @@ public class ChatActivity extends AppCompatActivity {
                     
                     // 检查内容是否变化
                     String serverContent = lastServerMsg.content;
-                    if (!serverContent.equals(lastMessageContent)) {
+                    
+                    // 快速检查：如果内容长度没变，且之前已经检查过，跳过
+                    // 但流式消息通常会增长，所以只检查长度增加的情况
+                    int serverLen = serverContent.length();
+                    
+                    // 使用更精确的比较：内容和长度都要检查
+                    boolean contentChanged = !serverContent.equals(lastMessageContent);
+                    
+                    if (contentChanged) {
                         // 内容有变化，更新最后一条消息
                         int lastIndex = messages.size() - 1;
                         boolean isUser = "user".equals(lastServerMsg.role);
@@ -884,15 +901,19 @@ public class ChatActivity extends AppCompatActivity {
                         
                         messageFingerprints.put(lastServerMsg.created, lastServerMsg.content);
                         lastMessageContent = lastServerMsg.content;
+                        lastCheckedContentLength = serverLen;
                         
                         adapter.notifyItemChanged(lastIndex);
                         
-                        Log.d(TAG, "Stream message updated: contentLen=" + serverContent.length());
+                        Log.d(TAG, "Stream message updated: contentLen=" + serverLen + ", delta=" + (serverLen - lastCheckedContentLength));
                         
                         // 如果用户在底部，滚动到最新
                         if (isUserAtBottom()) {
                             rvMessages.scrollToPosition(messages.size() - 1);
                         }
+                    } else {
+                        // 内容没变，更新检查长度
+                        lastCheckedContentLength = serverLen;
                     }
                 });
             }
@@ -913,7 +934,6 @@ public class ChatActivity extends AppCompatActivity {
         messageFingerprints.clear();
         currentSince = 0;
         hasMoreMessages = true;
-        
         loadMessagesPage();
     }
     
@@ -935,7 +955,6 @@ public class ChatActivity extends AppCompatActivity {
         int totalItems = messages.size();
         
         // 如果最后一个可见项在距离底部 BOTTOM_THRESHOLD 条消息以内，视为"在底部"
-        return lastVisiblePosition >= totalItems - 1 - BOTTOM_THRESHOLD;
     }
     
     /**
