@@ -267,8 +267,6 @@ public class ApiClient {
                 callback.onError(error);
             }
         });
-    }
-    
     public void getSessions(String accountId, SessionsCallback callback) {
         String baseUrl = getBaseUrl();
         String apiKey = getApiKey();
@@ -292,6 +290,11 @@ public class ApiClient {
                 conn.setReadTimeout(30000);
                 conn.setUseCaches(false);
                 
+                int responseCode = conn.getResponseCode();
+                
+                if (responseCode == 200) {
+                    br = new BufferedReader(new InputStreamReader(conn.getInputStream(), "UTF-8"));
+                    StringBuilder response = new StringBuilder();
                     String line;
                     while ((line = br.readLine()) != null) {
                         response.append(line);
@@ -301,6 +304,8 @@ public class ApiClient {
                     List<Session> sessions = new ArrayList<>();
                     
                     for (int i = 0; i < jsonArray.length(); i++) {
+                        JSONObject sessionObj = jsonArray.getJSONObject(i);
+                        String id = sessionObj.optString("id", "");
                         String title = sessionObj.optString("title", "");
                         String cwd = sessionObj.optString("cwd", "");
                         String provider = sessionObj.optString("provider", "");
@@ -361,6 +366,8 @@ public class ApiClient {
         }).start();
     }
     
+    }
+    
     public void getProviders(ProvidersCallback callback) {
         String baseUrl = getBaseUrl();
         String apiKey = getApiKey();
@@ -371,10 +378,6 @@ public class ApiClient {
         }
         
         new Thread(() -> {
-            HttpURLConnection conn = null;
-            BufferedReader br = null;
-            try {
-                URL url = new URL(baseUrl + "/providers");
                 conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("GET");
                 conn.setRequestProperty("X-API-Key", apiKey);
@@ -445,10 +448,13 @@ public class ApiClient {
         if (baseUrl.isEmpty() || apiKey.isEmpty()) {
             callback.onError("Please configure API settings");
             return;
-        }
-        
-        new Thread(() -> {
-            HttpURLConnection conn = null;
+                conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("POST");
+                conn.setRequestProperty("Content-Type", "application/json");
+                conn.setRequestProperty("X-API-Key", apiKey);
+                conn.setRequestProperty("Connection", "close");
+                conn.setDoOutput(true);
+                conn.setConnectTimeout(15000);
             BufferedReader br = null;
             try {
                 URL url = new URL(baseUrl + "/session");
