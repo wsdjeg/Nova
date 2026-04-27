@@ -26,9 +26,15 @@ public class ApiClient {
     private final SettingsManager settingsManager;
     private final String overrideBaseUrl;
     private final String overrideApiKey;
+    private String sessionId;
     
     public interface ApiCallback {
         void onSuccess(String response);
+        void onError(String error);
+    }
+    
+    public interface MessageCallback {
+        void onSuccess();
         void onError(String error);
     }
     
@@ -104,6 +110,10 @@ public class ApiClient {
         this.settingsManager = null;
         this.overrideBaseUrl = baseUrl;
         this.overrideApiKey = apiKey;
+    }
+    
+    public void setSession(String sessionId) {
+        this.sessionId = sessionId;
     }
     
     private String getBaseUrl() {
@@ -240,6 +250,20 @@ public class ApiClient {
         sendMessage(session, content, callback);
     }
     
+    public void sendMessage(String sessionId, String content, MessageCallback callback) {
+        sendMessage(sessionId, content, new ApiCallback() {
+            @Override
+            public void onSuccess(String response) {
+                callback.onSuccess();
+            }
+            
+            @Override
+            public void onError(String error) {
+                callback.onError(error);
+            }
+        });
+    }
+    
     public void getSessions(String accountId, SessionsCallback callback) {
         String baseUrl = getBaseUrl();
         String apiKey = getApiKey();
@@ -286,7 +310,6 @@ public class ApiClient {
                         boolean inProgress = sessionObj.optBoolean("in_progress", false);
                         int messageCount = sessionObj.optInt("message_count", 0);
                         long lastMessageTime = System.currentTimeMillis();
-                        // 解析 last_message 的内容（用于预览）
                         String lastMessageContent = "";
                         JSONObject lastMsgObj = sessionObj.optJSONObject("last_message");
                         if (lastMsgObj != null) {
@@ -297,8 +320,6 @@ public class ApiClient {
                         if (!id.isEmpty()) {
                             Session session = new Session(id);
                             session.setAccountId(accountId);
-                            // 如果 title 为空，使用 last_message.content 的第一行作为备用
-                            // 注意：不使用 cwd 作为标题，Session.getTitle() 会返回"新会话"作为默认值
                             if ((title == null || title.isEmpty()) && lastMessageContent != null && !lastMessageContent.isEmpty()) {
                                 String firstLine = lastMessageContent.split("\n")[0].trim();
                                 if (firstLine.length() > 50) {
@@ -440,7 +461,6 @@ public class ApiClient {
                 conn.setReadTimeout(30000);
                 conn.setUseCaches(false);
                 
-                // Build request body
                 JSONObject requestBody = new JSONObject();
                 if (cwd != null && !cwd.isEmpty()) {
                     requestBody.put("cwd", cwd);
@@ -452,7 +472,6 @@ public class ApiClient {
                     requestBody.put("model", model);
                 }
                 
-                // Send request
                 OutputStream os = conn.getOutputStream();
                 os.write(requestBody.toString().getBytes("UTF-8"));
                 os.flush();
@@ -578,6 +597,7 @@ public class ApiClient {
         new Thread(() -> {
             AtomicBoolean allSuccess = new AtomicBoolean(true);
             AtomicReference<String> errorMsg = new AtomicReference<>("");
+            
             if (provider != null && !provider.isEmpty()) {
                 HttpURLConnection conn = null;
                 try {
