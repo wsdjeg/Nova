@@ -451,8 +451,16 @@ public class ChatActivity extends AppCompatActivity {
                     sessionManager.updateFirstMessageIndex(currentSessionId, since);
                     adapter.refreshData();
                     
-                    // 强制滚动到底部（无动画）- 使用 ViewTreeObserver 确保布局完成
+                    // ⚠️ 关键：使用多次延迟确保滚动到底部
+                    // 1. 首先立即滚动（此时数据可能还未渲染）
+                    forceScrollToBottom();
+                    
+                    // 2. 使用 ViewTreeObserver 等待布局完成
                     forceScrollToBottomWithLayoutObserver();
+                    
+                    // 3. 额外延迟确保 RecyclerView 已完成所有渲染
+                    rvMessages.postDelayed(() -> forceScrollToBottom(), 100);
+                    rvMessages.postDelayed(() -> forceScrollToBottom(), 300);
                 });
             }
             
@@ -657,13 +665,20 @@ public class ChatActivity extends AppCompatActivity {
     
     /**
      * ⚠️ 强制滚动到底部 - 无动画，直接定位到最后位置
-     * 用于一般情况下的滚动
+     * 使用 LinearLayoutManager.scrollToPositionWithOffset 确保最后一个 item 在顶部可见
      */
     private void forceScrollToBottom() {
         if (rvMessages == null || adapter == null) return;
         int itemCount = adapter.getItemCount();
         if (itemCount > 0) {
-            rvMessages.scrollToPosition(itemCount - 1);
+            LinearLayoutManager lm = (LinearLayoutManager) rvMessages.getLayoutManager();
+            if (lm != null) {
+                // 使用 scrollToPositionWithOffset 确保最后一个 item 显示在顶部
+                // 这样即使 item 很长，也能确保用户看到最新的消息
+                lm.scrollToPositionWithOffset(itemCount - 1, 0);
+            } else {
+                rvMessages.scrollToPosition(itemCount - 1);
+            }
         }
     }
     
@@ -682,9 +697,6 @@ public class ChatActivity extends AppCompatActivity {
         final int targetPosition = adapter.getItemCount() - 1;
         if (targetPosition < 0) return;
         
-        // 立即尝试滚动
-        rvMessages.scrollToPosition(targetPosition);
-        
         // 创建并保存监听器引用
         pendingScrollListener = new ViewTreeObserver.OnGlobalLayoutListener() {
             @Override
@@ -693,11 +705,8 @@ public class ChatActivity extends AppCompatActivity {
                 rvMessages.getViewTreeObserver().removeOnGlobalLayoutListener(this);
                 pendingScrollListener = null;
                 
-                // 布局完成后再次滚动到底部
-                int newPosition = adapter.getItemCount() - 1;
-                if (newPosition >= 0) {
-                    rvMessages.scrollToPosition(newPosition);
-                }
+                // 布局完成后滚动到底部
+                forceScrollToBottom();
             }
         };
         
