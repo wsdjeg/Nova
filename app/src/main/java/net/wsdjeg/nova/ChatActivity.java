@@ -383,35 +383,23 @@ public class ChatActivity extends AppCompatActivity {
     }
     
     /**
-     * 初始加载消息
+     * 初始加载消息 - 清空后按 API 返回顺序显示
      */
     private void loadMessagesPage() {
         if (apiClient == null || currentSessionId == null) return;
         
         if (totalMessageCount <= 0) {
-            if (messages.isEmpty()) addMessage("暂无消息", false);
+            messages.clear();
+            messageFingerprints.clear();
+            addMessage("暂无消息", false);
             processedServerMessageCount = 0;
+            adapter.refreshData();
             return;
         }
         
-        Session session = sessionManager.getSession(currentSessionId);
-        int firstMessageIndex = session != null ? session.getFirstMessageIndex() : 0;
-        int since;
-        
-        if (firstMessageIndex == 0) {
-            if (totalMessageCount <= PAGE_SIZE) {
-                since = 1;
-                hasMoreMessages = false;
-            } else {
-                since = totalMessageCount - PAGE_SIZE + 1;
-                hasMoreMessages = true;
-            }
-            sessionManager.updateFirstMessageIndex(currentSessionId, since);
-            Log.d(TAG, "Initialized firstMessageIndex: " + since);
-        } else {
-            since = firstMessageIndex;
-            hasMoreMessages = (since > 1);
-        }
+        // 计算加载范围（加载最新的一页消息）
+        int since = Math.max(1, totalMessageCount - PAGE_SIZE + 1);
+        hasMoreMessages = (since > 1);
         
         Log.d(TAG, "Loading: since=" + since + ", total=" + totalMessageCount);
         isLoadingMore = true;
@@ -422,32 +410,29 @@ public class ChatActivity extends AppCompatActivity {
                 runOnUiThread(() -> {
                     isLoadingMore = false;
                     
-                    if (messages.size() == 1 && messages.get(0).getContent().equals("正在加载消息...")) {
-                        messages.clear();
-                    }
+                    // 清空现有消息
+                    messages.clear();
+                    messageFingerprints.clear();
                     
                     if (chatMessages.isEmpty()) {
-                        if (messages.isEmpty()) addMessage("暂无消息", false);
+                        addMessage("暂无消息", false);
                         processedServerMessageCount = 0;
+                        adapter.refreshData();
                         return;
                     }
                     
-                    // 全部加入消息列表，不过滤
+                    // 按 API 返回顺序添加消息
                     for (ApiClient.ChatMessage msg : chatMessages) {
-                        if (!messageFingerprints.containsKey(msg.created)) {
-                            messages.add(new Message(msg.content, msg.role, msg.created));
-                            messageFingerprints.put(msg.created, msg.content != null ? msg.content : "");
-                        }
+                        messages.add(new Message(msg.content, msg.role, msg.created));
+                        messageFingerprints.put(msg.created, msg.content != null ? msg.content : "");
                     }
                     
                     processedServerMessageCount = totalMessageCount;
-                    
-                    updateLastMessageTracking();
                     lastMessageCount = messages.size();
                     
-                    Log.d(TAG, "Loaded: local=" + messages.size() + ", serverTotal=" + totalMessageCount + ", processed=" + processedServerMessageCount);
+                    Log.d(TAG, "Loaded: local=" + messages.size() + ", serverTotal=" + totalMessageCount);
                     
-                    // 更新会话信息（使用最后一条可显示的消息）
+                    // 更新会话信息
                     Message lastDisplayable = getLastDisplayableMessage();
                     if (lastDisplayable != null) {
                         sessionManager.updateMessages(currentSessionId,
@@ -459,11 +444,6 @@ public class ChatActivity extends AppCompatActivity {
                     
                     adapter.refreshData();
                     scrollToLastDisplayable();
-                    
-                    Session current = sessionManager.getSession(currentSessionId);
-                    if (current != null && current.getFirstMessageIndex() == 1) {
-                        hasMoreMessages = false;
-                    }
                 });
             }
             
@@ -471,7 +451,10 @@ public class ChatActivity extends AppCompatActivity {
             public void onError(String error) {
                 runOnUiThread(() -> {
                     isLoadingMore = false;
-                    if (messages.isEmpty()) addMessage("加载失败: " + error, false);
+                    messages.clear();
+                    messageFingerprints.clear();
+                    addMessage("加载失败: " + error, false);
+                    adapter.refreshData();
                     Toast.makeText(ChatActivity.this, "加载失败: " + error, Toast.LENGTH_SHORT).show();
                 });
             }
