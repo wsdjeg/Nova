@@ -74,12 +74,11 @@ public class ChatActivity extends AppCompatActivity {
     private int totalMessageCount = 0;
     private boolean isLoadingMore = false;
     private boolean hasMoreMessages = true;
-    
     private int buttonState = STATE_NORMAL;
     private boolean isInProgress = false;
+    private Menu chatMenu;
     
     // 消息指纹缓存（用于检测变化）
-    private Map<Long, String> messageFingerprints = new HashMap<>();
     private long lastMessageCreatedTimestamp = -1;
     private String lastMessageContent = null;
     private int lastCheckedContentLength = -1;
@@ -197,15 +196,22 @@ public class ChatActivity extends AppCompatActivity {
     }
     
     @Override
-    protected void onDestroy() {
-        super.onDestroy();
-        stopAutoRefresh();
-    }
-    
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         getMenuInflater().inflate(R.menu.chat_menu, menu);
+        updateMenuVisibility(menu);
         return true;
+    }
+    
+    private void updateMenuVisibility(Menu menu) {
+        MenuItem stopItem = menu.findItem(R.id.action_stop);
+        MenuItem retryItem = menu.findItem(R.id.action_retry);
+        if (stopItem != null) {
+            stopItem.setVisible(isInProgress);
+        }
+        if (retryItem != null) {
+            retryItem.setVisible(!isInProgress && messages != null && !messages.isEmpty());
+        }
     }
     
     @Override
@@ -219,6 +225,12 @@ public class ChatActivity extends AppCompatActivity {
             return true;
         } else if (id == R.id.action_delete_session) {
             deleteSession();
+            return true;
+        } else if (id == R.id.action_stop) {
+            stopSession();
+            return true;
+        } else if (id == R.id.action_retry) {
+            retrySession();
             return true;
         } else if (id == R.id.action_settings) {
             startActivity(new Intent(this, SettingsActivity.class));
@@ -235,8 +247,8 @@ public class ChatActivity extends AppCompatActivity {
         }
     }
     
+    
     private void startAutoRefresh() {
-        if (refreshHandler == null) {
             refreshHandler = new Handler(Looper.getMainLooper());
         }
         stopAutoRefresh();
@@ -696,6 +708,10 @@ public class ChatActivity extends AppCompatActivity {
         btnSend.setText("发送");
         btnSend.setEnabled(true);
         btnSend.setBackgroundColor(Color.parseColor("#4CAF50"));
+        isInProgress = false;
+        if (chatMenu != null) {
+            updateMenuVisibility(chatMenu);
+        }
     }
     
     private void setButtonStateSending() {
@@ -703,6 +719,10 @@ public class ChatActivity extends AppCompatActivity {
         btnSend.setText("发送中...");
         btnSend.setEnabled(false);
         btnSend.setBackgroundColor(Color.parseColor("#9E9E9E"));
+        isInProgress = true;
+        if (chatMenu != null) {
+            updateMenuVisibility(chatMenu);
+        }
     }
     
     private void clearSession() {
@@ -738,5 +758,48 @@ public class ChatActivity extends AppCompatActivity {
             })
             .setNegativeButton("取消", null)
             .show();
+    }
+    
+    private void stopSession() {
+        if (apiClient == null) return;
+        apiClient.stopSession(currentSessionId, new ApiClient.StopCallback() {
+            @Override
+            public void onSuccess() {
+                runOnUiThread(() -> {
+                    Toast.makeText(ChatActivity.this, "已停止", Toast.LENGTH_SHORT).show();
+                    setButtonStateNormal();
+                    isInProgress = false;
+                    refreshMessages();
+                });
+            }
+            
+            @Override
+            public void onError(String error) {
+                runOnUiThread(() -> {
+                    Toast.makeText(ChatActivity.this, "停止失败: " + error, Toast.LENGTH_SHORT).show();
+                });
+            }
+        });
+    }
+    
+    private void retrySession() {
+        if (apiClient == null) return;
+        setButtonStateSending();
+        apiClient.retrySession(currentSessionId, new ApiClient.MessageCallback() {
+            @Override
+            public void onSuccess() {
+                runOnUiThread(() -> {
+                    Toast.makeText(ChatActivity.this, "正在重试...", Toast.LENGTH_SHORT).show();
+                });
+            }
+            
+            @Override
+            public void onError(String error) {
+                runOnUiThread(() -> {
+                    Toast.makeText(ChatActivity.this, "重试失败: " + error, Toast.LENGTH_SHORT).show();
+                    setButtonStateNormal();
+                });
+            }
+        });
     }
 }
