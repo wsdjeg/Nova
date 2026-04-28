@@ -447,7 +447,7 @@ public class ApiClient {
     /**
      * 创建新会话
      * API 端点: POST /session/new
-     * 响应格式: { "session_id": "xxx" }
+     * 响应格式: { "id": "xxx", "cwd": "...", "provider": "...", "model": "..." }
      */
     public void createSession(String cwd, String provider, String model, String accountId, CreateSessionCallback callback) {
         String baseUrl = getBaseUrl();
@@ -492,7 +492,7 @@ public class ApiClient {
                 
                 int responseCode = conn.getResponseCode();
                 
-                // API 返回 200 OK
+                // API 返回 200 OK，包含完整的 session 信息
                 if (responseCode == 200) {
                     br = new BufferedReader(new InputStreamReader(conn.getInputStream(), "UTF-8"));
                     StringBuilder response = new StringBuilder();
@@ -502,14 +502,31 @@ public class ApiClient {
                     }
                     
                     JSONObject jsonResponse = new JSONObject(response.toString());
-                    // API 返回的字段是 session_id
-                    String sessionId = jsonResponse.getString("session_id");
+                    // API 返回的字段是 id（不是 session_id）
+                    String sessionId = jsonResponse.optString("id", "");
+                    
+                    if (sessionId.isEmpty()) {
+                        new Handler(Looper.getMainLooper()).post(() -> 
+                            callback.onError("No session_id in response"));
+                        return;
+                    }
+                    
+                    // 从 API 返回值中获取完整信息
+                    String responseCwd = jsonResponse.optString("cwd", cwd != null ? cwd : "");
+                    String responseProvider = jsonResponse.optString("provider", provider != null ? provider : "");
+                    String responseModel = jsonResponse.optString("model", model != null ? model : "");
+                    String responseTitle = jsonResponse.optString("title", "");
+                    int messageCount = jsonResponse.optInt("message_count", 0);
+                    boolean inProgress = jsonResponse.optBoolean("in_progress", false);
                     
                     Session session = new Session(sessionId);
                     session.setAccountId(accountId);
-                    session.setCwd(cwd != null ? cwd : "");
-                    session.setProvider(provider != null ? provider : "");
-                    session.setModel(model != null ? model : "");
+                    session.setTitle(responseTitle);
+                    session.setCwd(responseCwd);
+                    session.setProvider(responseProvider);
+                    session.setModel(responseModel);
+                    session.setMessageCount(messageCount);
+                    session.setInProgress(inProgress);
                     
                     new Handler(Looper.getMainLooper()).post(() -> 
                         callback.onSuccess(session));
@@ -548,6 +565,57 @@ public class ApiClient {
         String apiKey = getApiKey();
         
         if (baseUrl.isEmpty() || apiKey.isEmpty()) {
+            callback.onError("Please configure API settings");
+            return;
+        }
+        
+        if (sessionId == null || sessionId.isEmpty()) {
+            callback.onError("Session ID is required");
+            return;
+        }
+        
+        new Thread(() -> {
+            HttpURLConnection conn = null;
+            try {
+                URL url = new URL(baseUrl + "/session/" + sessionId);
+                conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("DELETE");
+                conn.setRequestProperty("X-API-Key", apiKey);
+                conn.setRequestProperty("Connection", "close");
+                conn.setConnectTimeout(15000);
+                conn.setReadTimeout(30000);
+                conn.setUseCaches(false);
+
+                int responseCode = conn.getResponseCode();
+                
+                if (responseCode == 204) {
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onSuccess());
+                } else if (responseCode == 404) {
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onError("Session not found"));
+                } else if (responseCode == 409) {
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onError("Session is in progress, cannot delete"));
+                } else if (responseCode == 401) {
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onError("Unauthorized: Invalid API Key"));
+                } else {
+                    final int code = responseCode;
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onError("Error: " + code));
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "deleteSession failed", e);
+                new Handler(Looper.getMainLooper()).post(() -> 
+                    callback.onError("Network error: " + e.getMessage()));
+            } finally {
+                if (conn != null) {
+                    conn.disconnect();
+                }
+            }
+        }).start();
+    }
             callback.onError("Please configure API settings");
             return;
         }
