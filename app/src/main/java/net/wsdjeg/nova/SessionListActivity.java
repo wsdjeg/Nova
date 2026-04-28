@@ -141,8 +141,15 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
         LinearLayoutManager layoutManager = new LinearLayoutManager(this);
         rvSessions.setLayoutManager(layoutManager);
         rvSessions.setAdapter(adapter);
+        
+        // 添加分割线，使每个会话项之间的间距相等
+        androidx.recyclerview.widget.DividerItemDecoration divider = 
+            new androidx.recyclerview.widget.DividerItemDecoration(
+                this, 
+                androidx.recyclerview.widget.DividerItemDecoration.VERTICAL
+            );
+        rvSessions.addItemDecoration(divider);
     }
-    
     /**
      * 设置自动刷新
      */
