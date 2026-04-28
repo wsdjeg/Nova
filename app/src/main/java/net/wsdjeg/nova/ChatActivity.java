@@ -2,6 +2,7 @@ package net.wsdjeg.nova;
 
 import android.content.Intent;
 import android.graphics.Color;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -74,6 +75,7 @@ public class ChatActivity extends AppCompatActivity {
     private String currentSessionId;
     private String currentSessionTitle;
     private String accountId;
+    private Account currentAccount;  // 当前账号（用于预览等功能）
     
     private Handler refreshHandler;
     private Runnable refreshRunnable;
@@ -149,6 +151,9 @@ public class ChatActivity extends AppCompatActivity {
             finish();
             return;
         }
+        
+        // 保存当前账号（用于预览等功能）
+        currentAccount = sessionAccount;
         
         accountId = sessionAccount.getId();
         String baseUrl = sessionAccount.getUrl();
@@ -368,7 +373,7 @@ public class ChatActivity extends AppCompatActivity {
             deleteSession();
             return true;
         } else if (id == R.id.action_preview) {
-            showPreviewDialog();
+            openPreviewUrl();
             return true;
         } else if (id == R.id.action_settings) {
             startActivity(new Intent(this, SettingsActivity.class));
@@ -962,28 +967,30 @@ public class ChatActivity extends AppCompatActivity {
         if (preview != null) preview.setEnabled(true);
     }
     
-    private void showPreviewDialog() {
-        if (apiClient == null || currentSessionId == null) return;
+    /**
+     * 打开预览 URL
+     * 在浏览器中打开当前会话的预览页面
+     */
+    private void openPreviewUrl() {
+        if (currentAccount == null || currentSessionId == null) {
+            Toast.makeText(this, "无法打开预览", Toast.LENGTH_SHORT).show();
+            return;
+        }
         
-        apiClient.getSessionPreview(currentSessionId, new ApiClient.ApiCallback() {
-            @Override
-            public void onSuccess(String html) {
-                runOnUiThread(() -> {
-                    new android.app.AlertDialog.Builder(ChatActivity.this)
-                        .setTitle("预览")
-                        .setMessage(html)
-                        .setPositiveButton(android.R.string.ok, null)
-                        .show();
-                });
-            }
-            
-            @Override
-            public void onError(String error) {
-                runOnUiThread(() ->
-                    Toast.makeText(ChatActivity.this, "预览失败: " + error, Toast.LENGTH_SHORT).show()
-                );
-            }
-        });
+        String baseUrl = currentAccount.getUrl();
+        if (baseUrl == null || baseUrl.isEmpty()) {
+            Toast.makeText(this, "服务器地址未配置", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        String previewUrl = baseUrl + "/session?id=" + currentSessionId;
+        
+        try {
+            Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(previewUrl));
+            startActivity(intent);
+        } catch (Exception e) {
+            Toast.makeText(this, "无法打开浏览器: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+        }
     }
     
     private void stopSession() {
