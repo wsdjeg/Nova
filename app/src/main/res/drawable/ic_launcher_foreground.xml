@@ -1,61 +1,71 @@
 <?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
     
-    <!-- Nova "N" Logo - 前景层 (108dp) -->
-    <!-- 几何风格，无发光/模糊/阴影 -->
-    <!-- 渐变: cyan (#00C2FF) 左上 → purple (#6C5CE7) 右下 -->
-    <!-- 笔画粗细: ~10dp (约 20% 的 48dp 宽度) -->
-    <!-- 占据约 65% 的画布 -->
+    <!-- Nova "N" Foreground - Adaptive Icon -->
+    <!-- 尺寸: 108dp (adaptive icon 标准) -->
+    <!-- 安全区域: 72dp (中心区域) -->
+    <!-- N 字母居中，cyan → purple 渐变 -->
     
     <group
-        android:translateX="54"
-        android:translateY="54">
+        android:translateX="27"
+        android:translateY="27">
         
-        <!-- N 字母主体 - 几何风格 -->
-        <!-- 统一使用从左上到右下的渐变 -->
-        
-        <!-- 左竖线 -->
-        <path
-            android:pathData="M-24,-28 L-14,-28 L-14,28 L-24,28 Z">
-            <gradient
-                android:type="linear"
-                android:startX="-24"
-                android:startY="-28"
-                android:endX="-14"
-                android:endY="28"
-                android:startColor="#00C2FF"
-                android:endColor="#4DB8E8"/>
-        </path>
-        
-        <!-- 右竖线 -->
-        <path
-            android:pathData="M14,-28 L24,-28 L24,28 L14,28 Z">
-            <gradient
-                android:type="linear"
-                android:startX="14"
-                android:startY="-28"
-                android:endX="24"
-                android:endY="28"
-                android:startColor="#9B6EF6"
-                android:endColor="#6C5CE7"/>
-        </path>
-        
-        <!-- 斜线 - 从左上到右下，带斜切边缘 -->
-        <path
-            android:pathData="M-14,-28 L-4,-28 L14,28 L4,28 Z">
-            <gradient
-                android:type="linear"
-                android:startX="-14"
-                android:startY="-28"
-                android:endX="14"
-                android:endY="28"
-                android:startColor="#00C2FF"
-                android:endColor="#6C5CE7"/>
-        </path>
+        <!-- 放大的 N 字母 (54dp viewport, 占 70%) -->
+        <group
+            android:translateX="8"
+            android:translateY="8">
+            
+            <!-- 左竖线 -->
+            <path
+                android:pathData="M0,0 L5.5,0 L5.5,38 L0,38 Z">
+                <aapt:attr name="android:fillColor">
+                    <gradient
+                        android:type="linear"
+                        android:startX="0"
+                        android:startY="0"
+                        android:endX="0"
+                        android:endY="38"
+                        android:startColor="#00C2FF"
+                        android:endColor="#4DB8E8"/>
+                </aapt:attr>
+            </path>
+            
+            <!-- 右竖线 -->
+            <path
+                android:pathData="M32.5,0 L38,0 L38,38 L32.5,38 Z">
+                <aapt:attr name="android:fillColor">
+                    <gradient
+                        android:type="linear"
+                        android:startX="32.5"
+                        android:startY="0"
+                        android:endX="32.5"
+                        android:endY="38"
+                        android:startColor="#9B6EF6"
+                        android:endColor="#6C5CE7"/>
+                </aapt:attr>
+            </path>
+            
+            <!-- 斜线 -->
+            <path
+                android:pathData="M0,0 L5.5,0 L38,38 L32.5,38 Z">
+                <aapt:attr name="android:fillColor">
+                    <gradient
+                        android:type="linear"
+                        android:startX="0"
+                        android:startY="0"
+                        android:endX="38"
+                        android:endY="38"
+                        android:startColor="#00C2FF"
+                        android:endColor="#6C5CE7"/>
+                </aapt:attr>
+            </path>
+            
+        </group>
         
     </group>
     

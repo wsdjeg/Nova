@@ -1,46 +1,80 @@
 <?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
     android:width="48dp"
     android:height="48dp"
     android:viewportWidth="48"
     android:viewportHeight="48">
     
-    <!-- 科技感字母 N - 简洁版 -->
+    <!-- Nova "N" Logo - 兼容旧版本 -->
+    <!-- 48dp 标准尺寸 -->
+    <!-- 背景 + N 字母 cyan → purple 渐变 -->
     
-    <!-- 背景 -->
+    <!-- 背景 - 深色渐变 -->
     <path
-        android:fillColor="#0D1117"
-        android:pathData="M0,0h48v48H0z"/>
+        android:pathData="M0,0h48v48H0z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="linear"
+                android:startX="0"
+                android:startY="0"
+                android:endX="48"
+                android:endY="48"
+                android:startColor="#0D1117"
+                android:endColor="#1F2937"/>
+        </aapt:attr>
+    </path>
     
-    <!-- N 字母主体 -->
+    <!-- N 字母主体 - 居中，占约 65% -->
     <group
-        android:translateX="12"
-        android:translateY="8">
+        android:translateX="24"
+        android:translateY="24">
         
         <!-- 左竖线 -->
         <path
-            android:fillColor="#58A6FF"
-            android:pathData="M0,0 L5,0 L5,32 L0,32 Z"/>
+            android:pathData="M-10.5,-12 L-6,-12 L-6,12 L-10.5,12 Z">
+            <aapt:attr name="android:fillColor">
+                <gradient
+                    android:type="linear"
+                    android:startX="-10.5"
+                    android:startY="-12"
+                    android:endX="-10.5"
+                    android:endY="12"
+                    android:startColor="#00C2FF"
+                    android:endColor="#4DB8E8"/>
+            </aapt:attr>
+        </path>
         
         <!-- 右竖线 -->
         <path
-            android:fillColor="#58A6FF"
-            android:pathData="M19,0 L24,0 L24,32 L19,32 Z"/>
+            android:pathData="M6,-12 L10.5,-12 L10.5,12 L6,12 Z">
+            <aapt:attr name="android:fillColor">
+                <gradient
+                    android:type="linear"
+                    android:startX="6"
+                    android:startY="-12"
+                    android:endX="6"
+                    android:endY="12"
+                    android:startColor="#9B6EF6"
+                    android:endColor="#6C5CE7"/>
+            </aapt:attr>
+        </path>
         
         <!-- 斜线 -->
         <path
-            android:fillColor="#1F6FEB"
-            android:pathData="M0,0 L5,0 L24,32 L19,32 Z"/>
+            android:pathData="M-6,-12 L-2,-12 L6,12 L2,12 Z">
+            <aapt:attr name="android:fillColor">
+                <gradient
+                    android:type="linear"
+                    android:startX="-6"
+                    android:startY="-12"
+                    android:endX="6"
+                    android:endY="12"
+                    android:startColor="#00C2FF"
+                    android:endColor="#6C5CE7"/>
+            </aapt:attr>
+        </path>
         
-        <!-- 高光效果 -->
-        <path
-            android:fillColor="#FFFFFF"
-            android:pathData="M0,0 L5,0 L5,3 L0,3 Z"
-            android:fillAlpha="0.3"/>
-        
-        <path
-            android:fillColor="#FFFFFF"
-            android:pathData="M19,0 L24,0 L24,3 L19,3 Z"
-            android:fillAlpha="0.3"/>
     </group>
+    
 </vector>
