@@ -83,29 +83,29 @@ Nova 是一个 Android AI 聊天助手应用，作为 [chat.nvim](https://nvim.c
 │           │   └── account_edit_menu.xml
 │           ├── mipmap-anydpi-v26/     # 启动图标
 │           │   ├── ic_launcher.xml
-│           │   └── ic_launcher_round.xml
+│           │   └and ic_launcher_round.xml
 │           └── values/               # 值资源
 │               ├── colors.xml
 │               ├── strings.xml
 │               ├── themes.xml
-│               └── ic_launcher_background.xml
+│               └and ic_launcher_background.xml
 │           └── values-night/         # 深色模式资源
 │               ├── colors.xml
-│               └── themes.xml
+│               └and themes.xml
 ├── .github/
 │   └── workflows/
-│       └── android.yml               # CI/CD 配置
+│       └and android.yml               # CI/CD 配置
 ├── build.gradle                      # 项目级构建配置
 ├── settings.gradle                   # 项目设置
 ├── gradle.properties                 # Gradle 属性
 ├── .gitignore                        # Git 忽略规则
 ├── README.md                         # 项目说明
-└── AGENTS.md                         # 本文件
+└and AGENTS.md                         # 本文件
 ```
 
 ---
 
-## ⚠️⚠️⚠️ 核心开发流程（必须严格遵守）⚠⚠️⚠️
+## ⚠️⚠️⚠️ 核心开发流程（必须严格遵守）⚠⚠⚠⚠
 
 ### 🔴 强制流程：验证 → Add → Commit → Push
 
@@ -124,7 +124,7 @@ Nova 是一个 Android AI 聊天助手应用，作为 [chat.nvim](https://nvim.c
 ### ✅ 正确流程示例
 
 ```
-1. 修改文件（使用 @write_file 或其他工具）
+1. 修改文件（使用 @write_file action="overwrite"）
    ↓
 2. 验证修改（使用 @read_file 读取完整内容确认无误）
    ↓
@@ -160,55 +160,93 @@ Nova 是一个 Android AI 聊天助手应用，作为 [chat.nvim](https://nvim.c
 
 ---
 
-## ⚠️⚠️⚠️ 文件修复规范（必须严格遵守）⚠⚠️⚠️
+## ⛔⛔⛔ 文件修改规范（最高优先级，必须严格遵守）⛔⛔⛔
 
-### 🔴 强制使用 action="overwrite" 修复文件
+### 🔴🔴🔴 强制使用 action="overwrite" 修改任何文件！
 
-**当需要修复整个文件或大段代码时，必须使用 `action="overwrite"` 重写整个文件！**
-
-```
-❌ 错误示例（多次小修改容易出错）:
-@write_file action="replace" line_start=100 line_to=105 content="..."
-@write_file action="replace" line_start=200 line_to=210 content="..."
-@write_file action="insert" line_start=150 content="..."
-→ 多次操作容易遗漏、错位，导致语法错误！
-
-✅ 正确示例（一次性重写整个文件）:
-1. 先用 @read_file 读取完整文件内容
-2. 使用 @write_file action="overwrite" content="完整修复后的内容"
-```
-
-### 为什么必须用 overwrite？
-
-1. **避免行号错位**: 每次 replace/insert/delete 都会改变后续行号
-2. **避免遗漏问题**: 多次小修容易漏改某些地方
-3. **确保一致性**: 整个文件一次性修复，保证代码完整
-4. **减少 git 操作**: 一次修复 → 一次提交 → 一次推送
-
-### 修复文件的标准流程
+**任何文件修改，无论大小，都必须使用 `action="overwrite"` 重写整个文件！**
 
 ```
-1. @read_file filepath="问题文件"                    # 读取完整内容
+┌────────────────────────────────────────────────────────────────────┐
+│                                                                    │
+│   ⛔ 禁止使用 action="replace"                                      │
+│   ⛔ 禁止使用 action="insert"                                       │
+│   ⛔ 禁止使用 action="delete"                                       │
+│                                                                    │
+│   ✅ 只允许使用 action="overwrite"                                  │
+│                                                                    │
+│   哪怕只改一行代码，也要用 overwrite 重写整个文件！                  │
+│                                                                    │
+└────────────────────────────────────────────────────────────────────┘
+```
+
+### ❌ 为什么禁止 replace/insert/delete？
+
+**这些操作会导致灾难性错误！**
+
+```
+❌ action="replace" line_start=100 line_to=105
+   → 替换后，后续所有行号都会变化！
+   → 下一次操作如果还用旧行号，就会改错位置！
+   → 最终导致：代码重复、方法缺失、语法错误！
+
+❌ action="insert" line_start=150
+   → 插入后，后续所有行号都会增加！
+   → 行号错位，导致后续操作全部失败！
+
+❌ action="delete" line_start=200 line_to=210
+   → 删除后，后续所有行号都会减少！
+   → 行号错位，导致后续操作全部失败！
+```
+
+**真实案例：ApiClient.java 损坏**
+
+```
+原本正确的方法被多次 replace/insert/delete 操作后：
+- deleteSession 方法后面出现重复代码
+- updateSession 方法签名丢失
+- 整个文件 600-700 行变成垃圾代码
+- 导致编译失败！
+```
+
+### ✅ 正确做法：只使用 overwrite
+
+```
+✅ 修改任何文件的标准流程：
+
+1. @read_file filepath="目标文件"        # 读取完整内容
    ↓
-2. 在回复中分析问题并准备完整修复内容
+2. 在回复中编辑完整内容（修改需要改的部分）
    ↓
 3. @write_file 
-     filepath="问题文件" 
-     action="overwrite" 
-     content="完整修复后的文件内容"
+     filepath="目标文件" 
+     action="overwrite"                 # ⚠️ 必须是 overwrite！
+     content="完整修改后的文件内容"      # ⚠️ 必须是完整内容！
    ↓
-4. @read_file filepath="问题文件"                    # 验证修复结果
+4. @read_file filepath="目标文件"        # 验证修改结果
    ↓
-5. @git_add → @git_commit → @git_push                # 提交推送
+5. @git_add → @git_commit → @git_push    # 提交推送
 ```
 
-### ❌ 禁止的修复方式
+### 📋 overwrite 检查清单
+
+每次使用 @write_file 时必须确认：
+
+- [ ] **action**: 必须是 `"overwrite"`，不能是其他任何值
+- [ ] **content**: 必须是完整文件内容，不能只写一部分
+- [ ] **验证**: 修改后必须用 @read_file 验证
+
+### ⛔ 绝对禁止的操作
 
 ```
-❌ 使用 action="replace" 多次修复同一文件
-❌ 使用 action="insert" 和 action="delete" 交替操作
-❌ 在没有完整读取文件的情况下盲目修改
-❌ 修复后不验证就直接提交
+⛔ 以下是绝对禁止的操作，违反将导致代码损坏！
+
+❌ @write_file action="replace" line_start=X line_to=Y content="..."
+❌ @write_file action="insert" line_start=X content="..."
+❌ @write_file action="delete" line_start=X line_to=Y
+❌ 多次修改同一文件使用不同的 action
+❌ 不读取完整文件就修改
+❌ 只写部分内容而不是完整文件
 ```
 
 ---
@@ -235,7 +273,7 @@ String ip = settingsManager.getIpAddress();  // 方法不存在！
 **验证方法：**
 1. 使用 `@find_files` 找到目标文件
 2. 使用 `@read_file` 或 `@search_text` 查看实际代码
-3. 确认 class/function/variable 确实存在
+3. 确认 class/function/variable 实存在
 4. 然后才能在代码中引用
 
 **禁止行为：**
@@ -408,8 +446,9 @@ GitHub Actions 自动构建：
 
 ## 注意事项
 
-1. **Git 操作**: 必须逐个执行，不要批量发送
-2. **版本管理**: versionCode 和 versionName 在 app/build.gradle
-3. **网络请求**: 使用 OkHttp，需要 INTERNET 权限
-4. **构建环境**: 需要 JDK 11+
-5. **包名**: net.wsdjeg.nova
+1. **文件修改**: 只允许使用 `action="overwrite"`，禁止 replace/insert/delete
+2. **Git 操作**: 必须逐个执行，不要批量发送
+3. **版本管理**: versionCode 和 versionName 在 app/build.gradle
+4. **网络请求**: 使用 OkHttp，需要 INTERNET 权限
+5. **构建环境**: 需要 JDK 11+
+6. **包名**: net.wsdjeg.nova
