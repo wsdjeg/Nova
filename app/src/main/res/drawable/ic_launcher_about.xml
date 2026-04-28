@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="200dp"
+    android:height="200dp"
+    android:viewportWidth="200"
+    android:viewportHeight="200">
+    
+    <!-- Nova "N" Logo - About Page High Resolution Version -->
+    <!-- 尺寸: 200dp (高清版本) -->
+    <!-- 完全匹配 app logo 设计: cyan → purple 渐变 -->
+    
+    <!-- 背景 - 深色渐变 -->
+    <path
+        android:pathData="M0,0h200v200H0z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="linear"
+                android:startX="0"
+                android:startY="0"
+                android:endX="200"
+                android:endY="200"
+                android:startColor="#0D1117"
+                android:endColor="#1F2937"/>
+        </aapt:attr>
+    </path>
+    
+    <!-- N 字母 - 完全匹配 adaptive icon 的比例 -->
+    <!-- 原始 108dp 设计: 安全区域 72dp, N 在 (35, 35) 到 (73, 73) -->
+    <!-- 放大到 200dp: 安全区域 133dp, N 在 (65, 65) 到 (135, 135) -->
+    <!-- 即: translateX=50, translateY=50, 再偏移 15, N 尺寸 70×70 -->
+    
+    <group
+        android:translateX="50"
+        android:translateY="50">
+        
+        <!-- N 字母区域 (100dp viewport) -->
+        <group
+            android:translateX="15"
+            android:translateY="15">
+            
+            <!-- 参数计算 (放大比例: 100/54 ≈ 1.85) -->
+            <!-- 线宽: 5.5 × 1.85 ≈ 10 -->
+            <!-- N 宽高: 38 × 1.85 ≈ 70 -->
+            
+            <!-- 左竖线: x=0, y=0, width=10, height=70 -->
+            <path
+                android:pathData="M0,0 L10,0 L10,70 L0,70 Z">
+                <aapt:attr name="android:fillColor">
+                    <gradient
+                        android:type="linear"
+                        android:startX="0"
+                        android:startY="0"
+                        android:endX="0"
+                        android:endY="70"
+                        android:startColor="#00C2FF"
+                        android:endColor="#4DB8E8"/>
+                </aapt:attr>
+            </path>
+            
+            <!-- 右竖线: x=60, y=0, width=10, height=70 -->
+            <path
+                android:pathData="M60,0 L70,0 L70,70 L60,70 Z">
+                <aapt:attr name="android:fillColor">
+                    <gradient
+                        android:type="linear"
+                        android:startX="60"
+                        android:startY="0"
+                        android:endX="60"
+                        android:endY="70"
+                        android:startColor="#9B6EF6"
+                        android:endColor="#6C5CE7"/>
+                </aapt:attr>
+            </path>
+            
+            <!-- 斜线: 从左上到右下 -->
+            <path
+                android:pathData="M0,0 L10,0 L70,70 L60,70 Z">
+                <aapt:attr name="android:fillColor">
+                    <gradient
+                        android:type="linear"
+                        android:startX="0"
+                        android:startY="0"
+                        android:endX="70"
+                        android:endY="70"
+                        android:startColor="#00C2FF"
+                        android:endColor="#6C5CE7"/>
+                </aapt:attr>
+            </path>
+            
+        </group>
+        
+    </group>
+    
+</vector>
