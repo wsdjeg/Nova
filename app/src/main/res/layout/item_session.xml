@@ -7,8 +7,8 @@
     android:minHeight="72dp"
     android:paddingStart="12dp"
     android:paddingEnd="12dp"
-    android:paddingTop="10dp"
-    android:paddingBottom="10dp"
+    android:paddingTop="12dp"
+    android:paddingBottom="12dp"
     android:background="?attr/selectableItemBackground">
 
     <!-- 
@@ -22,6 +22,8 @@
     第三行：cwd
     
     右侧区域：spinner（进行中）或 时间（已完成），垂直居中
+    
+    分割线由 RecyclerView 的 DividerItemDecoration 提供
     -->
 
     <!-- 右侧区域容器：36dp宽，垂直居中于三行内容 -->
@@ -140,14 +142,5 @@
         app:layout_constraintTop_toTopOf="parent"
         android:translationY="-4dp"
         android:translationX="4dp" />
-
-    <!-- 分割线 -->
-    <View
-        android:layout_width="0dp"
-        android:layout_height="1dp"
-        android:background="#E0E0E0"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
