@@ -73,11 +73,11 @@ public class ApiClient {
         void onError(String error);
     }
     
-    
     public interface ClearCallback {
         void onSuccess();
         void onError(String error);
     }
+    
     public interface ProvidersCallback {
         void onSuccess(List<Provider> providers);
         void onError(String error);
@@ -444,6 +444,11 @@ public class ApiClient {
         }).start();
     }
     
+    /**
+     * 创建新会话
+     * API 端点: POST /session/new
+     * 响应格式: { "session_id": "xxx" }
+     */
     public void createSession(String cwd, String provider, String model, String accountId, CreateSessionCallback callback) {
         String baseUrl = getBaseUrl();
         String apiKey = getApiKey();
@@ -452,11 +457,13 @@ public class ApiClient {
             callback.onError("Please configure API settings");
             return;
         }
+        
         new Thread(() -> {
             HttpURLConnection conn = null;
             BufferedReader br = null;
             try {
-                URL url = new URL(baseUrl + "/session");
+                // API 端点是 /session/new
+                URL url = new URL(baseUrl + "/session/new");
                 conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("POST");
                 conn.setRequestProperty("Content-Type", "application/json");
@@ -485,7 +492,8 @@ public class ApiClient {
                 
                 int responseCode = conn.getResponseCode();
                 
-                if (responseCode == 201) {
+                // API 返回 200 OK
+                if (responseCode == 200) {
                     br = new BufferedReader(new InputStreamReader(conn.getInputStream(), "UTF-8"));
                     StringBuilder response = new StringBuilder();
                     String line;
@@ -494,7 +502,8 @@ public class ApiClient {
                     }
                     
                     JSONObject jsonResponse = new JSONObject(response.toString());
-                    String sessionId = jsonResponse.getString("id");
+                    // API 返回的字段是 session_id
+                    String sessionId = jsonResponse.getString("session_id");
                     
                     Session session = new Session(sessionId);
                     session.setAccountId(accountId);
