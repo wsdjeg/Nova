@@ -397,28 +397,15 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
         intent.putExtra("session_id", sessionId);
         intent.putExtra("session_title", session.getTitle());
         // 传递 API 返回的完整会话信息
-        intent.putExtra("session_provider", session.getProvider());
-    private void openChatActivity(Session session) {
-        int currentMessageCount = session.getMessageCount();
-        sessionManager.saveReadMessageCount(session.getSessionId(), currentMessageCount);
-        
-        sessionManager.clearUnreadCount(session.getSessionId());
-        loadSessions();
-        
-        sessionManager.saveCurrentSession(session.getSessionId());
-        Intent intent = new Intent(this, ChatActivity.class);
-        intent.putExtra("session_id", session.getSessionId());
-        intent.putExtra("session_title", session.getTitle());
         intent.putExtra("provider", session.getProvider());
         intent.putExtra("model", session.getModel());
         intent.putExtra("cwd", session.getCwd());
         startActivity(intent);
     }
-    }
     
     @Override
     public void onSessionClick(Session session) {
-        openChatActivity(session.getSessionId());
+        openChatActivity(session);
     }
     
     @Override
