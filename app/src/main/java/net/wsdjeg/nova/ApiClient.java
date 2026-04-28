@@ -462,7 +462,6 @@ public class ApiClient {
             HttpURLConnection conn = null;
             BufferedReader br = null;
             try {
-                // API 端点是 /session/new
                 URL url = new URL(baseUrl + "/session/new");
                 conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("POST");
@@ -492,7 +491,6 @@ public class ApiClient {
                 
                 int responseCode = conn.getResponseCode();
                 
-                // API 返回 200 OK，包含完整的 session 信息
                 if (responseCode == 200) {
                     br = new BufferedReader(new InputStreamReader(conn.getInputStream(), "UTF-8"));
                     StringBuilder response = new StringBuilder();
@@ -502,7 +500,6 @@ public class ApiClient {
                     }
                     
                     JSONObject jsonResponse = new JSONObject(response.toString());
-                    // API 返回的字段是 id（不是 session_id）
                     String sessionId = jsonResponse.optString("id", "");
                     
                     if (sessionId.isEmpty()) {
@@ -511,7 +508,6 @@ public class ApiClient {
                         return;
                     }
                     
-                    // 从 API 返回值中获取完整信息
                     String responseCwd = jsonResponse.optString("cwd", cwd != null ? cwd : "");
                     String responseProvider = jsonResponse.optString("provider", provider != null ? provider : "");
                     String responseModel = jsonResponse.optString("model", model != null ? model : "");
@@ -616,57 +612,6 @@ public class ApiClient {
             }
         }).start();
     }
-            callback.onError("Please configure API settings");
-            return;
-        }
-        
-        if (sessionId == null || sessionId.isEmpty()) {
-            callback.onError("Session ID is required");
-            return;
-        }
-        
-        new Thread(() -> {
-            HttpURLConnection conn = null;
-            try {
-                URL url = new URL(baseUrl + "/session/" + sessionId);
-                conn = (HttpURLConnection) url.openConnection();
-                conn.setRequestMethod("DELETE");
-                conn.setRequestProperty("X-API-Key", apiKey);
-                conn.setRequestProperty("Connection", "close");
-                conn.setConnectTimeout(15000);
-                conn.setReadTimeout(30000);
-                conn.setUseCaches(false);
-
-                int responseCode = conn.getResponseCode();
-                
-                if (responseCode == 204) {
-                    new Handler(Looper.getMainLooper()).post(() -> 
-                        callback.onSuccess());
-                } else if (responseCode == 404) {
-                    new Handler(Looper.getMainLooper()).post(() -> 
-                        callback.onError("Session not found"));
-                } else if (responseCode == 409) {
-                    new Handler(Looper.getMainLooper()).post(() -> 
-                        callback.onError("Session is in progress, cannot delete"));
-                } else if (responseCode == 401) {
-                    new Handler(Looper.getMainLooper()).post(() -> 
-                        callback.onError("Unauthorized: Invalid API Key"));
-                } else {
-                    final int code = responseCode;
-                    new Handler(Looper.getMainLooper()).post(() -> 
-                        callback.onError("Error: " + code));
-                }
-            } catch (Exception e) {
-                Log.e(TAG, "deleteSession failed", e);
-                new Handler(Looper.getMainLooper()).post(() -> 
-                    callback.onError("Network error: " + e.getMessage()));
-            } finally {
-                if (conn != null) {
-                    conn.disconnect();
-                }
-            }
-        }).start();
-    }
     
     public void updateSession(String sessionId, String provider, String model, UpdateSessionCallback callback) {
         String baseUrl = getBaseUrl();
@@ -674,6 +619,11 @@ public class ApiClient {
         
         if (baseUrl.isEmpty() || apiKey.isEmpty()) {
             callback.onError("Please configure API settings");
+            return;
+        }
+        
+        if (sessionId == null || sessionId.isEmpty()) {
+            callback.onError("Session ID is required");
             return;
         }
         
