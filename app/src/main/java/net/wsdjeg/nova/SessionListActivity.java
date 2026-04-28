@@ -208,13 +208,13 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
         sessions.addAll(allSessions);
         
         // 按最后消息时间降序排序
+        // 按会话 ID（创建时间格式如 2026-04-22-11-00-39）降序排序
         Collections.sort(sessions, new Comparator<Session>() {
             @Override
             public int compare(Session s1, Session s2) {
-                return Long.compare(s2.getLastMessageTime(), s1.getLastMessageTime());
+                return s2.getSessionId().compareTo(s1.getSessionId());
             }
         });
-        
         adapter.notifyDataSetChanged();
         
         if (sessions.isEmpty()) {
