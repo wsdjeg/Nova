@@ -673,8 +673,8 @@ public class ChatActivity extends AppCompatActivity {
      * 3. 滚动稳定：LOAD_STATE_LOADED → LOAD_STATE_AT_TOP（可以继续下拉）
      */
     private void loadOlderMessages() {
-        if (loadState == LOAD_STATE_LOADING || !hasMoreMessages) return;
-        
+        // 状态已经由调用者设置（LOAD_STATE_LOADING）
+        if (!hasMoreMessages) return;
         Session session = sessionManager.getSession(currentSessionId);
         int currentFirstIndex = session != null ? session.getFirstMessageIndex() : 0;
         
