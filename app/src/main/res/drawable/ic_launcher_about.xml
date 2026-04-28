@@ -7,11 +7,11 @@
     android:viewportHeight="200">
     
     <!-- Nova "N" Logo - About Page High Resolution Version -->
-    <!-- 完全匹配 ic_launcher_foreground.xml 的设计 -->
+    <!-- 完全匹配 https://github.com/wsdjeg/Nova/ic_launcher.xml -->
     
-    <!-- 背景 - 深色渐变 + 圆角 -->
+    <!-- 背景 - 深色渐变 (匹配原始设计) -->
     <path
-        android:pathData="M40,0 L160,0 Q200,0 200,40 L200,160 Q200,200 160,200 L40,200 Q0,200 0,160 L0,40 Q0,0 40,0 Z">
+        android:pathData="M0,0h200v200H0z">
         <aapt:attr name="android:fillColor">
             <gradient
                 android:type="linear"
@@ -24,71 +24,70 @@
         </aapt:attr>
     </path>
     
-    <!-- N 字母 - 完全匹配原始比例 -->
-    <!-- 原始设计 (38×38 区域): -->
-    <!--   左竖线: x=0~5.5, y=0~38 -->
-    <!--   右竖线: x=32.5~38, y=0~38 -->
-    <!--   斜线: M0,0 L5.5,0 L38,38 L32.5,38 Z -->
-    <!--   斜线顶边与左竖线顶部完全重叠 -->
-    <!--   斜线底边与右竖线底部完全重叠 -->
+    <!-- N 字母主体 - 完全匹配原始比例 -->
+    <!-- 原始设计 (48dp viewport): -->
+    <!--   左竖线: x=-10.5~-6, y=-12~12 (宽 4.5, 高 24) -->
+    <!--   右竖线: x=6~10.5, y=-12~12 (宽 4.5, 高 24) -->
+    <!--   斜线: M-6,-12 L-2,-12 L6,12 L2,12 Z -->
+    <!--   斜线顶边: x=-6~-2 (宽 4) -->
+    <!--   斜线底边: x=2~6 (宽 4) -->
     
-    <!-- 放大到 120dp (放大比例: 120/38 ≈ 3.16) -->
-    <!-- 线宽: 5.5 × 3.16 ≈ 17.4 -->
-    <!-- 高度: 38 × 3.16 ≈ 120 -->
-    <!-- 两竖线外边缘距离: 38 × 3.16 = 120 -->
-    <!-- 两竖线内边缘距离: 27 × 3.16 ≈ 85.3 -->
+    <!-- 放大到 200dp: 比例 = 200/48 ≈ 4.167 -->
+    <!-- 竖线宽度: 4.5 × 4.167 ≈ 18.75 -->
+    <!-- 竖线高度: 24 × 4.167 = 100 -->
+    <!-- 左竖线: x=-43.75~-25, y=-50~50 -->
+    <!-- 右竖线: x=25~43.75, y=-50~50 -->
+    <!-- 斜线: M-25,-50 L-8.33,-50 L25,50 L8.33,50 Z -->
     
-    <!-- 居中偏移: (200-120)/2 = 40 -->
     <group
-        android:translateX="40"
-        android:translateY="40">
+        android:translateX="100"
+        android:translateY="100">
         
-        <!-- 左竖线: x=0~17.4, y=0~120 -->
+        <!-- 左竖线: x=-43.75~-25, y=-50~50 -->
         <path
-            android:pathData="M0,0 L17.4,0 L17.4,120 L0,120 Z">
+            android:pathData="M-43.75,-50 L-25,-50 L-25,50 L-43.75,50 Z">
             <aapt:attr name="android:fillColor">
                 <gradient
                     android:type="linear"
-                    android:startX="0"
-                    android:startY="0"
-                    android:endX="0"
-                    android:endY="120"
+                    android:startX="-43.75"
+                    android:startY="-50"
+                    android:endX="-43.75"
+                    android:endY="50"
                     android:startColor="#00C2FF"
                     android:endColor="#4DB8E8"/>
             </aapt:attr>
         </path>
         
-        <!-- 右竖线: x=102.6~120, y=0~120 -->
-        <!-- 左边缘 = 120 - 17.4 = 102.6 -->
+        <!-- 右竖线: x=25~43.75, y=-50~50 -->
         <path
-            android:pathData="M102.6,0 L120,0 L120,120 L102.6,120 Z">
+            android:pathData="M25,-50 L43.75,-50 L43.75,50 L25,50 Z">
             <aapt:attr name="android:fillColor">
                 <gradient
                     android:type="linear"
-                    android:startX="102.6"
-                    android:startY="0"
-                    android:endX="102.6"
-                    android:endY="120"
+                    android:startX="25"
+                    android:startY="-50"
+                    android:endX="25"
+                    android:endY="50"
                     android:startColor="#9B6EF6"
                     android:endColor="#6C5CE7"/>
             </aapt:attr>
         </path>
         
-        <!-- 斜线: 完全匹配原始设计 -->
-        <!-- 原始: M0,0 L5.5,0 L38,38 L32.5,38 Z -->
-        <!-- 放大后: M0,0 L17.4,0 L120,120 L102.6,120 Z -->
-        <!-- 斜线顶边: x=0~17.4 (与左竖线顶部完全重叠!) -->
-        <!-- 斜线底边: x=102.6~120 (与右竖线底部完全重叠!) -->
-        <!-- 斜线角度: atan(120/102.6) ≈ 49.5° -->
+        <!-- 斜线: M-25,-50 L-8.33,-50 L25,50 L8.33,50 Z -->
+        <!-- 斜线顶边与左竖线相邻 (左竖线右边 x=-25, 斜线顶边左边 x=-25) -->
+        <!-- 斜线底边与右竖线相邻 (斜线底边右边 x=8.33, 右竖线左边 x=25) -->
+        <!-- 但原始设计中斜线底边是 x=2~6, 右竖线是 x=6~10.5 -->
+        <!-- 所以斜线底边右边 x=6 与右竖线左边 x=6 相邻 -->
+        <!-- 放大后: 斜线底边 x=8.33~25, 右竖线 x=25~43.75 -->
         <path
-            android:pathData="M0,0 L17.4,0 L120,120 L102.6,120 Z">
+            android:pathData="M-25,-50 L-8.33,-50 L25,50 L8.33,50 Z">
             <aapt:attr name="android:fillColor">
                 <gradient
                     android:type="linear"
-                    android:startX="0"
-                    android:startY="0"
-                    android:endX="120"
-                    android:endY="120"
+                    android:startX="-25"
+                    android:startY="-50"
+                    android:endX="25"
+                    android:endY="50"
                     android:startColor="#00C2FF"
                     android:endColor="#6C5CE7"/>
             </aapt:attr>
