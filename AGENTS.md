@@ -18,45 +18,79 @@ Nova 是一个 Android AI 聊天助手应用，作为 [chat.nvim](https://nvim.c
 ## 目录结构
 
 ```
-.
 ├── app/                              # 主应用模块
 │   ├── build.gradle                  # 应用级构建配置
 │   ├── proguard-rules.pro            # ProGuard 规则
 │   └── src/main/
 │       ├── AndroidManifest.xml       # 应用清单
 │       ├── java/net/wsdjeg/nova/
-│       │   ├── ChatActivity.java     # 聊天界面
-│       │   ├── SessionListActivity.java # 会话列表界面
-│       │   ├── SettingsActivity.java # 设置界面
-│       │   ├── ApiClient.java        # API 客户端
-│       │   ├── SettingsManager.java  # 设置管理
-│       │   ├── SessionManager.java   # 会话管理
-│       │   ├── Message.java          # 消息模型
-│       │   ├── MessageAdapter.java   # 消息列表适配器
-│       │   ├── Session.java          # 会话模型
-│       │   └── SessionAdapter.java   # 会话列表适配器
+│       │   ├── ChatActivity.java          # 聊天界面
+│       │   ├── SessionListActivity.java   # 会话列表界面
+│       │   ├── SessionSettingsActivity.java # 会话设置界面
+│       │   ├── SettingsActivity.java      # 设置界面
+│       │   ├── AccountManagerActivity.java # 账户管理界面
+│       │   ├── AccountEditActivity.java   # 账户编辑界面
+│       │   ├── AboutActivity.java         # 关于界面
+│       │   ├── ApiClient.java             # API 客户端
+│       │   ├── SettingsManager.java       # 设置管理
+│       │   ├── SessionManager.java        # 会话管理
+│       │   ├── AccountManager.java        # 账户管理
+│       │   ├── Message.java               # 消息模型
+│       │   ├── MessageAdapter.java        # 消息列表适配器
+│       │   ├── Session.java               # 会话模型
+│       │   ├── SessionAdapter.java        # 会话列表适配器
+│       │   ├── Account.java               # 账户模型
+│       │   ├── AccountAdapter.java        # 账户列表适配器
+│       │   ├── TimeUtils.java             # 时间工具类
+│       │   └── NovaApplication.java       # Application 类
 │       └── res/
 │           ├── layout/               # 布局文件
 │           │   ├── activity_chat.xml
 │           │   ├── activity_session_list.xml
+│           │   ├── activity_session_settings.xml
 │           │   ├── activity_settings.xml
+│           │   ├── activity_account_manager.xml
+│           │   ├── activity_account_edit.xml
+│           │   ├── activity_about.xml
 │           │   ├── item_message.xml
 │           │   ├── item_message_user.xml
 │           │   ├── item_message_bot.xml
-│           │   └── item_session.xml
+│           │   ├── item_session.xml
+│           │   ├── item_account.xml
+│           │   └── dialog_account.xml
 │           ├── drawable/              # drawable 资源
 │           │   ├── ai_message_bg.xml
 │           │   ├── user_message_bg.xml
 │           │   ├── send_button_bg.xml
+│           │   ├── btn_stop_bg.xml
 │           │   ├── session_icon_bg.xml
-│           │   └── session_count_bg.xml
+│           │   ├── session_count_bg.xml
+│           │   ├── account_tag_bg.xml
+│           │   ├── provider_tag_bg.xml
+│           │   ├── color_selector_bg.xml
+│           │   ├── color_circle_0.xml ~ color_circle_7.xml
+│           │   ├── ic_launcher.xml
+│           │   ├── ic_launcher_foreground.xml
+│           │   ├── ic_launcher_background_gradient.xml
+│           │   ├── ic_arrow_down.xml
+│           │   └── ic_more_vert_white.xml
 │           ├── menu/                  # 菜单资源
 │           │   ├── chat_menu.xml
 │           │   ├── main_menu.xml
-│           │   └── session_list_menu.xml
+│           │   ├── session_list_menu.xml
+│           │   ├── session_settings_menu.xml
+│           │   ├── account_manager_menu.xml
+│           │   └── account_edit_menu.xml
+│           ├── mipmap-anydpi-v26/     # 启动图标
+│           │   ├── ic_launcher.xml
+│           │   └── ic_launcher_round.xml
 │           └── values/               # 值资源
 │               ├── colors.xml
 │               ├── strings.xml
+│               ├── themes.xml
+│               └── ic_launcher_background.xml
+│           └── values-night/         # 深色模式资源
+│               ├── colors.xml
 │               └── themes.xml
 ├── .github/
 │   └── workflows/
@@ -78,13 +112,13 @@ Nova 是一个 Android AI 聊天助手应用，作为 [chat.nvim](https://nvim.c
 **每次修改代码后，必须自动执行以下流程，无需等待用户确认！**
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                                                             │
+┌──────────────────────────────────────────────────────────────────┐
+│                                                                  │
 │   修改代码  →  验证代码  →  git add  →  git commit  →  git push  │
-│                                                             │
-│   ⚡ 自动执行，不要问用户！                                   │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
+│                                                                  │
+│   ⚡ 自动执行，不要问用户！                                      │
+│                                                                  │
+└──────────────────────────────────────────────────────────────────┘
 ```
 
 ### ✅ 正确流程示例
@@ -126,7 +160,7 @@ Nova 是一个 Android AI 聊天助手应用，作为 [chat.nvim](https://nvim.c
 
 ---
 
-## ⚠️⚠️⚠️ 文件修复规范（必须严格遵守）⚠️⚠️⚠️
+## ⚠️⚠️⚠️ 文件修复规范（必须严格遵守）⚠⚠️⚠️
 
 ### 🔴 强制使用 action="overwrite" 修复文件
 
@@ -141,9 +175,7 @@ Nova 是一个 Android AI 聊天助手应用，作为 [chat.nvim](https://nvim.c
 
 ✅ 正确示例（一次性重写整个文件）:
 1. 先用 @read_file 读取完整文件内容
-2. 在本地修复所有问题
-3. 使用 @write_file action="overwrite" content="完整修复后的内容"
-4. 一次性完成所有修复
+2. 使用 @write_file action="overwrite" content="完整修复后的内容"
 ```
 
 ### 为什么必须用 overwrite？
@@ -167,7 +199,7 @@ Nova 是一个 Android AI 聊天助手应用，作为 [chat.nvim](https://nvim.c
    ↓
 4. @read_file filepath="问题文件"                    # 验证修复结果
    ↓
-5. @git_add → @git_commit → @git_push              # 提交推送
+5. @git_add → @git_commit → @git_push                # 提交推送
 ```
 
 ### ❌ 禁止的修复方式
@@ -294,41 +326,85 @@ Nova 作为 chat.nvim 的移动端客户端，需要实现 HTTP API 与服务端
 
 ## 构建与运行
 
-### 本地构建
-
-```bash
-# 构建 Debug APK
-gradle assembleDebug
-
-# 构建 Release APK
-gradle assembleRelease
-
-# 清理构建
-gradle clean
-```
-
 ### CI/CD 流程
 
 GitHub Actions 自动构建：
-- 触发: push 到 master 或 PR
+- 触发: push 到 master
 - 输出: PreRelease APK
-- 命名: `ChatApp-{时间戳}.apk`
+- 命名: `Nova-v{version}.apk`
 
 ## 功能模块
 
-### 核心功能
-1. **会话列表** - SessionListActivity + SessionAdapter
-2. **聊天界面** - ChatActivity + MessageAdapter
-3. **设置管理** - SettingsActivity + SettingsManager
-4. **会话管理** - SessionManager + Session
-5. **API 调用** - ApiClient (使用 OkHttp)
-6. **数据模型** - Message, Session
+### 核心功能模块
+
+1. **会话管理模块**
+   - `SessionListActivity` - 会话列表主界面
+   - `SessionSettingsActivity` - 会话设置界面
+   - `SessionManager` - 会话数据管理
+   - `Session` - 会话数据模型
+   - `SessionAdapter` - 会话列表适配器
+
+2. **聊天模块**
+   - `ChatActivity` - 聊天主界面
+   - `Message` - 消息数据模型
+   - `MessageAdapter` - 消息列表适配器
+
+3. **账户管理模块**
+   - `AccountManagerActivity` - 账户列表管理界面
+   - `AccountEditActivity` - 账户编辑界面
+   - `AccountManager` - 账户数据管理
+   - `Account` - 账户数据模型
+   - `AccountAdapter` - 账户列表适配器
+
+4. **设置模块**
+   - `SettingsActivity` - 应用设置界面
+   - `SettingsManager` - 设置数据管理
+
+5. **API 通信模块**
+   - `ApiClient` - HTTP API 客户端（使用 OkHttp）
+
+6. **工具模块**
+   - `TimeUtils` - 时间格式化工具
+   - `NovaApplication` - Application 入口类
+
+7. **关于模块**
+   - `AboutActivity` - 关于页面
 
 ### 资源文件
-- **布局**: activity_chat.xml, activity_session_list.xml, activity_settings.xml, item_message*.xml, item_session.xml
-- **样式**: themes.xml, colors.xml
-- **背景**: ai_message_bg.xml, user_message_bg.xml, session_icon_bg.xml, session_count_bg.xml
-- **菜单**: chat_menu.xml, main_menu.xml, session_list_menu.xml
+
+**布局文件 (layout/)**:
+- `activity_chat.xml` - 聊天界面布局
+- `activity_session_list.xml` - 会话列表布局
+- `activity_session_settings.xml` - 会话设置布局
+- `activity_settings.xml` - 设置界面布局
+- `activity_account_manager.xml` - 账户管理布局
+- `activity_account_edit.xml` - 账户编辑布局
+- `activity_about.xml` - 关于页面布局
+- `item_message.xml`, `item_message_user.xml`, `item_message_bot.xml` - 消息项布局
+- `item_session.xml` - 会话项布局
+- `item_account.xml` - 账户项布局
+- `dialog_account.xml` - 账户对话框布局
+
+**菜单文件 (menu/)**:
+- `chat_menu.xml` - 聊天界面菜单
+- `main_menu.xml` - 主菜单
+- `session_list_menu.xml` - 会话列表菜单
+- `session_settings_menu.xml` - 会话设置菜单
+- `account_manager_menu.xml` - 账户管理菜单
+- `account_edit_menu.xml` - 账户编辑菜单
+
+**Drawable 资源**:
+- 消息背景: `ai_message_bg.xml`, `user_message_bg.xml`
+- 按钮背景: `send_button_bg.xml`, `btn_stop_bg.xml`
+- 图标背景: `session_icon_bg.xml`, `session_count_bg.xml`
+- 标签背景: `account_tag_bg.xml`, `provider_tag_bg.xml`
+- 颜色选择器: `color_selector_bg.xml`, `color_circle_0~7.xml`
+- 图标: `ic_launcher*.xml`, `ic_arrow_down.xml`, `ic_more_vert_white.xml`
+
+**主题与样式**:
+- `themes.xml` - 应用主题（支持深色模式）
+- `colors.xml` - 颜色定义（支持深色模式）
+- `strings.xml` - 字符串资源
 
 ## 注意事项
 
@@ -337,14 +413,3 @@ GitHub Actions 自动构建：
 3. **网络请求**: 使用 OkHttp，需要 INTERNET 权限
 4. **构建环境**: 需要 JDK 11+
 5. **包名**: net.wsdjeg.nova
-
-## 常见问题
-
-### Q: 如何添加新功能？
-A: 创建 feature 分支 → 开发 → 测试 → PR → 合并
-
-### Q: 如何更新版本号？
-A: 修改 app/build.gradle 中的 versionCode 和 versionName
-
-### Q: CI 构建失败怎么办？
-A: 检查 Actions 日志，通常是依赖或配置问题
