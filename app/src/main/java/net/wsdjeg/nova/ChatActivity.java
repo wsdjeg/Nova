@@ -376,7 +376,7 @@ public class ChatActivity extends AppCompatActivity {
             openPreviewUrl();
             return true;
         } else if (id == R.id.action_settings) {
-            startActivity(new Intent(this, SettingsActivity.class));
+            openSessionSettings();
             return true;
         }
         return super.onOptionsItemSelected(item);
@@ -991,6 +991,29 @@ public class ChatActivity extends AppCompatActivity {
         } catch (Exception e) {
             Toast.makeText(this, "无法打开浏览器: " + e.getMessage(), Toast.LENGTH_SHORT).show();
         }
+    }
+    
+    /**
+     * 打开会话设置页面
+     */
+    private void openSessionSettings() {
+        if (currentSessionId == null) {
+            Toast.makeText(this, "会话ID无效", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        Session session = sessionManager.getSession(currentSessionId);
+        Intent intent = new Intent(this, SessionSettingsActivity.class);
+        intent.putExtra(SessionSettingsActivity.EXTRA_SESSION_ID, currentSessionId);
+        intent.putExtra(SessionSettingsActivity.EXTRA_ACCOUNT_ID, accountId);
+        
+        if (session != null) {
+            intent.putExtra(SessionSettingsActivity.EXTRA_PROVIDER, session.getProvider());
+            intent.putExtra(SessionSettingsActivity.EXTRA_MODEL, session.getModel());
+            intent.putExtra(SessionSettingsActivity.EXTRA_CWD, session.getCwd());
+        }
+        
+        startActivity(intent);
     }
     
     private void stopSession() {
