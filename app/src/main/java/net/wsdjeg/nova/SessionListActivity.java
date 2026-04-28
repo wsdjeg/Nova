@@ -19,10 +19,11 @@ import java.util.List;
 import java.util.Set;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * 会话列表界面
- * 显示所有会话，支持多账号
+ * 显示所有账号的会话（聚合视图）
  * 点击进入聊天界面
  */
 public class SessionListActivity extends AppCompatActivity implements SessionAdapter.OnSessionClickListener {
@@ -62,8 +63,8 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
         // 先加载本地会话列表
         loadSessions();
         
-        // 启动时刷新会话列表
-        refreshSessionsFromServer();
+        // 启动时刷新所有账号的会话列表
+        refreshAllAccountsSessions();
     }
     
     @Override
@@ -71,10 +72,9 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
         super.onResume();
         loadSessions();
         
-        // 如果有激活账号，立即触发刷新并启动自动刷新
-        Account activeAccount = accountManager.getActiveAccount();
-        if (activeAccount != null) {
-            refreshSessionsFromServer();
+        // 刷新所有账号的会话
+        if (accountManager.hasAccounts()) {
+            refreshAllAccountsSessions();
             startAutoRefresh();
         }
     }
@@ -130,7 +130,7 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
         if (requestCode == REQUEST_ACCOUNT_MANAGE) {
             // 从账号管理返回后，更新显示和刷新会话
             loadSessions();
-            refreshSessionsFromServer();
+            refreshAllAccountsSessions();
         }
     }
     
@@ -138,6 +138,7 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
         sessions = new ArrayList<>();
         adapter = new SessionAdapter(sessions, this);
         adapter.setAccountManager(accountManager);
+        adapter.setSettingsManager(settingsManager);
         LinearLayoutManager layoutManager = new LinearLayoutManager(this);
         rvSessions.setLayoutManager(layoutManager);
         rvSessions.setAdapter(adapter);
@@ -150,6 +151,7 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
             );
         rvSessions.addItemDecoration(divider);
     }
+    
     /**
      * 设置自动刷新
      */
@@ -158,9 +160,8 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
         refreshRunnable = new Runnable() {
             @Override
             public void run() {
-                Account activeAccount = accountManager.getActiveAccount();
-                if (activeAccount != null) {
-                    refreshSessionsFromServer();
+                if (accountManager.hasAccounts()) {
+                    refreshAllAccountsSessions();
                 }
                 refreshHandler.postDelayed(this, REFRESH_INTERVAL_MS);
             }
@@ -179,34 +180,38 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
     }
     
     /**
-     * 从本地加载会话列表
+     * 从本地加载所有账号的会话列表（聚合视图）
      */
     private void loadSessions() {
         sessions.clear();
         
-        Account activeAccount = accountManager.getActiveAccount();
-        if (activeAccount == null) {
+        if (!accountManager.hasAccounts()) {
             adapter.notifyDataSetChanged();
             Toast.makeText(this, "请先添加账号", Toast.LENGTH_SHORT).show();
             return;
         }
         
-        // 加载当前账号的会话
-        List<Session> accountSessions = sessionManager.loadSessions(activeAccount.getId());
+        // 加载所有账号的会话
+        List<Session> allSessions = sessionManager.loadAllSessions();
         
-        for (Session session : accountSessions) {
+        // 确保 accountId 正确设置
+        for (Session session : allSessions) {
             if (session.getAccountId() == null || session.getAccountId().isEmpty()) {
-                session.setAccountId(activeAccount.getId());
+                // 尝试从当前账号获取
+                Account currentAccount = accountManager.getCurrentAccount();
+                if (currentAccount != null) {
+                    session.setAccountId(currentAccount.getId());
+                }
             }
         }
         
-        sessions.addAll(accountSessions);
+        sessions.addAll(allSessions);
         
-        // 按 session ID 降序排序
+        // 按最后消息时间降序排序
         Collections.sort(sessions, new Comparator<Session>() {
             @Override
             public int compare(Session s1, Session s2) {
-                return s2.getSessionId().compareTo(s1.getSessionId());
+                return Long.compare(s2.getLastMessageTime(), s1.getLastMessageTime());
             }
         });
         
@@ -218,26 +223,36 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
     }
     
     /**
-     * 从服务器刷新会话列表
-     * 每个会话的 provider 和 model 来自服务器返回的数据
+     * 刷新所有账号的会话列表
      */
-    private void refreshSessionsFromServer() {
-        Account activeAccount = accountManager.getActiveAccount();
-        if (activeAccount == null) {
+    private void refreshAllAccountsSessions() {
+        List<Account> accounts = accountManager.getAccounts();
+        if (accounts.isEmpty()) {
             return;
         }
         
-        // 使用当前账号的 URL 和 API Key 创建 ApiClient
-        String baseUrl = activeAccount.getUrl();
-        String apiKey = activeAccount.getApiKey();
+        for (Account account : accounts) {
+            refreshSessionsFromServer(account);
+        }
+    }
+    
+    /**
+     * 从服务器刷新指定账号的会话列表
+     */
+    private void refreshSessionsFromServer(Account account) {
+        if (account == null) {
+            return;
+        }
+        
+        String baseUrl = account.getUrl();
+        String apiKey = account.getApiKey();
         
         if (baseUrl == null || baseUrl.isEmpty() || apiKey == null || apiKey.isEmpty()) {
-            Toast.makeText(this, "账号配置不完整，请检查 URL 和 API Key", Toast.LENGTH_SHORT).show();
             return;
         }
         
         ApiClient accountApiClient = new ApiClient(baseUrl, apiKey);
-        String accountId = activeAccount.getId();
+        String accountId = account.getId();
         
         accountApiClient.getSessions(accountId, new ApiClient.SessionsCallback() {
             @Override
@@ -254,7 +269,7 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
                         
                         Session localSession = sessionManager.getSession(serverSession.getSessionId());
                         if (localSession == null) {
-                            // 新会话，直接添加（包含服务器返回的所有数据）
+                            // 新会话，直接添加
                             sessionManager.addOrUpdateSession(serverSession, accountId);
                         } else {
                             // 已存在的会话，更新服务器返回的所有字段
@@ -270,7 +285,7 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
                         }
                     }
                     
-                    // 同步：删除服务器没有的本地会话
+                    // 同步：删除服务器没有的本地会话（只删除当前账号的）
                     List<Session> localSessions = sessionManager.loadSessions(accountId);
                     for (Session localSession : localSessions) {
                         if (!serverSessionMap.containsKey(localSession.getSessionId())) {
@@ -282,14 +297,9 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
                     
                     if (!isFirstRefreshDone) {
                         isFirstRefreshDone = true;
-                        String[] sessionIds = new String[serverSessions.size()];
-                        for (int i = 0; i < serverSessions.size(); i++) {
-                            sessionIds[i] = serverSessions.get(i).getSessionId();
+                        for (Session serverSession : serverSessions) {
+                            sessionManager.addInitializedSession(serverSession.getSessionId());
                         }
-                        initializeAllSessions(accountId, sessionIds, accountApiClient);
-                        startAutoRefresh();
-                    } else {
-                        pollSessionMessages(accountId, accountApiClient);
                     }
                 });
             }
@@ -297,44 +307,15 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
             @Override
             public void onError(String error) {
                 runOnUiThread(() -> {
-                    Toast.makeText(SessionListActivity.this, 
-                        "获取会话列表失败: " + error, Toast.LENGTH_SHORT).show();
-                    if (!isFirstRefreshDone) {
-                        isFirstRefreshDone = true;
-                        startAutoRefresh();
-                    }
+                    // 静默失败，不影响其他账号的刷新
                 });
             }
         });
     }
     
     /**
-     * 初始化所有会话（不再获取消息列表）
-     * 消息列表只在打开会话时获取
-     */
-    private void initializeAllSessions(String accountId, String[] sessionIds, ApiClient accountApiClient) {
-        // 不再获取消息列表，只完成初始化
-        if (sessionIds == null || sessionIds.length == 0) {
-            return;
-        }
-        
-        // 标记所有会话为已初始化
-        for (String sessionId : sessionIds) {
-            sessionManager.addInitializedSession(sessionId);
-        }
-    }
-    
-    /**
-     * 轮询会话状态（不再获取消息列表）
-     * 消息列表只在打开会话时获取
-     */
-    private void pollSessionMessages(String accountId, ApiClient accountApiClient) {
-        // 不再轮询消息，消息列表只在打开会话时获取
-    }
-    
-    /**
      * 创建新会话
-     * 使用设置中的默认 provider 和 model，但会话创建后由服务器返回实际的 provider/model
+     * 使用当前激活账号创建
      */
     private void createNewSession() {
         Account activeAccount = accountManager.getActiveAccount();
@@ -357,7 +338,7 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
         
         ApiClient accountApiClient = new ApiClient(baseUrl, apiKey);
         
-        // 从设置获取默认的 provider 和 model（仅用于创建请求）
+        // 从设置获取默认的 provider 和 model
         String defaultProvider = settingsManager.getDefaultProvider();
         String defaultModel = settingsManager.getDefaultModel();
         
@@ -371,7 +352,6 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
                     
                     session.setAccountId(accountId);
                     session.setLastMessageTime(System.currentTimeMillis());
-                    // session 的 provider/model 由服务器返回，已在 ApiClient 中设置
                     
                     sessionManager.addOrUpdateSession(session, accountId);
                     sessionManager.saveCurrentSession(session.getSessionId());
@@ -435,20 +415,29 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
     }
     
     private void deleteSession(Session session) {
-        Account activeAccount = accountManager.getActiveAccount();
+        String accountId = session.getAccountId();
+        Account account = null;
         
-        if (activeAccount == null) {
+        if (accountId != null && !accountId.isEmpty()) {
+            account = accountManager.getAccount(accountId);
+        }
+        
+        // 如果找不到账号，尝试使用激活账号
+        if (account == null) {
+            account = accountManager.getActiveAccount();
+        }
+        
+        if (account == null) {
             sessionManager.deleteSession(session.getSessionId());
             loadSessions();
             Toast.makeText(this, "已删除本地会话", Toast.LENGTH_SHORT).show();
             return;
         }
         
-        String baseUrl = activeAccount.getUrl();
-        String apiKey = activeAccount.getApiKey();
+        String baseUrl = account.getUrl();
+        String apiKey = account.getApiKey();
         
         if (baseUrl == null || baseUrl.isEmpty() || apiKey == null || apiKey.isEmpty()) {
-            // 账号配置不完整，只删除本地数据
             sessionManager.deleteSession(session.getSessionId());
             loadSessions();
             Toast.makeText(this, "已删除本地会话", Toast.LENGTH_SHORT).show();
