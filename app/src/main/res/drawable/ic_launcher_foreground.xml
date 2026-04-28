@@ -6,66 +6,57 @@
     android:viewportHeight="108">
     
     <!-- Nova "N" Logo - 前景层 (108dp) -->
-    <!-- 安全区域 72dp，边距 18dp -->
+    <!-- 几何风格，无发光/模糊/阴影 -->
+    <!-- 渐变: cyan (#00C2FF) 左上 → purple (#6C5CE7) 右下 -->
+    <!-- 笔画粗细: ~10dp (约 20% 的 48dp 宽度) -->
+    <!-- 占据约 65% 的画布 -->
     
     <group
         android:translateX="54"
         android:translateY="54">
         
-        <!-- N 字母主体 - 几何科技风格 -->
+        <!-- N 字母主体 - 几何风格 -->
+        <!-- 统一使用从左上到右下的渐变 -->
         
         <!-- 左竖线 -->
         <path
-            android:fillColor="#00D4FF"
-            android:pathData="M-26,-28 L-18,-28 L-18,28 L-26,28 Z"/>
+            android:pathData="M-24,-28 L-14,-28 L-14,28 L-24,28 Z">
+            <gradient
+                android:type="linear"
+                android:startX="-24"
+                android:startY="-28"
+                android:endX="-14"
+                android:endY="28"
+                android:startColor="#00C2FF"
+                android:endColor="#4DB8E8"/>
+        </path>
         
         <!-- 右竖线 -->
         <path
-            android:fillColor="#7C4DFF"
-            android:pathData="M18,-28 L26,-28 L26,28 L18,28 Z"/>
+            android:pathData="M14,-28 L24,-28 L24,28 L14,28 Z">
+            <gradient
+                android:type="linear"
+                android:startX="14"
+                android:startY="-28"
+                android:endX="24"
+                android:endY="28"
+                android:startColor="#9B6EF6"
+                android:endColor="#6C5CE7"/>
+        </path>
         
-        <!-- 斜线 - 渐变效果用两个三角形 -->
+        <!-- 斜线 - 从左上到右下，带斜切边缘 -->
         <path
-            android:fillColor="#00BCD4"
-            android:pathData="M-18,-28 L-10,-28 L18,28 L10,28 Z"/>
-        
-        <!-- 斜线高光 -->
-        <path
-            android:fillColor="#FFFFFF"
-            android:fillAlpha="0.3"
-            android:pathData="M-18,-28 L-14,-28 L14,28 L10,28 Z"/>
-        
-        <!-- 左竖线内发光 -->
-        <path
-            android:fillColor="#FFFFFF"
-            android:fillAlpha="0.4"
-            android:pathData="M-26,-28 L-22,-28 L-22,28 L-26,28 Z"/>
-        
-        <!-- 右竖线内发光 -->
-        <path
-            android:fillColor="#FFFFFF"
-            android:fillAlpha="0.2"
-            android:pathData="M22,-28 L26,-28 L26,28 L22,28 Z"/>
-        
-        <!-- 外发光效果 -->
-        <path
-            android:strokeColor="#00D4FF"
-            android:strokeWidth="1"
-            android:strokeAlpha="0.5"
-            android:fillColor="@android:color/transparent"
-            android:pathData="M-26,-28 L-26,28 L-18,28 L10,-28 L18,-28 L18,28 L26,28 L26,-28 Z"/>
-        
-        <!-- 顶部光晕 -->
-        <path
-            android:fillColor="#00FFFF"
-            android:fillAlpha="0.15"
-            android:pathData="M-26,-30 L26,-30 L26,-28 L-26,-28 Z"/>
-        
-        <!-- 底部光晕 -->
-        <path
-            android:fillColor="#7C4DFF"
-            android:fillAlpha="0.2"
-            android:pathData="M-26,28 L26,28 L26,30 L-26,30 Z"/>
+            android:pathData="M-14,-28 L-4,-28 L14,28 L4,28 Z">
+            <gradient
+                android:type="linear"
+                android:startX="-14"
+                android:startY="-28"
+                android:endX="14"
+                android:endY="28"
+                android:startColor="#00C2FF"
+                android:endColor="#6C5CE7"/>
+        </path>
         
     </group>
+    
 </vector>
