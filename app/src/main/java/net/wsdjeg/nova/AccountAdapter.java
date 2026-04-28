@@ -61,10 +61,10 @@ public class AccountAdapter extends RecyclerView.Adapter<AccountAdapter.ViewHold
         holder.textName.setText(account.getDisplayName());
         holder.textUrl.setText(account.getUrl());
         
-        // 激活状态
+        // 默认状态
         if (account.isActive()) {
             holder.statusDot.setBackgroundResource(R.drawable.session_icon_bg);
-            holder.textStatusLabel.setText("当前激活");
+            holder.textStatusLabel.setText("默认账号");
             holder.textStatusLabel.setTextColor(0xFF4CAF50);  // 绿色
             holder.textStatusLabel.setVisibility(View.VISIBLE);
             holder.itemView.setBackgroundColor(0xFFF5F5F5);  // 浅灰背景
@@ -131,7 +131,7 @@ public class AccountAdapter extends RecyclerView.Adapter<AccountAdapter.ViewHold
         TextView textUrl;
         TextView textLastUsed;
         TextView textStatusLabel;
-        ImageButton btnActivate;
+        ImageButton btnDefault;
         ImageButton btnEdit;
         ImageButton btnDelete;
 
@@ -142,7 +142,7 @@ public class AccountAdapter extends RecyclerView.Adapter<AccountAdapter.ViewHold
             textUrl = itemView.findViewById(R.id.account_url);
             textLastUsed = itemView.findViewById(R.id.account_last_used);
             textStatusLabel = itemView.findViewById(R.id.account_status_label);
-            btnActivate = itemView.findViewById(R.id.account_activate_button);
+            btnDefault = itemView.findViewById(R.id.account_default_button);
             btnEdit = itemView.findViewById(R.id.account_edit_button);
             btnDelete = itemView.findViewById(R.id.account_delete_button);
         }

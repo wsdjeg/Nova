@@ -14,8 +14,8 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 /**
- * 账号管理界面
- * 支持添加、编辑、删除、切换账号
+ * 号管理界面
+ * 支持添加、编辑、删除、设置默认账号
  */
 public class AccountManagerActivity extends AppCompatActivity implements AccountAdapter.OnAccountClickListener {
 
@@ -77,7 +77,7 @@ public class AccountManagerActivity extends AppCompatActivity implements Account
     }
     
     /**
-     * 确认删除对话框
+     * 认删除对话框
      */
     private void showDeleteConfirmDialog(Account account) {
         new AlertDialog.Builder(this)
@@ -96,10 +96,10 @@ public class AccountManagerActivity extends AppCompatActivity implements Account
     
     @Override
     public void onAccountClick(Account account) {
-        // 点击账号，切换激活状态
+        // 点击账号，设为默认
         if (!account.isActive()) {
-            accountManager.switchAccount(account.getId());
-            Toast.makeText(this, "已切换到: " + account.getDisplayName(), Toast.LENGTH_SHORT).show();
+            accountManager.setDefaultAccount(account.getId());
+            Toast.makeText(this, "已设为默认: " + account.getDisplayName(), Toast.LENGTH_SHORT).show();
             loadAccounts();
         }
     }
@@ -107,7 +107,7 @@ public class AccountManagerActivity extends AppCompatActivity implements Account
     @Override
     public void onAccountLongClick(Account account) {
         // 长按显示操作菜单
-        String[] options = {"编辑", "切换到此账号", "删除"};
+        String[] options = {"编辑", "设为默认账号", "删除"};
         new AlertDialog.Builder(this)
             .setTitle(account.getDisplayName())
             .setItems(options, (dialog, which) -> {
@@ -115,13 +115,13 @@ public class AccountManagerActivity extends AppCompatActivity implements Account
                     case 0: // 编辑
                         openEditAccount(account);
                         break;
-                    case 1: // 切换
+                    case 1: // 设为默认
                         if (!account.isActive()) {
-                            accountManager.switchAccount(account.getId());
-                            Toast.makeText(this, "已切换到: " + account.getDisplayName(), Toast.LENGTH_SHORT).show();
+                            accountManager.setDefaultAccount(account.getId());
+                            Toast.makeText(this, "已设为默认: " + account.getDisplayName(), Toast.LENGTH_SHORT).show();
                             loadAccounts();
                         } else {
-                            Toast.makeText(this, "当前已是激活账号", Toast.LENGTH_SHORT).show();
+                            Toast.makeText(this, "当前已是默认账号", Toast.LENGTH_SHORT).show();
                         }
                         break;
                     case 2: // 删除

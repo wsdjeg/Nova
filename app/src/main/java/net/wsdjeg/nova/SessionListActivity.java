@@ -315,11 +315,11 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
     
     /**
      * 创建新会话
-     * 使用当前激活账号创建
+     * 使用默认账号创建
      */
     private void createNewSession() {
-        Account activeAccount = accountManager.getActiveAccount();
-        if (activeAccount == null) {
+        Account defaultAccount = accountManager.getDefaultAccount();
+        if (defaultAccount == null) {
             Toast.makeText(this, "请先添加账号", Toast.LENGTH_SHORT).show();
             startActivityForResult(
                 new Intent(this, AccountManagerActivity.class),
@@ -328,8 +328,8 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
             return;
         }
         
-        String baseUrl = activeAccount.getUrl();
-        String apiKey = activeAccount.getApiKey();
+        String baseUrl = defaultAccount.getUrl();
+        String apiKey = defaultAccount.getApiKey();
         
         if (baseUrl == null || baseUrl.isEmpty() || apiKey == null || apiKey.isEmpty()) {
             Toast.makeText(this, "账号配置不完整，请检查 URL 和 API Key", Toast.LENGTH_SHORT).show();
@@ -344,12 +344,13 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
         
         Toast.makeText(this, "正在创建新会话...", Toast.LENGTH_SHORT).show();
         
-        accountApiClient.createSession(null, defaultProvider, defaultModel, activeAccount.getId(), new ApiClient.CreateSessionCallback() {
+        accountApiClient.createSession(null, defaultProvider, defaultModel, defaultAccount.getId(), new ApiClient.CreateSessionCallback() {
             @Override
             public void onSuccess(Session session) {
                 runOnUiThread(() -> {
-                    String accountId = activeAccount.getId();
+                    String accountId = defaultAccount.getId();
                     
+                    // API 返回完整会话信息，设置所有字段
                     session.setAccountId(accountId);
                     session.setLastMessageTime(System.currentTimeMillis());
                     
@@ -359,7 +360,8 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
                     
                     loadSessions();
                     
-                    openChatActivity(session.getSessionId());
+                    // 传递完整的会话信息给 ChatActivity
+                    openChatActivity(session);
                     
                     Toast.makeText(SessionListActivity.this, 
                         "已创建新会话: " + session.getSessionId(), 
@@ -378,14 +380,14 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
         });
     }
     
-    private void openChatActivity(String sessionId) {
-        Session session = sessionManager.getSession(sessionId);
-        String sessionTitle = null;
-        if (session != null) {
-            int currentMessageCount = session.getMessageCount();
-            sessionManager.saveReadMessageCount(sessionId, currentMessageCount);
-            sessionTitle = session.getTitle();
-        }
+    /**
+     * 打开聊天界面
+     * 传递完整的会话信息，包括 provider, model, cwd
+     */
+    private void openChatActivity(Session session) {
+        String sessionId = session.getSessionId();
+        int currentMessageCount = session.getMessageCount();
+        sessionManager.saveReadMessageCount(sessionId, currentMessageCount);
         
         sessionManager.clearUnreadCount(sessionId);
         loadSessions();
@@ -393,8 +395,25 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
         sessionManager.saveCurrentSession(sessionId);
         Intent intent = new Intent(this, ChatActivity.class);
         intent.putExtra("session_id", sessionId);
-        intent.putExtra("session_title", sessionTitle);
+        intent.putExtra("session_title", session.getTitle());
+        // 传递 API 返回的完整会话信息
+        intent.putExtra("session_provider", session.getProvider());
+    private void openChatActivity(Session session) {
+        int currentMessageCount = session.getMessageCount();
+        sessionManager.saveReadMessageCount(session.getSessionId(), currentMessageCount);
+        
+        sessionManager.clearUnreadCount(session.getSessionId());
+        loadSessions();
+        
+        sessionManager.saveCurrentSession(session.getSessionId());
+        Intent intent = new Intent(this, ChatActivity.class);
+        intent.putExtra("session_id", session.getSessionId());
+        intent.putExtra("session_title", session.getTitle());
+        intent.putExtra("provider", session.getProvider());
+        intent.putExtra("model", session.getModel());
+        intent.putExtra("cwd", session.getCwd());
         startActivity(intent);
+    }
     }
     
     @Override
@@ -422,9 +441,9 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
             account = accountManager.getAccount(accountId);
         }
         
-        // 如果找不到账号，尝试使用激活账号
+        // 如果找不到账号，尝试使用默认账号
         if (account == null) {
-            account = accountManager.getActiveAccount();
+            account = accountManager.getDefaultAccount();
         }
         
         if (account == null) {

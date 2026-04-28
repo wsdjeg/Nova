@@ -118,6 +118,10 @@ public class ChatActivity extends AppCompatActivity {
         
         currentSessionId = getIntent().getStringExtra(EXTRA_SESSION_ID);
         currentSessionTitle = getIntent().getStringExtra(EXTRA_SESSION_TITLE);
+        // 从 Intent 接收 provider, model, cwd（新建会话时传入）
+        String intentProvider = getIntent().getStringExtra("provider");
+        String intentModel = getIntent().getStringExtra("model");
+        String intentCwd = getIntent().getStringExtra("cwd");
         
         if (currentSessionId == null || currentSessionId.isEmpty()) {
             Toast.makeText(this, "无效的会话ID", Toast.LENGTH_SHORT).show();
@@ -266,7 +270,9 @@ public class ChatActivity extends AppCompatActivity {
         });
         
         tvSessionTitle.setText(currentSessionTitle != null ? currentSessionTitle : currentSessionId);
-        updateSessionInfo();
+        
+        // 更新顶部信息：优先使用 Intent 传入的值（新建会话时）
+        updateSessionInfo(intentProvider, intentModel, intentCwd);
         
         // 初始化加载
         messages.add(new Message("正在加载消息...", false));
@@ -382,7 +388,23 @@ public class ChatActivity extends AppCompatActivity {
         return super.onOptionsItemSelected(item);
     }
     
-    private void updateSessionInfo() {
+    /**
+     * 更新顶部会话信息
+     * 优先使用 Intent 传入的值（新建会话时），否则从 SessionManager 获取
+     * @param intentProvider Intent 传入的 provider
+     * @param intentModel Intent 传入的 model
+     * @param intentCwd Intent 传入的 cwd
+     */
+    private void updateSessionInfo(String intentProvider, String intentModel, String intentCwd) {
+        // 如果 Intent 传入的值有效，优先使用
+        if (intentProvider != null && !intentProvider.isEmpty() && 
+            intentModel != null && !intentModel.isEmpty()) {
+            tvSessionInfo.setText(intentProvider + " | " + intentModel);
+            tvSessionPath.setText("cwd: " + (intentCwd != null ? intentCwd : ""));
+            return;
+        }
+        
+        // 否则从 SessionManager 获取
         Session session = sessionManager.getSession(currentSessionId);
         if (session != null) {
             tvSessionInfo.setText(session.getProvider() + " | " + session.getModel());

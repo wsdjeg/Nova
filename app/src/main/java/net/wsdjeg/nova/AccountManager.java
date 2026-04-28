@@ -58,7 +58,7 @@ public class AccountManager {
                 }
                 
                 account.setApiKey(json.optString("apiKey", ""));
-                account.setActive(json.optBoolean("isActive", false));
+                account.setActive(json.optBoolean("isDefault", false));
                 account.setCreatedAt(json.optLong("createdAt", System.currentTimeMillis()));
                 account.setLastUsedAt(json.optLong("lastUsedAt", System.currentTimeMillis()));
                 account.setColorIndex(json.optInt("colorIndex", -1));  // 默认使用全局设置
@@ -68,13 +68,13 @@ public class AccountManager {
             e.printStackTrace();
         }
 
-        // 加载当前激活账号
+        // 加载当前默认账号
         String currentId = prefs.getString(KEY_CURRENT_ACCOUNT_ID, null);
         if (currentId != null) {
             currentAccount = getAccountById(currentId);
         }
 
-        // 如果没有激活账号但有账号列表，激活第一个
+        // 如果没有默认账号但有账号列表，设置第一个为默认
         if (currentAccount == null && !accounts.isEmpty()) {
             currentAccount = accounts.get(0);
             currentAccount.setActive(true);
@@ -96,7 +96,7 @@ public class AccountManager {
                 json.put("port", account.getPort());
                 json.put("url", account.getUrl());  // 兼容旧版本
                 json.put("apiKey", account.getApiKey() != null ? account.getApiKey() : "");
-                json.put("isActive", account.isActive());
+                json.put("isDefault", account.isActive());
                 json.put("createdAt", account.getCreatedAt());
                 json.put("lastUsedAt", account.getLastUsedAt());
                 json.put("colorIndex", account.getColorIndex());
@@ -119,14 +119,21 @@ public class AccountManager {
     }
 
     /**
-     * 获取当前激活的账号
+     * 获取当前默认账号
      */
     public Account getCurrentAccount() {
         return currentAccount;
     }
 
     /**
-     * 获取当前激活的账号（兼容性别名）
+     * 获取当前默认账号（兼容性别名）
+     */
+    public Account getDefaultAccount() {
+        return getCurrentAccount();
+    }
+
+    /**
+     * 获取当前激活的账号（兼容旧名称）
      */
     public Account getActiveAccount() {
         return getCurrentAccount();
@@ -155,7 +162,7 @@ public class AccountManager {
      * 添加账号
      */
     public void addAccount(Account account) {
-        // 如果是第一个账号，自动激活
+        // 如果是第一个账号，自动设为默认
         if (accounts.isEmpty()) {
             account.setActive(true);
             currentAccount = account;
@@ -195,9 +202,9 @@ public class AccountManager {
         if (toDelete != null) {
             accounts.remove(toDelete);
 
-            // 如果删除的是当前账号，激活第一个
+            // 如果删除的是当前默认账号，设置第一个为默认
             if (toDelete == currentAccount && !accounts.isEmpty()) {
-                switchToAccount(accounts.get(0).getId());
+                setDefaultAccount(accounts.get(0).getId());
             } else if (accounts.isEmpty()) {
                 currentAccount = null;
             }
@@ -206,15 +213,15 @@ public class AccountManager {
     }
 
     /**
-     * 切换到指定账号
+     * 设置默认账号
      */
-    public void switchToAccount(String accountId) {
-        // 取消所有账号的激活状态
+    public void setDefaultAccount(String accountId) {
+        // 取消所有账号的默认状态
         for (Account account : accounts) {
             account.setActive(false);
         }
 
-        // 激活指定账号
+        // 设置指定账号为默认
         Account account = getAccountById(accountId);
         if (account != null) {
             account.setActive(true);
@@ -222,6 +229,13 @@ public class AccountManager {
             currentAccount = account;
         }
         saveAccounts();
+    }
+
+    /**
+     * 切换到指定账号（兼容旧方法名）
+     */
+    public void switchToAccount(String accountId) {
+        setDefaultAccount(accountId);
     }
 
     /**
@@ -305,13 +319,13 @@ public class AccountManager {
      * 切换账号（别名方法）
      */
     public void switchAccount(String accountId) {
-        switchToAccount(accountId);
+        setDefaultAccount(accountId);
     }
     
     /**
      * 获取账号的颜色
      * 优先级：账号自己的颜色 > 全局设置
-     * @param account 账号
+     * @param account 贗号
      * @param settingsManager 设置管理器
      * @return 颜色字符串
      */

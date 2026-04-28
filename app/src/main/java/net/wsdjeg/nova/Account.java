@@ -12,7 +12,7 @@ public class Account {
     private String host;        // 服务器地址（不含端口）
     private int port;           // 服务器端口
     private String apiKey;      // API密钥（可选）
-    private boolean isActive;   // 是否当前激活
+    private boolean isDefault;  // 是否为默认账号
     private long createdAt;     // 创建时间
     private long lastUsedAt;    // 最后使用时间
     private int colorIndex;     // 颜色索引，-1表示使用全局设置
@@ -125,8 +125,18 @@ public class Account {
         return apiKey;
     }
 
+    /**
+     * 是否为默认账号
+     */
+    public boolean isDefault() {
+        return isDefault;
+    }
+    
+    /**
+     * 兼旧代码的别名方法
+     */
     public boolean isActive() {
-        return isActive;
+        return isDefault();
     }
 
     public long getCreatedAt() {
@@ -180,8 +190,18 @@ public class Account {
         this.apiKey = apiKey;
     }
 
+    /**
+     * 设置是否为默认账号
+     */
+    public void setDefault(boolean isDefault) {
+        this.isDefault = isDefault;
+    }
+    
+    /**
+     * 兼旧代码的别名方法
+     */
     public void setActive(boolean active) {
-        isActive = active;
+        setDefault(active);
     }
 
     public void setCreatedAt(long createdAt) {
@@ -228,7 +248,7 @@ public class Account {
                 ", host='" + host + '\'' +
                 ", port=" + port +
                 ", colorIndex=" + colorIndex +
-                ", isActive=" + isActive +
+                ", isDefault=" + isDefault +
                 '}';
     }
 }
