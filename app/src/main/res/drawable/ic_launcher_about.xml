@@ -7,12 +7,11 @@
     android:viewportHeight="200">
     
     <!-- Nova "N" Logo - About Page High Resolution Version -->
-    <!-- 尺寸: 200dp (高清版本) -->
-    <!-- 完全匹配 app logo 设计 -->
+    <!-- 完全匹配 ic_launcher_foreground.xml 的设计 -->
     
-    <!-- 背景 - 深色渐变 -->
+    <!-- 背景 - 深色渐变 + 圆角 -->
     <path
-        android:pathData="M0,0h200v200H0z">
+        android:pathData="M40,0 L160,0 Q200,0 200,40 L200,160 Q200,200 160,200 L40,200 Q0,200 0,160 L0,40 Q0,0 40,0 Z">
         <aapt:attr name="android:fillColor">
             <gradient
                 android:type="linear"
@@ -25,73 +24,75 @@
         </aapt:attr>
     </path>
     
-    <!-- N 字母 - 完全匹配 ic_launcher_foreground.xml 的比例 -->
-    <!-- 原始设计 (54dp viewport, 偏移 8,8): -->
-    <!--   左竖线: x=0~5.5, y=0~38, 宽=5.5 -->
-    <!--   右竖线: x=32.5~38, y=0~38, 宽=5.5 -->
-    <!--   斜线角度: atan(38/32.5) ≈ 49.5° -->
-    <!--   斜线四边形: (0,0)->(5.5,0)->(38,38)->(32.5,38) -->
+    <!-- N 字母 - 完全匹配原始比例 -->
+    <!-- 原始设计 (38×38 区域): -->
+    <!--   左竖线: x=0~5.5, y=0~38 -->
+    <!--   右竖线: x=32.5~38, y=0~38 -->
+    <!--   斜线: M0,0 L5.5,0 L38,38 L32.5,38 Z -->
+    <!--   斜线顶边与左竖线顶部完全重叠 -->
+    <!--   斜线底边与右竖线底部完全重叠 -->
     
-    <!-- 放大到 100dp viewport (放大比例: 100/38 ≈ 2.63) -->
-    <!-- 线宽: 5.5 × 2.63 ≈ 14.5 -->
-    <!-- 两竖线间距: 32.5 × 2.63 ≈ 85.5 -->
-    <!-- 高度: 38 × 2.63 ≈ 100 -->
+    <!-- 放大到 120dp (放大比例: 120/38 ≈ 3.16) -->
+    <!-- 线宽: 5.5 × 3.16 ≈ 17.4 -->
+    <!-- 高度: 38 × 3.16 ≈ 120 -->
+    <!-- 两竖线外边缘距离: 38 × 3.16 = 120 -->
+    <!-- 两竖线内边缘距离: 27 × 3.16 ≈ 85.3 -->
     
+    <!-- 居中偏移: (200-120)/2 = 40 -->
     <group
-        android:translateX="50"
-        android:translateY="50">
+        android:translateX="40"
+        android:translateY="40">
         
-        <group
-            android:translateX="0"
-            android:translateY="0">
-            
-            <!-- 左竖线: x=0~14.5, y=0~100 -->
-            <path
-                android:pathData="M0,0 L14.5,0 L14.5,100 L0,100 Z">
-                <aapt:attr name="android:fillColor">
-                    <gradient
-                        android:type="linear"
-                        android:startX="0"
-                        android:startY="0"
-                        android:endX="0"
-                        android:endY="100"
-                        android:startColor="#00C2FF"
-                        android:endColor="#4DB8E8"/>
-                </aapt:attr>
-            </path>
-            
-            <!-- 右竖线: x=85.5~100, y=0~100 -->
-            <path
-                android:pathData="M85.5,0 L100,0 L100,100 L85.5,100 Z">
-                <aapt:attr name="android:fillColor">
-                    <gradient
-                        android:type="linear"
-                        android:startX="85.5"
-                        android:startY="0"
-                        android:endX="85.5"
-                        android:endY="100"
-                        android:startColor="#9B6EF6"
-                        android:endColor="#6C5CE7"/>
-                </aapt:attr>
-            </path>
-            
-            <!-- 斜线: 四边形 (0,0)->(14.5,0)->(100,100)->(85.5,100) -->
-            <!-- 角度 = atan(100/85.5) = atan(1.169) ≈ 49.5° -->
-            <path
-                android:pathData="M0,0 L14.5,0 L100,100 L85.5,100 Z">
-                <aapt:attr name="android:fillColor">
-                    <gradient
-                        android:type="linear"
-                        android:startX="0"
-                        android:startY="0"
-                        android:endX="100"
-                        android:endY="100"
-                        android:startColor="#00C2FF"
-                        android:endColor="#6C5CE7"/>
-                </aapt:attr>
-            </path>
-            
-        </group>
+        <!-- 左竖线: x=0~17.4, y=0~120 -->
+        <path
+            android:pathData="M0,0 L17.4,0 L17.4,120 L0,120 Z">
+            <aapt:attr name="android:fillColor">
+                <gradient
+                    android:type="linear"
+                    android:startX="0"
+                    android:startY="0"
+                    android:endX="0"
+                    android:endY="120"
+                    android:startColor="#00C2FF"
+                    android:endColor="#4DB8E8"/>
+            </aapt:attr>
+        </path>
+        
+        <!-- 右竖线: x=102.6~120, y=0~120 -->
+        <!-- 左边缘 = 120 - 17.4 = 102.6 -->
+        <path
+            android:pathData="M102.6,0 L120,0 L120,120 L102.6,120 Z">
+            <aapt:attr name="android:fillColor">
+                <gradient
+                    android:type="linear"
+                    android:startX="102.6"
+                    android:startY="0"
+                    android:endX="102.6"
+                    android:endY="120"
+                    android:startColor="#9B6EF6"
+                    android:endColor="#6C5CE7"/>
+            </aapt:attr>
+        </path>
+        
+        <!-- 斜线: 完全匹配原始设计 -->
+        <!-- 原始: M0,0 L5.5,0 L38,38 L32.5,38 Z -->
+        <!-- 放大后: M0,0 L17.4,0 L120,120 L102.6,120 Z -->
+        <!-- 斜线顶边: x=0~17.4 (与左竖线顶部完全重叠!) -->
+        <!-- 斜线底边: x=102.6~120 (与右竖线底部完全重叠!) -->
+        <!-- 斜线角度: atan(120/102.6) ≈ 49.5° -->
+        <path
+            android:pathData="M0,0 L17.4,0 L120,120 L102.6,120 Z">
+            <aapt:attr name="android:fillColor">
+                <gradient
+                    android:type="linear"
+                    android:startX="0"
+                    android:startY="0"
+                    android:endX="120"
+                    android:endY="120"
+                    android:startColor="#00C2FF"
+                    android:endColor="#6C5CE7"/>
+            </aapt:attr>
+        </path>
         
     </group>
     
