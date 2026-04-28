@@ -36,14 +36,16 @@ import java.util.Map;
  * 2. 本地列表：保持升序 [oldest, ..., newest]，最新消息在末尾
  * 3. 显示过滤：只显示 content 不为空且 role 不是 tool 的消息
  * 
- * 下拉加载状态机：
- * - IDLE: 正常状态，不在顶部
- * - AT_TOP: 在顶部，显示"下拉加载更多"提示（保持显示）
- * - PULLING: 下拉中，累计 pullDistance，显示进度百分比
- * - LOADING: 加载中，显示"正在加载..."，禁止新请求
- * - LOADED: 加载完成，定位滚动，提示消失
+ * 下拉加载更多：
+ * - 显示条件：上一次请求的 since > 1（还有更早的消息可以加载）
+ * - 隐藏条件：since == 1（已到最早消息）或无消息
  * 
- * 关键：只有加载完成且滚动定位完成后，才能继续下拉
+ * 状态机：
+ * - IDLE: 正常状态
+ * - AT_TOP: 在顶部，可以下拉加载更多
+ * - PULLING: 下拉中
+ * - LOADING: 加载中
+ * - LOADED: 加载完成，定位滚动后回到 AT_TOP 或 IDLE
  */
 public class ChatActivity extends AppCompatActivity {
     
@@ -57,10 +59,10 @@ public class ChatActivity extends AppCompatActivity {
     
     // 下拉加载状态
     private static final int LOAD_STATE_IDLE = 0;      // 正常状态
-    private static final int LOAD_STATE_AT_TOP = 1;    // 在顶部，显示提示
+    private static final int LOAD_STATE_AT_TOP = 1;    // 在顶部，可以下拉
     private static final int LOAD_STATE_PULLING = 2;   // 下拉中
     private static final int LOAD_STATE_LOADING = 3;   // 加载中
-    private static final int LOAD_STATE_LOADED = 4;    // 加载完成
+    private static final int LOAD_STATE_LOADED = 4;   // 加载完成
     
     public static final String EXTRA_SESSION_ID = "session_id";
     public static final String EXTRA_SESSION_TITLE = "session_title";
@@ -92,7 +94,11 @@ public class ChatActivity extends AppCompatActivity {
     
     private int totalMessageCount = 0;
     private int loadState = LOAD_STATE_IDLE;
-    private boolean hasMoreMessages = true;
+    
+    // 当前加载位置：上一次请求的 since 值
+    // 用于判断是否还有更早的消息可以加载
+    private int currentSince = 0;
+    
     private int buttonState = STATE_NORMAL;
     private boolean isInProgress = false;
     private Menu chatMenu;
@@ -100,6 +106,8 @@ public class ChatActivity extends AppCompatActivity {
     // 下拉加载相关
     private int pullDistance = 0;
     private int lastPullProgress = -1; // 上次显示的进度，避免重复更新
+    private String lastLoadMoreText = null; // 上次显示的文本，避免重复设置
+    private Integer lastLoadMoreColor = null; // 上次显示的颜色，避免重复设置
     
     // 消息指纹缓存（用于检测变化）
     private Map<Long, String> messageFingerprints = new HashMap<>();
@@ -107,7 +115,7 @@ public class ChatActivity extends AppCompatActivity {
     private String lastMessageContent = null;
     private int lastCheckedContentLength = -1;
     
-    // 追踪服务器消息总数（用于增量刷新，因为本地消息数 != 服务器消息数）
+    // 追踪服务器消息总数（用于增量刷新）
     private int processedServerMessageCount = 0;
     
     // 滚动监听器（用于防止重复添加）
@@ -150,6 +158,7 @@ public class ChatActivity extends AppCompatActivity {
         if (session != null) {
             Log.d(TAG, "Session: accountId=" + session.getAccountId());
             totalMessageCount = session.getMessageCount();
+            currentSince = session.getFirstMessageIndex();
         }
         
         if (session != null && session.getAccountId() != null && !session.getAccountId().isEmpty()) {
@@ -197,18 +206,21 @@ public class ChatActivity extends AppCompatActivity {
                     int firstVisible = lm.findFirstVisibleItemPosition();
                     boolean isAtTop = (firstVisible == 0);
                     
+                    // 是否还有更早的消息可以加载
+                    boolean hasMoreMessages = canLoadMore();
+                    
                     // 状态机逻辑
                     switch (loadState) {
                         case LOAD_STATE_IDLE:
                             // 正常状态，检测是否到达顶部
                             if (isAtTop && hasMoreMessages) {
                                 loadState = LOAD_STATE_AT_TOP;
-                                showLoadMoreHint("下拉加载更多消息");
+                                showLoadMoreHint("下拉加载更多消息", Color.parseColor("#2196F3"));
                             }
                             break;
                             
                         case LOAD_STATE_AT_TOP:
-                            // 在顶部，显示提示
+                            // 在顶部，等待下拉
                             if (!isAtTop) {
                                 // 离开顶部，回到 IDLE
                                 loadState = LOAD_STATE_IDLE;
@@ -228,18 +240,18 @@ public class ChatActivity extends AppCompatActivity {
                                 loadState = LOAD_STATE_AT_TOP;
                                 pullDistance = 0;
                                 lastPullProgress = -1;
-                                showLoadMoreHint("下拉加载更多消息");
+                                showLoadMoreHint("下拉加载更多消息", Color.parseColor("#2196F3"));
                             } else if (dy < 0 && isAtTop) {
                                 // 继续下拉
                                 pullDistance += Math.abs(dy);
                                 updatePullProgress();
                                 
-                                if (pullDistance >= PULL_THRESHOLD) {
+                                if (pullDistance >= PULL_THRESHOLD && hasMoreMessages) {
                                     // 达到阈值，触发加载
                                     loadState = LOAD_STATE_LOADING;
                                     pullDistance = 0;
                                     lastPullProgress = -1;
-                                    showLoadMoreHint("正在加载...");
+                                    showLoadMoreHint("正在加载...", Color.parseColor("#FFBB33"));
                                     // 记录加载前第一条可显示消息的索引
                                     firstDisplayableIndexBeforeLoad = findFirstDisplayableIndex();
                                     loadOlderMessages();
@@ -256,6 +268,7 @@ public class ChatActivity extends AppCompatActivity {
                         case LOAD_STATE_LOADING:
                             // 加载中，忽略所有滚动事件
                             break;
+                            
                         case LOAD_STATE_LOADED:
                             // 加载完成后，如果用户离开顶部则回到 IDLE
                             if (!isAtTop) {
@@ -288,6 +301,7 @@ public class ChatActivity extends AppCompatActivity {
                     if (lm != null) {
                         int firstVisible = lm.findFirstVisibleItemPosition();
                         boolean isAtTop = (firstVisible == 0);
+                        boolean hasMoreMessages = canLoadMore();
                         
                         // 根据当前状态处理
                         switch (loadState) {
@@ -297,15 +311,15 @@ public class ChatActivity extends AppCompatActivity {
                                 pullDistance = 0;
                                 lastPullProgress = -1;
                                 if (isAtTop && hasMoreMessages) {
-                                    showLoadMoreHint("下拉加载更多消息");
+                                    showLoadMoreHint("下拉加载更多消息", Color.parseColor("#2196F3"));
                                 }
                                 break;
                             
                             case LOAD_STATE_LOADED:
-                                // 加载完成且滚动停止，回到 AT_TOP
-                                loadState = LOAD_STATE_AT_TOP;
+                                // 加载完成且滚动停止，检查是否还有更多消息
                                 if (isAtTop && hasMoreMessages) {
-                                    showLoadMoreHint("下拉加载更多消息");
+                                    loadState = LOAD_STATE_AT_TOP;
+                                    showLoadMoreHint("下拉加载更多消息", Color.parseColor("#2196F3"));
                                 } else {
                                     loadState = LOAD_STATE_IDLE;
                                     hideLoadMoreHint();
@@ -316,7 +330,7 @@ public class ChatActivity extends AppCompatActivity {
                                 // 检查是否在顶部
                                 if (isAtTop && hasMoreMessages) {
                                     loadState = LOAD_STATE_AT_TOP;
-                                    showLoadMoreHint("下拉加载更多消息");
+                                    showLoadMoreHint("下拉加载更多消息", Color.parseColor("#2196F3"));
                                 }
                                 break;
                         }
@@ -353,6 +367,14 @@ public class ChatActivity extends AppCompatActivity {
     }
     
     /**
+     * 判断是否还可以加载更多消息
+     * 条件：currentSince > 1（上一次请求的 since 大于 1）
+     */
+    private boolean canLoadMore() {
+        return currentSince > 1;
+    }
+    
+    /**
      * 查找第一条可显示消息的索引
      */
     private int findFirstDisplayableIndex() {
@@ -373,26 +395,35 @@ public class ChatActivity extends AppCompatActivity {
         if (progress != lastPullProgress) {
             lastPullProgress = progress;
             if (progress >= 100) {
-                showLoadMoreHint("松开加载更多");
+                showLoadMoreHint("松开加载更多", Color.parseColor("#4CAF50"));
             } else {
-                showLoadMoreHint("下拉加载更多 (" + progress + "%)");
+                showLoadMoreHint("下拉加载更多 (" + progress + "%)", Color.parseColor("#2196F3"));
             }
         }
     }
     
     /**
-     * 显示下拉加载提示
+     * 显示下拉加载提示（避免重复设置相同的文本和颜色）
      */
-    private void showLoadMoreHint(String text) {
+    private void showLoadMoreHint(String text, int color) {
         if (tvLoadMore == null) return;
-        tvLoadMore.setVisibility(View.VISIBLE);
-        tvLoadMore.setText(text);
-        if (text.contains("正在加载")) {
-            tvLoadMore.setBackgroundColor(Color.parseColor("#FFBB33"));
-        } else if (text.contains("松开")) {
-            tvLoadMore.setBackgroundColor(Color.parseColor("#4CAF50"));
-        } else {
-            tvLoadMore.setBackgroundColor(Color.parseColor("#2196F3"));
+        
+        // 只有文本或颜色变化时才更新
+        boolean needUpdate = false;
+        if (!text.equals(lastLoadMoreText)) {
+            tvLoadMore.setText(text);
+            lastLoadMoreText = text;
+            needUpdate = true;
+        }
+        if (lastLoadMoreColor == null || lastLoadMoreColor != color) {
+            tvLoadMore.setBackgroundColor(color);
+            lastLoadMoreColor = color;
+            needUpdate = true;
+        }
+        
+        // 只有内容变化时才显示视图
+        if (needUpdate || tvLoadMore.getVisibility() != View.VISIBLE) {
+            tvLoadMore.setVisibility(View.VISIBLE);
         }
     }
     
@@ -400,8 +431,10 @@ public class ChatActivity extends AppCompatActivity {
      * 隐藏下拉加载提示
      */
     private void hideLoadMoreHint() {
-        if (tvLoadMore != null) {
+        if (tvLoadMore != null && tvLoadMore.getVisibility() == View.VISIBLE) {
             tvLoadMore.setVisibility(View.GONE);
+            lastLoadMoreText = null;
+            lastLoadMoreColor = null;
         }
     }
     
@@ -594,25 +627,22 @@ public class ChatActivity extends AppCompatActivity {
             messageFingerprints.clear();
             addMessage("暂无消息", false);
             processedServerMessageCount = 0;
+            currentSince = 0; // 无消息，不能加载更多
             adapter.refreshData();
+            hideLoadMoreHint();
             return;
         }
         
         // 计算加载范围（加载最新的一页消息）
         int since = Math.max(1, totalMessageCount - PAGE_SIZE + 1);
-        hasMoreMessages = (since > 1);
+        currentSince = since; // 记录当前加载位置
         
         Log.d(TAG, "Loading: since=" + since + ", total=" + totalMessageCount);
-        loadState = LOAD_STATE_LOADING;
-        showLoadMoreHint("正在加载...");
         
         apiClient.getNewMessages(currentSessionId, since, new ApiClient.MessagesCallback() {
             @Override
             public void onSuccess(List<ApiClient.ChatMessage> chatMessages) {
                 runOnUiThread(() -> {
-                    loadState = LOAD_STATE_IDLE;
-                    hideLoadMoreHint();
-                    
                     // 清空现有消息
                     messages.clear();
                     messageFingerprints.clear();
@@ -620,7 +650,9 @@ public class ChatActivity extends AppCompatActivity {
                     if (chatMessages.isEmpty()) {
                         addMessage("暂无消息", false);
                         processedServerMessageCount = 0;
+                        currentSince = 0;
                         adapter.refreshData();
+                        hideLoadMoreHint();
                         return;
                     }
                     
@@ -631,20 +663,20 @@ public class ChatActivity extends AppCompatActivity {
                     }
                     processedServerMessageCount = totalMessageCount;
                     lastMessageCount = messages.size();
-                    Log.d(TAG, "Loaded: local=" + messages.size() + ", serverTotal=" + totalMessageCount);
+                    Log.d(TAG, "Loaded: local=" + messages.size() + ", serverTotal=" + totalMessageCount + ", currentSince=" + currentSince);
                     
-                    // 保存当前加载位置，用于加载更早消息
-                    sessionManager.updateFirstMessageIndex(currentSessionId, since);
+                    // 保存当前加载位置
+                    sessionManager.updateFirstMessageIndex(currentSessionId, currentSince);
                     adapter.refreshData();
                     
-                    // ⚠️ 关键：使用多次延迟确保滚动到底部
-                    // 1. 首先立即滚动（此时数据可能还未渲染）
+                    // 根据加载位置决定是否显示下拉加载更多
+                    if (!canLoadMore()) {
+                        hideLoadMoreHint();
+                    }
+                    
+                    // 滚动到底部
                     forceScrollToBottom();
-                    
-                    // 2. 使用 ViewTreeObserver 等待布局完成
                     forceScrollToBottomWithLayoutObserver();
-                    
-                    // 3. 额外延迟确保 RecyclerView 已完成所有渲染
                     rvMessages.postDelayed(() -> forceScrollToBottom(), 100);
                     rvMessages.postDelayed(() -> forceScrollToBottom(), 300);
                 });
@@ -653,12 +685,12 @@ public class ChatActivity extends AppCompatActivity {
             @Override
             public void onError(String error) {
                 runOnUiThread(() -> {
-                    loadState = LOAD_STATE_IDLE;
-                    hideLoadMoreHint();
                     messages.clear();
                     messageFingerprints.clear();
                     addMessage("加载失败: " + error, false);
+                    currentSince = 0;
                     adapter.refreshData();
+                    hideLoadMoreHint();
                 });
             }
         });
@@ -666,41 +698,41 @@ public class ChatActivity extends AppCompatActivity {
     
     /**
      * 加载更早的消息
-     * 
-     * 状态机流程：
-     * 1. 触发加载：pullDistance >= PULL_THRESHOLD → LOAD_STATE_LOADING
-     * 2. 加载完成：定位到原第一条消息位置 → LOAD_STATE_LOADED
-     * 3. 滚动稳定：LOAD_STATE_LOADED → LOAD_STATE_AT_TOP（可以继续下拉）
      */
     private void loadOlderMessages() {
         // 状态已经由调用者设置（LOAD_STATE_LOADING）
-        if (!hasMoreMessages) return;
-        Session session = sessionManager.getSession(currentSessionId);
-        int currentFirstIndex = session != null ? session.getFirstMessageIndex() : 0;
-        
-        if (currentFirstIndex <= 1) {
-            hasMoreMessages = false;
+        if (!canLoadMore()) {
             loadState = LOAD_STATE_IDLE;
             hideLoadMoreHint();
             Toast.makeText(this, "已到第一条消息", Toast.LENGTH_SHORT).show();
             return;
         }
         
-        int newSince = Math.max(currentFirstIndex - PAGE_SIZE, 1);
+        Session session = sessionManager.getSession(currentSessionId);
+        int currentFirstIndex = session != null ? session.getFirstMessageIndex() : currentSince;
+        
+        if (currentFirstIndex <= 1) {
+            currentSince = 1;
+            loadState = LOAD_STATE_IDLE;
+            hideLoadMoreHint();
+            Toast.makeText(this, "已到第一条消息", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        int newSince = Math.max(1, currentFirstIndex - PAGE_SIZE + 1);
         if (newSince >= currentFirstIndex) {
-            hasMoreMessages = false;
+            currentSince = 1;
             loadState = LOAD_STATE_IDLE;
             hideLoadMoreHint();
             return;
         }
         
-        // 已经在 LOAD_STATE_LOADING 状态，显示"正在加载..."
         apiClient.getNewMessages(currentSessionId, newSince, new ApiClient.MessagesCallback() {
             @Override
             public void onSuccess(List<ApiClient.ChatMessage> chatMessages) {
                 runOnUiThread(() -> {
                     if (chatMessages.isEmpty()) {
-                        hasMoreMessages = false;
+                        currentSince = 1;
                         loadState = LOAD_STATE_IDLE;
                         hideLoadMoreHint();
                         return;
@@ -725,16 +757,14 @@ public class ChatActivity extends AppCompatActivity {
                         }
                     }
                     
+                    // 更新当前加载位置
+                    currentSince = newSince;
                     sessionManager.updateFirstMessageIndex(currentSessionId, newSince);
-                    hasMoreMessages = (newSince > 1);
                     
                     // 一次性刷新数据
                     adapter.refreshData();
                     
                     // 定位到原第一条消息的新位置
-                    // 原第一条在 firstDisplayableIndexBeforeLoad
-                    // 新增了 newDisplayableCount 条可显示消息在开头
-                    // 所以原第一条现在在 firstDisplayableIndexBeforeLoad + newDisplayableCount
                     int newPosition = firstDisplayableIndexBeforeLoad + newDisplayableCount;
                     rvMessages.scrollToPosition(newPosition);
                     
@@ -742,26 +772,36 @@ public class ChatActivity extends AppCompatActivity {
                                ", firstBefore=" + firstDisplayableIndexBeforeLoad + 
                                ", newPosition=" + newPosition + ", newSince=" + newSince);
                     
-                    // 进入 LOADED 状态，等待滚动稳定后才能继续下拉
-                    loadState = LOAD_STATE_LOADED;
-                    showLoadMoreHint("已加载 " + newDisplayableCount + " 条消息");
-                    
-                    // 2秒后隐藏提示，回到 AT_TOP 状态
-                    rvMessages.postDelayed(() -> {
-                        if (loadState == LOAD_STATE_LOADED || loadState == LOAD_STATE_LOADING) {
+                    // 检查是否还有更多消息
+                    if (canLoadMore()) {
+                        // 还有更多消息，回到 AT_TOP 状态
+                        loadState = LOAD_STATE_LOADED;
+                        showLoadMoreHint("已加载 " + newDisplayableCount + " 条消息", Color.parseColor("#4CAF50"));
+                        
+                        // 1.5秒后恢复提示
+                        rvMessages.postDelayed(() -> {
                             LinearLayoutManager lm = (LinearLayoutManager) rvMessages.getLayoutManager();
-                            if (lm != null) {
+                            if (lm != null && loadState == LOAD_STATE_LOADED) {
                                 int firstVisible = lm.findFirstVisibleItemPosition();
-                                if (firstVisible == 0 && hasMoreMessages) {
+                                if (firstVisible == 0) {
                                     loadState = LOAD_STATE_AT_TOP;
-                                    showLoadMoreHint("下拉加载更多消息");
+                                    showLoadMoreHint("下拉加载更多消息", Color.parseColor("#2196F3"));
                                 } else {
                                     loadState = LOAD_STATE_IDLE;
                                     hideLoadMoreHint();
                                 }
                             }
-                        }
-                    }, 2000);
+                        }, 1500);
+                    } else {
+                        // 没有更多消息了
+                        loadState = LOAD_STATE_IDLE;
+                        showLoadMoreHint("已到第一条消息", Color.parseColor("#FF5722"));
+                        
+                        // 1.5秒后隐藏提示
+                        rvMessages.postDelayed(() -> {
+                            hideLoadMoreHint();
+                        }, 1500);
+                    }
                 });
             }
             
@@ -829,8 +869,8 @@ public class ChatActivity extends AppCompatActivity {
         messages.clear();
         messageFingerprints.clear();
         processedServerMessageCount = 0;
+        currentSince = 0;
         sessionManager.updateFirstMessageIndex(currentSessionId, 0);
-        hasMoreMessages = true;
         loadState = LOAD_STATE_IDLE;
         hideLoadMoreHint();
         loadMessagesPage();
@@ -849,31 +889,6 @@ public class ChatActivity extends AppCompatActivity {
     }
     
     /**
-     * 获取第一条可显示的消息
-     */
-    private Message getFirstDisplayableMessage() {
-        for (int i = 0; i < messages.size(); i++) {
-            if (messages.get(i).shouldDisplay()) {
-                return messages.get(i);
-            }
-        }
-        return null;
-    }
-    
-    /**
-     * 获取第一条可显示消息的内容
-     */
-    private String getFirstDisplayableContent() {
-        for (int i = 0; i < messages.size(); i++) {
-            Message msg = messages.get(i);
-            if (msg.shouldDisplay()) {
-                return msg.getContent();
-            }
-        }
-        return "";
-    }
-    
-    /**
      * 统计可显示消息数量
      */
     private int countDisplayableMessages() {
@@ -887,8 +902,7 @@ public class ChatActivity extends AppCompatActivity {
     }
     
     /**
-     * ⚠️ 强制滚动到底部 - 无动画，直接定位到最后位置
-     * 使用 LinearLayoutManager.scrollToPositionWithOffset 确保最后一个 item 在顶部可见
+     * 强制滚动到底部 - 无动画，直接定位到最后位置
      */
     private void forceScrollToBottom() {
         if (rvMessages == null || adapter == null) return;
@@ -896,8 +910,6 @@ public class ChatActivity extends AppCompatActivity {
         if (itemCount > 0) {
             LinearLayoutManager lm = (LinearLayoutManager) rvMessages.getLayoutManager();
             if (lm != null) {
-                // 使用 scrollToPositionWithOffset 确保最后一个 item 显示在顶部
-                // 这样即使 item 很长，也能确保用户看到最新的消息
                 lm.scrollToPositionWithOffset(itemCount - 1, 0);
             } else {
                 rvMessages.scrollToPosition(itemCount - 1);
@@ -906,13 +918,11 @@ public class ChatActivity extends AppCompatActivity {
     }
     
     /**
-     * ⚠️ 强制滚动到底部 - 使用 ViewTreeObserver 确保布局完成后滚动
-     * 用于初始加载消息后确保滚动到底部
+     * 强制滚动到底部 - 使用 ViewTreeObserver 确保布局完成后滚动
      */
     private void forceScrollToBottomWithLayoutObserver() {
         if (rvMessages == null || adapter == null) return;
         
-        // 移除之前的监听器（如果有）
         if (pendingScrollListener != null) {
             rvMessages.getViewTreeObserver().removeOnGlobalLayoutListener(pendingScrollListener);
         }
@@ -920,20 +930,15 @@ public class ChatActivity extends AppCompatActivity {
         final int targetPosition = adapter.getItemCount() - 1;
         if (targetPosition < 0) return;
         
-        // 创建并保存监听器引用
         pendingScrollListener = new ViewTreeObserver.OnGlobalLayoutListener() {
             @Override
             public void onGlobalLayout() {
-                // 移除监听器
                 rvMessages.getViewTreeObserver().removeOnGlobalLayoutListener(this);
                 pendingScrollListener = null;
-                
-                // 布局完成后滚动到底部
                 forceScrollToBottom();
             }
         };
         
-        // 添加监听器
         rvMessages.getViewTreeObserver().addOnGlobalLayoutListener(pendingScrollListener);
     }
     
@@ -997,7 +1002,6 @@ public class ChatActivity extends AppCompatActivity {
         messages.add(new Message(content, role, System.currentTimeMillis()));
         adapter.refreshData();
         
-        // 强制滚动到底部（无动画）
         forceScrollToBottom();
     }
     
@@ -1014,14 +1018,12 @@ public class ChatActivity extends AppCompatActivity {
         }
         
         etMessage.setText("");
-        // 发送消息后立即刷新状态，按钮状态由 session.in_progress 决定
         addMessage(content, true);
         
         apiClient.sendMessage(currentSessionId, content, new ApiClient.MessageCallback() {
             @Override
             public void onSuccess() {
                 Log.d(TAG, "Message sent successfully");
-                // 发送成功后刷新 session 状态
                 refreshSessionStatus();
             }
             
@@ -1038,7 +1040,7 @@ public class ChatActivity extends AppCompatActivity {
         buttonState = STATE_NORMAL;
         btnSend.setText("发送");
         btnSend.setEnabled(true);
-        btnSend.setBackgroundColor(Color.parseColor("#2196F3")); // 蓝色，与顶部工具栏一致
+        btnSend.setBackgroundColor(Color.parseColor("#2196F3"));
         isInProgress = false;
         if (chatMenu != null) {
             updateMenuVisibility(chatMenu);
@@ -1048,8 +1050,8 @@ public class ChatActivity extends AppCompatActivity {
     private void setButtonStateSending() {
         buttonState = STATE_SENDING;
         btnSend.setText("停止");
-        btnSend.setEnabled(true); // 可点击以停止
-        btnSend.setBackgroundColor(Color.parseColor("#F44336")); // 红色背景
+        btnSend.setEnabled(true);
+        btnSend.setBackgroundColor(Color.parseColor("#F44336"));
         isInProgress = true;
         if (chatMenu != null) {
             updateMenuVisibility(chatMenu);
@@ -1065,8 +1067,10 @@ public class ChatActivity extends AppCompatActivity {
                     messages.clear();
                     messageFingerprints.clear();
                     processedServerMessageCount = 0;
+                    currentSince = 0;
                     adapter.refreshData();
                     addMessage("会话已清空", false);
+                    hideLoadMoreHint();
                     Toast.makeText(ChatActivity.this, "会话已清空", Toast.LENGTH_SHORT).show();
                 });
             }
@@ -1107,9 +1111,6 @@ public class ChatActivity extends AppCompatActivity {
             .show();
     }
     
-    /**
-     * 控制菜单项可见性
-     */
     private void updateMenuVisibility(Menu menu) {
         if (menu == null) return;
         
@@ -1118,7 +1119,6 @@ public class ChatActivity extends AppCompatActivity {
         MenuItem delete = menu.findItem(R.id.action_delete_session);
         MenuItem preview = menu.findItem(R.id.action_preview);
         
-        // 正在生成时禁用相关操作
         boolean enabled = !isInProgress;
         
         if (refresh != null) refresh.setEnabled(enabled);
@@ -1127,9 +1127,6 @@ public class ChatActivity extends AppCompatActivity {
         if (preview != null) preview.setEnabled(true);
     }
     
-    /**
-     * 显示会话预览对话框
-     */
     private void showPreviewDialog() {
         if (apiClient == null || currentSessionId == null) return;
         
@@ -1161,7 +1158,6 @@ public class ChatActivity extends AppCompatActivity {
             public void onSuccess() {
                 runOnUiThread(() -> {
                     Toast.makeText(ChatActivity.this, "已停止", Toast.LENGTH_SHORT).show();
-                    // 触发状态刷新，由 session 的 in_progress 属性决定按钮状态
                     refreshSessionStatus();
                 });
             }

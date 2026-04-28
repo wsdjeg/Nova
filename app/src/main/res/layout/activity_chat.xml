@@ -59,7 +59,19 @@
         </LinearLayout>
     </androidx.appcompat.widget.Toolbar>
 
-    <!-- Load More Hint (shown when pulling down at top) -->
+    <!-- Messages RecyclerView -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rv_messages"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_above="@id/inputLayout"
+        android:layout_below="@id/toolbar"
+        android:scrollbars="vertical"
+        android:padding="8dp"
+        android:clipToPadding="false"
+        android:overScrollMode="always" />
+
+    <!-- Load More Hint (overlay, shown when pulling down at top) -->
     <TextView
         android:id="@+id/tv_load_more"
         android:layout_width="match_parent"
@@ -71,19 +83,7 @@
         android:textSize="14sp"
         android:background="#4CAF50"
         android:visibility="gone"
-        android:elevation="2dp" />
-
-    <!-- Messages RecyclerView -->
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/rv_messages"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:layout_above="@id/inputLayout"
-        android:layout_below="@id/tv_load_more"
-        android:scrollbars="vertical"
-        android:padding="8dp"
-        android:clipToPadding="false"
-        android:overScrollMode="always" />
+        android:elevation="4dp" />
 
     <!-- Scroll to Bottom FAB -->
     <com.google.android.material.floatingactionbutton.FloatingActionButton
