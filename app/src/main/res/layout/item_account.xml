@@ -15,7 +15,7 @@
         android:gravity="center_horizontal"
         android:layout_marginEnd="16dp">
 
-        <!-- 激活状态圆点 -->
+        <!-- 默认状态圆点 -->
         <View
             android:id="@+id/account_status_dot"
             android:layout_width="12dp"
@@ -66,7 +66,7 @@
             android:id="@+id/account_status_label"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="当前激活"
+            android:text="默认账号"
             android:textSize="11sp"
             android:textColor="@color/primary"
             android:layout_marginTop="4dp"
@@ -80,14 +80,14 @@
         android:layout_height="wrap_content"
         android:orientation="horizontal">
 
-        <!-- 激活按钮 -->
+        <!-- 设为默认按钮 -->
         <ImageButton
-            android:id="@+id/account_activate_button"
+            android:id="@+id/account_default_button"
             android:layout_width="40dp"
             android:layout_height="40dp"
             android:src="@android:drawable/ic_menu_agenda"
             android:background="?attr/selectableItemBackgroundBorderless"
-            android:contentDescription="激活此账号"
+            android:contentDescription="设为默认账号"
             android:padding="8dp" />
 
         <!-- 编辑按钮 -->
