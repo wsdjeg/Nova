@@ -169,11 +169,13 @@ public class ChatActivity extends AppCompatActivity {
         if (session != null) {
             Log.d(TAG, "Session: accountId=" + session.getAccountId());
             totalMessageCount = session.getMessageCount();
-            currentSince = session.getFirstMessageIndex();
-        }
-        
-        if (session != null && session.getAccountId() != null && !session.getAccountId().isEmpty()) {
-            sessionAccount = accountManager.getAccountById(session.getAccountId());
+            // 不再从本地存储读取 firstMessageIndex，因为消息数量可能已变化
+            // currentSince 将在 loadMessagesPage() 中根据最新的 totalMessageCount 计算
+            currentSince = 0;
+            
+            if (session.getAccountId() != null && !session.getAccountId().isEmpty()) {
+                sessionAccount = accountManager.getAccountById(session.getAccountId());
+            }
         }
         if (sessionAccount == null) {
             sessionAccount = accountManager.getActiveAccount();
@@ -974,6 +976,7 @@ public class ChatActivity extends AppCompatActivity {
             }
         }
     }
+    
     private void refreshSessionStatus() {
         refreshSessionStatus(null);
     }
