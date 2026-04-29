@@ -14,6 +14,7 @@ public class Message {
     private long timestamp;
     private String role;      // 原始 role: user, assistant, tool, system 等
     private long created;      // 服务器时间戳（秒）
+    private boolean isPending; // 是否是待确认的消息（本地发送但服务端尚未返回）
 
     // 使用指定时间戳的构造方法
     public Message(String content, boolean isUser, long timestamp) {
@@ -22,6 +23,7 @@ public class Message {
         this.timestamp = timestamp;
         this.role = isUser ? "user" : "assistant";
         this.created = timestamp / 1000;
+        this.isPending = false;
     }
 
     // 完整构造方法（包含 role 和 created）
@@ -31,6 +33,7 @@ public class Message {
         this.isUser = "user".equals(this.role);
         this.created = created;
         this.timestamp = created * 1000;
+        this.isPending = false;
     }
 
     // 使用当前时间的构造方法（用于用户刚发送的消息）
@@ -40,6 +43,14 @@ public class Message {
         this.timestamp = System.currentTimeMillis();
         this.role = isUser ? "user" : "assistant";
         this.created = this.timestamp / 1000;
+        this.isPending = false;
+    }
+
+    // 创建 pending 消息的静态方法
+    public static Message createPending(String content, boolean isUser) {
+        Message msg = new Message(content, isUser);
+        msg.isPending = true;
+        return msg;
     }
 
     public String getContent() {
@@ -60,6 +71,14 @@ public class Message {
 
     public long getCreated() {
         return created;
+    }
+
+    public boolean isPending() {
+        return isPending;
+    }
+
+    public void setPending(boolean pending) {
+        isPending = pending;
     }
 
     /**

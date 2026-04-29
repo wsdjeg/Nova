@@ -12,7 +12,6 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewTreeObserver;
-import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
@@ -40,6 +39,11 @@ import java.util.Map;
  * 1. 消息排序：API 返回升序 [oldest, ..., newest]
  * 2. 本地列表：保持升序，最新消息在末尾
  * 3. 显示过滤：只显示 content 不为空且 role 不是 tool 的消息
+ * 
+ * Pending 消息机制：
+ * - 发送消息时添加 pending 消息（临时显示）
+ * - 服务端返回后，用正式消息替换 pending 消息
+ * - 避免重复消息问题
  * 
  * 下拉加载更多：
  * - 条件：到达顶部且 currentSince > 1
@@ -69,7 +73,7 @@ public class ChatActivity extends AppCompatActivity {
     private static final int STATE_SENDING = 1;
     private static final int BOTTOM_THRESHOLD = 3;
     private static final int REQUEST_SESSION_SETTINGS = 1001;
-    private static final int POSITION_STABLE_DELAY = 500;  // 位置稳定延迟
+    private static final int POSITION_STABLE_DELAY = 500;
     
     public static final String EXTRA_SESSION_ID = "session_id";
     public static final String EXTRA_SESSION_TITLE = "session_title";
@@ -92,41 +96,39 @@ public class ChatActivity extends AppCompatActivity {
     
     private String currentSessionId;
     private String currentSessionTitle;
-    private String currentProvider;  // 当前显示的 provider
-    private String currentModel;     // 当前显示的 model
+    private String currentProvider;
+    private String currentModel;
     private String accountId;
-    private Account currentAccount;  // 当前账号（用于预览等功能）
+    private Account currentAccount;
     
     private Handler refreshHandler;
     private Runnable refreshRunnable;
     private boolean isAutoRefreshEnabled = true;
     
     private int totalMessageCount = 0;
-    private int currentSince = 0;  // 当前加载位置
+    private int currentSince = 0;
     
     private int buttonState = STATE_NORMAL;
     private boolean isInProgress = false;
     private Menu chatMenu;
     
-    // 下拉加载状态
     private boolean isLoadingOlder = false;
     private boolean wasAtTopBeforeLoad = false;
     
-    // 位置保持：记录第一条可见消息的 created 时间戳
     private long firstVisibleMessageCreated = -1;
-    private int firstVisibleOffset = 0;  // 消息顶部距离 RecyclerView 顶部的偏移
+    private int firstVisibleOffset = 0;
     
-    // 位置恢复锁定：在位置恢复期间禁止 scrollToBottom
     private boolean isPositionLocked = false;
     
-    // 消息指纹缓存
+    // 消息指纹缓存（使用服务端时间戳 created 作为 key）
     private Map<Long, String> messageFingerprints = new HashMap<>();
     private int processedServerMessageCount = 0;
     
-    // 是否用户主动滚动到底部（跟随模式）
+    // Pending 消息：存储正在发送的消息内容，等待服务端确认
+    private Map<String, Long> pendingMessages = new HashMap<>();
+    
     private boolean userAtBottom = false;
     
-    // 键盘状态
     private int lastUsableHeight = 0;
     private boolean isKeyboardVisible = false;
     
@@ -145,7 +147,6 @@ public class ChatActivity extends AppCompatActivity {
         
         currentSessionId = getIntent().getStringExtra(EXTRA_SESSION_ID);
         currentSessionTitle = getIntent().getStringExtra(EXTRA_SESSION_TITLE);
-        // 从 Intent 接收 provider, model, cwd（新建会话时传入）
         String intentProvider = getIntent().getStringExtra("provider");
         String intentModel = getIntent().getStringExtra("model");
         String intentCwd = getIntent().getStringExtra("cwd");
@@ -183,7 +184,6 @@ public class ChatActivity extends AppCompatActivity {
             return;
         }
         
-        // 保存当前账号（用于预览等功能）
         currentAccount = sessionAccount;
         
         accountId = sessionAccount.getId();
@@ -204,7 +204,6 @@ public class ChatActivity extends AppCompatActivity {
         btnSend = findViewById(R.id.btn_send);
         fabScrollBottom = findViewById(R.id.fab_scroll_bottom);
         
-        // 恢复草稿消息
         restoreDraft();
         
         messages = new ArrayList<>();
@@ -214,7 +213,6 @@ public class ChatActivity extends AppCompatActivity {
         rvMessages.setLayoutManager(layoutManager);
         rvMessages.setItemAnimator(null);
         
-        // 滚动监听：下拉加载 + 位置记录 + 滚动到底部按钮
         rvMessages.addOnScrollListener(new RecyclerView.OnScrollListener() {
             @Override
             public void onScrolled(RecyclerView recyclerView, int dx, int dy) {
@@ -228,12 +226,10 @@ public class ChatActivity extends AppCompatActivity {
                 boolean isAtTop = (firstVisible == 0 && total > 0);
                 boolean isAtBottom = (total == 0) || (lastVisible >= total - BOTTOM_THRESHOLD);
                 
-                // 只有在非锁定状态下才更新 userAtBottom
                 if (!isPositionLocked) {
                     userAtBottom = isAtBottom;
                 }
                 
-                // 记录第一条可见消息的位置（用于刷新后恢复）
                 if (firstVisible >= 0 && firstVisible < messages.size()) {
                     Message firstMsg = messages.get(firstVisible);
                     firstVisibleMessageCreated = firstMsg.getTimestamp() / 1000;
@@ -244,21 +240,15 @@ public class ChatActivity extends AppCompatActivity {
                     }
                 }
                 
-                // 下拉加载逻辑
                 if (!isLoadingOlder && isAtTop && canLoadMore()) {
-                    // 到顶部且有更多消息，显示提示
                     showLoadMoreHint("下拉加载更多");
-                    
-                    // 检测过度滚动（继续下拉）
-                    if (dy < 0) {
-                        // 触发加载
+                    if (dx < 0) {
                         triggerLoadOlder();
                     }
                 } else if (!isLoadingOlder && !isAtTop) {
                     hideLoadMoreHint();
                 }
                 
-                // 滚动到底部按钮
                 if (isAtBottom) {
                     fabScrollBottom.setVisibility(View.GONE);
                 } else {
@@ -270,7 +260,6 @@ public class ChatActivity extends AppCompatActivity {
             public void onScrollStateChanged(RecyclerView recyclerView, int newState) {
                 super.onScrollStateChanged(recyclerView, newState);
                 
-                // 滚动停止时检查是否在顶部
                 if (newState == RecyclerView.SCROLL_STATE_IDLE) {
                     LinearLayoutManager lm = (LinearLayoutManager) recyclerView.getLayoutManager();
                     if (lm == null) return;
@@ -289,13 +278,11 @@ public class ChatActivity extends AppCompatActivity {
             }
         });
         
-        // 点击滚动到底部
         fabScrollBottom.setOnClickListener(v -> {
             userAtBottom = true;
             scrollToBottom();
         });
         
-        // 发送按钮
         btnSend.setOnClickListener(v -> {
             if (buttonState == STATE_SENDING) {
                 stopSession();
@@ -306,54 +293,35 @@ public class ChatActivity extends AppCompatActivity {
         
         tvSessionTitle.setText(currentSessionTitle != null ? currentSessionTitle : currentSessionId);
         
-        // 更新顶部信息：优先使用 Intent 传入的值（新建会话时）
         updateSessionInfo(intentProvider, intentModel, intentCwd);
         
-        // 初始化加载
         messages.add(new Message("正在加载消息...", false));
         adapter.refreshData();
         
         refreshSessionStatus(() -> loadMessagesPage());
         startAutoRefresh();
         
-        // 监听键盘弹出，自动滚动到底部
         setupKeyboardListener();
     }
     
-    /**
-     * 设置键盘监听器
-     * 使用现代 WindowInsets API（Android 11+）+ 传统方式 fallback
-     * 当键盘弹出时自动滚动到底部
-     */
     private void setupKeyboardListener() {
-        // 方法1：使用 WindowInsets API（推荐，适用于 Android 11+）
         View rootView = findViewById(android.R.id.content);
         ViewCompat.setOnApplyWindowInsetsListener(rootView, (v, insets) -> {
-            // 获取键盘 insets
             Insets imeInsets = insets.getInsets(WindowInsetsCompat.Type.ime());
-            int keyboardHeight = imeInsets.bottom;
-            
-            // 判断键盘是否可见
             boolean keyboardVisible = insets.isVisible(WindowInsetsCompat.Type.ime());
-            
-            Log.d(TAG, "WindowInsets: visible=" + keyboardVisible + ", height=" + keyboardHeight);
             
             if (keyboardVisible && !isKeyboardVisible) {
                 isKeyboardVisible = true;
-                Log.d(TAG, "Keyboard shown via WindowInsets, scrolling to bottom");
                 scrollToBottom();
                 rvMessages.postDelayed(() -> scrollToBottom(), 100);
                 rvMessages.postDelayed(() -> scrollToBottom(), 200);
             } else if (!keyboardVisible && isKeyboardVisible) {
                 isKeyboardVisible = false;
-                Log.d(TAG, "Keyboard hidden via WindowInsets");
             }
             
-            // 不要消费 insets，让系统继续处理
             return insets;
         });
         
-        // 方法2：传统 fallback 方式（适用于旧版本 Android）
         final View decorView = getWindow().getDecorView();
         decorView.getViewTreeObserver().addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener() {
             @Override
@@ -363,29 +331,17 @@ public class ChatActivity extends AppCompatActivity {
                 
                 int screenHeight = decorView.getHeight();
                 int usableHeight = r.bottom - r.top;
-                
-                // 键盘高度 = 总高度 - 可用高度
                 int keyboardHeight = screenHeight - usableHeight;
                 
-                // 判断键盘是否弹出（键盘高度超过屏幕 15% 认为是弹出）
                 boolean keyboardNowVisible = keyboardHeight > screenHeight * 0.15;
                 
-                Log.d(TAG, "GlobalLayout: screenHeight=" + screenHeight + ", usableHeight=" + usableHeight + ", keyboardHeight=" + keyboardHeight);
-                
-                // 如果键盘状态发生变化
                 if (keyboardNowVisible != isKeyboardVisible) {
                     isKeyboardVisible = keyboardNowVisible;
                     
                     if (keyboardNowVisible) {
-                        // 键盘弹出，滚动到底部让最新消息可见
-                        Log.d(TAG, "Keyboard shown via GlobalLayout, scrolling to bottom");
                         scrollToBottom();
-                        
-                        // 多次延迟确保滚动完成
                         rvMessages.postDelayed(() -> scrollToBottom(), 100);
                         rvMessages.postDelayed(() -> scrollToBottom(), 200);
-                    } else {
-                        Log.d(TAG, "Keyboard hidden via GlobalLayout");
                     }
                 }
                 
@@ -393,47 +349,32 @@ public class ChatActivity extends AppCompatActivity {
             }
         });
         
-        // 方法3：监听输入框焦点变化（最直接的方式）
         etMessage.setOnFocusChangeListener((v, hasFocus) -> {
             if (hasFocus) {
-                Log.d(TAG, "EditText focused, will scroll to bottom when keyboard appears");
-                // 延迟滚动，等待键盘弹出
-                rvMessages.postDelayed(() -> {
-                    scrollToBottom();
-                    Log.d(TAG, "Scrolled after EditText focus");
-                }, 300);
+                rvMessages.postDelayed(() -> scrollToBottom(), 300);
             }
         });
     }
     
-    /**
-     * 是否可以加载更多
-     */
     private boolean canLoadMore() {
         return currentSince > 1 && totalMessageCount > 0;
     }
     
-    /**
-     * 触发加载更早消息
-     */
     private void triggerLoadOlder() {
         if (isLoadingOlder || !canLoadMore()) return;
         
         isLoadingOlder = true;
-        isPositionLocked = true;  // 锁定位置，禁止 scrollToBottom
-        userAtBottom = false;     // 重置状态，防止跟随
+        isPositionLocked = true;
+        userAtBottom = false;
         showLoadMoreHint("正在加载...");
         
-        // 暂停定时刷新
         stopAutoRefresh();
         
-        // 记录加载前的位置
         LinearLayoutManager lm = (LinearLayoutManager) rvMessages.getLayoutManager();
         if (lm != null) {
             int firstVisible = lm.findFirstVisibleItemPosition();
             wasAtTopBeforeLoad = (firstVisible == 0);
             
-            // 记录第一条可显示消息的 created
             if (firstVisible >= 0 && firstVisible < messages.size()) {
                 firstVisibleMessageCreated = messages.get(firstVisible).getTimestamp() / 1000;
                 View firstChild = lm.findViewByPosition(firstVisible);
@@ -446,9 +387,6 @@ public class ChatActivity extends AppCompatActivity {
         loadOlderMessages();
     }
     
-    /**
-     * 显示下拉加载提示
-     */
     private void showLoadMoreHint(String text) {
         if (tvLoadMore != null) {
             tvLoadMore.setVisibility(View.VISIBLE);
@@ -461,43 +399,30 @@ public class ChatActivity extends AppCompatActivity {
         }
     }
     
-    /**
-     * 隐藏下拉加载提示
-     */
     private void hideLoadMoreHint() {
         if (tvLoadMore != null) {
             tvLoadMore.setVisibility(View.GONE);
         }
     }
     
-    /**
-     * 恢复草稿消息到输入框
-     */
     private void restoreDraft() {
         if (sessionManager == null || currentSessionId == null || etMessage == null) return;
         
         String draft = sessionManager.getDraft(currentSessionId);
         if (draft != null && !draft.isEmpty()) {
             etMessage.setText(draft);
-            // 将光标移动到文本末尾
             etMessage.setSelection(draft.length());
-            Log.d(TAG, "Restored draft: " + draft.length() + " chars");
         }
     }
     
-    /**
-     * 保存草稿消息
-     */
     private void saveDraft() {
         if (sessionManager == null || currentSessionId == null || etMessage == null) return;
         
         String content = etMessage.getText().toString().trim();
         if (content.isEmpty()) {
             sessionManager.clearDraft(currentSessionId);
-            Log.d(TAG, "Cleared draft (empty)");
         } else {
             sessionManager.saveDraft(currentSessionId, content);
-            Log.d(TAG, "Saved draft: " + content.length() + " chars");
         }
     }
     
@@ -513,7 +438,6 @@ public class ChatActivity extends AppCompatActivity {
         super.onPause();
         isAutoRefreshEnabled = false;
         stopAutoRefresh();
-        // 保存草稿消息
         saveDraft();
     }
     
@@ -547,15 +471,7 @@ public class ChatActivity extends AppCompatActivity {
         return super.onOptionsItemSelected(item);
     }
     
-    /**
-     * 更新顶部会话信息
-     * 优先使用 Intent 传入的值（新建会话时），否则从 SessionManager 获取
-     * @param intentProvider Intent 传入的 provider
-     * @param intentModel Intent 传入的 model
-     * @param intentCwd Intent 传入的 cwd
-     */
     private void updateSessionInfo(String intentProvider, String intentModel, String intentCwd) {
-        // 如果 Intent 传入的值有效，优先使用
         if (intentProvider != null && !intentProvider.isEmpty() && 
             intentModel != null && !intentModel.isEmpty()) {
             currentProvider = intentProvider;
@@ -565,7 +481,6 @@ public class ChatActivity extends AppCompatActivity {
             return;
         }
         
-        // 否则从 SessionManager 获取
         Session session = sessionManager.getSession(currentSessionId);
         if (session != null) {
             currentProvider = session.getProvider();
@@ -575,22 +490,16 @@ public class ChatActivity extends AppCompatActivity {
         }
     }
     
-    /**
-     * 更新会话信息显示（使用当前缓存的 provider/model）
-     */
     private void updateSessionInfoDisplay() {
         if (currentProvider != null && currentModel != null) {
             tvSessionInfo.setText(currentProvider + " | " + currentModel);
-            Log.d(TAG, "Updated session info display: " + currentProvider + "/" + currentModel);
         } else {
-            // 缓存为空，从 SessionManager 获取
             Session session = sessionManager.getSession(currentSessionId);
             if (session != null) {
                 currentProvider = session.getProvider();
                 currentModel = session.getModel();
                 tvSessionInfo.setText(currentProvider + " | " + currentModel);
                 tvSessionPath.setText("cwd: " + (session.getCwd() != null ? session.getCwd() : ""));
-                Log.d(TAG, "Updated session info display from session: " + currentProvider + "/" + currentModel);
             }
         }
     }
@@ -618,17 +527,11 @@ public class ChatActivity extends AppCompatActivity {
         }
     }
     
-    /**
-     * 定时刷新：保持位置或跟随新消息
-     */
     private void refreshMessages() {
         if (apiClient == null || currentSessionId == null || isLoadingOlder || isPositionLocked) return;
         refreshSessionStatusForIncrementalRefresh();
     }
     
-    /**
-     * 增量刷新
-     */
     private void refreshSessionStatusForIncrementalRefresh() {
         apiClient.getSessions(accountId, new ApiClient.SessionsCallback() {
             @Override
@@ -646,7 +549,6 @@ public class ChatActivity extends AppCompatActivity {
                             } else {
                                 if (wasInProgress) {
                                     setButtonStateNormal();
-                                    // AI 回复完成，获取新消息
                                     fetchNewMessagesAndRestorePosition();
                                 } else {
                                     setButtonStateNormal();
@@ -654,13 +556,10 @@ public class ChatActivity extends AppCompatActivity {
                             }
                             
                             if (serverCount > processedServerMessageCount) {
-                                Log.d(TAG, "New messages: server=" + serverCount + ", processed=" + processedServerMessageCount);
                                 fetchNewMessagesAndRestorePosition();
                             } else if (serverCount < processedServerMessageCount) {
-                                Log.d(TAG, "Messages decreased, reloading");
                                 reloadMessages();
                             } else if (isInProgress) {
-                                // 正在生成，检查最后消息更新
                                 checkLastMessageUpdate();
                             }
                             
@@ -680,9 +579,9 @@ public class ChatActivity extends AppCompatActivity {
     
     /**
      * 获取新消息并保持位置
+     * 包含 pending 消息匹配逻辑
      */
     private void fetchNewMessagesAndRestorePosition() {
-        // 如果位置被锁定，不处理
         if (isPositionLocked) {
             Log.d(TAG, "Position locked, skipping fetch");
             return;
@@ -690,7 +589,7 @@ public class ChatActivity extends AppCompatActivity {
         
         int sinceIndex = processedServerMessageCount + 1;
         
-        Log.d(TAG, "Fetching messages from index: since=" + sinceIndex + ", userAtBottom=" + userAtBottom);
+        Log.d(TAG, "Fetching messages from index: since=" + sinceIndex);
         
         apiClient.getNewMessages(currentSessionId, sinceIndex, new ApiClient.MessagesCallback() {
             @Override
@@ -698,25 +597,40 @@ public class ChatActivity extends AppCompatActivity {
                 runOnUiThread(() -> {
                     if (chatMessages.isEmpty()) return;
                     
-                    // 添加新消息
                     for (ApiClient.ChatMessage msg : chatMessages) {
-                        if (!messageFingerprints.containsKey(msg.created)) {
-                            messages.add(new Message(msg.content, msg.role, msg.created));
-                            messageFingerprints.put(msg.created, msg.content != null ? msg.content : "");
+                        // 检查是否已存在（通过服务端时间戳）
+                        if (messageFingerprints.containsKey(msg.created)) {
+                            Log.d(TAG, "Message already exists, skipping: created=" + msg.created);
+                            continue;
                         }
+                        
+                        // 检查是否有匹配的 pending 消息（仅对 user 消息）
+                        if ("user".equals(msg.role) && msg.content != null) {
+                            int pendingIndex = findPendingMessageIndex(msg.content);
+                            if (pendingIndex >= 0) {
+                                // 找到匹配的 pending 消息，替换为正式消息
+                                Log.d(TAG, "Replacing pending message at index " + pendingIndex);
+                                messages.set(pendingIndex, new Message(msg.content, msg.role, msg.created));
+                                pendingMessages.remove(msg.content);
+                                messageFingerprints.put(msg.created, msg.content);
+                                continue;
+                            }
+                        }
+                        
+                        // 没有匹配的 pending 消息，添加新消息
+                        messages.add(new Message(msg.content, msg.role, msg.created));
+                        messageFingerprints.put(msg.created, msg.content != null ? msg.content : "");
                     }
                     
                     processedServerMessageCount += chatMessages.size();
+                    
+                    cleanupPendingMessages();
+                    
                     adapter.refreshData();
                     
-                    Log.d(TAG, "Incremental: fetched " + chatMessages.size() + ", userAtBottom=" + userAtBottom);
-                    
-                    // 位置恢复逻辑
                     if (userAtBottom && !isPositionLocked) {
-                        // 用户在底部，跟随新消息滚动到底部
                         scrollToBottom();
                     } else {
-                        // 用户不在底部，保持原位置
                         restorePositionByTimestamp();
                     }
                 });
@@ -730,45 +644,78 @@ public class ChatActivity extends AppCompatActivity {
     }
     
     /**
-     * 根据时间戳恢复位置（丝滑滚动）
+     * 查找 pending 消息的索引
      */
+    private int findPendingMessageIndex(String content) {
+        if (content == null || !pendingMessages.containsKey(content)) {
+            return -1;
+        }
+        
+        for (int i = 0; i < messages.size(); i++) {
+            Message msg = messages.get(i);
+            if (msg.isPending() && content.equals(msg.getContent())) {
+                return i;
+            }
+        }
+        return -1;
+    }
+    
+    /**
+     * 清理超时的 pending 消息（超过 30 秒未确认）
+     */
+    private void cleanupPendingMessages() {
+        long now = System.currentTimeMillis();
+        List<String> toRemove = new ArrayList<>();
+        
+        for (Map.Entry<String, Long> entry : pendingMessages.entrySet()) {
+            if (now - entry.getValue() > 30000) {
+                toRemove.add(entry.getKey());
+                for (int i = messages.size() - 1; i >= 0; i--) {
+                    Message msg = messages.get(i);
+                    if (msg.isPending() && entry.getKey().equals(msg.getContent())) {
+                        messages.remove(i);
+                        Log.d(TAG, "Removed timeout pending message");
+                        break;
+                    }
+                }
+            }
+        }
+        
+        for (String key : toRemove) {
+            pendingMessages.remove(key);
+        }
+    }
+    
     private void restorePositionByTimestamp() {
         if (firstVisibleMessageCreated <= 0) return;
         
         LinearLayoutManager lm = (LinearLayoutManager) rvMessages.getLayoutManager();
         if (lm == null) return;
         
-        // 查找时间戳对应的新位置
         for (int i = 0; i < messages.size(); i++) {
             if (messages.get(i).getTimestamp() / 1000 == firstVisibleMessageCreated) {
-                // 使用 scrollToPositionWithOffset 精确恢复位置
                 lm.scrollToPositionWithOffset(i, firstVisibleOffset);
-                Log.d(TAG, "Restored position: index=" + i + ", offset=" + firstVisibleOffset);
                 return;
             }
         }
         
-        // 没找到，可能是被过滤的消息，尝试找最接近的
         for (int i = 0; i < messages.size(); i++) {
             long created = messages.get(i).getTimestamp() / 1000;
             if (created >= firstVisibleMessageCreated) {
                 lm.scrollToPositionWithOffset(i, firstVisibleOffset);
-                Log.d(TAG, "Restored position (fallback): index=" + i);
                 return;
             }
         }
     }
     
-    /**
-     * 初始加载
-     */
     private void loadMessagesPage() {
         if (apiClient == null || currentSessionId == null) return;
         
         if (totalMessageCount <= 0) {
             messages.clear();
             messageFingerprints.clear();
-            addMessage("暂无消息", false);
+            pendingMessages.clear();
+            addSystemMessage("暂无消息");
             processedServerMessageCount = 0;
             currentSince = 0;
             adapter.refreshData();
@@ -779,17 +726,16 @@ public class ChatActivity extends AppCompatActivity {
         int since = Math.max(1, totalMessageCount - PAGE_SIZE + 1);
         currentSince = since;
         
-        Log.d(TAG, "Loading: since=" + since + ", total=" + totalMessageCount);
-        
         apiClient.getNewMessages(currentSessionId, since, new ApiClient.MessagesCallback() {
             @Override
             public void onSuccess(List<ApiClient.ChatMessage> chatMessages) {
                 runOnUiThread(() -> {
                     messages.clear();
                     messageFingerprints.clear();
+                    pendingMessages.clear();
                     
                     if (chatMessages.isEmpty()) {
-                        addMessage("暂无消息", false);
+                        addSystemMessage("暂无消息");
                         processedServerMessageCount = 0;
                         currentSince = 0;
                         adapter.refreshData();
@@ -806,14 +752,10 @@ public class ChatActivity extends AppCompatActivity {
                     sessionManager.updateFirstMessageIndex(currentSessionId, currentSince);
                     adapter.refreshData();
                     
-                    Log.d(TAG, "Loaded: local=" + messages.size() + ", currentSince=" + currentSince);
-                    
-                    // 初始加载：设置用户在底部，解锁位置
                     userAtBottom = true;
                     isPositionLocked = false;
                     scrollToBottom();
                     
-                    // 延迟确保滚动完成
                     rvMessages.postDelayed(() -> scrollToBottom(), 100);
                     rvMessages.postDelayed(() -> scrollToBottom(), 300);
                 });
@@ -824,7 +766,8 @@ public class ChatActivity extends AppCompatActivity {
                 runOnUiThread(() -> {
                     messages.clear();
                     messageFingerprints.clear();
-                    addMessage("加载失败: " + error, false);
+                    pendingMessages.clear();
+                    addSystemMessage("加载失败: " + error);
                     currentSince = 0;
                     adapter.refreshData();
                     hideLoadMoreHint();
@@ -834,9 +777,6 @@ public class ChatActivity extends AppCompatActivity {
         });
     }
     
-    /**
-     * 加载更早消息
-     */
     private void loadOlderMessages() {
         if (!canLoadMore()) {
             isLoadingOlder = false;
@@ -870,11 +810,9 @@ public class ChatActivity extends AppCompatActivity {
                         return;
                     }
                     
-                    // 记录加载前第一条可显示消息的 created
                     long targetCreated = firstVisibleMessageCreated;
                     int targetOffset = firstVisibleOffset;
                     
-                    // 添加消息到开头
                     int newDisplayableCount = 0;
                     for (int i = chatMessages.size() - 1; i >= 0; i--) {
                         ApiClient.ChatMessage msg = chatMessages.get(i);
@@ -897,21 +835,16 @@ public class ChatActivity extends AppCompatActivity {
                     sessionManager.updateFirstMessageIndex(currentSessionId, newSince);
                     adapter.refreshData();
                     
-                    // 恢复位置：找到原来的第一条消息的新位置
                     LinearLayoutManager lm = (LinearLayoutManager) rvMessages.getLayoutManager();
                     if (lm != null) {
                         for (int i = 0; i < messages.size(); i++) {
                             if (messages.get(i).getTimestamp() / 1000 == targetCreated) {
                                 lm.scrollToPositionWithOffset(i, targetOffset);
-                                Log.d(TAG, "Restored position after load: index=" + i + ", offset=" + targetOffset);
                                 break;
                             }
                         }
                     }
                     
-                    Log.d(TAG, "Loaded older: newSince=" + newSince + ", restored position");
-                    
-                    // 显示结果
                     if (canLoadMore()) {
                         showLoadMoreHint("已加载 " + newDisplayableCount + " 条");
                         rvMessages.postDelayed(() -> {
@@ -930,11 +863,9 @@ public class ChatActivity extends AppCompatActivity {
                         rvMessages.postDelayed(() -> hideLoadMoreHint(), 1500);
                     }
                     
-                    // 延迟解锁位置和恢复自动刷新
                     rvMessages.postDelayed(() -> {
                         isPositionLocked = false;
                         startAutoRefresh();
-                        Log.d(TAG, "Position unlocked, auto refresh resumed");
                     }, POSITION_STABLE_DELAY);
                 });
             }
@@ -952,11 +883,8 @@ public class ChatActivity extends AppCompatActivity {
         });
     }
     
-    /**
-     * 检查最后消息更新（流式回复）
-     */
     private void checkLastMessageUpdate() {
-        if (!userAtBottom || isPositionLocked) return;  // 用户不在底部或位置锁定，不检查
+        if (!userAtBottom || isPositionLocked) return;
         
         int sinceIndex = processedServerMessageCount + 1;
         
@@ -966,7 +894,6 @@ public class ChatActivity extends AppCompatActivity {
                 runOnUiThread(() -> {
                     if (chatMessages.isEmpty()) return;
                     
-                    // 找最后一条可显示消息
                     ApiClient.ChatMessage latestFiltered = null;
                     for (int i = chatMessages.size() - 1; i >= 0; i--) {
                         ApiClient.ChatMessage msg = chatMessages.get(i);
@@ -978,7 +905,6 @@ public class ChatActivity extends AppCompatActivity {
                     
                     if (latestFiltered == null) return;
                     
-                    // 更新最后消息
                     if (messages.size() > 0) {
                         int lastIdx = messages.size() - 1;
                         String lastContent = messages.get(lastIdx).getContent();
@@ -987,8 +913,6 @@ public class ChatActivity extends AppCompatActivity {
                             messages.set(lastIdx, new Message(latestFiltered.content, "user".equals(latestFiltered.role), latestFiltered.created * 1000L));
                             messageFingerprints.put(latestFiltered.created, latestFiltered.content);
                             adapter.refreshData();
-                            
-                            // 用户在底部，跟随滚动
                             scrollToBottom();
                         }
                     }
@@ -1003,7 +927,6 @@ public class ChatActivity extends AppCompatActivity {
     }
     
     private void reloadMessages() {
-        // 记录当前位置
         LinearLayoutManager lm = (LinearLayoutManager) rvMessages.getLayoutManager();
         if (lm != null) {
             int firstVisible = lm.findFirstVisibleItemPosition();
@@ -1018,6 +941,7 @@ public class ChatActivity extends AppCompatActivity {
         
         messages.clear();
         messageFingerprints.clear();
+        pendingMessages.clear();
         processedServerMessageCount = 0;
         currentSince = 0;
         sessionManager.updateFirstMessageIndex(currentSessionId, 0);
@@ -1025,38 +949,23 @@ public class ChatActivity extends AppCompatActivity {
         loadMessagesPage();
     }
     
-    /**
-     * 滚动到底部，确保最后一条消息完全可见
-     */
     private void scrollToBottom() {
-        // 位置锁定时不滚动
-        if (isPositionLocked) {
-            Log.d(TAG, "scrollToBottom blocked: position locked");
-            return;
-        }
+        if (isPositionLocked) return;
         
         if (rvMessages == null || adapter == null) return;
         int itemCount = adapter.getItemCount();
         if (itemCount > 0) {
             LinearLayoutManager lm = (LinearLayoutManager) rvMessages.getLayoutManager();
             if (lm != null) {
-                // 直接滚动到最后一条消息
                 lm.scrollToPosition(itemCount - 1);
-                // 延迟滚动确保完成（仅在非锁定状态）
                 rvMessages.postDelayed(() -> {
                     if (!isPositionLocked && adapter.getItemCount() > 0) {
                         lm.scrollToPosition(adapter.getItemCount() - 1);
                     }
                 }, 100);
-                rvMessages.postDelayed(() -> {
-                    if (!isPositionLocked && adapter.getItemCount() > 0) {
-                        lm.scrollToPosition(adapter.getItemCount() - 1);
-                    }
-                }, 200);
             }
         }
     }
-    
     
     private void refreshSessionStatus() {
         refreshSessionStatus(null);
@@ -1072,7 +981,6 @@ public class ChatActivity extends AppCompatActivity {
                             isInProgress = serverSession.isInProgress();
                             totalMessageCount = serverSession.getMessageCount();
                             
-                            // 更新本地 Session 的 provider 和 model
                             Session localSession = sessionManager.getSession(currentSessionId);
                             if (localSession != null) {
                                 boolean updated = false;
@@ -1093,9 +1001,7 @@ public class ChatActivity extends AppCompatActivity {
                                 }
                                 if (updated) {
                                     sessionManager.addOrUpdateSession(localSession);
-                                    // 更新界面显示
                                     updateSessionInfoDisplay();
-                                    Log.d(TAG, "Updated session provider/model: " + serverProvider + "/" + serverModel);
                                 }
                             }
                             
@@ -1118,14 +1024,17 @@ public class ChatActivity extends AppCompatActivity {
         });
     }
     
-    private void addMessage(String content, boolean isUser) {
+    private void addSystemMessage(String content) {
         if (messages == null) messages = new ArrayList<>();
-        String role = isUser ? "user" : "assistant";
-        messages.add(new Message(content, role, System.currentTimeMillis()));
+        messages.add(new Message(content, "assistant", System.currentTimeMillis() / 1000));
         adapter.refreshData();
         scrollToBottom();
     }
     
+    /**
+     * 发送消息
+     * 使用 pending 消息机制避免重复
+     */
     private void sendMessage() {
         String content = etMessage.getText().toString().trim();
         if (content.isEmpty()) {
@@ -1139,11 +1048,11 @@ public class ChatActivity extends AppCompatActivity {
         }
         
         etMessage.setText("");
-        // 发送后清除草稿
         sessionManager.clearDraft(currentSessionId);
         
-        addMessage(content, true);
-        userAtBottom = true;  // 发送后标记用户在底部
+        // 添加 pending 消息（等待服务端确认）
+        addPendingMessage(content);
+        userAtBottom = true;
         
         apiClient.sendMessage(currentSessionId, content, new ApiClient.MessageCallback() {
             @Override
@@ -1155,10 +1064,45 @@ public class ChatActivity extends AppCompatActivity {
             @Override
             public void onError(String error) {
                 runOnUiThread(() -> {
+                    removePendingMessage(content);
                     Toast.makeText(ChatActivity.this, "发送失败: " + error, Toast.LENGTH_SHORT).show();
                 });
             }
         });
+    }
+    
+    /**
+     * 添加 pending 消息（临时显示，等待服务端确认）
+     */
+    private void addPendingMessage(String content) {
+        if (messages == null) messages = new ArrayList<>();
+        
+        // 创建 pending 消息（使用当前时间的临时时间戳）
+        Message pendingMsg = Message.createPending(content, true);
+        messages.add(pendingMsg);
+        
+        pendingMessages.put(content, System.currentTimeMillis());
+        
+        adapter.refreshData();
+        scrollToBottom();
+        
+        Log.d(TAG, "Added pending message: " + content.length() + " chars");
+    }
+    
+    /**
+     * 移除 pending 消息（发送失败时）
+     */
+    private void removePendingMessage(String content) {
+        pendingMessages.remove(content);
+        
+        for (int i = messages.size() - 1; i >= 0; i--) {
+            Message msg = messages.get(i);
+            if (msg.isPending() && content.equals(msg.getContent())) {
+                messages.remove(i);
+                adapter.refreshData();
+                break;
+            }
+        }
     }
     
     private void setButtonStateNormal() {
@@ -1191,10 +1135,11 @@ public class ChatActivity extends AppCompatActivity {
                 runOnUiThread(() -> {
                     messages.clear();
                     messageFingerprints.clear();
+                    pendingMessages.clear();
                     processedServerMessageCount = 0;
                     currentSince = 0;
                     adapter.refreshData();
-                    addMessage("会话已清空", false);
+                    addSystemMessage("会话已清空");
                     Toast.makeText(ChatActivity.this, "会话已清空", Toast.LENGTH_SHORT).show();
                 });
             }
@@ -1251,10 +1196,6 @@ public class ChatActivity extends AppCompatActivity {
         if (preview != null) preview.setEnabled(true);
     }
     
-    /**
-     * 打开预览 URL
-     * 在浏览器中打开当前会话的预览页面
-     */
     private void openPreviewUrl() {
         if (currentAccount == null || currentSessionId == null) {
             Toast.makeText(this, "无法打开预览", Toast.LENGTH_SHORT).show();
@@ -1277,9 +1218,6 @@ public class ChatActivity extends AppCompatActivity {
         }
     }
     
-    /**
-     * 打开会话设置页面
-     */
     private void openSessionSettings() {
         if (currentSessionId == null) {
             Toast.makeText(this, "会话ID无效", Toast.LENGTH_SHORT).show();
@@ -1305,13 +1243,9 @@ public class ChatActivity extends AppCompatActivity {
         super.onActivityResult(requestCode, resultCode, data);
         
         if (requestCode == REQUEST_SESSION_SETTINGS && resultCode == RESULT_OK && data != null) {
-            // 从 SessionSettingsActivity 返回，刷新显示
             String newProvider = data.getStringExtra(SessionSettingsActivity.RESULT_PROVIDER);
             String newModel = data.getStringExtra(SessionSettingsActivity.RESULT_MODEL);
             
-            Log.d(TAG, "Session settings updated: provider=" + newProvider + ", model=" + newModel);
-            
-            // 更新本地缓存和 SessionManager 中的数据
             if (newProvider != null && newModel != null) {
                 currentProvider = newProvider;
                 currentModel = newModel;
@@ -1324,9 +1258,7 @@ public class ChatActivity extends AppCompatActivity {
                 }
             }
             
-            // 刷新界面显示
             updateSessionInfoDisplay();
-            
             Toast.makeText(this, "会话设置已更新", Toast.LENGTH_SHORT).show();
         }
     }
