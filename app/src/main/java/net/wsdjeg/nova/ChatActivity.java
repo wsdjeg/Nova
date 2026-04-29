@@ -201,10 +201,10 @@ public class ChatActivity extends AppCompatActivity {
         
         messages = new ArrayList<>();
         adapter = new MessageAdapter(messages, this);
-        rvMessages.setAdapter(adapter);
         LinearLayoutManager layoutManager = new LinearLayoutManager(this);
         rvMessages.setLayoutManager(layoutManager);
         rvMessages.setItemAnimator(null);
+        rvMessages.setAdapter(adapter);
         
         rvMessages.addOnScrollListener(new RecyclerView.OnScrollListener() {
             @Override
@@ -221,25 +221,17 @@ public class ChatActivity extends AppCompatActivity {
                 
                 if (!isPositionLocked) {
                     userAtBottom = isAtBottom;
-                }
-                
-                if (firstVisible >= 0 && firstVisible < messages.size()) {
-                    Message firstMsg = messages.get(firstVisible);
-                    firstVisibleMessageCreated = firstMsg.getTimestamp() / 1000;
                     
-                    View firstChild = lm.findViewByPosition(firstVisible);
-                    if (firstChild != null) {
-                        firstVisibleOffset = firstChild.getTop();
+                    // 只有在位置锁定解除时才更新位置记录
+                    if (firstVisible >= 0 && firstVisible < messages.size()) {
+                        Message firstMsg = messages.get(firstVisible);
+                        firstVisibleMessageCreated = firstMsg.getTimestamp() / 1000;
+                        
+                        View firstChild = lm.findViewByPosition(firstVisible);
+                        if (firstChild != null) {
+                            firstVisibleOffset = firstChild.getTop();
+                        }
                     }
-                }
-                
-                if (!isLoadingOlder && isAtTop && canLoadMore()) {
-                    showLoadMoreHint("下拉加载更多");
-                    if (dy < 0) {
-                        triggerLoadOlder();
-                    }
-                } else if (!isLoadingOlder && !isAtTop) {
-                    hideLoadMoreHint();
                 }
                 
                 if (isAtBottom) {
