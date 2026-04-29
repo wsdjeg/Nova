@@ -2,6 +2,7 @@ package net.wsdjeg.nova;
 
 import android.content.Intent;
 import android.graphics.Color;
+import android.graphics.Rect;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
@@ -10,6 +11,8 @@ import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.ViewTreeObserver;
+import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
@@ -47,6 +50,10 @@ import java.util.Map;
  * 草稿功能：
  * - onPause 时保存输入框内容到草稿
  * - onCreate 时恢复草稿到输入框
+ * 
+ * 键盘处理：
+ * - 设置 adjustResize 模式
+ * - 监听布局变化，键盘弹出时滚动到底部
  */
 public class ChatActivity extends AppCompatActivity {
     
@@ -106,6 +113,10 @@ public class ChatActivity extends AppCompatActivity {
     
     // 是否用户主动滚动到底部（跟随模式）
     private boolean userAtBottom = false;
+    
+    // 键盘状态
+    private int lastUsableHeight = 0;
+    private boolean isKeyboardVisible = false;
     
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -287,6 +298,51 @@ public class ChatActivity extends AppCompatActivity {
         
         refreshSessionStatus(() -> loadMessagesPage());
         startAutoRefresh();
+        
+        // 监听键盘弹出，自动滚动到底部
+        setupKeyboardListener();
+    }
+    
+    /**
+     * 设置键盘监听器
+     * 当键盘弹出时自动滚动到底部
+     */
+    private void setupKeyboardListener() {
+        final View rootView = ((ViewGroup) findViewById(android.R.id.content)).getChildAt(0);
+        
+        rootView.getViewTreeObserver().addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener() {
+            @Override
+            public void onGlobalLayout() {
+                Rect r = new Rect();
+                rootView.getWindowVisibleDisplayFrame(r);
+                
+                int screenHeight = rootView.getRootView().getHeight();
+                int usableHeight = r.bottom - r.top;
+                
+                // 键盘高度 = 总高度 - 可用高度
+                int keyboardHeight = screenHeight - usableHeight;
+                
+                // 判断键盘是否弹出（键盘高度超过屏幕 15% 认为是弹出）
+                boolean keyboardNowVisible = keyboardHeight > screenHeight * 0.15;
+                
+                // 如果键盘状态发生变化
+                if (keyboardNowVisible != isKeyboardVisible) {
+                    isKeyboardVisible = keyboardNowVisible;
+                    
+                    if (keyboardNowVisible) {
+                        // 键盘弹出，滚动到底部让最新消息可见
+                        Log.d(TAG, "Keyboard shown, scrolling to bottom");
+                        scrollToBottom();
+                        
+                        // 多次延迟确保滚动完成
+                        rvMessages.postDelayed(() -> scrollToBottom(), 100);
+                        rvMessages.postDelayed(() -> scrollToBottom(), 200);
+                    }
+                }
+                
+                lastUsableHeight = usableHeight;
+            }
+        });
     }
     
     /**
@@ -855,9 +911,6 @@ public class ChatActivity extends AppCompatActivity {
         loadMessagesPage();
     }
     
-    /**
-     * 滚动到底部（最后一个 item 显示，但不强制置顶）
-     */
     /**
      * 滚动到底部，确保最后一条消息完全可见
      */

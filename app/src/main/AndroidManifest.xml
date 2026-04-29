@@ -23,12 +23,12 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-
         <!-- ChatActivity 聊天界面 -->
         <activity
             android:name=".ChatActivity"
             android:exported="false"
-            android:label="聊天" />
+            android:label="聊天"
+            android:windowSoftInputMode="adjustResize" />
 
         <!-- SessionSettingsActivity 会话设置界面 -->
         <activity
