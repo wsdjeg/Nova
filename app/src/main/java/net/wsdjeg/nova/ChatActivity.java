@@ -43,10 +43,11 @@ import java.util.Map;
  * 
  * 下拉加载更多：
  * - 条件：到达顶部且 currentSince > 1
- * - 暂停定时刷新，加载完成后恢复
+ * - 暂停定时刷新，加载完成后延迟恢复
+ * - 位置保持：记录第一条可见消息位置，加载后精确恢复
  * 
- * 位置保持：
- * - 记录第一条可见消息的 created 时间戳
+ * 位置保持机制：
+ * - 记录第一条可见消息的 created 时间戳和偏移量
  * - 刷新后根据时间戳恢复位置
  * - 用户在底部时跟随新消息（仅 session.in_progress 时）
  * 
@@ -68,6 +69,7 @@ public class ChatActivity extends AppCompatActivity {
     private static final int STATE_SENDING = 1;
     private static final int BOTTOM_THRESHOLD = 3;
     private static final int REQUEST_SESSION_SETTINGS = 1001;
+    private static final int POSITION_STABLE_DELAY = 500;  // 位置稳定延迟
     
     public static final String EXTRA_SESSION_ID = "session_id";
     public static final String EXTRA_SESSION_TITLE = "session_title";
@@ -113,6 +115,9 @@ public class ChatActivity extends AppCompatActivity {
     // 位置保持：记录第一条可见消息的 created 时间戳
     private long firstVisibleMessageCreated = -1;
     private int firstVisibleOffset = 0;  // 消息顶部距离 RecyclerView 顶部的偏移
+    
+    // 位置恢复锁定：在位置恢复期间禁止 scrollToBottom
+    private boolean isPositionLocked = false;
     
     // 消息指纹缓存
     private Map<Long, String> messageFingerprints = new HashMap<>();
@@ -223,8 +228,10 @@ public class ChatActivity extends AppCompatActivity {
                 boolean isAtTop = (firstVisible == 0 && total > 0);
                 boolean isAtBottom = (total == 0) || (lastVisible >= total - BOTTOM_THRESHOLD);
                 
-                // 记录用户是否在底部
-                userAtBottom = isAtBottom;
+                // 只有在非锁定状态下才更新 userAtBottom
+                if (!isPositionLocked) {
+                    userAtBottom = isAtBottom;
+                }
                 
                 // 记录第一条可见消息的位置（用于刷新后恢复）
                 if (firstVisible >= 0 && firstVisible < messages.size()) {
@@ -283,7 +290,10 @@ public class ChatActivity extends AppCompatActivity {
         });
         
         // 点击滚动到底部
-        fabScrollBottom.setOnClickListener(v -> scrollToBottom());
+        fabScrollBottom.setOnClickListener(v -> {
+            userAtBottom = true;
+            scrollToBottom();
+        });
         
         // 发送按钮
         btnSend.setOnClickListener(v -> {
@@ -410,6 +420,8 @@ public class ChatActivity extends AppCompatActivity {
         if (isLoadingOlder || !canLoadMore()) return;
         
         isLoadingOlder = true;
+        isPositionLocked = true;  // 锁定位置，禁止 scrollToBottom
+        userAtBottom = false;     // 重置状态，防止跟随
         showLoadMoreHint("正在加载...");
         
         // 暂停定时刷新
@@ -591,7 +603,7 @@ public class ChatActivity extends AppCompatActivity {
         refreshRunnable = new Runnable() {
             @Override
             public void run() {
-                if (isAutoRefreshEnabled && !isLoadingOlder) {
+                if (isAutoRefreshEnabled && !isLoadingOlder && !isPositionLocked) {
                     refreshMessages();
                     refreshHandler.postDelayed(this, REFRESH_INTERVAL_MS);
                 }
@@ -610,7 +622,7 @@ public class ChatActivity extends AppCompatActivity {
      * 定时刷新：保持位置或跟随新消息
      */
     private void refreshMessages() {
-        if (apiClient == null || currentSessionId == null || isLoadingOlder) return;
+        if (apiClient == null || currentSessionId == null || isLoadingOlder || isPositionLocked) return;
         refreshSessionStatusForIncrementalRefresh();
     }
     
@@ -670,6 +682,12 @@ public class ChatActivity extends AppCompatActivity {
      * 获取新消息并保持位置
      */
     private void fetchNewMessagesAndRestorePosition() {
+        // 如果位置被锁定，不处理
+        if (isPositionLocked) {
+            Log.d(TAG, "Position locked, skipping fetch");
+            return;
+        }
+        
         int sinceIndex = processedServerMessageCount + 1;
         
         Log.d(TAG, "Fetching messages from index: since=" + sinceIndex + ", userAtBottom=" + userAtBottom);
@@ -694,7 +712,7 @@ public class ChatActivity extends AppCompatActivity {
                     Log.d(TAG, "Incremental: fetched " + chatMessages.size() + ", userAtBottom=" + userAtBottom);
                     
                     // 位置恢复逻辑
-                    if (userAtBottom) {
+                    if (userAtBottom && !isPositionLocked) {
                         // 用户在底部，跟随新消息滚动到底部
                         scrollToBottom();
                     } else {
@@ -712,7 +730,7 @@ public class ChatActivity extends AppCompatActivity {
     }
     
     /**
-     * 根据时间戳恢复位置
+     * 根据时间戳恢复位置（丝滑滚动）
      */
     private void restorePositionByTimestamp() {
         if (firstVisibleMessageCreated <= 0) return;
@@ -723,7 +741,7 @@ public class ChatActivity extends AppCompatActivity {
         // 查找时间戳对应的新位置
         for (int i = 0; i < messages.size(); i++) {
             if (messages.get(i).getTimestamp() / 1000 == firstVisibleMessageCreated) {
-                // 恢复到这个位置，保持相同的 offset
+                // 使用 scrollToPositionWithOffset 精确恢复位置
                 lm.scrollToPositionWithOffset(i, firstVisibleOffset);
                 Log.d(TAG, "Restored position: index=" + i + ", offset=" + firstVisibleOffset);
                 return;
@@ -790,7 +808,9 @@ public class ChatActivity extends AppCompatActivity {
                     
                     Log.d(TAG, "Loaded: local=" + messages.size() + ", currentSince=" + currentSince);
                     
-                    // 初始加载滚动到底部
+                    // 初始加载：设置用户在底部，解锁位置
+                    userAtBottom = true;
+                    isPositionLocked = false;
                     scrollToBottom();
                     
                     // 延迟确保滚动完成
@@ -808,6 +828,7 @@ public class ChatActivity extends AppCompatActivity {
                     currentSince = 0;
                     adapter.refreshData();
                     hideLoadMoreHint();
+                    isPositionLocked = false;
                 });
             }
         });
@@ -819,6 +840,7 @@ public class ChatActivity extends AppCompatActivity {
     private void loadOlderMessages() {
         if (!canLoadMore()) {
             isLoadingOlder = false;
+            isPositionLocked = false;
             hideLoadMoreHint();
             Toast.makeText(this, "已到第一条消息", Toast.LENGTH_SHORT).show();
             return;
@@ -827,6 +849,7 @@ public class ChatActivity extends AppCompatActivity {
         int newSince = Math.max(1, currentSince - PAGE_SIZE);
         if (newSince >= currentSince) {
             isLoadingOlder = false;
+            isPositionLocked = false;
             currentSince = 1;
             hideLoadMoreHint();
             Toast.makeText(this, "已到第一条消息", Toast.LENGTH_SHORT).show();
@@ -841,6 +864,7 @@ public class ChatActivity extends AppCompatActivity {
                     
                     if (chatMessages.isEmpty()) {
                         currentSince = 1;
+                        isPositionLocked = false;
                         hideLoadMoreHint();
                         Toast.makeText(ChatActivity.this, "已到第一条消息", Toast.LENGTH_SHORT).show();
                         return;
@@ -848,6 +872,7 @@ public class ChatActivity extends AppCompatActivity {
                     
                     // 记录加载前第一条可显示消息的 created
                     long targetCreated = firstVisibleMessageCreated;
+                    int targetOffset = firstVisibleOffset;
                     
                     // 添加消息到开头
                     int newDisplayableCount = 0;
@@ -873,7 +898,16 @@ public class ChatActivity extends AppCompatActivity {
                     adapter.refreshData();
                     
                     // 恢复位置：找到原来的第一条消息的新位置
-                    restorePositionByTimestamp();
+                    LinearLayoutManager lm = (LinearLayoutManager) rvMessages.getLayoutManager();
+                    if (lm != null) {
+                        for (int i = 0; i < messages.size(); i++) {
+                            if (messages.get(i).getTimestamp() / 1000 == targetCreated) {
+                                lm.scrollToPositionWithOffset(i, targetOffset);
+                                Log.d(TAG, "Restored position after load: index=" + i + ", offset=" + targetOffset);
+                                break;
+                            }
+                        }
+                    }
                     
                     Log.d(TAG, "Loaded older: newSince=" + newSince + ", restored position");
                     
@@ -881,9 +915,9 @@ public class ChatActivity extends AppCompatActivity {
                     if (canLoadMore()) {
                         showLoadMoreHint("已加载 " + newDisplayableCount + " 条");
                         rvMessages.postDelayed(() -> {
-                            LinearLayoutManager lm = (LinearLayoutManager) rvMessages.getLayoutManager();
-                            if (lm != null) {
-                                int firstVisible = lm.findFirstVisibleItemPosition();
+                            LinearLayoutManager lm2 = (LinearLayoutManager) rvMessages.getLayoutManager();
+                            if (lm2 != null) {
+                                int firstVisible = lm2.findFirstVisibleItemPosition();
                                 if (firstVisible == 0 && canLoadMore()) {
                                     showLoadMoreHint("下拉加载更多");
                                 } else {
@@ -896,8 +930,12 @@ public class ChatActivity extends AppCompatActivity {
                         rvMessages.postDelayed(() -> hideLoadMoreHint(), 1500);
                     }
                     
-                    // 恢复定时刷新
-                    startAutoRefresh();
+                    // 延迟解锁位置和恢复自动刷新
+                    rvMessages.postDelayed(() -> {
+                        isPositionLocked = false;
+                        startAutoRefresh();
+                        Log.d(TAG, "Position unlocked, auto refresh resumed");
+                    }, POSITION_STABLE_DELAY);
                 });
             }
             
@@ -905,6 +943,7 @@ public class ChatActivity extends AppCompatActivity {
             public void onError(String error) {
                 runOnUiThread(() -> {
                     isLoadingOlder = false;
+                    isPositionLocked = false;
                     hideLoadMoreHint();
                     Toast.makeText(ChatActivity.this, "加载失败: " + error, Toast.LENGTH_SHORT).show();
                     startAutoRefresh();
@@ -917,7 +956,7 @@ public class ChatActivity extends AppCompatActivity {
      * 检查最后消息更新（流式回复）
      */
     private void checkLastMessageUpdate() {
-        if (!userAtBottom) return;  // 用户不在底部，不检查
+        if (!userAtBottom || isPositionLocked) return;  // 用户不在底部或位置锁定，不检查
         
         int sinceIndex = processedServerMessageCount + 1;
         
@@ -990,6 +1029,12 @@ public class ChatActivity extends AppCompatActivity {
      * 滚动到底部，确保最后一条消息完全可见
      */
     private void scrollToBottom() {
+        // 位置锁定时不滚动
+        if (isPositionLocked) {
+            Log.d(TAG, "scrollToBottom blocked: position locked");
+            return;
+        }
+        
         if (rvMessages == null || adapter == null) return;
         int itemCount = adapter.getItemCount();
         if (itemCount > 0) {
@@ -997,14 +1042,14 @@ public class ChatActivity extends AppCompatActivity {
             if (lm != null) {
                 // 直接滚动到最后一条消息
                 lm.scrollToPosition(itemCount - 1);
-                // 多次延迟滚动，确保最后一条消息完全显示在底部
+                // 延迟滚动确保完成（仅在非锁定状态）
                 rvMessages.postDelayed(() -> {
-                    if (adapter.getItemCount() > 0) {
+                    if (!isPositionLocked && adapter.getItemCount() > 0) {
                         lm.scrollToPosition(adapter.getItemCount() - 1);
                     }
                 }, 100);
                 rvMessages.postDelayed(() -> {
-                    if (adapter.getItemCount() > 0) {
+                    if (!isPositionLocked && adapter.getItemCount() > 0) {
                         lm.scrollToPosition(adapter.getItemCount() - 1);
                     }
                 }, 200);
