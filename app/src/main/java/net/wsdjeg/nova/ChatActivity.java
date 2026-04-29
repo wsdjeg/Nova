@@ -950,6 +950,10 @@ public class ChatActivity extends AppCompatActivity {
         loadMessagesPage();
     }
     
+    /**
+     * 滚动到最底部（完全不能下拉的位置）
+     * 使用 scrollToPositionWithOffset 确保最后一条消息完全可见
+     */
     private void scrollToBottom() {
         if (isPositionLocked) return;
         
@@ -958,16 +962,18 @@ public class ChatActivity extends AppCompatActivity {
         if (itemCount > 0) {
             LinearLayoutManager lm = (LinearLayoutManager) rvMessages.getLayoutManager();
             if (lm != null) {
-                lm.scrollToPosition(itemCount - 1);
+                // 使用 scrollToPositionWithOffset 确保滚动到最底部
+                // offset = Integer.MIN_VALUE 会让最后一个 item 滚动到尽可能靠上的位置
+                // 由于不能滚动超出内容，最终效果是最后一条消息的底部对齐屏幕底部
+                lm.scrollToPositionWithOffset(itemCount - 1, Integer.MIN_VALUE);
                 rvMessages.postDelayed(() -> {
                     if (!isPositionLocked && adapter.getItemCount() > 0) {
-                        lm.scrollToPosition(adapter.getItemCount() - 1);
+                        lm.scrollToPositionWithOffset(adapter.getItemCount() - 1, Integer.MIN_VALUE);
                     }
                 }, 100);
             }
         }
     }
-    
     private void refreshSessionStatus() {
         refreshSessionStatus(null);
     }
