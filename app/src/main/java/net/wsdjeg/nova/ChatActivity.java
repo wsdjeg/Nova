@@ -20,6 +20,7 @@ import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
+import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
@@ -316,7 +317,7 @@ public class ChatActivity extends AppCompatActivity {
         View rootView = findViewById(android.R.id.content);
         ViewCompat.setOnApplyWindowInsetsListener(rootView, (v, insets) -> {
             // 获取键盘 insets
-            WindowInsetsCompat.Type imeInsets = insets.getInsets(WindowInsetsCompat.Type.ime());
+            Insets imeInsets = insets.getInsets(WindowInsetsCompat.Type.ime());
             int keyboardHeight = imeInsets.bottom;
             
             // 判断键盘是否可见
