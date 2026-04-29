@@ -20,6 +20,8 @@ import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -53,7 +55,8 @@ import java.util.Map;
  * 
  * 键盘处理：
  * - 设置 adjustResize 模式
- * - 监听布局变化，键盘弹出时滚动到底部
+ * - 使用 WindowInsets API（Android 11+）+ 传统方式 fallback
+ * - 键盘弹出时滚动到底部
  */
 public class ChatActivity extends AppCompatActivity {
     
@@ -305,18 +308,46 @@ public class ChatActivity extends AppCompatActivity {
     
     /**
      * 设置键盘监听器
+     * 使用现代 WindowInsets API（Android 11+）+ 传统方式 fallback
      * 当键盘弹出时自动滚动到底部
      */
     private void setupKeyboardListener() {
-        final View rootView = ((ViewGroup) findViewById(android.R.id.content)).getChildAt(0);
+        // 方法1：使用 WindowInsets API（推荐，适用于 Android 11+）
+        View rootView = findViewById(android.R.id.content);
+        ViewCompat.setOnApplyWindowInsetsListener(rootView, (v, insets) -> {
+            // 获取键盘 insets
+            WindowInsetsCompat.Type imeInsets = insets.getInsets(WindowInsetsCompat.Type.ime());
+            int keyboardHeight = imeInsets.bottom;
+            
+            // 判断键盘是否可见
+            boolean keyboardVisible = insets.isVisible(WindowInsetsCompat.Type.ime());
+            
+            Log.d(TAG, "WindowInsets: visible=" + keyboardVisible + ", height=" + keyboardHeight);
+            
+            if (keyboardVisible && !isKeyboardVisible) {
+                isKeyboardVisible = true;
+                Log.d(TAG, "Keyboard shown via WindowInsets, scrolling to bottom");
+                scrollToBottom();
+                rvMessages.postDelayed(() -> scrollToBottom(), 100);
+                rvMessages.postDelayed(() -> scrollToBottom(), 200);
+            } else if (!keyboardVisible && isKeyboardVisible) {
+                isKeyboardVisible = false;
+                Log.d(TAG, "Keyboard hidden via WindowInsets");
+            }
+            
+            // 不要消费 insets，让系统继续处理
+            return insets;
+        });
         
-        rootView.getViewTreeObserver().addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener() {
+        // 方法2：传统 fallback 方式（适用于旧版本 Android）
+        final View decorView = getWindow().getDecorView();
+        decorView.getViewTreeObserver().addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener() {
             @Override
             public void onGlobalLayout() {
                 Rect r = new Rect();
-                rootView.getWindowVisibleDisplayFrame(r);
+                decorView.getWindowVisibleDisplayFrame(r);
                 
-                int screenHeight = rootView.getRootView().getHeight();
+                int screenHeight = decorView.getHeight();
                 int usableHeight = r.bottom - r.top;
                 
                 // 键盘高度 = 总高度 - 可用高度
@@ -325,22 +356,38 @@ public class ChatActivity extends AppCompatActivity {
                 // 判断键盘是否弹出（键盘高度超过屏幕 15% 认为是弹出）
                 boolean keyboardNowVisible = keyboardHeight > screenHeight * 0.15;
                 
+                Log.d(TAG, "GlobalLayout: screenHeight=" + screenHeight + ", usableHeight=" + usableHeight + ", keyboardHeight=" + keyboardHeight);
+                
                 // 如果键盘状态发生变化
                 if (keyboardNowVisible != isKeyboardVisible) {
                     isKeyboardVisible = keyboardNowVisible;
                     
                     if (keyboardNowVisible) {
                         // 键盘弹出，滚动到底部让最新消息可见
-                        Log.d(TAG, "Keyboard shown, scrolling to bottom");
+                        Log.d(TAG, "Keyboard shown via GlobalLayout, scrolling to bottom");
                         scrollToBottom();
                         
                         // 多次延迟确保滚动完成
                         rvMessages.postDelayed(() -> scrollToBottom(), 100);
                         rvMessages.postDelayed(() -> scrollToBottom(), 200);
+                    } else {
+                        Log.d(TAG, "Keyboard hidden via GlobalLayout");
                     }
                 }
                 
                 lastUsableHeight = usableHeight;
+            }
+        });
+        
+        // 方法3：监听输入框焦点变化（最直接的方式）
+        etMessage.setOnFocusChangeListener((v, hasFocus) -> {
+            if (hasFocus) {
+                Log.d(TAG, "EditText focused, will scroll to bottom when keyboard appears");
+                // 延迟滚动，等待键盘弹出
+                rvMessages.postDelayed(() -> {
+                    scrollToBottom();
+                    Log.d(TAG, "Scrolled after EditText focus");
+                }, 300);
             }
         });
     }
