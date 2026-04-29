@@ -67,6 +67,7 @@ public class SessionSettingsActivity extends AppCompatActivity {
     private ArrayAdapter<String> modelAdapter;
     
     private boolean isProviderLoaded = false;
+    private boolean isInitializingSpinner = false;  // 标记正在初始化 spinner
     private int selectedProviderIndex = -1;
     private int selectedModelIndex = -1;
     
@@ -129,8 +130,9 @@ public class SessionSettingsActivity extends AppCompatActivity {
         spinnerProvider.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                if (isProviderLoaded && position >= 0 && position < providerNames.size()) {
+                if (isProviderLoaded && !isInitializingSpinner && position >= 0 && position < providerNames.size()) {
                     String selectedProvider = providerNames.get(position);
+                    // 当用户手动选择 provider 时，重置 model 为第一个
                     updateModelSpinner(selectedProvider, null);
                     selectedProviderIndex = position;
                 }
@@ -210,12 +212,11 @@ public class SessionSettingsActivity extends AppCompatActivity {
                     }
                     
                     providerAdapter.notifyDataSetChanged();
-                    isProviderLoaded = true;
+                    
+                    Log.d(TAG, "Loaded " + providers.size() + " providers");
                     
                     // 设置当前 provider/model
                     setCurrentProviderModel();
-                    
-                    Log.d(TAG, "Loaded " + providers.size() + " providers");
                 });
             }
             
@@ -245,6 +246,8 @@ public class SessionSettingsActivity extends AppCompatActivity {
                     if (currentProvider != null && !currentProvider.isEmpty()) {
                         selectedProviderIndex = 0;
                     }
+                    
+                    isProviderLoaded = true;
                 });
             }
         });
@@ -254,17 +257,20 @@ public class SessionSettingsActivity extends AppCompatActivity {
      * 设置当前的 provider 和 model
      */
     private void setCurrentProviderModel() {
+        // 标记正在初始化，避免监听器干扰
+        isInitializingSpinner = true;
+        
         if (currentProvider != null && !currentProvider.isEmpty()) {
             int providerIndex = providerNames.indexOf(currentProvider);
             if (providerIndex >= 0) {
-                // 保存当前 model，因为 updateModelSpinner 会重置选择
-                final String savedModel = currentModel;
-                
                 selectedProviderIndex = providerIndex;
                 spinnerProvider.setSelection(providerIndex);
                 
                 // 更新 model spinner 并选择正确的 model
-                updateModelSpinner(currentProvider, savedModel);
+                updateModelSpinner(currentProvider, currentModel);
+                
+                Log.d(TAG, "Set provider to index " + providerIndex + ": " + currentProvider);
+                Log.d(TAG, "Set model to: " + currentModel);
             } else {
                 // 当前 provider 不在列表中，添加到开头
                 providerNames.add(0, currentProvider);
@@ -278,8 +284,14 @@ public class SessionSettingsActivity extends AppCompatActivity {
                 selectedProviderIndex = 0;
                 spinnerProvider.setSelection(0);
                 updateModelSpinner(currentProvider, currentModel);
+                
+                Log.d(TAG, "Added missing provider: " + currentProvider);
             }
         }
+        
+        // 初始化完成，允许监听器响应
+        isInitializingSpinner = false;
+        isProviderLoaded = true;
     }
     
     /**
@@ -302,10 +314,12 @@ public class SessionSettingsActivity extends AppCompatActivity {
                 if (modelIndex >= 0) {
                     spinnerModel.setSelection(modelIndex);
                     selectedModelIndex = modelIndex;
+                    Log.d(TAG, "Model spinner set to index " + modelIndex + ": " + selectModel);
                 } else {
                     // 如果找不到指定的 model，选择第一个
                     spinnerModel.setSelection(0);
                     selectedModelIndex = 0;
+                    Log.d(TAG, "Model not found, set to first: " + currentModels.get(0));
                 }
             } else {
                 spinnerModel.setSelection(0);
