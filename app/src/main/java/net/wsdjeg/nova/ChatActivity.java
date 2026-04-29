@@ -858,13 +858,32 @@ public class ChatActivity extends AppCompatActivity {
     /**
      * 滚动到底部（最后一个 item 显示，但不强制置顶）
      */
+    /**
+     * 滚动到底部，确保最后一条消息完全可见
+     */
     private void scrollToBottom() {
         if (rvMessages == null || adapter == null) return;
         int itemCount = adapter.getItemCount();
         if (itemCount > 0) {
-            rvMessages.scrollToPosition(itemCount - 1);
+            LinearLayoutManager lm = (LinearLayoutManager) rvMessages.getLayoutManager();
+            if (lm != null) {
+                // 直接滚动到最后一条消息
+                lm.scrollToPosition(itemCount - 1);
+                // 多次延迟滚动，确保最后一条消息完全显示在底部
+                rvMessages.postDelayed(() -> {
+                    if (adapter.getItemCount() > 0) {
+                        lm.scrollToPosition(adapter.getItemCount() - 1);
+                    }
+                }, 100);
+                rvMessages.postDelayed(() -> {
+                    if (adapter.getItemCount() > 0) {
+                        lm.scrollToPosition(adapter.getItemCount() - 1);
+                    }
+                }, 200);
+            }
         }
     }
+    
     
     private void refreshSessionStatus() {
         refreshSessionStatus(null);
