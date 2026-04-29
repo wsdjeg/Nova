@@ -29,6 +29,9 @@ public class Session {
     // firstMessageIndex = 0 表示尚未初始化
     private int firstMessageIndex = 0;
     
+    // 草稿消息：用户输入但未发送的消息
+    private String draft = "";
+    
     public Session(String sessionId) {
         this.sessionId = sessionId;
         this.accountId = "";  // 默认空，表示本地会话或当前账号
@@ -45,6 +48,7 @@ public class Session {
         this.cwd = "";
         this.inProgress = false;
         this.firstMessageIndex = 0;
+        this.draft = "";
     }
     
     public Session(String sessionId, String firstMessage, String lastMessage, long lastMessageTime, int messageCount) {
@@ -63,6 +67,7 @@ public class Session {
         this.cwd = "";
         this.inProgress = false;
         this.firstMessageIndex = 0;
+        this.draft = "";
     }
     
     /**
@@ -84,6 +89,7 @@ public class Session {
         this.unreadCount = 0;
         this.inProgress = false;
         this.firstMessageIndex = 0;
+        this.draft = "";
     }
     
     // 兼容旧版本的构造函数
@@ -379,5 +385,19 @@ public class Session {
     
     public void setFirstMessageIndex(int firstMessageIndex) {
         this.firstMessageIndex = firstMessageIndex;
+    }
+    
+    /**
+     * 获取草稿消息
+     */
+    public String getDraft() {
+        return draft != null ? draft : "";
+    }
+    
+    /**
+     * 设置草稿消息
+     */
+    public void setDraft(String draft) {
+        this.draft = draft != null ? draft : "";
     }
 }

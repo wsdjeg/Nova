@@ -43,6 +43,10 @@ import java.util.Map;
  * - 记录第一条可见消息的 created 时间戳
  * - 刷新后根据时间戳恢复位置
  * - 用户在底部时跟随新消息（仅 session.in_progress 时）
+ * 
+ * 草稿功能：
+ * - onPause 时保存输入框内容到草稿
+ * - onCreate 时恢复草稿到输入框
  */
 public class ChatActivity extends AppCompatActivity {
     
@@ -176,6 +180,9 @@ public class ChatActivity extends AppCompatActivity {
         etMessage = findViewById(R.id.et_message);
         btnSend = findViewById(R.id.btn_send);
         fabScrollBottom = findViewById(R.id.fab_scroll_bottom);
+        
+        // 恢复草稿消息
+        restoreDraft();
         
         messages = new ArrayList<>();
         adapter = new MessageAdapter(messages, this);
@@ -344,6 +351,37 @@ public class ChatActivity extends AppCompatActivity {
         }
     }
     
+    /**
+     * 恢复草稿消息到输入框
+     */
+    private void restoreDraft() {
+        if (sessionManager == null || currentSessionId == null || etMessage == null) return;
+        
+        String draft = sessionManager.getDraft(currentSessionId);
+        if (draft != null && !draft.isEmpty()) {
+            etMessage.setText(draft);
+            // 将光标移动到文本末尾
+            etMessage.setSelection(draft.length());
+            Log.d(TAG, "Restored draft: " + draft.length() + " chars");
+        }
+    }
+    
+    /**
+     * 保存草稿消息
+     */
+    private void saveDraft() {
+        if (sessionManager == null || currentSessionId == null || etMessage == null) return;
+        
+        String content = etMessage.getText().toString().trim();
+        if (content.isEmpty()) {
+            sessionManager.clearDraft(currentSessionId);
+            Log.d(TAG, "Cleared draft (empty)");
+        } else {
+            sessionManager.saveDraft(currentSessionId, content);
+            Log.d(TAG, "Saved draft: " + content.length() + " chars");
+        }
+    }
+    
     @Override
     protected void onResume() {
         super.onResume();
@@ -356,6 +394,8 @@ public class ChatActivity extends AppCompatActivity {
         super.onPause();
         isAutoRefreshEnabled = false;
         stopAutoRefresh();
+        // 保存草稿消息
+        saveDraft();
     }
     
     @Override
@@ -880,6 +920,9 @@ public class ChatActivity extends AppCompatActivity {
         }
         
         etMessage.setText("");
+        // 发送后清除草稿
+        sessionManager.clearDraft(currentSessionId);
+        
         addMessage(content, true);
         userAtBottom = true;  // 发送后标记用户在底部
         

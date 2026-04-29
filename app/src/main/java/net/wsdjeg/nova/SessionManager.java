@@ -25,6 +25,7 @@ public class SessionManager {
     private static final String KEY_CURRENT_SESSION = "current_session";
     private static final String KEY_INITIALIZED_SESSIONS = "initialized_sessions";
     private static final String KEY_READ_MESSAGE_COUNTS = "read_message_counts";
+    private static final String KEY_DRAFTS = "drafts";
     
     private SharedPreferences prefs;
     private AccountManager accountManager;
@@ -93,6 +94,8 @@ public class SessionManager {
                 session.setCwd(json.optString("cwd", ""));
                 session.setInProgress(json.optBoolean("in_progress", false));
                 session.setFirstMessageIndex(json.optInt("firstMessageIndex", 0));
+                // 加载草稿
+                session.setDraft(getDraft(json.getString("sessionId")));
                 sessions.add(session);
             }
         } catch (JSONException e) {
@@ -263,6 +266,7 @@ public class SessionManager {
         sessions.removeAll(toRemove);
         saveSessions(sessions);
         removeInitializedSession(sessionId);
+        clearDraft(sessionId);
     }
     
     /**
@@ -276,6 +280,7 @@ public class SessionManager {
             if (accountId.equals(session.getAccountId())) {
                 toRemove.add(session);
                 removeInitializedSession(session.getSessionId());
+                clearDraft(session.getSessionId());
             }
         }
         
@@ -492,5 +497,87 @@ public class SessionManager {
      */
     public void clearReadMessageCounts() {
         prefs.edit().remove(KEY_READ_MESSAGE_COUNTS).apply();
+    }
+    
+    // ========== 草稿消息管理 ==========
+    
+    /**
+     * 保存草稿消息
+     * @param sessionId 会话ID
+     * @param draft 草稿内容
+     */
+    public void saveDraft(String sessionId, String draft) {
+        Map<String, String> drafts = loadDrafts();
+        if (draft != null && !draft.isEmpty()) {
+            drafts.put(sessionId, draft);
+        } else {
+            drafts.remove(sessionId);
+        }
+        saveDrafts(drafts);
+    }
+    
+    /**
+     * 获取草稿消息
+     * @param sessionId 会话ID
+     * @return 草稿内容，如果没有则返回空字符串
+     */
+    public String getDraft(String sessionId) {
+        Map<String, String> drafts = loadDrafts();
+        return drafts.getOrDefault(sessionId, "");
+    }
+    
+    /**
+     * 清除草稿消息
+     * @param sessionId 会话ID
+     */
+    public void clearDraft(String sessionId) {
+        saveDraft(sessionId, null);
+    }
+    
+    /**
+     * 保存草稿映射
+     */
+    private void saveDrafts(Map<String, String> drafts) {
+        JSONObject json = new JSONObject();
+        for (Map.Entry<String, String> entry : drafts.entrySet()) {
+            try {
+                json.put(entry.getKey(), entry.getValue());
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
+        }
+        prefs.edit().putString(KEY_DRAFTS, json.toString()).apply();
+    }
+    
+    /**
+     * 加载草稿映射
+     */
+    private Map<String, String> loadDrafts() {
+        Map<String, String> drafts = new HashMap<>();
+        String jsonStr = prefs.getString(KEY_DRAFTS, "");
+        
+        if (jsonStr.isEmpty()) {
+            return drafts;
+        }
+        
+        try {
+            JSONObject json = new JSONObject(jsonStr);
+            Iterator<String> keys = json.keys();
+            while (keys.hasNext()) {
+                String key = keys.next();
+                drafts.put(key, json.getString(key));
+            }
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+        
+        return drafts;
+    }
+    
+    /**
+     * 清除所有草稿
+     */
+    public void clearAllDrafts() {
+        prefs.edit().remove(KEY_DRAFTS).apply();
     }
 }
