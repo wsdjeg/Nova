@@ -995,10 +995,33 @@ public class ChatActivity extends AppCompatActivity {
             @Override
             public void onSuccess(List<Session> sessions) {
                 runOnUiThread(() -> {
-                    for (Session session : sessions) {
-                        if (session.getSessionId().equals(currentSessionId)) {
-                            isInProgress = session.isInProgress();
-                            totalMessageCount = session.getMessageCount();
+                    for (Session serverSession : sessions) {
+                        if (serverSession.getSessionId().equals(currentSessionId)) {
+                            isInProgress = serverSession.isInProgress();
+                            totalMessageCount = serverSession.getMessageCount();
+                            
+                            // 更新本地 Session 的 provider 和 model
+                            Session localSession = sessionManager.getSession(currentSessionId);
+                            if (localSession != null) {
+                                boolean updated = false;
+                                String serverProvider = serverSession.getProvider();
+                                String serverModel = serverSession.getModel();
+                                
+                                if (serverProvider != null && !serverProvider.isEmpty() 
+                                    && !serverProvider.equals(localSession.getProvider())) {
+                                    localSession.setProvider(serverProvider);
+                                    updated = true;
+                                }
+                                if (serverModel != null && !serverModel.isEmpty() 
+                                    && !serverModel.equals(localSession.getModel())) {
+                                    localSession.setModel(serverModel);
+                                    updated = true;
+                                }
+                                if (updated) {
+                                    sessionManager.addOrUpdateSession(localSession);
+                                    Log.d(TAG, "Updated session provider/model: " + serverProvider + "/" + serverModel);
+                                }
+                            }
                             
                             if (isInProgress) {
                                 setButtonStateSending();
