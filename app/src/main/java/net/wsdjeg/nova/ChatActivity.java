@@ -240,9 +240,10 @@ public class ChatActivity extends AppCompatActivity {
                     }
                 }
                 
+                // 下拉加载更多：dy < 0 表示向上滚动（下拉）
                 if (!isLoadingOlder && isAtTop && canLoadMore()) {
                     showLoadMoreHint("下拉加载更多");
-                    if (dx < 0) {
+                    if (dy < 0) {  // 使用 dy（垂直滚动距离）而不是 dx
                         triggerLoadOlder();
                     }
                 } else if (!isLoadingOlder && !isAtTop) {
