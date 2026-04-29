@@ -2,7 +2,8 @@
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:fitsSystemWindows="true">
 
     <!-- Toolbar with Session Info -->
     <androidx.appcompat.widget.Toolbar
@@ -121,7 +122,8 @@
             android:maxLines="4"
             android:padding="12dp"
             android:background="#FFFFFF"
-            android:layout_marginEnd="8dp" />
+            android:layout_marginEnd="8dp"
+            android:importantForAutofill="no" />
 
         <Button
             android:id="@+id/btn_send"
