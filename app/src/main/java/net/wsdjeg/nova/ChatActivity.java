@@ -40,29 +40,21 @@ import java.util.Map;
  * 2. 本地列表：保持升序，最新消息在末尾
  * 3. 显示过滤：只显示 content 不为空且 role 不是 tool 的消息
  * 
+ * 消息计数说明：
+ * - totalMessageCount: 服务端返回的总消息数（包含 tool 等不可显示消息）
+ * - currentSince: 服务端消息索引（从1开始，基于服务端消息位置）
+ * - processedServerMessageCount: 已处理的服务端消息数（基于服务端计数）
+ * - adapter.getItemCount(): 显示的消息数（过滤后的，与服务端计数无关）
+ * 
+ * 下拉加载更多：
+ * - 条件：到达顶部且 currentSince > 1（基于服务端索引）
+ * - 如果加载的一页全是不可显示消息，自动继续加载下一页
+ * - 直到找到可显示内容或到达第一条消息
+ * 
  * Pending 消息机制：
  * - 发送消息时添加 pending 消息（临时显示）
  * - 服务端返回后，用正式消息替换 pending 消息
  * - 避免重复消息问题
- * 
- * 下拉加载更多：
- * - 条件：到达顶部且 currentSince > 1
- * - 暂停定时刷新，加载完成后延迟恢复
- * - 位置保持：记录第一条可见消息位置，加载后精确恢复
- * 
- * 位置保持机制：
- * - 记录第一条可见消息的 created 时间戳和偏移量
- * - 刷新后根据时间戳恢复位置
- * - 用户在底部时跟随新消息（仅 session.in_progress 时）
- * 
- * 草稿功能：
- * - onPause 时保存输入框内容到草稿
- * - onCreate 时恢复草稿到输入框
- * 
- * 键盘处理：
- * - 设置 adjustResize 模式
- * - 使用 WindowInsets API（Android 11+）+ 传统方式 fallback
- * - 键盘弹出时滚动到底部
  */
 public class ChatActivity extends AppCompatActivity {
     
@@ -105,8 +97,10 @@ public class ChatActivity extends AppCompatActivity {
     private Runnable refreshRunnable;
     private boolean isAutoRefreshEnabled = true;
     
+    // 服务端消息计数（包含所有消息，不区分是否可显示）
     private int totalMessageCount = 0;
     private int currentSince = 0;
+    private int processedServerMessageCount = 0;
     
     private int buttonState = STATE_NORMAL;
     private boolean isInProgress = false;
@@ -122,7 +116,6 @@ public class ChatActivity extends AppCompatActivity {
     
     // 消息指纹缓存（使用服务端时间戳 created 作为 key）
     private Map<Long, String> messageFingerprints = new HashMap<>();
-    private int processedServerMessageCount = 0;
     
     // Pending 消息：存储正在发送的消息内容，等待服务端确认
     private Map<String, Long> pendingMessages = new HashMap<>();
@@ -169,8 +162,6 @@ public class ChatActivity extends AppCompatActivity {
         if (session != null) {
             Log.d(TAG, "Session: accountId=" + session.getAccountId());
             totalMessageCount = session.getMessageCount();
-            // 不再从本地存储读取 firstMessageIndex，因为消息数量可能已变化
-            // currentSince 将在 loadMessagesPage() 中根据最新的 totalMessageCount 计算
             currentSince = 0;
             
             if (session.getAccountId() != null && !session.getAccountId().isEmpty()) {
@@ -242,10 +233,9 @@ public class ChatActivity extends AppCompatActivity {
                     }
                 }
                 
-                // 下拉加载更多：dy < 0 表示向上滚动（下拉）
                 if (!isLoadingOlder && isAtTop && canLoadMore()) {
                     showLoadMoreHint("下拉加载更多");
-                    if (dy < 0) {  // 使用 dy（垂直滚动距离）而不是 dx
+                    if (dy < 0) {
                         triggerLoadOlder();
                     }
                 } else if (!isLoadingOlder && !isAtTop) {
@@ -359,6 +349,10 @@ public class ChatActivity extends AppCompatActivity {
         });
     }
     
+    /**
+     * 是否可以加载更多消息
+     * 基于服务端消息索引判断，不依赖客户端显示的消息数
+     */
     private boolean canLoadMore() {
         return currentSince > 1 && totalMessageCount > 0;
     }
@@ -394,7 +388,7 @@ public class ChatActivity extends AppCompatActivity {
         if (tvLoadMore != null) {
             tvLoadMore.setVisibility(View.VISIBLE);
             tvLoadMore.setText(text);
-            if (text.contains("正在加载")) {
+            if (text.contains("正在加载") || text.contains("继续加载")) {
                 tvLoadMore.setBackgroundColor(Color.parseColor("#FFBB33"));
             } else {
                 tvLoadMore.setBackgroundColor(Color.parseColor("#2196F3"));
@@ -545,6 +539,7 @@ public class ChatActivity extends AppCompatActivity {
                             boolean wasInProgress = isInProgress;
                             isInProgress = session.isInProgress();
                             
+                            // 服务端消息计数（包含所有消息类型）
                             int serverCount = session.getMessageCount();
                             
                             if (isInProgress) {
@@ -558,6 +553,7 @@ public class ChatActivity extends AppCompatActivity {
                                 }
                             }
                             
+                            // 基于服务端计数判断是否需要获取新消息
                             if (serverCount > processedServerMessageCount) {
                                 fetchNewMessagesAndRestorePosition();
                             } else if (serverCount < processedServerMessageCount) {
@@ -582,7 +578,7 @@ public class ChatActivity extends AppCompatActivity {
     
     /**
      * 获取新消息并保持位置
-     * 包含 pending 消息匹配逻辑
+     * 计数基于服务端返回的消息数，不依赖显示的消息数
      */
     private void fetchNewMessagesAndRestorePosition() {
         if (isPositionLocked) {
@@ -590,9 +586,10 @@ public class ChatActivity extends AppCompatActivity {
             return;
         }
         
+        // 基于已处理的服务端消息数计算起始索引
         int sinceIndex = processedServerMessageCount + 1;
         
-        Log.d(TAG, "Fetching messages from index: since=" + sinceIndex);
+        Log.d(TAG, "Fetching messages from server index: since=" + sinceIndex);
         
         apiClient.getNewMessages(currentSessionId, sinceIndex, new ApiClient.MessagesCallback() {
             @Override
@@ -601,17 +598,14 @@ public class ChatActivity extends AppCompatActivity {
                     if (chatMessages.isEmpty()) return;
                     
                     for (ApiClient.ChatMessage msg : chatMessages) {
-                        // 检查是否已存在（通过服务端时间戳）
                         if (messageFingerprints.containsKey(msg.created)) {
                             Log.d(TAG, "Message already exists, skipping: created=" + msg.created);
                             continue;
                         }
                         
-                        // 检查是否有匹配的 pending 消息（仅对 user 消息）
                         if ("user".equals(msg.role) && msg.content != null) {
                             int pendingIndex = findPendingMessageIndex(msg.content);
                             if (pendingIndex >= 0) {
-                                // 找到匹配的 pending 消息，替换为正式消息
                                 Log.d(TAG, "Replacing pending message at index " + pendingIndex);
                                 messages.set(pendingIndex, new Message(msg.content, msg.role, msg.created));
                                 pendingMessages.remove(msg.content);
@@ -620,11 +614,11 @@ public class ChatActivity extends AppCompatActivity {
                             }
                         }
                         
-                        // 没有匹配的 pending 消息，添加新消息
                         messages.add(new Message(msg.content, msg.role, msg.created));
                         messageFingerprints.put(msg.created, msg.content != null ? msg.content : "");
                     }
                     
+                    // 增加已处理的服务端消息计数（基于服务端返回的消息数）
                     processedServerMessageCount += chatMessages.size();
                     
                     cleanupPendingMessages();
@@ -646,9 +640,6 @@ public class ChatActivity extends AppCompatActivity {
         });
     }
     
-    /**
-     * 查找 pending 消息的索引
-     */
     private int findPendingMessageIndex(String content) {
         if (content == null || !pendingMessages.containsKey(content)) {
             return -1;
@@ -663,9 +654,6 @@ public class ChatActivity extends AppCompatActivity {
         return -1;
     }
     
-    /**
-     * 清理超时的 pending 消息（超过 30 秒未确认）
-     */
     private void cleanupPendingMessages() {
         long now = System.currentTimeMillis();
         List<String> toRemove = new ArrayList<>();
@@ -726,6 +714,7 @@ public class ChatActivity extends AppCompatActivity {
             return;
         }
         
+        // 基于服务端消息计数计算起始索引
         int since = Math.max(1, totalMessageCount - PAGE_SIZE + 1);
         currentSince = since;
         
@@ -751,6 +740,7 @@ public class ChatActivity extends AppCompatActivity {
                         messageFingerprints.put(msg.created, msg.content != null ? msg.content : "");
                     }
                     
+                    // 已处理的服务端消息数等于服务端返回的总数
                     processedServerMessageCount = totalMessageCount;
                     sessionManager.updateFirstMessageIndex(currentSessionId, currentSince);
                     adapter.refreshData();
@@ -780,6 +770,17 @@ public class ChatActivity extends AppCompatActivity {
         });
     }
     
+    /**
+     * 加载更早的消息
+     * 
+     * 计数说明：
+     * - currentSince: 服务端消息索引（从1开始）
+     * - totalMessageCount: 服务端返回的总消息数
+     * - newDisplayableCount: 本次加载中可显示的消息数（过滤后）
+     * 
+     * 如果本次加载没有可显示的消息，自动继续加载下一页，
+     * 直到找到可显示内容或到达第一条消息
+     */
     private void loadOlderMessages() {
         if (!canLoadMore()) {
             isLoadingOlder = false;
@@ -828,12 +829,14 @@ public class ChatActivity extends AppCompatActivity {
                             messages.add(0, message);
                             messageFingerprints.put(msg.created, msg.content);
                             
+                            // 统计可显示的消息数（用于提示用户）
                             if (msg.content != null && !msg.content.isEmpty() && !"tool".equals(msg.role)) {
                                 newDisplayableCount++;
                             }
                         }
                     }
                     
+                    // 更新服务端消息索引
                     currentSince = newSince;
                     sessionManager.updateFirstMessageIndex(currentSessionId, newSince);
                     adapter.refreshData();
@@ -846,6 +849,18 @@ public class ChatActivity extends AppCompatActivity {
                                 break;
                             }
                         }
+                    }
+                    
+                    // 如果本次加载没有可显示消息，且还有更多消息可加载，自动继续加载
+                    if (newDisplayableCount == 0 && canLoadMore()) {
+                        showLoadMoreHint("继续加载...");
+                        rvMessages.postDelayed(() -> {
+                            if (!isLoadingOlder && canLoadMore()) {
+                                isLoadingOlder = true;
+                                loadOlderMessages();
+                            }
+                        }, 200);
+                        return;
                     }
                     
                     if (canLoadMore()) {
@@ -952,10 +967,6 @@ public class ChatActivity extends AppCompatActivity {
         loadMessagesPage();
     }
     
-    /**
-     * 滚动到最底部（完全不能下拉的位置）
-     * 使用 scrollToPositionWithOffset 确保最后一条消息完全可见
-     */
     private void scrollToBottom() {
         if (isPositionLocked) return;
         
@@ -964,9 +975,6 @@ public class ChatActivity extends AppCompatActivity {
         if (itemCount > 0) {
             LinearLayoutManager lm = (LinearLayoutManager) rvMessages.getLayoutManager();
             if (lm != null) {
-                // 使用 scrollToPositionWithOffset 确保滚动到最底部
-                // offset = Integer.MIN_VALUE 会让最后一个 item 滚动到尽可能靠上的位置
-                // 由于不能滚动超出内容，最终效果是最后一条消息的底部对齐屏幕底部
                 lm.scrollToPositionWithOffset(itemCount - 1, Integer.MIN_VALUE);
                 rvMessages.postDelayed(() -> {
                     if (!isPositionLocked && adapter.getItemCount() > 0) {
@@ -1041,10 +1049,6 @@ public class ChatActivity extends AppCompatActivity {
         scrollToBottom();
     }
     
-    /**
-     * 发送消息
-     * 使用 pending 消息机制避免重复
-     */
     private void sendMessage() {
         String content = etMessage.getText().toString().trim();
         if (content.isEmpty()) {
@@ -1060,7 +1064,6 @@ public class ChatActivity extends AppCompatActivity {
         etMessage.setText("");
         sessionManager.clearDraft(currentSessionId);
         
-        // 添加 pending 消息（等待服务端确认）
         addPendingMessage(content);
         userAtBottom = true;
         
@@ -1081,13 +1084,9 @@ public class ChatActivity extends AppCompatActivity {
         });
     }
     
-    /**
-     * 添加 pending 消息（临时显示，等待服务端确认）
-     */
     private void addPendingMessage(String content) {
         if (messages == null) messages = new ArrayList<>();
         
-        // 创建 pending 消息（使用当前时间的临时时间戳）
         Message pendingMsg = Message.createPending(content, true);
         messages.add(pendingMsg);
         
@@ -1099,9 +1098,6 @@ public class ChatActivity extends AppCompatActivity {
         Log.d(TAG, "Added pending message: " + content.length() + " chars");
     }
     
-    /**
-     * 移除 pending 消息（发送失败时）
-     */
     private void removePendingMessage(String content) {
         pendingMessages.remove(content);
         
