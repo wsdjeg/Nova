@@ -50,7 +50,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
-                android:text="点击右上角 + 添加账号"
+                android:text="点击右下方 + 添加账号"
                 android:textColor="#CCCCCC"
                 android:textSize="14sp" />
         </LinearLayout>
