@@ -67,6 +67,7 @@ public class ChatActivity extends AppCompatActivity {
     private static final int STATE_NORMAL = 0;
     private static final int STATE_SENDING = 1;
     private static final int BOTTOM_THRESHOLD = 3;
+    private static final int REQUEST_SESSION_SETTINGS = 1001;
     
     public static final String EXTRA_SESSION_ID = "session_id";
     public static final String EXTRA_SESSION_TITLE = "session_title";
@@ -556,6 +557,18 @@ public class ChatActivity extends AppCompatActivity {
         }
     }
     
+    /**
+     * 更新会话信息显示（从 SessionManager 获取最新数据）
+     */
+    private void updateSessionInfoDisplay() {
+        Session session = sessionManager.getSession(currentSessionId);
+        if (session != null) {
+            tvSessionInfo.setText(session.getProvider() + " | " + session.getModel());
+            tvSessionPath.setText("cwd: " + (session.getCwd() != null ? session.getCwd() : ""));
+            Log.d(TAG, "Updated session info display: " + session.getProvider() + "/" + session.getModel());
+        }
+    }
+    
     private void startAutoRefresh() {
         if (refreshHandler == null) {
             refreshHandler = new Handler(Looper.getMainLooper());
@@ -1019,6 +1032,8 @@ public class ChatActivity extends AppCompatActivity {
                                 }
                                 if (updated) {
                                     sessionManager.addOrUpdateSession(localSession);
+                                    // 更新界面显示
+                                    updateSessionInfoDisplay();
                                     Log.d(TAG, "Updated session provider/model: " + serverProvider + "/" + serverModel);
                                 }
                             }
@@ -1221,7 +1236,33 @@ public class ChatActivity extends AppCompatActivity {
             intent.putExtra(SessionSettingsActivity.EXTRA_CWD, session.getCwd());
         }
         
-        startActivity(intent);
+        startActivityForResult(intent, REQUEST_SESSION_SETTINGS);
+    }
+    
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        
+        if (requestCode == REQUEST_SESSION_SETTINGS && resultCode == RESULT_OK && data != null) {
+            // 从 SessionSettingsActivity 返回，刷新显示
+            String newProvider = data.getStringExtra(SessionSettingsActivity.RESULT_PROVIDER);
+            String newModel = data.getStringExtra(SessionSettingsActivity.RESULT_MODEL);
+            
+            Log.d(TAG, "Session settings updated: provider=" + newProvider + ", model=" + newModel);
+            
+            // 更新本地 SessionManager 中的数据
+            Session session = sessionManager.getSession(currentSessionId);
+            if (session != null && newProvider != null && newModel != null) {
+                session.setProvider(newProvider);
+                session.setModel(newModel);
+                sessionManager.updateSession(session);
+            }
+            
+            // 刷新界面显示
+            updateSessionInfoDisplay();
+            
+            Toast.makeText(this, "会话设置已更新", Toast.LENGTH_SHORT).show();
+        }
     }
     
     private void stopSession() {

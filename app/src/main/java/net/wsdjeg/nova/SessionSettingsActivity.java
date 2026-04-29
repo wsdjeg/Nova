@@ -79,6 +79,7 @@ public class SessionSettingsActivity extends AppCompatActivity {
         // 获取传入的参数
         sessionId = getIntent().getStringExtra(EXTRA_SESSION_ID);
         accountId = getIntent().getStringExtra(EXTRA_ACCOUNT_ID);
+        // 从 Intent 获取初始值（备用）
         currentProvider = getIntent().getStringExtra(EXTRA_PROVIDER);
         currentModel = getIntent().getStringExtra(EXTRA_MODEL);
         cwd = getIntent().getStringExtra(EXTRA_CWD);
@@ -95,7 +96,6 @@ public class SessionSettingsActivity extends AppCompatActivity {
         
         initViews();
         loadSessionInfo();
-        loadProviders();
     }
     
     private void initViews() {
@@ -184,6 +184,88 @@ public class SessionSettingsActivity extends AppCompatActivity {
         }
         
         apiClient = new ApiClient(account.getUrl(), account.getApiKey());
+        
+        // 从服务器获取当前会话的最新信息
+        fetchSessionFromServer();
+    }
+    
+    /**
+     * 从服务器获取当前会话的最新信息
+     */
+    private void fetchSessionFromServer() {
+        progressBar.setVisibility(View.VISIBLE);
+        tvStatus.setText("正在获取会话信息...");
+        
+        apiClient.getSessions(accountId, new ApiClient.SessionsCallback() {
+            @Override
+            public void onSuccess(List<Session> sessions) {
+                runOnUiThread(() -> {
+                    // 查找当前会话
+                    Session currentSession = null;
+                    for (Session session : sessions) {
+                        if (session.getSessionId().equals(sessionId)) {
+                            currentSession = session;
+                            break;
+                        }
+                    }
+                    
+                    if (currentSession != null) {
+                        // 从服务器获取最新的 provider/model
+                        currentProvider = currentSession.getProvider();
+                        currentModel = currentSession.getModel();
+                        cwd = currentSession.getCwd();
+                        
+                        // 更新显示
+                        tvCwd.setText("工作目录: " + (cwd != null ? cwd : "unknown"));
+                        
+                        Log.d(TAG, "Session from server: provider=" + currentProvider + ", model=" + currentModel);
+                        
+                        // 更新本地 SessionManager
+                        Session localSession = sessionManager.getSession(sessionId);
+                        if (localSession != null) {
+                            localSession.setProvider(currentProvider);
+                            localSession.setModel(currentModel);
+                            localSession.setCwd(cwd);
+                            sessionManager.updateSession(localSession);
+                        }
+                        
+                        // 加载 providers 列表
+                        loadProviders();
+                    } else {
+                        progressBar.setVisibility(View.GONE);
+                        tvStatus.setText("未找到会话");
+                        
+                        // 使用本地 session 信息备用
+                        Session localSession = sessionManager.getSession(sessionId);
+                        if (localSession != null) {
+                            currentProvider = localSession.getProvider();
+                            currentModel = localSession.getModel();
+                            cwd = localSession.getCwd();
+                            tvCwd.setText("工作目录: " + (cwd != null ? cwd : "unknown"));
+                            loadProviders();
+                        }
+                    }
+                });
+            }
+            
+            @Override
+            public void onError(String error) {
+                runOnUiThread(() -> {
+                    progressBar.setVisibility(View.GONE);
+                    tvStatus.setText("获取会话失败: " + error);
+                    
+                    // 使用本地 session 信息备用
+                    Session localSession = sessionManager.getSession(sessionId);
+                    if (localSession != null) {
+                        currentProvider = localSession.getProvider();
+                        currentModel = localSession.getModel();
+                        cwd = localSession.getCwd();
+                        tvCwd.setText("工作目录: " + (cwd != null ? cwd : "unknown"));
+                        loadProviders();
+                    }
+                });
+            }
+        });
     }
     
     private void loadProviders() {
@@ -260,6 +342,8 @@ public class SessionSettingsActivity extends AppCompatActivity {
         // 标记正在初始化，避免监听器干扰
         isInitializingSpinner = true;
         
+        Log.d(TAG, "setCurrentProviderModel: provider=" + currentProvider + ", model=" + currentModel);
+        
         if (currentProvider != null && !currentProvider.isEmpty()) {
             int providerIndex = providerNames.indexOf(currentProvider);
             if (providerIndex >= 0) {
@@ -316,10 +400,12 @@ public class SessionSettingsActivity extends AppCompatActivity {
                     selectedModelIndex = modelIndex;
                     Log.d(TAG, "Model spinner set to index " + modelIndex + ": " + selectModel);
                 } else {
-                    // 如果找不到指定的 model，选择第一个
+                    // 如果找不到指定的 model，添加到列表并选择
+                    currentModels.add(0, selectModel);
+                    modelAdapter.notifyDataSetChanged();
                     spinnerModel.setSelection(0);
                     selectedModelIndex = 0;
-                    Log.d(TAG, "Model not found, set to first: " + currentModels.get(0));
+                    Log.d(TAG, "Model not found in list, added and set to index 0: " + selectModel);
                 }
             } else {
                 spinnerModel.setSelection(0);
