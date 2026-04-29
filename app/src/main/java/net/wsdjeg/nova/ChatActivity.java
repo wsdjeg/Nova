@@ -90,6 +90,8 @@ public class ChatActivity extends AppCompatActivity {
     
     private String currentSessionId;
     private String currentSessionTitle;
+    private String currentProvider;  // 当前显示的 provider
+    private String currentModel;     // 当前显示的 model
     private String accountId;
     private Account currentAccount;  // 当前账号（用于预览等功能）
     
@@ -544,6 +546,8 @@ public class ChatActivity extends AppCompatActivity {
         // 如果 Intent 传入的值有效，优先使用
         if (intentProvider != null && !intentProvider.isEmpty() && 
             intentModel != null && !intentModel.isEmpty()) {
+            currentProvider = intentProvider;
+            currentModel = intentModel;
             tvSessionInfo.setText(intentProvider + " | " + intentModel);
             tvSessionPath.setText("cwd: " + (intentCwd != null ? intentCwd : ""));
             return;
@@ -552,20 +556,30 @@ public class ChatActivity extends AppCompatActivity {
         // 否则从 SessionManager 获取
         Session session = sessionManager.getSession(currentSessionId);
         if (session != null) {
-            tvSessionInfo.setText(session.getProvider() + " | " + session.getModel());
+            currentProvider = session.getProvider();
+            currentModel = session.getModel();
+            tvSessionInfo.setText(currentProvider + " | " + currentModel);
             tvSessionPath.setText("cwd: " + (session.getCwd() != null ? session.getCwd() : ""));
         }
     }
     
     /**
-     * 更新会话信息显示（从 SessionManager 获取最新数据）
+     * 更新会话信息显示（使用当前缓存的 provider/model）
      */
     private void updateSessionInfoDisplay() {
-        Session session = sessionManager.getSession(currentSessionId);
-        if (session != null) {
-            tvSessionInfo.setText(session.getProvider() + " | " + session.getModel());
-            tvSessionPath.setText("cwd: " + (session.getCwd() != null ? session.getCwd() : ""));
-            Log.d(TAG, "Updated session info display: " + session.getProvider() + "/" + session.getModel());
+        if (currentProvider != null && currentModel != null) {
+            tvSessionInfo.setText(currentProvider + " | " + currentModel);
+            Log.d(TAG, "Updated session info display: " + currentProvider + "/" + currentModel);
+        } else {
+            // 缓存为空，从 SessionManager 获取
+            Session session = sessionManager.getSession(currentSessionId);
+            if (session != null) {
+                currentProvider = session.getProvider();
+                currentModel = session.getModel();
+                tvSessionInfo.setText(currentProvider + " | " + currentModel);
+                tvSessionPath.setText("cwd: " + (session.getCwd() != null ? session.getCwd() : ""));
+                Log.d(TAG, "Updated session info display from session: " + currentProvider + "/" + currentModel);
+            }
         }
     }
     
@@ -1023,11 +1037,13 @@ public class ChatActivity extends AppCompatActivity {
                                 if (serverProvider != null && !serverProvider.isEmpty() 
                                     && !serverProvider.equals(localSession.getProvider())) {
                                     localSession.setProvider(serverProvider);
+                                    currentProvider = serverProvider;
                                     updated = true;
                                 }
                                 if (serverModel != null && !serverModel.isEmpty() 
                                     && !serverModel.equals(localSession.getModel())) {
                                     localSession.setModel(serverModel);
+                                    currentModel = serverModel;
                                     updated = true;
                                 }
                                 if (updated) {
@@ -1250,12 +1266,17 @@ public class ChatActivity extends AppCompatActivity {
             
             Log.d(TAG, "Session settings updated: provider=" + newProvider + ", model=" + newModel);
             
-            // 更新本地 SessionManager 中的数据
-            Session session = sessionManager.getSession(currentSessionId);
-            if (session != null && newProvider != null && newModel != null) {
-                session.setProvider(newProvider);
-                session.setModel(newModel);
-                sessionManager.updateSession(session);
+            // 更新本地缓存和 SessionManager 中的数据
+            if (newProvider != null && newModel != null) {
+                currentProvider = newProvider;
+                currentModel = newModel;
+                
+                Session session = sessionManager.getSession(currentSessionId);
+                if (session != null) {
+                    session.setProvider(newProvider);
+                    session.setModel(newModel);
+                    sessionManager.updateSession(session);
+                }
             }
             
             // 刷新界面显示
