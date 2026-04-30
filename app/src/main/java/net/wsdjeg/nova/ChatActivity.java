@@ -219,10 +219,11 @@ public class ChatActivity extends AppCompatActivity {
                 boolean isAtTop = (firstVisible == 0 && total > 0);
                 boolean isAtBottom = (total == 0) || (lastVisible >= total - BOTTOM_THRESHOLD);
                 
+                // 只有在位置未锁定时才处理加载和位置更新
                 if (!isPositionLocked) {
                     userAtBottom = isAtBottom;
                     
-                    // 只有在位置锁定解除时才更新位置记录
+                    // 更新位置记录
                     if (firstVisible >= 0 && firstVisible < messages.size()) {
                         Message firstMsg = messages.get(firstVisible);
                         firstVisibleMessageCreated = firstMsg.getTimestamp() / 1000;
@@ -231,6 +232,12 @@ public class ChatActivity extends AppCompatActivity {
                         if (firstChild != null) {
                             firstVisibleOffset = firstChild.getTop();
                         }
+                    }
+                    
+                    // 触发加载更多
+                    if (!isLoadingOlder && isAtTop && canLoadMore() && dy < 0) {
+                        showLoadMoreHint("下拉加载更多");
+                        triggerLoadOlder();
                     }
                 }
                 
