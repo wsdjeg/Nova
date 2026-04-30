@@ -234,9 +234,8 @@ public class ChatActivity extends AppCompatActivity {
                         }
                     }
                     
-                    // 触发加载更多
+                    // 触发加载更多（在滚动过程中向上滚动时）
                     if (!isLoadingOlder && isAtTop && canLoadMore() && dy < 0) {
-                        showLoadMoreHint("下拉加载更多");
                         triggerLoadOlder();
                     }
                 }
@@ -259,12 +258,11 @@ public class ChatActivity extends AppCompatActivity {
                     int firstVisible = lm.findFirstVisibleItemPosition();
                     boolean isAtTop = (firstVisible == 0 && adapter.getItemCount() > 0);
                     
-                    if (!isLoadingOlder) {
-                        if (isAtTop && canLoadMore()) {
-                            showLoadMoreHint("下拉加载更多");
-                        } else {
-                            hideLoadMoreHint();
-                        }
+                    // 滚动停止时，如果在顶部且可以加载更多，则触发加载
+                    if (!isLoadingOlder && isAtTop && canLoadMore()) {
+                        triggerLoadOlder();
+                    } else if (!isLoadingOlder) {
+                        hideLoadMoreHint();
                     }
                 }
             }
@@ -289,7 +287,6 @@ public class ChatActivity extends AppCompatActivity {
         
         messages.add(new Message("正在加载消息...", false));
         adapter.refreshData();
-        
         refreshSessionStatus(() -> loadMessagesPage());
         startAutoRefresh();
         
