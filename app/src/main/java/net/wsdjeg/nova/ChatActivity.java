@@ -332,7 +332,7 @@ public class ChatActivity extends AppCompatActivity {
                     if (keyboardNowVisible) {
                         scrollToBottom();
                         rvMessages.postDelayed(() -> scrollToBottom(), 100);
-                        rvMessages.postDelayed(() => scrollToBottom(), 200);
+                        rvMessages.postDelayed(() -> scrollToBottom(), 200);
                     }
                 }
                 
@@ -671,7 +671,7 @@ public class ChatActivity extends AppCompatActivity {
             }
         }
         
-        for (String key in toRemove) {
+        for (String key : toRemove) {
             pendingMessages.remove(key);
         }
     }
