@@ -235,9 +235,17 @@ public class ChatActivity extends AppCompatActivity {
                         }
                     }
                     
-                    // 触发加载更多（在滚动过程中向上滚动时）
-                    if (!isLoadingOlder && isAtTop && canLoadMore() && dy < 0) {
-                        triggerLoadOlder();
+                    // 只有滚动到顶部且前面有消息时才显示提示
+                    if (!isLoadingOlder) {
+                        if (isAtTop && canLoadMore()) {
+                            showLoadMoreHint("下拉加载更多");
+                            // 触发加载更多（在滚动过程中向上滚动时）
+                            if (dy < 0) {
+                                triggerLoadOlder();
+                            }
+                        } else {
+                            hideLoadMoreHint();
+                        }
                     }
                 }
                 
@@ -262,8 +270,6 @@ public class ChatActivity extends AppCompatActivity {
                     // 滚动停止时，如果在顶部且可以加载更多，则触发加载
                     if (!isLoadingOlder && isAtTop && canLoadMore()) {
                         triggerLoadOlder();
-                    } else if (!isLoadingOlder) {
-                        hideLoadMoreHint();
                     }
                 }
             }
@@ -273,15 +279,6 @@ public class ChatActivity extends AppCompatActivity {
             userAtBottom = true;
             scrollToBottom();
         });
-        
-        btnSend.setOnClickListener(v -> {
-            if (buttonState == STATE_SENDING) {
-                stopSession();
-            } else {
-                sendMessage();
-            }
-        });
-        
         tvSessionTitle.setText(currentSessionTitle != null ? currentSessionTitle : currentSessionId);
         
         updateSessionInfo(intentProvider, intentModel, intentCwd);
@@ -742,19 +739,12 @@ public class ChatActivity extends AppCompatActivity {
                     sessionManager.updateFirstMessageIndex(currentSessionId, currentSince);
                     adapter.refreshData();
                     
-                    // 检查是否可以加载更多
-                    if (canLoadMore()) {
-                        showLoadMoreHint("下拉加载更多");
-                    } else {
-                        hideLoadMoreHint();
-                    }
+                    // 不在首次加载时显示提示，只在滚动到顶部时显示
+                    hideLoadMoreHint();
                     
                     userAtBottom = true;
                     isPositionLocked = false;
                     scrollToBottom();
-                    
-                    rvMessages.postDelayed(() -> scrollToBottom(), 100);
-                    rvMessages.postDelayed(() -> scrollToBottom(), 300);
                 });
             }
             
@@ -773,7 +763,6 @@ public class ChatActivity extends AppCompatActivity {
             }
         });
     }
-    
     /**
      * 加载更早的消息
      * 
