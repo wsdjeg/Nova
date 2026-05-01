@@ -47,10 +47,9 @@ import java.util.Map;
  * - adapter.getItemCount(): 显示的消息数（过滤后的，与服务端计数无关）
  * 
  * 下拉加载更多：
- * - 首次加载：since = Math.max(1, totalMessageCount - 50)
- * - 每次下拉：since = Math.max(1, currentSince - 50)
+ * - 首次加载：since = Math.max(1, totalMessageCount - PAGE_SIZE + 1)
+ * - 每次下拉：since = Math.max(1, currentSince - PAGE_SIZE)
  * - 条件：到达顶部且 currentSince > 1
- * - 如果加载的一页全是不可显示消息，自动继续加载下一页
  * 
  * Pending 消息机制：
  * - 发送消息时添加 pending 消息（临时显示）
@@ -722,10 +721,9 @@ public class ChatActivity extends AppCompatActivity {
             return;
         }
         
-        // 首次加载：since = Math.max(1, totalMessageCount - 50)
-        int since = Math.max(1, totalMessageCount - PAGE_SIZE);
+        // 首次加载：since = Math.max(1, totalMessageCount - PAGE_SIZE + 1)
+        int since = Math.max(1, totalMessageCount - PAGE_SIZE + 1);
         currentSince = since;
-        
         apiClient.getNewMessages(currentSessionId, since, new ApiClient.MessagesCallback() {
             @Override
             public void onSuccess(List<ApiClient.ChatMessage> chatMessages) {
@@ -789,10 +787,9 @@ public class ChatActivity extends AppCompatActivity {
      * 计数说明：
      * - currentSince: 服务端消息索引（从1开始）
      * - totalMessageCount: 服务端返回的总消息数
-     * - newDisplayableCount: 本次加载中可显示的消息数（过滤后）
      * 
-     * 每次下拉加载：since = Math.max(1, currentSince - 50)
-     * 如果本次加载没有可显示的消息，自动继续加载下一页
+     * 每次下拉加载：since = Math.max(1, currentSince - PAGE_SIZE)
+     * 如果已到第一条则提示
      */
     private void loadOlderMessages() {
         if (!canLoadMore()) {
@@ -803,16 +800,8 @@ public class ChatActivity extends AppCompatActivity {
             return;
         }
         
-        // 每次下拉加载：since = Math.max(1, currentSince - 50)
+        // 每次下拉加载：since = Math.max(1, currentSince - PAGE_SIZE)
         int newSince = Math.max(1, currentSince - PAGE_SIZE);
-        if (newSince >= currentSince) {
-            isLoadingOlder = false;
-            isPositionLocked = false;
-            currentSince = 1;
-            hideLoadMoreHint();
-            Toast.makeText(this, "已到第一条消息", Toast.LENGTH_SHORT).show();
-            return;
-        }
         
         apiClient.getNewMessages(currentSessionId, newSince, new ApiClient.MessagesCallback() {
             @Override
