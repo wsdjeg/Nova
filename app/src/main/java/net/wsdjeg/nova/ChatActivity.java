@@ -26,10 +26,12 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
-
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.Map;
 
 /**
@@ -132,11 +134,15 @@ public class ChatActivity extends AppCompatActivity {
     // 消息指纹缓存（使用服务端时间戳 created 作为 key）
     private Map<Long, String> messageFingerprints = new HashMap<>();
     
-    // Pending 消息：存储正在发送的消息内容，等待服务端确认
+    // Pending 消息：存储正在发送的消息内容，等待服务端确认（用于UI显示）
     private Map<String, Long> pendingMessages = new HashMap<>();
     
-    private boolean userAtBottom = true;
+    // Bug 2 修复：消息池等待集合
+    // 存储已成功推送到服务端消息池但还没被AI处理的消息
+    // 因为消息池最多5秒才处理，期间需要保持"停止"按钮状态
+    private Set<String> messagesInPool = new HashSet<>();
     
+    private boolean userAtBottom = true;
     // 键盘状态追踪
     private int lastKeyboardHeight = 0;
     private boolean isKeyboardVisible = false;
@@ -599,7 +605,6 @@ public class ChatActivity extends AppCompatActivity {
         if (apiClient == null || currentSessionId == null || isLoadingOlder) return;
         refreshSessionStatusForIncrementalRefresh();
     }
-    
     private void refreshSessionStatusForIncrementalRefresh() {
         apiClient.getSessions(accountId, new ApiClient.SessionsCallback() {
             @Override
@@ -612,14 +617,17 @@ public class ChatActivity extends AppCompatActivity {
                             
                             int serverCount = session.getMessageCount();
                             
-                            // Bug 2 修复：如果有 pending 消息，即使服务端返回 in_progress=false，也保持"停止"按钮
-                            // 原因：消息推送到消息池后，最多5秒才真正发给AI，期间服务端可能返回 in_progress=false
-                            boolean hasPendingMessages = pendingMessages.size() > 0;
+                            // Bug 2 修复：检查消息池等待状态
+                            // 原因：消息推送到消息池后，最多5秒才真正发给AI
+                            // 期间服务端可能返回 in_progress=false
+                            boolean hasMessagesInPool = messagesInPool.size() > 0;
                             
-                            if (isInProgress || hasPendingMessages) {
+                            if (isInProgress || hasMessagesInPool) {
                                 setButtonStateSending();
                             } else {
                                 if (wasInProgress) {
+                                    // AI 处理完成，清理消息池等待状态
+                                    messagesInPool.clear();
                                     setButtonStateNormal();
                                     fetchNewMessagesAndRestorePosition();
                                 } else {
@@ -838,6 +846,7 @@ public class ChatActivity extends AppCompatActivity {
             messages.clear();
             messageFingerprints.clear();
             pendingMessages.clear();
+            messagesInPool.clear();
             addSystemMessage("暂无消息");
             processedServerMessageCount = 0;
             currentSince = 0;
@@ -856,6 +865,7 @@ public class ChatActivity extends AppCompatActivity {
                     messages.clear();
                     messageFingerprints.clear();
                     pendingMessages.clear();
+                    messagesInPool.clear();
                     
                     if (chatMessages.isEmpty()) {
                         addSystemMessage("暂无消息");
@@ -890,8 +900,14 @@ public class ChatActivity extends AppCompatActivity {
                     messages.clear();
                     messageFingerprints.clear();
                     pendingMessages.clear();
+                    messagesInPool.clear();
                     addSystemMessage("加载失败: " + error);
                     currentSince = 0;
+                    adapter.refreshData();
+                    hideLoadMoreHint();
+                    isInitialLoadComplete = true;
+                });
+            }
                     adapter.refreshData();
                     hideLoadMoreHint();
                     isInitialLoadComplete = true;
@@ -1084,7 +1100,6 @@ public class ChatActivity extends AppCompatActivity {
             }
         });
     }
-    
     private void reloadMessages() {
         isInitialLoadComplete = false;
         
@@ -1093,6 +1108,8 @@ public class ChatActivity extends AppCompatActivity {
         messages.clear();
         messageFingerprints.clear();
         pendingMessages.clear();
+        messagesInPool.clear();
+        processedServerMessageCount = 0;
         processedServerMessageCount = 0;
         currentSince = 0;
         sessionManager.updateFirstMessageIndex(currentSessionId, 0);
@@ -1263,7 +1280,10 @@ public class ChatActivity extends AppCompatActivity {
             @Override
             public void onSuccess() {
                 runOnUiThread(() -> {
-                    pendingMessages.remove(content);
+                    // Bug 2 修复：消息成功推送到消息池，但可能还在等待被AI处理（最多5秒）
+                    // 将消息添加到 messagesInPool 集合，表示正在等待AI处理
+                    // 不移除 pendingMessages，以便后续匹配服务端返回的消息
+                    messagesInPool.add(content);
                     fetchNewMessagesAndRestorePosition();
                 });
             }
@@ -1272,6 +1292,7 @@ public class ChatActivity extends AppCompatActivity {
             public void onError(String error) {
                 runOnUiThread(() -> {
                     pendingMessages.remove(content);
+                    messagesInPool.remove(content);
                     for (int i = messages.size() - 1; i >= 0; i--) {
                         Message msg = messages.get(i);
                         if (msg.isPending() && content.equals(msg.getContent())) {
@@ -1289,6 +1310,9 @@ public class ChatActivity extends AppCompatActivity {
     }
     
     private void stopSession() {
+        // Bug 2 修复：停止时清理消息池等待状态
+        messagesInPool.clear();
+        
         apiClient.stopSession(currentSessionId, new ApiClient.StopCallback() {
             @Override
             public void onSuccess() {
@@ -1336,6 +1360,7 @@ public class ChatActivity extends AppCompatActivity {
                             messages.clear();
                             messageFingerprints.clear();
                             pendingMessages.clear();
+                            messagesInPool.clear();
                             processedServerMessageCount = 0;
                             currentSince = 0;
                             totalMessageCount = 0;
