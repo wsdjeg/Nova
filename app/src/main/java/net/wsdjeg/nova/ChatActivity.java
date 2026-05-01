@@ -103,11 +103,12 @@ public class ChatActivity extends AppCompatActivity {
     private int currentSince = 0;
     private int processedServerMessageCount = 0;
     
+    // 首次加载完成标志：确保在首次加载完成前不显示"下拉加载更多"提示
+    private boolean isInitialLoadComplete = false;
+    
     private int buttonState = STATE_NORMAL;
     private boolean isInProgress = false;
     private Menu chatMenu;
-    
-    private boolean isLoadingOlder = false;
     private boolean wasAtTopBeforeLoad = false;
     
     private long firstVisibleMessageCreated = -1;
@@ -346,9 +347,10 @@ public class ChatActivity extends AppCompatActivity {
     /**
      * 是否可以加载更多消息
      * 基于服务端消息索引判断，不依赖客户端显示的消息数
+     * 首次加载完成前不显示加载更多提示
      */
     private boolean canLoadMore() {
-        return currentSince > 1 && totalMessageCount > 0;
+        return isInitialLoadComplete && currentSince > 1 && totalMessageCount > 0;
     }
     
     private void triggerLoadOlder() {
@@ -692,7 +694,6 @@ public class ChatActivity extends AppCompatActivity {
             }
         }
     }
-    
     private void loadMessagesPage() {
         if (apiClient == null || currentSessionId == null) return;
         
@@ -705,6 +706,7 @@ public class ChatActivity extends AppCompatActivity {
             currentSince = 0;
             adapter.refreshData();
             hideLoadMoreHint();
+            isInitialLoadComplete = true;
             return;
         }
         
@@ -726,6 +728,7 @@ public class ChatActivity extends AppCompatActivity {
                         currentSince = 0;
                         adapter.refreshData();
                         hideLoadMoreHint();
+                        isInitialLoadComplete = true;
                         return;
                     }
                     
@@ -738,6 +741,9 @@ public class ChatActivity extends AppCompatActivity {
                     processedServerMessageCount = totalMessageCount;
                     sessionManager.updateFirstMessageIndex(currentSessionId, currentSince);
                     adapter.refreshData();
+                    
+                    // 首次加载完成，允许后续的加载更多判断
+                    isInitialLoadComplete = true;
                     
                     // 不在首次加载时显示提示，只在滚动到顶部时显示
                     hideLoadMoreHint();
@@ -759,6 +765,7 @@ public class ChatActivity extends AppCompatActivity {
                     adapter.refreshData();
                     hideLoadMoreHint();
                     isPositionLocked = false;
+                    isInitialLoadComplete = true;
                 });
             }
         });
@@ -774,8 +781,6 @@ public class ChatActivity extends AppCompatActivity {
      * 每次下拉加载：since = Math.max(1, currentSince - 50)
      * 如果本次加载没有可显示的消息，自动继续加载下一页
      */
-    private void loadOlderMessages() {
-        if (!canLoadMore()) {
             isLoadingOlder = false;
             isPositionLocked = false;
             hideLoadMoreHint();
@@ -939,6 +944,9 @@ public class ChatActivity extends AppCompatActivity {
     }
     
     private void reloadMessages() {
+        // 重置首次加载完成标志，避免在刷新过程中显示加载更多提示
+        isInitialLoadComplete = false;
+        
         LinearLayoutManager lm = (LinearLayoutManager) rvMessages.getLayoutManager();
         if (lm != null) {
             int firstVisible = lm.findFirstVisibleItemPosition();
@@ -1138,6 +1146,7 @@ public class ChatActivity extends AppCompatActivity {
                     pendingMessages.clear();
                     processedServerMessageCount = 0;
                     currentSince = 0;
+                    totalMessageCount = 0;  // 清空会话后消息总数为 0
                     adapter.refreshData();
                     addSystemMessage("会话已清空");
                     Toast.makeText(ChatActivity.this, "会话已清空", Toast.LENGTH_SHORT).show();
