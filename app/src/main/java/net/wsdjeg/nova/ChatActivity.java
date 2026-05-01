@@ -817,7 +817,6 @@ public class ChatActivity extends AppCompatActivity {
                     
                     // 记录加载前的消息数量
                     int oldCount = messages.size();
-                    
                     // 插入新消息到头部
                     int newMessageCount = 0;
                     for (int i = chatMessages.size() - 1; i >= 0; i--) {
@@ -859,19 +858,23 @@ public class ChatActivity extends AppCompatActivity {
                     // 计算新的位置：原位置 + 新增的消息数
                     int newPosition = positionToRestore + newMessageCount;
                     
+                    // Make final copies for lambdas
+                    final int loadedCount = newMessageCount;
+                    final int finalPosition = newPosition;
+                    
                     // 使用 post 确保布局完成
                     rvMessages.post(() -> {
                         LinearLayoutManager lm = (LinearLayoutManager) rvMessages.getLayoutManager();
-                        if (lm != null && newPosition >= 0 && newPosition < messages.size()) {
+                        if (lm != null && finalPosition >= 0 && finalPosition < messages.size()) {
                             // 精确恢复位置
-                            lm.scrollToPositionWithOffset(newPosition, offsetToRestore);
+                            lm.scrollToPositionWithOffset(finalPosition, offsetToRestore);
                         }
                         
                         isLoadingOlder = false;
                         
                         // 显示加载结果
                         if (canLoadMore()) {
-                            showLoadMoreHint("✓ 已加载 " + newMessageCount + " 条");
+                            showLoadMoreHint("✓ 已加载 " + loadedCount + " 条");
                             rvMessages.postDelayed(() -> {
                                 LinearLayoutManager lm2 = (LinearLayoutManager) rvMessages.getLayoutManager();
                                 if (lm2 != null && lm2.findFirstVisibleItemPosition() == 0 && canLoadMore()) {
