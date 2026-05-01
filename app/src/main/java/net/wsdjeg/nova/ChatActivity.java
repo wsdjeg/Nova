@@ -1005,14 +1005,21 @@ public class ChatActivity extends AppCompatActivity {
         hideLoadMoreHint();
         loadMessagesPage();
     }
-    
     /**
      * 平滑滚动到底部 - 优化版
      * 
-     * 优化点：
-     * 1. 单次滚动，不使用多个 postDelayed
-     * 2. 使用 scrollToPositionWithOffset 精确控制位置
-     * 3. 考虑 RecyclerView 的 padding
+     * 目标：最后一条消息的底部定位在窗口底部
+     * 
+     * 实现原理：
+     * scrollToPositionWithOffset(position, offset) 中：
+     * - offset 表示 item 顶部与 RecyclerView 顶部的距离
+     * - 要让 item 底部在 RecyclerView 底部，需要：
+     *   offset = RecyclerView高度 - item高度
+     * 
+     * 步骤：
+     * 1. 先滚动让 item 可见
+     * 2. 获取 item 实际高度
+     * 3. 计算正确的 offset 并精确定位
      */
     private void scrollToBottomSmooth() {
         if (rvMessages == null || adapter == null) return;
@@ -1022,14 +1029,31 @@ public class ChatActivity extends AppCompatActivity {
         LinearLayoutManager lm = (LinearLayoutManager) rvMessages.getLayoutManager();
         if (lm == null) return;
         
-        // 使用 post 确保布局完成
+        int lastPosition = itemCount - 1;
+        
+        // 第一步：滚动让最后一条消息可见
+        lm.scrollToPosition(lastPosition);
+        
+        // 第二步：等待布局完成后精确调整位置
         rvMessages.post(() -> {
             if (adapter.getItemCount() == 0) return;
             
-            // 直接滚动到最后一条，使用 padding offset
-            int lastPosition = adapter.getItemCount() - 1;
-            int offset = rvMessages.getPaddingBottom();
-            lm.scrollToPositionWithOffset(lastPosition, offset);
+            int pos = adapter.getItemCount() - 1;
+            View lastChild = lm.findViewByPosition(pos);
+            
+            if (lastChild != null) {
+                // 计算：RecyclerView高度 - item高度 = item顶部应该在的位置
+                // 这样 item 底部就会正好在 RecyclerView 底部
+                int recyclerHeight = rvMessages.getHeight();
+                int itemHeight = lastChild.getHeight();
+                int offset = recyclerHeight - itemHeight;
+                
+                // 精确定位：item 底部在 RecyclerView 底部
+                lm.scrollToPositionWithOffset(pos, offset);
+            } else {
+                // 如果找不到 view（可能是 item 还没布局），使用默认滚动
+                lm.scrollToPosition(pos);
+            }
         });
     }
     
