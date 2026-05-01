@@ -816,7 +816,8 @@ public class ChatActivity extends AppCompatActivity {
                     long targetCreated = firstVisibleMessageCreated;
                     int targetOffset = firstVisibleOffset;
                     
-                    int newDisplayableCount = 0;
+                    // 统计实际添加的新消息总数（而非过滤后的数量）
+                    int newMessageCount = 0;
                     for (int i = chatMessages.size() - 1; i >= 0; i--) {
                         ApiClient.ChatMessage msg = chatMessages.get(i);
                         if (!messageFingerprints.containsKey(msg.created)) {
@@ -827,11 +828,7 @@ public class ChatActivity extends AppCompatActivity {
                             );
                             messages.add(0, message);
                             messageFingerprints.put(msg.created, msg.content);
-                            
-                            // 统计可显示的消息数（用于提示用户）
-                            if (msg.content != null && !msg.content.isEmpty() && !"tool".equals(msg.role)) {
-                                newDisplayableCount++;
-                            }
+                            newMessageCount++;  // 统计实际添加的消息数
                         }
                     }
                     
@@ -850,8 +847,8 @@ public class ChatActivity extends AppCompatActivity {
                         }
                     }
                     
-                    // 如果本次加载没有可显示消息，且还有更多消息可加载，自动继续加载
-                    if (newDisplayableCount == 0 && canLoadMore()) {
+                    // 如果本次加载没有新消息，且还有更多消息可加载，自动继续加载
+                    if (newMessageCount == 0 && canLoadMore()) {
                         showLoadMoreHint("继续加载...");
                         rvMessages.postDelayed(() -> {
                             if (!isLoadingOlder && canLoadMore()) {
@@ -863,7 +860,7 @@ public class ChatActivity extends AppCompatActivity {
                     }
                     
                     if (canLoadMore()) {
-                        showLoadMoreHint("已加载 " + newDisplayableCount + " 条");
+                        showLoadMoreHint("已加载 " + newMessageCount + " 条消息");
                         rvMessages.postDelayed(() -> {
                             LinearLayoutManager lm2 = (LinearLayoutManager) rvMessages.getLayoutManager();
                             if (lm2 != null) {
