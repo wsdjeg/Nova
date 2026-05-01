@@ -612,7 +612,11 @@ public class ChatActivity extends AppCompatActivity {
                             
                             int serverCount = session.getMessageCount();
                             
-                            if (isInProgress) {
+                            // Bug 2 修复：如果有 pending 消息，即使服务端返回 in_progress=false，也保持"停止"按钮
+                            // 原因：消息推送到消息池后，最多5秒才真正发给AI，期间服务端可能返回 in_progress=false
+                            boolean hasPendingMessages = pendingMessages.size() > 0;
+                            
+                            if (isInProgress || hasPendingMessages) {
                                 setButtonStateSending();
                             } else {
                                 if (wasInProgress) {
@@ -703,14 +707,28 @@ public class ChatActivity extends AppCompatActivity {
         });
     }
     
+    /**
+     * 查找 pending 消息的位置
+     * 
+     * Bug 1 修复：直接在 messages 列表中查找匹配的 pending 消息
+     * 不依赖 pendingMessages map（可能因超时被清理）
+     * 
+     * 匹配规则：
+     * 1. 消息必须是 pending 状态
+     * 2. 消息内容必须相同
+     * 3. 消息角色必须是 user
+     */
     private int findPendingMessageIndex(String content) {
-        if (content == null || !pendingMessages.containsKey(content)) {
+        if (content == null) {
             return -1;
         }
         
-        for (int i = 0; i < messages.size(); i++) {
+        // Bug 1 修复：直接在 messages 列表中查找，不依赖 pendingMessages map
+        // 从后往前查找，因为 pending 消息通常在列表末尾
+        for (int i = messages.size() - 1; i >= 0; i--) {
             Message msg = messages.get(i);
-            if (msg.isPending() && content.equals(msg.getContent())) {
+            // 只匹配 pending 状态的 user 消息，且内容相同
+            if (msg.isPending() && msg.isUser() && content.equals(msg.getContent())) {
                 return i;
             }
         }
@@ -1291,6 +1309,7 @@ public class ChatActivity extends AppCompatActivity {
             }
         });
     }
+    
     private void setButtonStateSending() {
         buttonState = STATE_SENDING;
         btnSend.setText("停止");
@@ -1304,8 +1323,6 @@ public class ChatActivity extends AppCompatActivity {
         btnSend.setBackgroundResource(R.drawable.send_button_bg);
         btnSend.setBackgroundTintList(null);
     }
-    
-    
     
     private void clearSession() {
         new android.app.AlertDialog.Builder(this)
