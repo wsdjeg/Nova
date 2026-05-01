@@ -100,10 +100,6 @@ jobs:
 
       - name: Create PreRelease
         uses: softprops/action-gh-release@v1
-        env:
-          VERSION_NAME: ${{ needs.build.outputs.version_name }}
-          SHORT_SHA: ${{ needs.build.outputs.short_sha }}
-          BUILD_TIME: ${{ needs.build.outputs.build_time }}
         with:
           tag_name: prerelease
           name: PreRelease v${{ needs.build.outputs.version_name }}
@@ -140,10 +136,6 @@ jobs:
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
-        env:
-          VERSION_NAME: ${{ needs.build.outputs.version_name }}
-          VERSION_CODE: ${{ needs.build.outputs.version_code }}
-          BUILD_TIME: ${{ needs.build.outputs.build_time }}
         with:
           tag_name: v${{ needs.build.outputs.version_name }}
           name: Release v${{ needs.build.outputs.version_name }}
