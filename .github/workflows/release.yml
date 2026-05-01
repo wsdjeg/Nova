@@ -2,9 +2,9 @@ name: Build & Release
 
 on:
   pull_request:
-    branches: [ "master" ]
+    branches: ["master"]
   push:
-    branches: [ "master" ]
+    branches: ["master"]
 
 permissions:
   contents: write
@@ -19,133 +19,127 @@ jobs:
       short_sha: ${{ steps.version.outputs.SHORT_SHA }}
 
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Set up JDK 17
-      uses: actions/setup-java@v4
-      with:
-        java-version: '17'
-        distribution: 'temurin'
+      - uses: actions/checkout@v4
 
-    - name: Setup Gradle
-      uses: gradle/actions/setup-gradle@v3
-      with:
-        gradle-version: '8.0'
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: "17"
+          distribution: "temurin"
 
-    - name: Generate debug keystore
-      run: |
-        mkdir -p ~/.android
-        keytool -genkey -v -keystore ~/.android/debug.keystore \
-          -alias androiddebugkey \
-          -storepass android \
-          -keypass android \
-          -keyalg RSA -keysize 2048 -validity 10000 \
-          -dname "CN=Android Debug,O=Android,C=US"
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: "8.0"
 
-    - name: Build Debug APK
-      run: gradle assembleDebug --no-daemon --stacktrace
+      - name: Generate debug keystore
+        run: |
+          mkdir -p ~/.android
+          keytool -genkey -v -keystore ~/.android/debug.keystore \
+            -alias androiddebugkey \
+            -storepass android \
+            -keypass android \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -dname "CN=Android Debug,O=Android,C=US"
 
-    - name: Get version info
-      id: version
-      run: |
-        VERSION_NAME=$(grep "versionName" app/build.gradle | head -1 | sed 's/.*versionName[[:space:]]*["'"'"']\([^"'"'"']*\).*/\1/')
-        VERSION_CODE=$(grep "versionCode" app/build.gradle | head -1 | sed 's/.*versionCode[[:space:]]*\([0-9]*\).*/\1/')
-        BUILD_TIME=$(date +'%Y%m%d_%H%M%S')
-        SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-7)
-        echo "VERSION_NAME=$VERSION_NAME" >> $GITHUB_OUTPUT
-        echo "VERSION_CODE=$VERSION_CODE" >> $GITHUB_OUTPUT
-        echo "BUILD_TIME=$BUILD_TIME" >> $GITHUB_OUTPUT
-        echo "SHORT_SHA=$SHORT_SHA" >> $GITHUB_OUTPUT
+      - name: Build Debug APK
+        run: gradle assembleDebug --no-daemon --stacktrace
 
-    - name: Upload APK artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: nova-apk
-        path: app/build/outputs/apk/debug/app-debug.apk
-        retention-days: 1
+      - name: Get version info
+        id: version
+        run: |
+          VERSION_NAME=$(grep "versionName" app/build.gradle | head -1 | sed 's/.*versionName[[:space:]]*["'"'"']\([^"'"'"']*\).*/\1/')
+          VERSION_CODE=$(grep "versionCode" app/build.gradle | head -1 | sed 's/.*versionCode[[:space:]]*\([0-9]*\).*/\1/')
+          BUILD_TIME=$(date +'%Y%m%d_%H%M%S')
+          SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-7)
+          echo "VERSION_NAME=$VERSION_NAME" >> $GITHUB_OUTPUT
+          echo "VERSION_CODE=$VERSION_CODE" >> $GITHUB_OUTPUT
+          echo "BUILD_TIME=$BUILD_TIME" >> $GITHUB_OUTPUT
+          echo "SHORT_SHA=$SHORT_SHA" >> $GITHUB_OUTPUT
 
-  # PR 构建 - 只验证，不发布
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nova-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 1
+
   pr-check:
     needs: build
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
-    - name: PR Build OK
-      run: echo "PR build completed successfully"
+      - name: PR Build OK
+        run: echo "PR build completed successfully"
 
-  # PreRelease - master 推送时更新（非 release commit）
   prerelease:
     needs: build
     if: github.event_name == 'push' && !contains(github.event.head_commit.message, 'chore: release')
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Download APK
-      uses: actions/download-artifact@v4
-      with:
-        name: nova-apk
-        path: ./apk
+      - name: Download APK
+        uses: actions/download-artifact@v4
+        with:
+          name: nova-apk
+          path: ./apk
 
-    - name: Rename APK for prerelease
-      run: |
-        mv ./apk/app-debug.apk ./apk/Nova-v${{ needs.build.outputs.version_name }}-dev-${{ needs.build.outputs.short_sha }}.apk
+      - name: Rename APK for prerelease
+        run: mv ./apk/app-debug.apk ./apk/Nova-v${{ needs.build.outputs.version_name }}-dev-${{ needs.build.outputs.short_sha }}.apk
 
-    - name: Delete old prerelease
-      env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: |
-        gh release delete prerelease --yes --cleanup-tag 2>/dev/null || true
+      - name: Delete old prerelease
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release delete prerelease --yes --cleanup-tag 2>/dev/null || true
 
-    - name: Create PreRelease
-      uses: softprops/action-gh-release@v1
-      with:
-        tag_name: prerelease
-        name: PreRelease v${{ needs.build.outputs.version_name }}
-        body: |
-          **版本**: ${{ needs.build.outputs.version_name }}
-          **构建**: ${{ needs.build.outputs.short_sha }}
-          **时间**: ${{ needs.build.outputs.build_time }}
-          
-          ${{ github.event.head_commit.message }}
-          
-          > 开发版，可能包含未完成功能
-        prerelease: true
-        files: ./apk/Nova-v${{ needs.build.outputs.version_name }}-dev-${{ needs.build.outputs.short_sha }}.apk
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Create PreRelease
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: prerelease
+          name: PreRelease v${{ needs.build.outputs.version_name }}
+          body: |
+            **版本**: ${{ needs.build.outputs.version_name }}
+            **构建**: ${{ needs.build.outputs.short_sha }}
+            **时间**: ${{ needs.build.outputs.build_time }}
 
-  # 正式发布 - 由 release-please 触发
+            ${{ github.event.head_commit.message }}
+
+            > 开发版，可能包含未完成功能
+          prerelease: true
+          files: ./apk/Nova-v${{ needs.build.outputs.version_name }}-dev-${{ needs.build.outputs.short_sha }}.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   release:
     needs: build
     if: github.event_name == 'push' && contains(github.event.head_commit.message, 'chore: release')
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Download APK
-      uses: actions/download-artifact@v4
-      with:
-        name: nova-apk
-        path: ./apk
+      - name: Download APK
+        uses: actions/download-artifact@v4
+        with:
+          name: nova-apk
+          path: ./apk
 
-    - name: Rename APK for release
-      run: |
-        mv ./apk/app-debug.apk ./apk/Nova-v${{ needs.build.outputs.version_name }}.apk
+      - name: Rename APK for release
+        run: mv ./apk/app-debug.apk ./apk/Nova-v${{ needs.build.outputs.version_name }}.apk
 
-    - name: Create Release
-      uses: softprops/action-gh-release@v1
-      with:
-        tag_name: v${{ needs.build.outputs.version_name }}
-        name: Release v${{ needs.build.outputs.version_name }}
-        body: |
-          **版本**: ${{ needs.build.outputs.version_name }} (Build ${{ needs.build.outputs.version_code }})
-          **构建时间**: ${{ needs.build.outputs.build_time }}
-          
-          ### 更新内容
-          查看 [CHANGELOG.md](./CHANGELOG.md)
-        draft: false
-        prerelease: false
-        files: ./apk/Nova-v${{ needs.build.outputs.version_name }}.apk
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ needs.build.outputs.version_name }}
+          name: Release v${{ needs.build.outputs.version_name }}
+          body: |
+            **版本**: ${{ needs.build.outputs.version_name }} (Build ${{ needs.build.outputs.version_code }})
+            **构建时间**: ${{ needs.build.outputs.build_time }}
+
+            ### 更新内容
+            查看 [CHANGELOG.md](./CHANGELOG.md)
+          draft: false
+          prerelease: false
+          files: ./apk/Nova-v${{ needs.build.outputs.version_name }}.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
