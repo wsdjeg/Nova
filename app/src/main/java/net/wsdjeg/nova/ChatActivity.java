@@ -1002,16 +1002,24 @@ public class ChatActivity extends AppCompatActivity {
         if (itemCount > 0) {
             LinearLayoutManager lm = (LinearLayoutManager) rvMessages.getLayoutManager();
             if (lm != null) {
-                lm.scrollToPositionWithOffset(itemCount - 1, Integer.MIN_VALUE);
-                rvMessages.postDelayed(() -> {
-                    if (!isPositionLocked && adapter.getItemCount() > 0) {
-                        lm.scrollToPositionWithOffset(adapter.getItemCount() - 1, Integer.MIN_VALUE);
-                    }
-                }, 100);
+                // 确保最后一条消息完全可见
+                rvMessages.post(() -> {
+                    if (isPositionLocked || adapter.getItemCount() == 0) return;
+                    
+                    // 先滚动到最后一条
+                    lm.scrollToPosition(adapter.getItemCount() - 1);
+                    
+                    // 延迟确保布局完成后再次滚动
+                    rvMessages.postDelayed(() -> {
+                        if (!isPositionLocked && adapter.getItemCount() > 0) {
+                            // 使用正数 offset 确保消息底部可见
+                            lm.scrollToPositionWithOffset(adapter.getItemCount() - 1, rvMessages.getPaddingBottom());
+                        }
+                    }, 100);
+                });
             }
         }
     }
-    
     private void refreshSessionStatus() {
         refreshSessionStatus(null);
     }
