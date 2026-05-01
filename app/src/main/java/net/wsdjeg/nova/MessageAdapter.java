@@ -25,6 +25,11 @@ import java.util.List;
  * - messages 列表包含所有消息（包括 tool 类型和空 content）
  * - 显示时过滤掉不可显示的消息（tool 类型或空 content）
  * - 使用 visibleMessages 缓存可见消息列表
+ * 
+ * 位置恢复机制：
+ * - 提供 getVisibleMessageAt() 获取指定可见位置的消息
+ * - 提供 findVisiblePositionByCreated() 根据时间戳找到可见位置
+ * - 用于下拉加载更多后的精确位置恢复
  */
 public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageViewHolder> {
     private List<Message> messages;
@@ -142,6 +147,38 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
     public Message getLastVisibleMessage() {
         if (visibleMessages.isEmpty()) return null;
         return visibleMessages.get(visibleMessages.size() - 1);
+    }
+    
+    /**
+     * 获取指定可见位置的消息
+     * 
+     * 用于位置保存：记录第一条可见消息的时间戳作为锚点
+     * 
+     * @param position 可见消息列表中的位置（RecyclerView 显示的位置）
+     * @return 该位置的消息对象，如果位置无效则返回 null
+     */
+    public Message getVisibleMessageAt(int position) {
+        if (position >= 0 && position < visibleMessages.size()) {
+            return visibleMessages.get(position);
+        }
+        return null;
+    }
+    
+    /**
+     * 根据消息时间戳找到在可见消息列表中的位置
+     * 
+     * 用于位置恢复：加载更多消息后，找到锚点消息的新位置
+     * 
+     * @param created 消息的服务端时间戳（秒）
+     * @return 可见消息列表中的位置，如果未找到则返回 -1
+     */
+    public int findVisiblePositionByCreated(long created) {
+        for (int i = 0; i < visibleMessages.size(); i++) {
+            if (visibleMessages.get(i).getCreated() == created) {
+                return i;
+            }
+        }
+        return -1;
     }
     
     /**

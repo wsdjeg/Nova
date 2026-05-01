@@ -46,10 +46,11 @@ import java.util.Map;
  * - processedServerMessageCount: 已处理的服务端消息数（基于服务端计数）
  * - adapter.getItemCount(): 显示的消息数（过滤后的，与服务端计数无关）
  * 
- * 下拉加载更多：
- * - 首次加载：since = Math.max(1, totalMessageCount - PAGE_SIZE + 1)
- * - 每次下拉：since = Math.max(1, currentSince - PAGE_SIZE)
- * - 条件：到达顶部且 currentSince > 1
+ * 下拉加载更多 - 位置恢复机制：
+ * - 使用消息 created 时间戳作为锚点（而非索引）
+ * - 保存：记录第一条可见消息的 created 时间戳和视觉偏移
+ * - 恢复：在新数据中找到该消息的可见位置，精确恢复
+ * - 原因：messages 列表包含不可见消息（tool 类型），索引不等于可见位置
  * 
  * Pending 消息机制：
  * - 发送消息时添加 pending 消息（临时显示）
@@ -111,9 +112,10 @@ public class ChatActivity extends AppCompatActivity {
     private boolean isInProgress = false;
     private Menu chatMenu;
     
-    // 位置恢复：使用精确坐标而非时间戳
-    private int positionToRestore = -1;
-    private int offsetToRestore = 0;
+    // 位置恢复：使用消息时间戳作为锚点（而非索引）
+    // 原因：messages 列表包含不可见消息，索引不等于可见位置
+    private long anchorMessageCreated = -1;  // 锚点消息的服务端时间戳
+    private int offsetToRestore = 0;          // 锚点消息的视觉偏移
     
     // 加载更早消息的状态标志
     private boolean isLoadingOlder = false;
@@ -211,7 +213,7 @@ public class ChatActivity extends AppCompatActivity {
         adapter = new MessageAdapter(messages, this);
         LinearLayoutManager layoutManager = new LinearLayoutManager(this);
         rvMessages.setLayoutManager(layoutManager);
-        // 关闭 ItemAnimator 避免加载更多时的闪烁
+        // 关闭 ItemAnimator 遾免加载更多时的闪烁
         rvMessages.setItemAnimator(null);
         rvMessages.setAdapter(adapter);
         
@@ -246,7 +248,7 @@ public class ChatActivity extends AppCompatActivity {
      * 优化点：
      * 1. 只在 onScrollStateChanged 中触发加载，避免滚动过程中频繁触发
      * 2. 使用防抖机制，避免快速滑动时多次触发
-     * 3. 精确的位置保存和恢复
+     * 3. 使用消息时间戳作为锚点进行位置保存和恢复
      */
     private void setupScrollListener() {
         rvMessages.addOnScrollListener(new RecyclerView.OnScrollListener() {
@@ -268,11 +270,15 @@ public class ChatActivity extends AppCompatActivity {
                 fabScrollBottom.setVisibility(isAtBottom ? View.GONE : View.VISIBLE);
                 
                 // 更新位置记录（用于加载更多后恢复）
-                if (firstVisible >= 0 && firstVisible < messages.size() && !isLoadingOlder) {
-                    positionToRestore = firstVisible;
-                    View firstChild = lm.findViewByPosition(firstVisible);
-                    if (firstChild != null) {
-                        offsetToRestore = firstChild.getTop();
+                // 使用消息时间戳作为锚点，而非索引
+                if (firstVisible >= 0 && !isLoadingOlder) {
+                    Message anchorMsg = adapter.getVisibleMessageAt(firstVisible);
+                    if (anchorMsg != null) {
+                        anchorMessageCreated = anchorMsg.getCreated();
+                        View firstChild = lm.findViewByPosition(firstVisible);
+                        if (firstChild != null) {
+                            offsetToRestore = firstChild.getTop();
+                        }
                     }
                 }
                 
@@ -675,42 +681,58 @@ public class ChatActivity extends AppCompatActivity {
         showLoadMoreHint("⏳ 加载中...");
         stopAutoRefresh();
         
-        // 保存当前位置（在加载前）
+        // 保存当前位置（使用消息时间戳作为锚点）
         saveScrollPosition();
         
         loadOlderMessages();
     }
     
     /**
-     * 保存当前滚动位置
+     * 保存当前滚动位置 - 使用消息时间戳作为锚点
+     * 
+     * 原因：messages 列表包含不可见消息（tool 类型），
+     * RecyclerView 显示的是过滤后的 visibleMessages，
+     * 所以不能直接用索引，必须用消息的唯一标识（created 时间戳）
      */
     private void saveScrollPosition() {
         LinearLayoutManager lm = (LinearLayoutManager) rvMessages.getLayoutManager();
         if (lm == null) return;
         
-        int firstVisible = lm.findFirstVisibleItemPosition();
-        if (firstVisible >= 0 && firstVisible < messages.size()) {
-            positionToRestore = firstVisible;
-            View firstChild = lm.findViewByPosition(firstVisible);
-            if (firstChild != null) {
-                offsetToRestore = firstChild.getTop();
+        int firstVisiblePosition = lm.findFirstVisibleItemPosition();
+        if (firstVisiblePosition >= 0) {
+            // 获取当前第一条可见消息（从 visibleMessages 中）
+            Message anchorMsg = adapter.getVisibleMessageAt(firstVisiblePosition);
+            if (anchorMsg != null) {
+                anchorMessageCreated = anchorMsg.getCreated();
+                View firstChild = lm.findViewByPosition(firstVisiblePosition);
+                if (firstChild != null) {
+                    offsetToRestore = firstChild.getTop();
+                }
+                Log.d(TAG, "Saved position: anchorCreated=" + anchorMessageCreated + ", offset=" + offsetToRestore);
             }
         }
     }
     
     /**
-     * 恢复滚动位置
+     * 恢复滚动位置 - 根据锚点消息的时间戳找到新的可见位置
      */
     private void restoreScrollPosition() {
-        if (positionToRestore < 0 || positionToRestore >= messages.size()) return;
+        if (anchorMessageCreated < 0) return;
         
         LinearLayoutManager lm = (LinearLayoutManager) rvMessages.getLayoutManager();
         if (lm == null) return;
         
+        // 在新的 visibleMessages 中找到锚点消息的位置
+        int newPosition = adapter.findVisiblePositionByCreated(anchorMessageCreated);
+        
+        Log.d(TAG, "Restore position: anchorCreated=" + anchorMessageCreated + ", newPosition=" + newPosition);
+        
         // 使用 post 确保 RecyclerView 布局完成后再恢复位置
         rvMessages.post(() -> {
-            if (positionToRestore >= 0 && positionToRestore < messages.size()) {
-                lm.scrollToPositionWithOffset(positionToRestore, offsetToRestore);
+            int pos = adapter.findVisiblePositionByCreated(anchorMessageCreated);
+            if (pos >= 0 && pos < adapter.getItemCount()) {
+                lm.scrollToPositionWithOffset(pos, offsetToRestore);
+                Log.d(TAG, "Restored to position " + pos + " with offset " + offsetToRestore);
             }
         });
     }
@@ -785,12 +807,16 @@ public class ChatActivity extends AppCompatActivity {
     }
     
     /**
-     * 加载更早的消息 - 优化版
+     * 加载更早的消息 - 使用消息时间戳锚点恢复位置
      * 
-     * 优化点：
-     * 1. 在加载前精确计算位置偏移
-     * 2. 加载后立即恢复，不使用多个 postDelayed
-     * 3. 使用 positionToRestore/offsetToRestore 精确恢复
+     * 位置恢复机制：
+     * 1. 加载前：保存第一条可见消息的 created 时间戳和视觉偏移
+     * 2. 加载后：在新数据中找到该消息的可见位置，精确恢复
+     * 
+     * 注意：不能使用索引计算，因为：
+     * - messages 列表包含所有消息（含 tool 类型）
+     * - visibleMessages 只包含可见消息（过滤后）
+     * - 新增的可见消息数 != 新增的总消息数
      */
     private void loadOlderMessages() {
         if (!canLoadMore()) {
@@ -815,10 +841,10 @@ public class ChatActivity extends AppCompatActivity {
                         return;
                     }
                     
-                    // 记录加载前的消息数量
-                    int oldCount = messages.size();
                     // 插入新消息到头部
-                    int newMessageCount = 0;
+                    int newTotalCount = 0;      // 新增的总消息数
+                    int newVisibleCount = 0;    // 新增的可见消息数
+                    
                     for (int i = chatMessages.size() - 1; i >= 0; i--) {
                         ApiClient.ChatMessage msg = chatMessages.get(i);
                         if (!messageFingerprints.containsKey(msg.created)) {
@@ -829,11 +855,18 @@ public class ChatActivity extends AppCompatActivity {
                             );
                             messages.add(0, message);
                             messageFingerprints.put(msg.created, msg.content);
-                            newMessageCount++;
+                            newTotalCount++;
+                            
+                            // 只有可见消息才计入可见计数
+                            if (message.shouldDisplay()) {
+                                newVisibleCount++;
+                            }
                         }
                     }
                     
-                    if (newMessageCount == 0) {
+                    Log.d(TAG, "Loaded messages: total=" + newTotalCount + ", visible=" + newVisibleCount);
+                    
+                    if (newTotalCount == 0) {
                         // 没有新消息，继续加载
                         currentSince = newSince;
                         isLoadingOlder = false;
@@ -852,29 +885,39 @@ public class ChatActivity extends AppCompatActivity {
                     currentSince = newSince;
                     sessionManager.updateFirstMessageIndex(currentSessionId, newSince);
                     
-                    // 刷新数据
+                    // 刷新数据（更新 visibleMessages）
                     adapter.refreshData();
                     
-                    // 计算新的位置：原位置 + 新增的消息数
-                    int newPosition = positionToRestore + newMessageCount;
-                    
-                    // Make final copies for lambdas
-                    final int loadedCount = newMessageCount;
-                    final int finalPosition = newPosition;
+                    // 使用锚点消息的时间戳恢复位置
+                    final long savedAnchor = anchorMessageCreated;
+                    final int savedOffset = offsetToRestore;
+                    final int loadedVisible = newVisibleCount;
                     
                     // 使用 post 确保布局完成
                     rvMessages.post(() -> {
                         LinearLayoutManager lm = (LinearLayoutManager) rvMessages.getLayoutManager();
-                        if (lm != null && finalPosition >= 0 && finalPosition < messages.size()) {
-                            // 精确恢复位置
-                            lm.scrollToPositionWithOffset(finalPosition, offsetToRestore);
+                        if (lm != null) {
+                            // 在新的 visibleMessages 中找到锚点消息的位置
+                            int newPosition = adapter.findVisiblePositionByCreated(savedAnchor);
+                            
+                            Log.d(TAG, "Position restore: anchor=" + savedAnchor + 
+                                  ", oldVisiblePos=" + newPosition + 
+                                  ", newVisibleAdded=" + loadedVisible);
+                            
+                            if (newPosition >= 0 && newPosition < adapter.getItemCount()) {
+                                // 精确恢复位置
+                                lm.scrollToPositionWithOffset(newPosition, savedOffset);
+                                Log.d(TAG, "Restored to visible position " + newPosition + " with offset " + savedOffset);
+                            } else {
+                                Log.d(TAG, "Anchor message not found in visibleMessages");
+                            }
                         }
                         
                         isLoadingOlder = false;
                         
                         // 显示加载结果
                         if (canLoadMore()) {
-                            showLoadMoreHint("✓ 已加载 " + loadedCount + " 条");
+                            showLoadMoreHint("✓ 已加载 " + loadedVisible + " 条可见消息");
                             rvMessages.postDelayed(() -> {
                                 LinearLayoutManager lm2 = (LinearLayoutManager) rvMessages.getLayoutManager();
                                 if (lm2 != null && lm2.findFirstVisibleItemPosition() == 0 && canLoadMore()) {
