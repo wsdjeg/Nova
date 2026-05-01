@@ -1,0 +1,90 @@
+name: PreRelease
+
+on:
+  push:
+    branches:
+      - master
+    # 排除 release-please 自动提交，避免循环触发
+    paths-ignore:
+      - 'CHANGELOG.md'
+      - '.release-please-manifest.json'
+
+jobs:
+  prerelease:
+    runs-on: ubuntu-latest
+    if: "!contains(github.event.head_commit.message, 'chore: release')"
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+
+    - name: Setup Gradle
+      uses: gradle/actions/setup-gradle@v3
+      with:
+        gradle-version: '8.0'
+
+    - name: Generate debug keystore
+      run: |
+        mkdir -p ~/.android
+        keytool -genkey -v -keystore ~/.android/debug.keystore \
+          -alias androiddebugkey \
+          -storepass android \
+          -keypass android \
+          -keyalg RSA -keysize 2048 -validity 10000 \
+          -dname "CN=Android Debug,O=Android,C=US"
+
+    - name: Build Debug APK
+      run: gradle assembleDebug --no-daemon --stacktrace
+
+    - name: Get version info
+      id: version
+      run: |
+        VERSION_NAME=$(grep "versionName" app/build.gradle | head -1 | sed 's/.*versionName[[:space:]]*["'"'"']\([^"'"'"']*\).*/\1/')
+        VERSION_CODE=$(grep "versionCode" app/build.gradle | head -1 | sed 's/.*versionCode[[:space:]]*\([0-9]*\).*/\1/')
+        BUILD_TIME=$(date +'%Y%m%d_%H%M%S')
+        SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-7)
+        echo "VERSION_NAME=$VERSION_NAME" >> $GITHUB_OUTPUT
+        echo "VERSION_CODE=$VERSION_CODE" >> $GITHUB_OUTPUT
+        echo "BUILD_TIME=$BUILD_TIME" >> $GITHUB_OUTPUT
+        echo "SHORT_SHA=$SHORT_SHA" >> $GITHUB_OUTPUT
+
+    - name: Rename APK
+      run: |
+        mv app/build/outputs/apk/debug/app-debug.apk app/build/outputs/apk/debug/Nova-v${{ steps.version.outputs.VERSION_NAME }}-dev-${{ steps.version.outputs.SHORT_SHA }}.apk
+
+    - name: Delete old prerelease
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        gh release delete prerelease --yes --cleanup-tag 2>/dev/null || true
+
+    - name: Create PreRelease
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: prerelease
+        name: PreRelease v${{ steps.version.outputs.VERSION_NAME }}
+        body: |
+          ## 开发版构建 (PreRelease)
+          
+          **版本**: ${{ steps.version.outputs.VERSION_NAME }} (Build ${{ steps.version.outputs.VERSION_CODE }})
+          **构建时间**: ${{ steps.version.outputs.BUILD_TIME }}
+          **Commit**: ${{ github.sha }}
+          
+          ### 下载说明
+          下载最新的 APK 文件安装即可使用（可直接覆盖安装）
+          
+          ### 最新变更
+          ${{ github.event.head_commit.message }}
+          
+          ---
+          > ⚠️ 这是开发版，可能包含未完成的功能或 bug
+        draft: false
+        prerelease: true
+        files: app/build/outputs/apk/debug/Nova-v${{ steps.version.outputs.VERSION_NAME }}-dev-${{ steps.version.outputs.SHORT_SHA }}.apk
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
