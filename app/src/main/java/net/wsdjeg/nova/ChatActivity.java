@@ -59,7 +59,7 @@ import java.util.Map;
  * 
  * 键盘处理机制：
  * - 监听 RecyclerView 高度变化
- * - 当键盘弹出导致高度减小时，向上滚动相同量以保持内容位置
+ * - 当键盘弹出/关闭时，滚动相反的量以保持内容位置
  * - 用户看到的"第一行可见内容"保持在屏幕相同位置
  */
 public class ChatActivity extends AppCompatActivity {
@@ -331,8 +331,9 @@ public class ChatActivity extends AppCompatActivity {
      * 
      * 核心逻辑：
      * 1. 键盘弹出时，RecyclerView 高度会减小（因为 layout_above inputLayout）
-     * 2. 为了保持视觉连续性，需要向上滚动相同的高度变化量
-     * 3. 这样用户看到的"第一行可见内容"仍然在屏幕的相同位置
+     * 2. 键盘关闭时，RecyclerView 高度会增加
+     * 3. 为了保持视觉连续性，需要滚动相反的高度变化量
+     * 4. 这样用户看到的"第一行可见内容"仍然在屏幕的相同位置
      * 
      * 优化点：
      * 1. 使用 GlobalLayoutListener 监听 RecyclerView 高度变化
@@ -353,12 +354,12 @@ public class ChatActivity extends AppCompatActivity {
                     // 高度发生变化
                     int heightDelta = currentHeight - lastRecyclerViewHeight;
                     
-                    if (heightDelta < 0) {
-                        // 高度减小（键盘弹出），向上滚动相同的量以保持内容位置
-                        // scrollBy 正值表示向上滚动，heightDelta 是负数，所以用 -heightDelta
-                        rvMessages.scrollBy(0, -heightDelta);
-                        Log.d(TAG, "Keyboard height change: delta=" + heightDelta + ", scrollBy=" + (-heightDelta));
-                    }
+                    // 无论是键盘弹出还是关闭，都滚动相反的量以保持内容位置
+                    // scrollBy 正值向上滚动，负值向下滚动
+                    // heightDelta < 0（键盘弹出）需要向上滚动 → scrollBy(0, 正数)
+                    // heightDelta > 0（键盘关闭）需要向下滚动 → scrollBy(0, 负数)
+                    rvMessages.scrollBy(0, -heightDelta);
+                    Log.d(TAG, "RecyclerView height change: delta=" + heightDelta + ", scrollBy=" + (-heightDelta));
                     
                     // 记录新高度
                     lastRecyclerViewHeight = currentHeight;
