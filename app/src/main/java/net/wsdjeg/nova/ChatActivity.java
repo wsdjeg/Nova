@@ -58,9 +58,9 @@ import java.util.Map;
  * - 避免重复消息问题
  * 
  * 键盘处理机制：
- * - 监听 RecyclerView 高度变化
- * - 当键盘弹出/关闭时，滚动相反的量以保持内容位置
- * - 用户看到的"第一行可见内容"保持在屏幕相同位置
+ * - 键盘弹出时：RecyclerView 高度减小，需要 scrollBy 补偿保持内容位置
+ * - 键盘关闭时：RecyclerView 高度恢复，布局自然调整，不需要额外 scrollBy
+ * - 原因：键盘关闭时额外 scrollBy会导致"消息下移过多"问题
  */
 public class ChatActivity extends AppCompatActivity {
     
@@ -331,15 +331,15 @@ public class ChatActivity extends AppCompatActivity {
      * 
      * 核心逻辑：
      * 1. 键盘弹出时，RecyclerView 高度会减小（因为 layout_above inputLayout）
-     * 2. 键盘关闭时，RecyclerView 高度会增加
-     * 3. 为了保持视觉连续性，需要滚动相反的高度变化量
-     * 4. 这样用户看到的"第一行可见内容"仍然在屏幕的相同位置
+     *    此时需要 scrollBy 补偿，保持用户看到的内容位置不变
+     * 2. 键盘关闭时，RecyclerView 高度恢复，布局会自然调整位置
+     *    此时不需要额外 scrollBy，否则会导致过度补偿（消息下移过多）
      * 
-     * 优化点：
-     * 1. 使用 GlobalLayoutListener 监听 RecyclerView 高度变化
-     * 2. 使用 WindowInsets 监听键盘状态
-     * 3. 防抖：取消之前的滚动任务，只执行最后一次
-     * 4. 精确调整滚动位置，保持内容在屏幕上的相对位置
+     * 修复说明：
+     * - 原逻辑对两种情况都执行 scrollBy(0, -heightDelta)
+     * - 键盘关闭时 heightDelta > 0，scrollBy(0, -heightDelta) 导致内容下移
+     * - 但布局已经自然恢复，额外下移导致"下移过多"问题
+     * - 解决方案：只在键盘弹出（heightDelta < 0）时执行 scrollBy
      */
     private void setupKeyboardListener() {
         View rootView = findViewById(android.R.id.content);
@@ -354,12 +354,15 @@ public class ChatActivity extends AppCompatActivity {
                     // 高度发生变化
                     int heightDelta = currentHeight - lastRecyclerViewHeight;
                     
-                    // 无论是键盘弹出还是关闭，都滚动相反的量以保持内容位置
-                    // scrollBy 正值向上滚动，负值向下滚动
-                    // heightDelta < 0（键盘弹出）需要向上滚动 → scrollBy(0, 正数)
-                    // heightDelta > 0（键盘关闭）需要向下滚动 → scrollBy(0, 负数)
-                    rvMessages.scrollBy(0, -heightDelta);
-                    Log.d(TAG, "RecyclerView height change: delta=" + heightDelta + ", scrollBy=" + (-heightDelta));
+                    // 只在键盘弹出时（高度减小）执行补偿滚动
+                    // 键盘关闭时（高度增加）不滚动，让布局自然恢复位置
+                    if (heightDelta < 0) {
+                        // 键盘弹出：向上滚动以保持内容位置
+                        rvMessages.scrollBy(0, -heightDelta);
+                        Log.d(TAG, "Keyboard show: delta=" + heightDelta + ", scrollBy=" + (-heightDelta));
+                    } else {
+                        Log.d(TAG, "Keyboard hide: delta=" + heightDelta + ", no scroll needed (natural recovery)");
+                    }
                     
                     // 记录新高度
                     lastRecyclerViewHeight = currentHeight;
