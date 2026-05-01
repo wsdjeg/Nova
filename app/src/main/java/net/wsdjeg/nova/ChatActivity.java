@@ -47,9 +47,10 @@ import java.util.Map;
  * - adapter.getItemCount(): 显示的消息数（过滤后的，与服务端计数无关）
  * 
  * 下拉加载更多：
- * - 条件：到达顶部且 currentSince > 1（基于服务端索引）
+ * - 首次加载：since = Math.max(1, totalMessageCount - 50)
+ * - 每次下拉：since = Math.max(1, currentSince - 50)
+ * - 条件：到达顶部且 currentSince > 1
  * - 如果加载的一页全是不可显示消息，自动继续加载下一页
- * - 直到找到可显示内容或到达第一条消息
  * 
  * Pending 消息机制：
  * - 发送消息时添加 pending 消息（临时显示）
@@ -60,7 +61,7 @@ public class ChatActivity extends AppCompatActivity {
     
     private static final String TAG = "ChatActivity";
     private static final int REFRESH_INTERVAL_MS = 3000;
-    private static final int PAGE_SIZE = 20;
+    private static final int PAGE_SIZE = 50;
     private static final int STATE_NORMAL = 0;
     private static final int STATE_SENDING = 1;
     private static final int BOTTOM_THRESHOLD = 3;
@@ -710,8 +711,8 @@ public class ChatActivity extends AppCompatActivity {
             return;
         }
         
-        // 基于服务端消息计数计算起始索引
-        int since = Math.max(1, totalMessageCount - PAGE_SIZE + 1);
+        // 首次加载：since = Math.max(1, totalMessageCount - 50)
+        int since = Math.max(1, totalMessageCount - PAGE_SIZE);
         currentSince = since;
         
         apiClient.getNewMessages(currentSessionId, since, new ApiClient.MessagesCallback() {
@@ -781,8 +782,8 @@ public class ChatActivity extends AppCompatActivity {
      * - totalMessageCount: 服务端返回的总消息数
      * - newDisplayableCount: 本次加载中可显示的消息数（过滤后）
      * 
-     * 如果本次加载没有可显示的消息，自动继续加载下一页，
-     * 直到找到可显示内容或到达第一条消息
+     * 每次下拉加载：since = Math.max(1, currentSince - 50)
+     * 如果本次加载没有可显示的消息，自动继续加载下一页
      */
     private void loadOlderMessages() {
         if (!canLoadMore()) {
@@ -793,6 +794,7 @@ public class ChatActivity extends AppCompatActivity {
             return;
         }
         
+        // 每次下拉加载：since = Math.max(1, currentSince - 50)
         int newSince = Math.max(1, currentSince - PAGE_SIZE);
         if (newSince >= currentSince) {
             isLoadingOlder = false;
