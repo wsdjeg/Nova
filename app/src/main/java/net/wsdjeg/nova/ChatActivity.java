@@ -741,6 +741,13 @@ public class ChatActivity extends AppCompatActivity {
                     sessionManager.updateFirstMessageIndex(currentSessionId, currentSince);
                     adapter.refreshData();
                     
+                    // 检查是否可以加载更多
+                    if (canLoadMore()) {
+                        showLoadMoreHint("下拉加载更多");
+                    } else {
+                        hideLoadMoreHint();
+                    }
+                    
                     userAtBottom = true;
                     isPositionLocked = false;
                     scrollToBottom();
