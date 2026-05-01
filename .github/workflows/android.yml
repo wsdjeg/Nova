@@ -1,18 +1,12 @@
 name: Android CI
 
 on:
-  push:
-    branches: [ "master" ]
   pull_request:
     branches: [ "master" ]
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    outputs:
-      version_name: ${{ steps.version.outputs.VERSION_NAME }}
-      version_code: ${{ steps.version.outputs.VERSION_CODE }}
-      build_time: ${{ steps.version.outputs.BUILD_TIME }}
 
     steps:
     - uses: actions/checkout@v4
@@ -28,7 +22,6 @@ jobs:
       with:
         gradle-version: '8.0'
 
-    # 生成 debug keystore（使用 Gradle 默认密码 android）
     - name: Generate debug keystore
       run: |
         mkdir -p ~/.android
@@ -42,65 +35,9 @@ jobs:
     - name: Build Debug APK
       run: gradle assembleDebug --no-daemon --stacktrace
     
-    - name: Get version info
-      id: version
-      run: |
-        VERSION_NAME=$(grep "versionName" app/build.gradle | head -1 | sed 's/.*versionName[[:space:]]*["'"'"']\([^"'"'"']*\).*/\1/')
-        VERSION_CODE=$(grep "versionCode" app/build.gradle | head -1 | sed 's/.*versionCode[[:space:]]*\([0-9]*\).*/\1/')
-        echo "VERSION_NAME=$VERSION_NAME" >> $GITHUB_OUTPUT
-        echo "VERSION_CODE=$VERSION_CODE" >> $GITHUB_OUTPUT
-        echo "BUILD_TIME=$(date +'%Y%m%d_%H%M%S')" >> $GITHUB_OUTPUT
-    
-    - name: Rename APK
-      run: |
-        mv app/build/outputs/apk/debug/app-debug.apk app/build/outputs/apk/debug/Nova-v${{ steps.version.outputs.VERSION_NAME }}-dev.apk
-
     - name: Upload APK artifact
       uses: actions/upload-artifact@v4
       with:
-        name: Nova-apk
-        path: app/build/outputs/apk/debug/Nova-v${{ steps.version.outputs.VERSION_NAME }}-dev.apk
+        name: Nova-apk-pr
+        path: app/build/outputs/apk/debug/app-debug.apk
         retention-days: 1
-
-  release:
-    needs: build
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push'
-
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Download APK artifact
-      uses: actions/download-artifact@v4
-      with:
-        name: Nova-apk
-        path: ./apk
-    
-    - name: Delete old prerelease
-      env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: |
-        gh release delete prerelease --yes --cleanup-tag 2>/dev/null || true
-    
-    - name: Create PreRelease
-      uses: softprops/action-gh-release@v1
-      with:
-        tag_name: prerelease
-        name: PreRelease v${{ needs.build.outputs.version_name }}
-        body: |
-          ## 自动构建 PreRelease
-          
-          **版本**: ${{ needs.build.outputs.version_name }} (Build ${{ needs.build.outputs.version_code }})
-          **构建时间**: ${{ needs.build.outputs.build_time }}
-          **Commit**: ${{ github.sha }}
-          
-          ### 下载说明
-          下载 `Nova-v${{ needs.build.outputs.version_name }}-dev.apk` 文件安装即可使用（可直接覆盖安装）
-          
-          ### 更新内容
-          ${{ github.event.head_commit.message }}
-        draft: false
-        prerelease: true
-        files: ./apk/Nova-v${{ needs.build.outputs.version_name }}-dev.apk
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
