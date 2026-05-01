@@ -116,6 +116,9 @@ public class ChatActivity extends AppCompatActivity {
     
     private boolean isPositionLocked = false;
     
+    // 加载更早消息的状态标志
+    private boolean isLoadingOlder = false;
+    
     // 消息指纹缓存（使用服务端时间戳 created 作为 key）
     private Map<Long, String> messageFingerprints = new HashMap<>();
     
@@ -329,7 +332,7 @@ public class ChatActivity extends AppCompatActivity {
                     if (keyboardNowVisible) {
                         scrollToBottom();
                         rvMessages.postDelayed(() -> scrollToBottom(), 100);
-                        rvMessages.postDelayed(() -> scrollToBottom(), 200);
+                        rvMessages.postDelayed(() => scrollToBottom(), 200);
                     }
                 }
                 
@@ -668,7 +671,7 @@ public class ChatActivity extends AppCompatActivity {
             }
         }
         
-        for (String key : toRemove) {
+        for (String key in toRemove) {
             pendingMessages.remove(key);
         }
     }
@@ -694,6 +697,7 @@ public class ChatActivity extends AppCompatActivity {
             }
         }
     }
+    
     private void loadMessagesPage() {
         if (apiClient == null || currentSessionId == null) return;
         
@@ -770,6 +774,7 @@ public class ChatActivity extends AppCompatActivity {
             }
         });
     }
+    
     /**
      * 加载更早的消息
      * 
@@ -781,6 +786,8 @@ public class ChatActivity extends AppCompatActivity {
      * 每次下拉加载：since = Math.max(1, currentSince - 50)
      * 如果本次加载没有可显示的消息，自动继续加载下一页
      */
+    private void loadOlderMessages() {
+        if (!canLoadMore()) {
             isLoadingOlder = false;
             isPositionLocked = false;
             hideLoadMoreHint();
@@ -813,8 +820,11 @@ public class ChatActivity extends AppCompatActivity {
                         return;
                     }
                     
+                    // 保存目标位置（在添加新消息前）
                     long targetCreated = firstVisibleMessageCreated;
                     int targetOffset = firstVisibleOffset;
+                    
+                    Log.d(TAG, "loadOlderMessages: targetCreated=" + targetCreated + ", targetOffset=" + targetOffset);
                     
                     // 统计实际添加的新消息总数（而非过滤后的数量）
                     int newMessageCount = 0;
@@ -828,7 +838,7 @@ public class ChatActivity extends AppCompatActivity {
                             );
                             messages.add(0, message);
                             messageFingerprints.put(msg.created, msg.content);
-                            newMessageCount++;  // 统计实际添加的消息数
+                            newMessageCount++;
                         }
                     }
                     
@@ -837,12 +847,33 @@ public class ChatActivity extends AppCompatActivity {
                     sessionManager.updateFirstMessageIndex(currentSessionId, newSince);
                     adapter.refreshData();
                     
+                    Log.d(TAG, "loadOlderMessages: added " + newMessageCount + " messages, total=" + messages.size());
+                    
+                    // 恢复位置：找到目标消息并滚动到该位置
                     LinearLayoutManager lm = (LinearLayoutManager) rvMessages.getLayoutManager();
-                    if (lm != null) {
+                    if (lm != null && targetCreated > 0) {
+                        boolean found = false;
                         for (int i = 0; i < messages.size(); i++) {
-                            if (messages.get(i).getTimestamp() / 1000 == targetCreated) {
+                            long msgCreated = messages.get(i).getTimestamp() / 1000;
+                            Log.d(TAG, "loadOlderMessages: checking msg[" + i + "] created=" + msgCreated + " vs target=" + targetCreated);
+                            if (msgCreated == targetCreated) {
+                                Log.d(TAG, "loadOlderMessages: found target at index " + i + ", offset=" + targetOffset);
                                 lm.scrollToPositionWithOffset(i, targetOffset);
+                                found = true;
                                 break;
+                            }
+                        }
+                        
+                        if (!found) {
+                            Log.d(TAG, "loadOlderMessages: target not found, searching for closest match");
+                            // 如果找不到精确匹配，找最接近的消息
+                            for (int i = 0; i < messages.size(); i++) {
+                                long created = messages.get(i).getTimestamp() / 1000;
+                                if (created >= targetCreated) {
+                                    Log.d(TAG, "loadOlderMessages: closest match at index " + i);
+                                    lm.scrollToPositionWithOffset(i, targetOffset);
+                                    break;
+                                }
                             }
                         }
                     }
