@@ -56,6 +56,11 @@ import java.util.Map;
  * - 发送消息时添加 pending 消息（临时显示）
  * - 服务端返回后，用正式消息替换 pending 消息
  * - 避免重复消息问题
+ * 
+ * 键盘处理机制：
+ * - 监听 RecyclerView 高度变化
+ * - 当键盘弹出导致高度减小时，向上滚动相同量以保持内容位置
+ * - 用户看到的"第一行可见内容"保持在屏幕相同位置
  */
 public class ChatActivity extends AppCompatActivity {
     
@@ -113,7 +118,7 @@ public class ChatActivity extends AppCompatActivity {
     private Menu chatMenu;
     
     // 位置恢复：使用消息时间戳作为锚点（而非索引）
-    // 原因：messages 列表包含不可见消息，索引不等于可见位置
+    // 原因：messages 列表包含不可见消息（tool 类型），索引不等于可见位置
     private long anchorMessageCreated = -1;  // 锚点消息的服务端时间戳
     private int offsetToRestore = 0;          // 锚点消息的视觉偏移
     
@@ -134,6 +139,7 @@ public class ChatActivity extends AppCompatActivity {
     private boolean isKeyboardVisible = false;
     private Handler keyboardHandler = new Handler(Looper.getMainLooper());
     private Runnable keyboardScrollRunnable = null;
+    private int lastRecyclerViewHeight = -1;  // 记录 RecyclerView 高度变化
     
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -213,7 +219,7 @@ public class ChatActivity extends AppCompatActivity {
         adapter = new MessageAdapter(messages, this);
         LinearLayoutManager layoutManager = new LinearLayoutManager(this);
         rvMessages.setLayoutManager(layoutManager);
-        // 关闭 ItemAnimator 遾免加载更多时的闪烁
+        // 关闭 ItemAnimator 避免加载更多时的闪烁
         rvMessages.setItemAnimator(null);
         rvMessages.setAdapter(adapter);
         
@@ -323,13 +329,45 @@ public class ChatActivity extends AppCompatActivity {
     /**
      * 设置键盘监听器 - 优化的键盘响应
      * 
+     * 核心逻辑：
+     * 1. 键盘弹出时，RecyclerView 高度会减小（因为 layout_above inputLayout）
+     * 2. 为了保持视觉连续性，需要向上滚动相同的高度变化量
+     * 3. 这样用户看到的"第一行可见内容"仍然在屏幕的相同位置
+     * 
      * 优化点：
-     * 1. 只使用 WindowInsets 监听器（API 20+），移除 GlobalLayout 监听器
-     * 2. 防抖：取消之前的滚动任务，只执行最后一次
-     * 3. 单次精确滚动，避免多次 scrollToBottom
+     * 1. 使用 GlobalLayoutListener 监听 RecyclerView 高度变化
+     * 2. 使用 WindowInsets 监听键盘状态
+     * 3. 防抖：取消之前的滚动任务，只执行最后一次
+     * 4. 精确调整滚动位置，保持内容在屏幕上的相对位置
      */
     private void setupKeyboardListener() {
         View rootView = findViewById(android.R.id.content);
+        
+        // 监听 RecyclerView 高度变化
+        rvMessages.getViewTreeObserver().addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener() {
+            @Override
+            public void onGlobalLayout() {
+                int currentHeight = rvMessages.getHeight();
+                
+                if (lastRecyclerViewHeight > 0 && currentHeight != lastRecyclerViewHeight) {
+                    // 高度发生变化
+                    int heightDelta = currentHeight - lastRecyclerViewHeight;
+                    
+                    if (heightDelta < 0) {
+                        // 高度减小（键盘弹出），向上滚动相同的量以保持内容位置
+                        // scrollBy 正值表示向上滚动，heightDelta 是负数，所以用 -heightDelta
+                        rvMessages.scrollBy(0, -heightDelta);
+                        Log.d(TAG, "Keyboard height change: delta=" + heightDelta + ", scrollBy=" + (-heightDelta));
+                    }
+                    
+                    // 记录新高度
+                    lastRecyclerViewHeight = currentHeight;
+                } else if (lastRecyclerViewHeight < 0) {
+                    // 首次记录高度
+                    lastRecyclerViewHeight = currentHeight;
+                }
+            }
+        });
         
         ViewCompat.setOnApplyWindowInsetsListener(rootView, (v, insets) -> {
             Insets imeInsets = insets.getInsets(WindowInsetsCompat.Type.ime());
@@ -343,7 +381,7 @@ public class ChatActivity extends AppCompatActivity {
                 lastKeyboardHeight = keyboardHeight;
                 
                 if (keyboardNowVisible) {
-                    // 键盘弹出：取消之前的滚动任务，延迟执行一次
+                    // 键盘弹出：延迟滚动到底部（如果用户在底部）
                     scheduleKeyboardScroll();
                 }
             } else if (keyboardNowVisible && keyboardHeight != lastKeyboardHeight) {
@@ -372,8 +410,12 @@ public class ChatActivity extends AppCompatActivity {
             keyboardHandler.removeCallbacks(keyboardScrollRunnable);
         }
         
-        // 创建新的滚动任务
-        keyboardScrollRunnable = () -> scrollToBottomSmooth();
+        // 创建新的滚动任务：如果用户在底部，则滚动到底部
+        keyboardScrollRunnable = () -> {
+            if (userAtBottom) {
+                scrollToBottomSmooth();
+            }
+        };
         
         // 延迟执行，等待键盘动画完成
         keyboardHandler.postDelayed(keyboardScrollRunnable, 150);
@@ -1005,6 +1047,7 @@ public class ChatActivity extends AppCompatActivity {
         hideLoadMoreHint();
         loadMessagesPage();
     }
+    
     /**
      * 平滑滚动到底部 - 优化版
      * 
