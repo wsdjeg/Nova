@@ -283,8 +283,16 @@ public class ChatActivity extends AppCompatActivity {
             userAtBottom = true;
             scrollToBottom();
         });
-        tvSessionTitle.setText(currentSessionTitle != null ? currentSessionTitle : currentSessionId);
         
+        btnSend.setOnClickListener(v -> {
+            if (buttonState == STATE_SENDING) {
+                stopSession();
+            } else {
+                sendMessage();
+            }
+        });
+        
+        tvSessionTitle.setText(currentSessionTitle != null ? currentSessionTitle : currentSessionId);
         updateSessionInfo(intentProvider, intentModel, intentCwd);
         
         messages.add(new Message("正在加载消息...", false));
