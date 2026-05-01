@@ -1076,10 +1076,9 @@ public class ChatActivity extends AppCompatActivity {
     private void sendMessage() {
         String content = etMessage.getText().toString().trim();
         if (content.isEmpty()) return;
-        
         etMessage.setText("");
         
-        Message pendingMsg = new Message(content, true, System.currentTimeMillis(), true);
+        Message pendingMsg = Message.createPending(content, true);
         messages.add(pendingMsg);
         pendingMessages.put(content, System.currentTimeMillis());
         adapter.refreshData();
