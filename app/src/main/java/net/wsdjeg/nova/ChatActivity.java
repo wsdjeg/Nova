@@ -184,6 +184,7 @@ public class ChatActivity extends AppCompatActivity {
             Log.d(TAG, "Session: accountId=" + session.getAccountId());
             totalMessageCount = session.getMessageCount();
             currentSince = 0;
+            isInProgress = session.isInProgress();
             
             if (session.getAccountId() != null && !session.getAccountId().isEmpty()) {
                 sessionAccount = accountManager.getAccountById(session.getAccountId());
@@ -217,6 +218,13 @@ public class ChatActivity extends AppCompatActivity {
         etMessage = findViewById(R.id.et_message);
         btnSend = findViewById(R.id.btn_send);
         fabScrollBottom = findViewById(R.id.fab_scroll_bottom);
+        
+        // 根据会话状态初始化按钮
+        if (isInProgress) {
+            setButtonStateSending();
+        } else {
+            setButtonStateNormal();
+        }
         
         restoreDraft();
         
@@ -1131,6 +1139,13 @@ public class ChatActivity extends AppCompatActivity {
                         if (serverSession.getSessionId().equals(currentSessionId)) {
                             isInProgress = serverSession.isInProgress();
                             totalMessageCount = serverSession.getMessageCount();
+                            
+                            // 根据会话状态更新按钮
+                            if (isInProgress) {
+                                setButtonStateSending();
+                            } else {
+                                setButtonStateNormal();
+                            }
                             
                             Session localSession = sessionManager.getSession(currentSessionId);
                             if (localSession != null) {
