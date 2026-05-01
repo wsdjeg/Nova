@@ -1056,7 +1056,7 @@ public class ChatActivity extends AppCompatActivity {
     
     private void openPreviewUrl() {
         if (currentSessionId == null) return;
-        String url = settingsManager.getServerUrl();
+        String url = settingsManager.getFullUrl();
         if (url == null || url.isEmpty()) {
             Toast.makeText(this, "请先配置服务器地址", Toast.LENGTH_SHORT).show();
             return;
@@ -1117,7 +1117,7 @@ public class ChatActivity extends AppCompatActivity {
     }
     
     private void stopSession() {
-        apiClient.stopSession(currentSessionId, new ApiClient.MessageCallback() {
+        apiClient.stopSession(currentSessionId, new ApiClient.StopCallback() {
             @Override
             public void onSuccess() {
                 runOnUiThread(() -> {
@@ -1155,7 +1155,7 @@ public class ChatActivity extends AppCompatActivity {
             .setTitle("清空会话")
             .setMessage("确定要清空当前会话的所有消息吗？")
             .setPositiveButton("清空", (dialog, which) -> {
-                apiClient.clearSession(currentSessionId, new ApiClient.MessageCallback() {
+                apiClient.clearSession(currentSessionId, new ApiClient.ClearCallback() {
                     @Override
                     public void onSuccess() {
                         runOnUiThread(() -> {
@@ -1171,7 +1171,7 @@ public class ChatActivity extends AppCompatActivity {
                             Toast.makeText(ChatActivity.this, "会话已清空", Toast.LENGTH_SHORT).show();
                         });
                     }
-                    
+
                     @Override
                     public void onError(String error) {
                         runOnUiThread(() -> {
@@ -1189,7 +1189,7 @@ public class ChatActivity extends AppCompatActivity {
             .setTitle("删除会话")
             .setMessage("确定要删除当前会话吗？")
             .setPositiveButton("删除", (dialog, which) -> {
-                apiClient.deleteSession(currentSessionId, new ApiClient.MessageCallback() {
+                apiClient.deleteSession(currentSessionId, new ApiClient.DeleteSessionCallback() {
                     @Override
                     public void onSuccess() {
                         runOnUiThread(() -> {
