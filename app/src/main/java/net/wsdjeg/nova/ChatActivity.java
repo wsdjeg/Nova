@@ -1291,18 +1291,21 @@ public class ChatActivity extends AppCompatActivity {
             }
         });
     }
-    
     private void setButtonStateSending() {
         buttonState = STATE_SENDING;
         btnSend.setText("停止");
         btnSend.setBackgroundResource(R.drawable.btn_stop_bg);
+        btnSend.setBackgroundTintList(null);
     }
     
     private void setButtonStateNormal() {
         buttonState = STATE_NORMAL;
         btnSend.setText("发送");
         btnSend.setBackgroundResource(R.drawable.send_button_bg);
+        btnSend.setBackgroundTintList(null);
     }
+    
+    
     
     private void clearSession() {
         new android.app.AlertDialog.Builder(this)
