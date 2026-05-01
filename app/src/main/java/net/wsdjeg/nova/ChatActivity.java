@@ -604,6 +604,7 @@ public class ChatActivity extends AppCompatActivity {
         if (apiClient == null || currentSessionId == null || isLoadingOlder) return;
         refreshSessionStatusForIncrementalRefresh();
     }
+    
     private void refreshSessionStatusForIncrementalRefresh() {
         apiClient.getSessions(accountId, new ApiClient.SessionsCallback() {
             @Override
@@ -907,11 +908,6 @@ public class ChatActivity extends AppCompatActivity {
                     isInitialLoadComplete = true;
                 });
             }
-                    adapter.refreshData();
-                    hideLoadMoreHint();
-                    isInitialLoadComplete = true;
-                });
-            }
         });
     }
     
@@ -1099,6 +1095,7 @@ public class ChatActivity extends AppCompatActivity {
             }
         });
     }
+    
     private void reloadMessages() {
         isInitialLoadComplete = false;
         
@@ -1108,7 +1105,6 @@ public class ChatActivity extends AppCompatActivity {
         messageFingerprints.clear();
         pendingMessages.clear();
         messagesInPool.clear();
-        processedServerMessageCount = 0;
         processedServerMessageCount = 0;
         currentSince = 0;
         sessionManager.updateFirstMessageIndex(currentSessionId, 0);
