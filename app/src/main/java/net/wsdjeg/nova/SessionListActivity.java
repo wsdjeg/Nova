@@ -382,7 +382,7 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
     
     /**
      * 打开聊天界面
-     * 传递完整的会话信息，包括 provider, model, cwd
+     * 传递完整的会话信息，包括 provider, model, cwd, in_progress
      */
     private void openChatActivity(Session session) {
         String sessionId = session.getSessionId();
@@ -400,6 +400,7 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
         intent.putExtra("provider", session.getProvider());
         intent.putExtra("model", session.getModel());
         intent.putExtra("cwd", session.getCwd());
+        intent.putExtra("in_progress", session.isInProgress());
         startActivity(intent);
     }
     

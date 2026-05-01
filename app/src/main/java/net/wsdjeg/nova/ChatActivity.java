@@ -164,6 +164,8 @@ public class ChatActivity extends AppCompatActivity {
         String intentProvider = getIntent().getStringExtra("provider");
         String intentModel = getIntent().getStringExtra("model");
         String intentCwd = getIntent().getStringExtra("cwd");
+        // 从 intent 获取 in_progress 状态（会话列表传递的最新状态）
+        boolean intentInProgress = getIntent().getBooleanExtra("in_progress", false);
         
         if (currentSessionId == null || currentSessionId.isEmpty()) {
             Toast.makeText(this, "无效的会话ID", Toast.LENGTH_SHORT).show();
@@ -180,16 +182,22 @@ public class ChatActivity extends AppCompatActivity {
         Account sessionAccount = null;
         
         Log.d(TAG, "Initializing with sessionId: " + currentSessionId);
-        if (session != null) {
+        // 优先使用 intent 传递的 in_progress 状态
+        if (intentInProgress) {
+            isInProgress = true;
+            Log.d(TAG, "Using intent in_progress: true");
+        } else if (session != null) {
             Log.d(TAG, "Session: accountId=" + session.getAccountId());
             totalMessageCount = session.getMessageCount();
             currentSince = 0;
             isInProgress = session.isInProgress();
+            Log.d(TAG, "Using session in_progress: " + isInProgress);
             
             if (session.getAccountId() != null && !session.getAccountId().isEmpty()) {
                 sessionAccount = accountManager.getAccountById(session.getAccountId());
             }
         }
+        
         if (sessionAccount == null) {
             sessionAccount = accountManager.getActiveAccount();
         }
