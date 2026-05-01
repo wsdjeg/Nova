@@ -33,7 +33,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 聊天界面 Activity
+ * 联系界面 Activity
  * 
  * 核心逻辑：
  * 1. 消息排序：API 返回升序 [oldest, ..., newest]
@@ -58,9 +58,9 @@ import java.util.Map;
  * - 避免重复消息问题
  * 
  * 键盘处理机制：
- * - 键盘弹出时：RecyclerView 高度减小，需要 scrollBy 补偿保持内容位置
- * - 键盘关闭时：RecyclerView 高度恢复，布局自然调整，不需要额外 scrollBy
- * - 原因：键盘关闭时额外 scrollBy会导致"消息下移过多"问题
+ * - 键盘弹出/关闭时，RecyclerView 高度变化
+ * - 使用 scrollBy 补偿，保持消息相对于输入框的位置不变
+ * - 使用防抖机制避免 GlobalLayoutListener 多次触发导致的重复滚动
  */
 public class ChatActivity extends AppCompatActivity {
     
@@ -74,6 +74,9 @@ public class ChatActivity extends AppCompatActivity {
     
     // 加载更多防抖：最小触发间隔
     private static final long MIN_LOAD_INTERVAL_MS = 300;
+    
+    // 键盘防抖：最小触发间隔
+    private static final long MIN_KEYBOARD_SCROLL_INTERVAL_MS = 50;
     
     public static final String EXTRA_SESSION_ID = "session_id";
     public static final String EXTRA_SESSION_TITLE = "session_title";
@@ -134,12 +137,14 @@ public class ChatActivity extends AppCompatActivity {
     
     private boolean userAtBottom = true;
     
-    // 键盘状态：使用单一变量追踪
+    // 键盘状态追踪
     private int lastKeyboardHeight = 0;
     private boolean isKeyboardVisible = false;
     private Handler keyboardHandler = new Handler(Looper.getMainLooper());
     private Runnable keyboardScrollRunnable = null;
     private int lastRecyclerViewHeight = -1;  // 记录 RecyclerView 高度变化
+    private long lastKeyboardScrollTime = 0;  // 键盘滚动防抖时间戳
+    private int accumulatedHeightDelta = 0;   // 累积的高度变化（用于防抖）
     
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -330,21 +335,17 @@ public class ChatActivity extends AppCompatActivity {
      * 设置键盘监听器 - 优化的键盘响应
      * 
      * 核心逻辑：
-     * 1. 键盘弹出时，RecyclerView 高度会减小（因为 layout_above inputLayout）
-     *    此时需要 scrollBy 补偿，保持用户看到的内容位置不变
-     * 2. 键盘关闭时，RecyclerView 高度恢复，布局会自然调整位置
-     *    此时不需要额外 scrollBy，否则会导致过度补偿（消息下移过多）
+     * 键盘弹出/关闭时，RecyclerView 高度会变化（因为 layout_above inputLayout）
+     * 为了保持消息相对于输入框的位置不变，需要执行 scrollBy 补偿
      * 
-     * 修复说明：
-     * - 原逻辑对两种情况都执行 scrollBy(0, -heightDelta)
-     * - 键盘关闭时 heightDelta > 0，scrollBy(0, -heightDelta) 导致内容下移
-     * - 但布局已经自然恢复，额外下移导致"下移过多"问题
-     * - 解决方案：只在键盘弹出（heightDelta < 0）时执行 scrollBy
+     * 防抖机制：
+     * GlobalLayoutListener 在键盘动画过程中可能被多次触发
+     * 使用时间戳防抖，累积高度变化，只在稳定后一次性执行 scrollBy
      */
     private void setupKeyboardListener() {
         View rootView = findViewById(android.R.id.content);
         
-        // 监听 RecyclerView 高度变化
+        // 监听 RecyclerView 高度变化，使用防抖机制
         rvMessages.getViewTreeObserver().addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener() {
             @Override
             public void onGlobalLayout() {
@@ -353,15 +354,25 @@ public class ChatActivity extends AppCompatActivity {
                 if (lastRecyclerViewHeight > 0 && currentHeight != lastRecyclerViewHeight) {
                     // 高度发生变化
                     int heightDelta = currentHeight - lastRecyclerViewHeight;
+                    long now = System.currentTimeMillis();
                     
-                    // 只在键盘弹出时（高度减小）执行补偿滚动
-                    // 键盘关闭时（高度增加）不滚动，让布局自然恢复位置
-                    if (heightDelta < 0) {
-                        // 键盘弹出：向上滚动以保持内容位置
-                        rvMessages.scrollBy(0, -heightDelta);
-                        Log.d(TAG, "Keyboard show: delta=" + heightDelta + ", scrollBy=" + (-heightDelta));
-                    } else {
-                        Log.d(TAG, "Keyboard hide: delta=" + heightDelta + ", no scroll needed (natural recovery)");
+                    // 累积高度变化
+                    accumulatedHeightDelta += heightDelta;
+                    
+                    // 防抖：检查是否距离上次滚动足够久
+                    if (now - lastKeyboardScrollTime >= MIN_KEYBOARD_SCROLL_INTERVAL_MS) {
+                        // 执行累积的滚动补偿
+                        // scrollBy 正值向上滚动，负值向下滚动
+                        // heightDelta < 0（键盘弹出）→ 需要向上滚动 → scrollBy(0, 正值)
+                        // heightDelta > 0（键盘关闭）→ 需要向下滚动 → scrollBy(0, 负值)
+                        // 使用 -accumulatedHeightDelta 实现正确方向
+                        rvMessages.scrollBy(0, -accumulatedHeightDelta);
+                        Log.d(TAG, "Keyboard scroll: accumulatedDelta=" + accumulatedHeightDelta + 
+                              ", scrollBy=" + (-accumulatedHeightDelta));
+                        
+                        // 重置累积值和时间戳
+                        accumulatedHeightDelta = 0;
+                        lastKeyboardScrollTime = now;
                     }
                     
                     // 记录新高度
@@ -373,6 +384,7 @@ public class ChatActivity extends AppCompatActivity {
             }
         });
         
+        // WindowInsets 监听器用于检测键盘状态变化
         ViewCompat.setOnApplyWindowInsetsListener(rootView, (v, insets) -> {
             Insets imeInsets = insets.getInsets(WindowInsetsCompat.Type.ime());
             int keyboardHeight = imeInsets.bottom;
@@ -388,6 +400,7 @@ public class ChatActivity extends AppCompatActivity {
                     // 键盘弹出：延迟滚动到底部（如果用户在底部）
                     scheduleKeyboardScroll();
                 }
+                // 键盘关闭时不触发 scrollToBottomSmooth，避免重复滚动
             } else if (keyboardNowVisible && keyboardHeight != lastKeyboardHeight) {
                 // 键盘高度变化（如切换输入法）：重新滚动
                 lastKeyboardHeight = keyboardHeight;
@@ -407,6 +420,7 @@ public class ChatActivity extends AppCompatActivity {
     
     /**
      * 调度键盘滚动任务 - 防抖机制
+     * 只在键盘弹出时使用，用于滚动到底部
      */
     private void scheduleKeyboardScroll() {
         // 取消之前的滚动任务
