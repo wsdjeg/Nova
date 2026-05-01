@@ -130,8 +130,10 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="发送"
+            android:textColor="@android:color/white"
             android:textSize="16sp"
-            android:padding="12dp" />
+            android:padding="12dp"
+            android:background="@drawable/send_button_bg" />
     </LinearLayout>
 
 </RelativeLayout>
