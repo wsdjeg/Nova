@@ -12,6 +12,7 @@
         android:layout_height="?attr/actionBarSize"
         android:background="?attr/colorPrimary"
         android:elevation="4dp"
+        app:navigationIconTint="@android:color/white"
         app:title="关于"
         app:titleTextColor="@android:color/white" />
 

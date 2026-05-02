@@ -40,6 +40,8 @@ public class SettingsActivity extends AppCompatActivity {
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+        toolbar.setNavigationIconTint(Color.WHITE);
+        
         etDefaultProvider = findViewById(R.id.et_provider);
         etDefaultModel = findViewById(R.id.et_model);
         settingsManager = new SettingsManager(this);
@@ -47,6 +49,7 @@ public class SettingsActivity extends AppCompatActivity {
         initViews();
         loadSettings();
     }
+    
     private void initViews() {
         rgTheme = findViewById(R.id.rg_theme);
         rbSystem = findViewById(R.id.rb_theme_system);

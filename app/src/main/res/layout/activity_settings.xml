@@ -13,7 +13,9 @@
         android:background="?attr/colorPrimary"
         android:elevation="4dp"
         app:title="设置"
-        app:titleTextColor="@android:color/white" />
+        app:titleTextColor="@android:color/white"
+        app:navigationIcon="@drawable/abc_ic_ab_back_material"
+        app:navigationIconTint="@android:color/white" />
 
     <ScrollView
         android:layout_width="match_parent"
@@ -159,3 +161,4 @@
     </ScrollView>
 
 </LinearLayout>
+</FileContent>
