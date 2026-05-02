@@ -8,6 +8,7 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
+import android.widget.EditText;
 import android.widget.ProgressBar;
 import android.widget.Spinner;
 import android.widget.TextView;
@@ -21,7 +22,7 @@ import java.util.Map;
 
 /**
  * 会话设置页面
- * 显示当前会话的 provider 和 model，并允许从服务器获取可用的 provider/model 列表
+ * 显示当前会话的 provider、model 和 cwd，并允许从服务器获取可用的 provider/model 列表
  * 支持修改会话配置并调用 API 更新
  */
 public class SessionSettingsActivity extends AppCompatActivity {
@@ -37,10 +38,11 @@ public class SessionSettingsActivity extends AppCompatActivity {
     // Result extras for returning data to caller
     public static final String RESULT_PROVIDER = "result_provider";
     public static final String RESULT_MODEL = "result_model";
+    public static final String RESULT_CWD = "result_cwd";
     
     private Toolbar toolbar;
     private TextView tvSessionId;
-    private TextView tvCwd;
+    private EditText etCwd;
     private Spinner spinnerProvider;
     private Spinner spinnerModel;
     private ProgressBar progressBar;
@@ -51,6 +53,7 @@ public class SessionSettingsActivity extends AppCompatActivity {
     private String currentProvider;
     private String currentModel;
     private String cwd;
+    private String originalCwd;  // 保存原始 cwd 用于比较
     
     private ApiClient apiClient;
     private SettingsManager settingsManager;
@@ -105,7 +108,7 @@ public class SessionSettingsActivity extends AppCompatActivity {
         getSupportActionBar().setTitle("会话设置");
         
         tvSessionId = findViewById(R.id.tv_session_id);
-        tvCwd = findViewById(R.id.tv_cwd);
+        etCwd = findViewById(R.id.et_cwd);
         spinnerProvider = findViewById(R.id.spinner_provider);
         spinnerModel = findViewById(R.id.spinner_model);
         progressBar = findViewById(R.id.progress_bar);
@@ -167,7 +170,8 @@ public class SessionSettingsActivity extends AppCompatActivity {
     private void loadSessionInfo() {
         // 显示会话基本信息
         tvSessionId.setText("会话 ID: " + sessionId);
-        tvCwd.setText("工作目录: " + (cwd != null ? cwd : "unknown"));
+        etCwd.setText(cwd != null ? cwd : "");
+        originalCwd = cwd;
         
         // 获取账号信息并创建 ApiClient
         Account account = null;
@@ -210,15 +214,16 @@ public class SessionSettingsActivity extends AppCompatActivity {
                     }
                     
                     if (currentSession != null) {
-                        // 从服务器获取最新的 provider/model
+                        // 从服务器获取最新的 provider/model/cwd
                         currentProvider = currentSession.getProvider();
                         currentModel = currentSession.getModel();
                         cwd = currentSession.getCwd();
+                        originalCwd = cwd;
                         
                         // 更新显示
-                        tvCwd.setText("工作目录: " + (cwd != null ? cwd : "unknown"));
+                        etCwd.setText(cwd != null ? cwd : "");
                         
-                        Log.d(TAG, "Session from server: provider=" + currentProvider + ", model=" + currentModel);
+                        Log.d(TAG, "Session from server: provider=" + currentProvider + ", model=" + currentModel + ", cwd=" + cwd);
                         
                         // 更新本地 SessionManager
                         Session localSession = sessionManager.getSession(sessionId);
@@ -241,7 +246,8 @@ public class SessionSettingsActivity extends AppCompatActivity {
                             currentProvider = localSession.getProvider();
                             currentModel = localSession.getModel();
                             cwd = localSession.getCwd();
-                            tvCwd.setText("工作目录: " + (cwd != null ? cwd : "unknown"));
+                            originalCwd = cwd;
+                            etCwd.setText(cwd != null ? cwd : "");
                             loadProviders();
                         }
                     }
@@ -252,7 +258,7 @@ public class SessionSettingsActivity extends AppCompatActivity {
             public void onError(String error) {
                 runOnUiThread(() -> {
                     progressBar.setVisibility(View.GONE);
-                    tvStatus.setText("获取会话失败: " + error);
+                    tvStatus.setText("获取会话信息失败: " + error);
                     
                     // 使用本地 session 信息备用
                     Session localSession = sessionManager.getSession(sessionId);
@@ -260,7 +266,8 @@ public class SessionSettingsActivity extends AppCompatActivity {
                         currentProvider = localSession.getProvider();
                         currentModel = localSession.getModel();
                         cwd = localSession.getCwd();
-                        tvCwd.setText("工作目录: " + (cwd != null ? cwd : "unknown"));
+                        originalCwd = cwd;
+                        etCwd.setText(cwd != null ? cwd : "");
                         loadProviders();
                     }
                 });
@@ -268,34 +275,30 @@ public class SessionSettingsActivity extends AppCompatActivity {
         });
     }
     
+    /**
+     * 加载 providers 列表
+     */
     private void loadProviders() {
-        if (apiClient == null) {
-            tvStatus.setText("未配置账号");
-            return;
-        }
-        
         progressBar.setVisibility(View.VISIBLE);
-        tvStatus.setText("正在加载 provider 列表...");
+        tvStatus.setText("正在加载 Providers...");
         
         apiClient.getProviders(new ApiClient.ProvidersCallback() {
             @Override
-            public void onSuccess(List<ApiClient.Provider> providerList) {
+            public void onSuccess(List<ApiClient.Provider> providersList) {
                 runOnUiThread(() -> {
                     progressBar.setVisibility(View.GONE);
                     tvStatus.setText("");
                     
-                    providers = providerList;
+                    providers = providersList;
                     providerNames.clear();
+                    providerModelsMap.clear();
                     
-                    // 构建数据
-                    for (ApiClient.Provider p : providers) {
-                        providerNames.add(p.name);
-                        providerModelsMap.put(p.name, p.models);
+                    for (ApiClient.Provider provider : providers) {
+                        providerNames.add(provider.name);
+                        providerModelsMap.put(provider.name, provider.models);
                     }
                     
                     providerAdapter.notifyDataSetChanged();
-                    
-                    Log.d(TAG, "Loaded " + providers.size() + " providers");
                     
                     // 设置当前 provider/model
                     setCurrentProviderModel();
@@ -449,9 +452,14 @@ public class SessionSettingsActivity extends AppCompatActivity {
         
         String newProvider = providerNames.get(selectedProviderIndex);
         String newModel = currentModels.get(selectedModelIndex);
+        String newCwd = etCwd.getText().toString().trim();
         
         // 检查是否有变化
-        if (newProvider.equals(currentProvider) && newModel.equals(currentModel)) {
+        boolean providerChanged = !newProvider.equals(currentProvider);
+        boolean modelChanged = !newModel.equals(currentModel);
+        boolean cwdChanged = !newCwd.equals(originalCwd);
+        
+        if (!providerChanged && !modelChanged && !cwdChanged) {
             Toast.makeText(this, "配置未改变", Toast.LENGTH_SHORT).show();
             return;
         }
@@ -459,66 +467,117 @@ public class SessionSettingsActivity extends AppCompatActivity {
         progressBar.setVisibility(View.VISIBLE);
         tvStatus.setText("正在保存...");
         
-        Log.d(TAG, "Saving session settings: provider=" + newProvider + ", model=" + newModel);
+        Log.d(TAG, "Saving session settings: provider=" + newProvider + ", model=" + newModel + ", cwd=" + newCwd);
         
-        // 调用 API 更新会话配置
-        apiClient.updateSession(sessionId, newProvider, newModel, new ApiClient.UpdateSessionCallback() {
-            @Override
-            public void onSuccess() {
-                runOnUiThread(() -> {
-                    progressBar.setVisibility(View.GONE);
-                    tvStatus.setText("");
-                    
-                    // 更新本地 SessionManager
-                    Session session = sessionManager.getSession(sessionId);
-                    if (session != null) {
-                        session.setProvider(newProvider);
-                        session.setModel(newModel);
-                        sessionManager.updateSession(session);
-                    }
-                    
-                    // 返回结果给调用者
-                    Intent result = new Intent();
-                    result.putExtra(RESULT_PROVIDER, newProvider);
-                    result.putExtra(RESULT_MODEL, newModel);
-                    setResult(RESULT_OK, result);
-                    
-                    Toast.makeText(SessionSettingsActivity.this, "设置已保存", Toast.LENGTH_SHORT).show();
-                    finish();
-                });
-            }
-            
-            @Override
-            public void onError(String error) {
-                runOnUiThread(() -> {
-                    progressBar.setVisibility(View.GONE);
-                    tvStatus.setText("");
-                    
-                    // 如果 API 不支持，也允许保存到本地
-                    if (error.contains("PATCH") || error.contains("not supported") || error.contains("404")) {
-                        // 保存到本地 SessionManager
-                        Session session = sessionManager.getSession(sessionId);
-                        if (session != null) {
-                            session.setProvider(newProvider);
-                            session.setModel(newModel);
-                            sessionManager.updateSession(session);
+        // 使用计数器跟踪多个 API 调用的完成状态
+        final int[] pendingCalls = new int[1];
+        final boolean[] hasError = new boolean[1];
+        final String[] errorMessage = new String[1];
+        
+        // 需要调用的 API 数量
+        int apiCallsNeeded = (providerChanged || modelChanged ? 1 : 0) + (cwdChanged ? 1 : 0);
+        
+        if (apiCallsNeeded == 0) {
+            // 没有需要调用的 API，直接保存到本地
+            finishSave(newProvider, newModel, newCwd);
+            return;
+        }
+        
+        pendingCalls[0] = apiCallsNeeded;
+        
+        // 更新 provider 和 model（这两个使用同一个 API 调用）
+        if (providerChanged || modelChanged) {
+            apiClient.updateSession(sessionId, newProvider, newModel, new ApiClient.UpdateSessionCallback() {
+                @Override
+                public void onSuccess() {
+                    runOnUiThread(() -> {
+                        pendingCalls[0]--;
+                        if (pendingCalls[0] == 0 && !hasError[0]) {
+                            finishSave(newProvider, newModel, newCwd);
                         }
-                        
-                        // 返回结果给调用者
-                        Intent result = new Intent();
-                        result.putExtra(RESULT_PROVIDER, newProvider);
-                        result.putExtra(RESULT_MODEL, newModel);
-                        setResult(RESULT_OK, result);
-                        
-                        Toast.makeText(SessionSettingsActivity.this, 
-                            "已保存到本地（服务端不支持远程更新）", Toast.LENGTH_LONG).show();
-                        finish();
-                    } else {
-                        Toast.makeText(SessionSettingsActivity.this, 
-                            "保存失败: " + error, Toast.LENGTH_SHORT).show();
-                    }
-                });
-            }
-        });
+                    });
+                }
+                
+                @Override
+                public void onError(String error) {
+                    runOnUiThread(() -> {
+                        pendingCalls[0]--;
+                        // 如果 API 不支持，允许继续（后续会保存到本地）
+                        if (error.contains("PATCH") || error.contains("not supported") || error.contains("404")) {
+                            if (pendingCalls[0] == 0) {
+                                finishSave(newProvider, newModel, newCwd);
+                            }
+                        } else {
+                            hasError[0] = true;
+                            errorMessage[0] = "Provider/Model 更新失败: " + error;
+                            progressBar.setVisibility(View.GONE);
+                            tvStatus.setText("");
+                            Toast.makeText(SessionSettingsActivity.this, errorMessage[0], Toast.LENGTH_SHORT).show();
+                        }
+                    });
+                }
+            });
+        }
+        
+        // 更新 cwd
+        if (cwdChanged) {
+            apiClient.setSessionCwd(sessionId, newCwd, new ApiClient.UpdateSessionCallback() {
+                @Override
+                public void onSuccess() {
+                    runOnUiThread(() -> {
+                        pendingCalls[0]--;
+                        if (pendingCalls[0] == 0 && !hasError[0]) {
+                            finishSave(newProvider, newModel, newCwd);
+                        }
+                    });
+                }
+                
+                @Override
+                public void onError(String error) {
+                    runOnUiThread(() -> {
+                        pendingCalls[0]--;
+                        // 如果 API 不支持，允许继续（后续会保存到本地）
+                        if (error.contains("404") || error.contains("not supported")) {
+                            if (pendingCalls[0] == 0) {
+                                finishSave(newProvider, newModel, newCwd);
+                            }
+                        } else {
+                            hasError[0] = true;
+                            errorMessage[0] = "CWD 更新失败: " + error;
+                            progressBar.setVisibility(View.GONE);
+                            tvStatus.setText("");
+                            Toast.makeText(SessionSettingsActivity.this, errorMessage[0], Toast.LENGTH_SHORT).show();
+                        }
+                    });
+                }
+            });
+        }
+    }
+    
+    /**
+     * 完成保存操作
+     */
+    private void finishSave(String newProvider, String newModel, String newCwd) {
+        progressBar.setVisibility(View.GONE);
+        tvStatus.setText("");
+        
+        // 更新本地 SessionManager
+        Session session = sessionManager.getSession(sessionId);
+        if (session != null) {
+            session.setProvider(newProvider);
+            session.setModel(newModel);
+            session.setCwd(newCwd);
+            sessionManager.updateSession(session);
+        }
+        
+        // 返回结果给调用者
+        Intent result = new Intent();
+        result.putExtra(RESULT_PROVIDER, newProvider);
+        result.putExtra(RESULT_MODEL, newModel);
+        result.putExtra(RESULT_CWD, newCwd);
+        setResult(RESULT_OK, result);
+        
+        Toast.makeText(SessionSettingsActivity.this, "设置已保存", Toast.LENGTH_SHORT).show();
+        finish();
     }
 }

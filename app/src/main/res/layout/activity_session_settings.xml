@@ -47,14 +47,27 @@
                 android:textColor="?android:attr/textColorSecondary"
                 android:layout_marginBottom="8dp" />
             
+            <!-- 工作目录编辑 -->
             <TextView
-                android:id="@+id/tv_cwd"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="工作目录: "
+                android:text="工作目录 (CWD)"
                 android:textSize="14sp"
                 android:textColor="?android:attr/textColorSecondary"
-                android:layout_marginBottom="16dp" />
+                android:layout_marginBottom="4dp" />
+            
+            <EditText
+                android:id="@+id/et_cwd"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:hint="输入工作目录路径"
+                android:textSize="14sp"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:background="@android:drawable/edit_text"
+                android:inputType="text"
+                android:layout_marginBottom="16dp"
+                android:importantForAutofill="no" />
             
             <!-- 分隔线 -->
             <View
@@ -132,7 +145,7 @@
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="修改 Provider 和 Model 后，点击右上角保存按钮应用更改。"
+                android:text="修改配置后，点击右上角保存按钮应用更改。"
                 android:textSize="12sp"
                 android:textColor="?android:attr/textColorSecondary"
                 android:gravity="center"
