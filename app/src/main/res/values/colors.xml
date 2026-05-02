@@ -43,4 +43,15 @@
     <!-- Account tag colors -->
     <color name="account_tag_bg">#E3F2FD</color>
     <color name="account_tag_text">#1976D2</color>
+    
+    <!-- Account color picker colors -->
+    <color name="account_color_1">#FF6B6B</color>
+    <color name="account_color_2">#4ECDC4</color>
+    <color name="account_color_3">#45B7D1</color>
+    <color name="account_color_4">#F7DC6F</color>
+    <color name="account_color_5">#BB8FCE</color>
+    <color name="account_color_6">#58D68D</color>
+    <color name="account_color_7">#F0B27A</color>
+    <color name="account_color_8">#EC7063</color>
 </resources>
+</FileContent>

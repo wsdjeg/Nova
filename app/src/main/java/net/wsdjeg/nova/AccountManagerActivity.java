@@ -2,7 +2,6 @@ package net.wsdjeg.nova;
 
 import android.app.AlertDialog;
 import android.content.Intent;
-import android.graphics.Color;
 import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -16,7 +15,7 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 /**
- * 号管理界面
+ * 账号管理界面
  * 支持添加、编辑、删除、设置默认账号
  */
 public class AccountManagerActivity extends AppCompatActivity implements AccountAdapter.OnAccountClickListener {
@@ -39,7 +38,6 @@ public class AccountManagerActivity extends AppCompatActivity implements Account
         setSupportActionBar(toolbar);
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
         getSupportActionBar().setTitle("账号管理");
-        toolbar.setNavigationIconTint(Color.WHITE);
         
         accountManager = AccountManager.getInstance(this);
         
@@ -80,7 +78,7 @@ public class AccountManagerActivity extends AppCompatActivity implements Account
     }
     
     /**
-     * 认删除对话框
+     * 确认删除对话框
      */
     private void showDeleteConfirmDialog(Account account) {
         new AlertDialog.Builder(this)

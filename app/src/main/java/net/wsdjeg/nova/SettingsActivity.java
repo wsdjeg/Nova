@@ -40,7 +40,6 @@ public class SettingsActivity extends AppCompatActivity {
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-        toolbar.setNavigationIconTint(Color.WHITE);
         
         etDefaultProvider = findViewById(R.id.et_provider);
         etDefaultModel = findViewById(R.id.et_model);

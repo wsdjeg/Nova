@@ -95,6 +95,7 @@ public class SessionSettingsActivity extends AppCompatActivity {
         sessionManager = new SessionManager(this);
         
         initViews();
+        loadSessionInfo();
     }
     
     private void initViews() {
@@ -102,7 +103,6 @@ public class SessionSettingsActivity extends AppCompatActivity {
         setSupportActionBar(toolbar);
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
         getSupportActionBar().setTitle("会话设置");
-        toolbar.setNavigationIconTint(android.graphics.Color.WHITE);
         
         tvSessionId = findViewById(R.id.tv_session_id);
         tvCwd = findViewById(R.id.tv_cwd);

@@ -65,7 +65,6 @@ public class AccountEditActivity extends AppCompatActivity {
         setSupportActionBar(toolbar);
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
         getSupportActionBar().setTitle(isEditMode ? "编辑账号" : "添加账号");
-        toolbar.setNavigationIconTint(Color.WHITE);
         
         etName = findViewById(R.id.et_account_name);
         etHost = findViewById(R.id.et_host);
@@ -94,40 +93,29 @@ public class AccountEditActivity extends AppCompatActivity {
         container.addView(autoView);
         colorViews[0] = autoView;
         
-        // 创建颜色选项
-        int[] colors = {
-            R.color.account_color_1,
-            R.color.account_color_2,
-            R.color.account_color_3,
-            R.color.account_color_4,
-            R.color.account_color_5,
-            R.color.account_color_6,
-            R.color.account_color_7,
-            R.color.account_color_8
-        };
+        // 创建颜色选项 - 使用 SettingsManager 中定义的颜色
+        String[] colors = SettingsManager.ACCOUNT_TAG_COLORS;
         
-        int[] drawables = {
-            R.drawable.color_circle_1,
-            R.drawable.color_circle_2,
-            R.drawable.color_circle_3,
-            R.drawable.color_circle_4,
-            R.drawable.color_circle_5,
-            R.drawable.color_circle_6,
-            R.drawable.color_circle_7,
-            R.drawable.color_circle_8
-        };
-        
-        for (int i = 0; i < 8; i++) {
+        for (int i = 0; i < colors.length; i++) {
             View colorView = new View(this);
             LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(size, size);
             params.setMargins(0, 0, margin, 0);
             colorView.setLayoutParams(params);
-            colorView.setBackgroundResource(drawables[i]);
+            
+            // 创建圆形 drawable
+            GradientDrawable drawable = new GradientDrawable();
+            drawable.setShape(GradientDrawable.OVAL);
+            drawable.setColor(Color.parseColor(colors[i]));
+            colorView.setBackground(drawable);
+            
             final int colorIndex = i + 1;
             colorView.setOnClickListener(v -> selectColor(colorIndex));
             container.addView(colorView);
             colorViews[i + 1] = colorView;
         }
+        
+        // 添加选中状态边框
+        updateColorSelection();
     }
     
     private void selectColor(int index) {
@@ -144,6 +132,38 @@ public class AccountEditActivity extends AppCompatActivity {
         } else {
             colorViews[index].setSelected(true);
         }
+        
+        updateColorSelection();
+    }
+    
+    private void updateColorSelection() {
+        for (int i = 0; i < colorViews.length; i++) {
+            View view = colorViews[i];
+            GradientDrawable drawable = new GradientDrawable();
+            drawable.setShape(GradientDrawable.OVAL);
+            
+            if (i == 0) {
+                // 默认选项使用渐变
+                drawable.setColors(new int[] {
+                    Color.parseColor("#FF6B6B"),
+                    Color.parseColor("#4ECDC4"),
+                    Color.parseColor("#45B7D1"),
+                    Color.parseColor("#F7DC6F")
+                });
+                drawable.setGradientType(GradientDrawable.SWEEP_GRADIENT);
+            } else {
+                // 颜色选项
+                drawable.setColor(Color.parseColor(SettingsManager.ACCOUNT_TAG_COLORS[i - 1]));
+            }
+            
+            // 选中的添加边框
+            int selectedIndex = (selectedColorIndex == -1) ? 0 : selectedColorIndex;
+            if (i == selectedIndex) {
+                drawable.setStroke(4, ContextCompat.getColor(this, R.color.primary));
+            }
+            
+            view.setBackground(drawable);
+        }
     }
     
     private void loadAccountData() {
@@ -152,6 +172,8 @@ public class AccountEditActivity extends AppCompatActivity {
         
         if (accountId != null && !accountId.isEmpty()) {
             isEditMode = true;
+            getSupportActionBar().setTitle("编辑账号");
+            
             etName.setText(intent.getStringExtra(EXTRA_ACCOUNT_NAME));
             etHost.setText(intent.getStringExtra(EXTRA_ACCOUNT_HOST));
             
@@ -202,10 +224,28 @@ public class AccountEditActivity extends AppCompatActivity {
         }
         
         if (isEditMode) {
-            accountManager.updateAccount(accountId, name, host, port, apiKey, selectedColorIndex);
+            // 编辑模式：更新现有账号
+            Account account = accountManager.getAccountById(accountId);
+            if (account != null) {
+                account.setName(name);
+                account.setHost(host);
+                account.setPort(port);
+                account.setApiKey(apiKey);
+                account.setColorIndex(selectedColorIndex);
+                accountManager.updateAccount(account);
+            }
             Toast.makeText(this, "账号已更新", Toast.LENGTH_SHORT).show();
         } else {
-            Account account = accountManager.addAccount(name, host, port, apiKey, selectedColorIndex);
+            // 新增模式：创建新账号
+            Account account = new Account();
+            account.setName(name);
+            account.setHost(host);
+            account.setPort(port);
+            account.setApiKey(apiKey);
+            account.setColorIndex(selectedColorIndex);
+            accountManager.addAccount(account);
+            
+            // 如果是第一个账号，设置为默认
             if (accountManager.getAccountCount() == 1) {
                 accountManager.setDefaultAccount(account.getId());
             }
@@ -236,10 +276,20 @@ public class AccountEditActivity extends AppCompatActivity {
             }
         }
         
+        // 构建完整 URL
+        String url = host;
+        if (!url.startsWith("http://") && !url.startsWith("https://")) {
+            url = "http://" + url;
+        }
+        if (port != 80 && port != 443 && !url.contains(":")) {
+            url = url + ":" + port;
+        }
+        
         btnTest.setEnabled(false);
         btnTest.setText("测试中...");
         
-        ApiClient.testConnection(host, port, apiKey, new ApiClient.TestConnectionCallback() {
+        // 使用 ApiCallback 而不是 TestConnectionCallback
+        ApiClient.testConnection(url, apiKey, new ApiClient.ApiCallback() {
             @Override
             public void onSuccess(String message) {
                 runOnUiThread(() -> {
