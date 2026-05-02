@@ -47,7 +47,9 @@ public class AccountManagerActivity extends AppCompatActivity implements Account
         recyclerView = findViewById(R.id.recycler_accounts);
         emptyView = findViewById(R.id.empty_view);
         
-        adapter = new AccountAdapter(this, new ArrayList<>(), this);
+        adapter = new AccountAdapter(this);
+        adapter.setOnAccountClickListener(this);
+        adapter.setAccounts(new ArrayList<>());
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
         recyclerView.setAdapter(adapter);
         
@@ -60,7 +62,7 @@ public class AccountManagerActivity extends AppCompatActivity implements Account
     
     private void loadAccounts() {
         List<Account> accounts = accountManager.getAccounts();
-        adapter.updateAccounts(accounts);
+        adapter.setAccounts(accounts);
         
         if (accounts.isEmpty()) {
             emptyView.setVisibility(View.VISIBLE);
@@ -96,14 +98,22 @@ public class AccountManagerActivity extends AppCompatActivity implements Account
     }
     
     @Override
-    public void onAccountSetActive(Account account) {
-        // 设置为当前使用的账号
-        accountManager.setActiveAccount(account.getId());
-        adapter.notifyDataSetChanged();
+    public void onAccountLongClick(Account account) {
+        // 长按账号，设置为默认
+        accountManager.setDefaultAccount(account.getId());
+        loadAccounts();
     }
     
     @Override
-    public void onAccountDelete(Account account) {
+    public void onEditClick(Account account) {
+        // 编辑账号
+        Intent intent = new Intent(this, AccountEditActivity.class);
+        intent.putExtra(EXTRA_ACCOUNT_ID, account.getId());
+        startActivityForResult(intent, REQUEST_EDIT_ACCOUNT);
+    }
+    
+    @Override
+    public void onDeleteClick(Account account) {
         // 删除账号
         accountManager.deleteAccount(account.getId());
         loadAccounts();
