@@ -1194,9 +1194,15 @@ public class ChatActivity extends AppCompatActivity {
         Intent intent = new Intent(this, SessionSettingsActivity.class);
         intent.putExtra(SessionSettingsActivity.EXTRA_SESSION_ID, currentSessionId);
         intent.putExtra(SessionSettingsActivity.EXTRA_ACCOUNT_ID, accountId);
+        // 传递当前的 provider/model/cwd 作为初始值
+        intent.putExtra(SessionSettingsActivity.EXTRA_PROVIDER, currentProvider);
+        intent.putExtra(SessionSettingsActivity.EXTRA_MODEL, currentModel);
+        Session session = sessionManager.getSession(currentSessionId);
+        if (session != null) {
+            intent.putExtra(SessionSettingsActivity.EXTRA_CWD, session.getCwd());
+        }
         startActivityForResult(intent, REQUEST_SESSION_SETTINGS);
     }
-    
     private void sendMessage() {
         String content = etMessage.getText().toString().trim();
         if (content.isEmpty()) return;
