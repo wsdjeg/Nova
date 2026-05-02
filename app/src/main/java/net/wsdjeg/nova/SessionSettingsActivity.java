@@ -133,11 +133,17 @@ public class SessionSettingsActivity extends AppCompatActivity {
         spinnerProvider.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                Log.d(TAG, "Provider onItemSelected: position=" + position + ", isProviderLoaded=" + isProviderLoaded + ", isInitializingSpinner=" + isInitializingSpinner);
+                // 只有在数据加载完成、不在初始化、且用户手动选择不同的 provider 时才更新 model
                 if (isProviderLoaded && !isInitializingSpinner && position >= 0 && position < providerNames.size()) {
-                    String selectedProvider = providerNames.get(position);
-                    // 当用户手动选择 provider 时，重置 model 为第一个
-                    updateModelSpinner(selectedProvider, null);
-                    selectedProviderIndex = position;
+                    // 检查是否是用户手动选择（position 与当前选中的不同）
+                    if (position != selectedProviderIndex) {
+                        String selectedProvider = providerNames.get(position);
+                        // 当用户手动选择 provider 时，重置 model 为第一个
+                        updateModelSpinner(selectedProvider, null);
+                        selectedProviderIndex = position;
+                        Log.d(TAG, "User selected different provider: " + selectedProvider);
+                    }
                 }
             }
             
@@ -376,9 +382,13 @@ public class SessionSettingsActivity extends AppCompatActivity {
             }
         }
         
-        // 初始化完成，允许监听器响应
-        isInitializingSpinner = false;
+        // 初始化完成
+        // 注意：必须先设置 isProviderLoaded = true，再设置 isInitializingSpinner = false
+        // 这样可以确保在两个标志位切换之间不会有监听器被触发
         isProviderLoaded = true;
+        isInitializingSpinner = false;
+        
+        Log.d(TAG, "setCurrentProviderModel done: isProviderLoaded=" + isProviderLoaded + ", isInitializingSpinner=" + isInitializingSpinner);
     }
     
     /**
@@ -413,6 +423,7 @@ public class SessionSettingsActivity extends AppCompatActivity {
             } else {
                 spinnerModel.setSelection(0);
                 selectedModelIndex = 0;
+                Log.d(TAG, "Model spinner set to first (selectModel is null)");
             }
         }
     }
