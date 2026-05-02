@@ -95,6 +95,8 @@ public class SessionSettingsActivity extends AppCompatActivity {
         sessionManager = new SessionManager(this);
         
         initViews();
+    }
+    
     private void initViews() {
         toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
