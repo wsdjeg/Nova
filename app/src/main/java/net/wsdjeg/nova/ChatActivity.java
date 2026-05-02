@@ -353,11 +353,15 @@ public class ChatActivity extends AppCompatActivity {
     }
     
     /**
+    /**
      * 设置键盘监听器 - 优化的键盘响应
      * 
      * 核心逻辑：
-     * 键盘弹出/关闭时，RecyclerView 高度会变化（因为 layout_above inputLayout）
-     * 为了保持消息相对于输入框的位置不变，需要执行 scrollBy 补偿
+     * 键盘弹出时，RecyclerView 高度减小（底部被键盘遮挡）
+     * 原来在底部的消息变得不可见，需要向上 scrollBy 补偿
+     * 
+     * 键盘关闭时，RecyclerView 高度增加（底部不被遮挡）
+     * 原来在底部的消息仍然可见，不需要 scrollBy 补偿
      * 
      * 防抖机制：
      * GlobalLayoutListener 在键盘动画过程中可能被多次触发
@@ -382,14 +386,17 @@ public class ChatActivity extends AppCompatActivity {
                     
                     // 防抖：检查是否距离上次滚动足够久
                     if (now - lastKeyboardScrollTime >= MIN_KEYBOARD_SCROLL_INTERVAL_MS) {
-                        // 执行累积的滚动补偿
-                        // scrollBy 正值向上滚动，负值向下滚动
-                        // heightDelta < 0（键盘弹出）→ 需要向上滚动 → scrollBy(0, 正值)
-                        // heightDelta > 0（键盘关闭）→ 需要向下滚动 → scrollBy(0, 负值)
-                        // 使用 -accumulatedHeightDelta 实现正确方向
-                        rvMessages.scrollBy(0, -accumulatedHeightDelta);
-                        Log.d(TAG, "Keyboard scroll: accumulatedDelta=" + accumulatedHeightDelta + 
-                              ", scrollBy=" + (-accumulatedHeightDelta));
+                        // 只有键盘弹出时（heightDelta < 0，RecyclerView 变小）才需要补偿
+                        // 键盘关闭时（heightDelta > 0，RecyclerView 变大）不需要补偿
+                        // 因为原来在底部的消息仍然可见
+                        if (accumulatedHeightDelta < 0) {
+                            // 键盘弹出：向上滚动补偿
+                            // accumulatedHeightDelta 是负值，-accumulatedHeightDelta 是正值
+                            // scrollBy(0, 正值) 向上滚动内容
+                            rvMessages.scrollBy(0, -accumulatedHeightDelta);
+                            Log.d(TAG, "Keyboard show scroll: accumulatedDelta=" + accumulatedHeightDelta + 
+                                  ", scrollBy=" + (-accumulatedHeightDelta));
+                        }
                         
                         // 重置累积值和时间戳
                         accumulatedHeightDelta = 0;
@@ -430,6 +437,14 @@ public class ChatActivity extends AppCompatActivity {
             
             return insets;
         });
+        
+        // 输入框获取焦点时也尝试滚动
+        etMessage.setOnFocusChangeListener((view, hasFocus) -> {
+            if (hasFocus && isKeyboardVisible) {
+                scheduleKeyboardScroll();
+            }
+        });
+    }
         
         // 输入框获取焦点时也尝试滚动
         etMessage.setOnFocusChangeListener((view, hasFocus) -> {
