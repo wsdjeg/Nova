@@ -2,6 +2,7 @@ package net.wsdjeg.nova;
 
 import android.app.AlertDialog;
 import android.content.Intent;
+import android.graphics.Color;
 import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -10,6 +11,7 @@ import android.widget.LinearLayout;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.Toolbar;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -19,6 +21,7 @@ import androidx.recyclerview.widget.RecyclerView;
  */
 public class AccountManagerActivity extends AppCompatActivity implements AccountAdapter.OnAccountClickListener {
 
+    private Toolbar toolbar;
     private RecyclerView recyclerView;
     private AccountAdapter adapter;
     private AccountManager accountManager;
@@ -32,11 +35,11 @@ public class AccountManagerActivity extends AppCompatActivity implements Account
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_account_manager);
         
-        // 设置标题
-        if (getSupportActionBar() != null) {
-            getSupportActionBar().setTitle("账号管理");
-            getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-        }
+        toolbar = findViewById(R.id.toolbar);
+        setSupportActionBar(toolbar);
+        getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+        getSupportActionBar().setTitle("账号管理");
+        toolbar.setNavigationIconTint(Color.WHITE);
         
         accountManager = AccountManager.getInstance(this);
         
