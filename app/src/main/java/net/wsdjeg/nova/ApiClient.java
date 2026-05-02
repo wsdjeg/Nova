@@ -599,6 +599,24 @@ public class ApiClient {
                 } else {
                     final int code = responseCode;
                     new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onError("Error: " + code));
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "deleteSession failed", e);
+                new Handler(Looper.getMainLooper()).post(() -> 
+                    callback.onError("Network error: " + e.getMessage()));
+            } finally {
+                if (conn != null) {
+                    conn.disconnect();
+                }
+            }
+        }).start();
+    }
+    
+    /**
+     * 设置会话的工作目录
+     * API 端点: PUT /session/:id/cwd
+     */
     public void setSessionCwd(String sessionId, String cwd, UpdateSessionCallback callback) {
         String baseUrl = getBaseUrl();
         String apiKey = getApiKey();
@@ -661,20 +679,6 @@ public class ApiClient {
                 }
             } catch (Exception e) {
                 Log.e(TAG, "setSessionCwd failed", e);
-                new Handler(Looper.getMainLooper()).post(() -> 
-                    callback.onError("Network error: " + e.getMessage()));
-            } finally {
-                if (conn != null) {
-                    conn.disconnect();
-                }
-            }
-        }).start();
-    }
-    
-                        callback.onError("Error: " + code));
-                }
-            } catch (Exception e) {
-                Log.e(TAG, "deleteSession failed", e);
                 new Handler(Looper.getMainLooper()).post(() -> 
                     callback.onError("Network error: " + e.getMessage()));
             } finally {
