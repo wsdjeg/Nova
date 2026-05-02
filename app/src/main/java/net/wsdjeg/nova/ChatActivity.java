@@ -276,11 +276,6 @@ public class ChatActivity extends AppCompatActivity {
     
     /**
      * 设置滚动监听器 - 优化的下拉加载
-     * 
-     * 优化点：
-     * 1. 只在 onScrollStateChanged 中触发加载，避免滚动过程中频繁触发
-     * 2. 使用防抖机制，避免快速滑动时多次触发
-     * 3. 使用消息时间戳作为锚点进行位置保存和恢复
      */
     private void setupScrollListener() {
         rvMessages.addOnScrollListener(new RecyclerView.OnScrollListener() {
@@ -302,7 +297,6 @@ public class ChatActivity extends AppCompatActivity {
                 fabScrollBottom.setVisibility(isAtBottom ? View.GONE : View.VISIBLE);
                 
                 // 更新位置记录（用于加载更多后恢复）
-                // 使用消息时间戳作为锚点，而非索引
                 if (firstVisible >= 0 && !isLoadingOlder) {
                     Message anchorMsg = adapter.getVisibleMessageAt(firstVisible);
                     if (anchorMsg != null) {
@@ -354,17 +348,6 @@ public class ChatActivity extends AppCompatActivity {
     
     /**
      * 设置键盘监听器 - 优化的键盘响应
-     * 
-     * 核心逻辑：
-     * 键盘弹出时，RecyclerView 高度减小（底部被键盘遮挡）
-     * 原来在底部的消息变得不可见，需要向上 scrollBy 补偿
-     * 
-     * 键盘关闭时，RecyclerView 高度增加（底部不被遮挡）
-     * 原来在底部的消息仍然可见，不需要 scrollBy 补偿
-     * 
-     * 防抖机制：
-     * GlobalLayoutListener 在键盘动画过程中可能被多次触发
-     * 使用时间戳防抖，累积高度变化，只在稳定后一次性执行 scrollBy
      */
     private void setupKeyboardListener() {
         View rootView = findViewById(android.R.id.content);
@@ -376,36 +359,23 @@ public class ChatActivity extends AppCompatActivity {
                 int currentHeight = rvMessages.getHeight();
                 
                 if (lastRecyclerViewHeight > 0 && currentHeight != lastRecyclerViewHeight) {
-                    // 高度发生变化
                     int heightDelta = currentHeight - lastRecyclerViewHeight;
                     long now = System.currentTimeMillis();
                     
-                    // 累积高度变化
                     accumulatedHeightDelta += heightDelta;
                     
-                    // 防抖：检查是否距离上次滚动足够久
                     if (now - lastKeyboardScrollTime >= MIN_KEYBOARD_SCROLL_INTERVAL_MS) {
-                        // 只有键盘弹出时（heightDelta < 0，RecyclerView 变小）才需要补偿
-                        // 键盘关闭时（heightDelta > 0，RecyclerView 变大）不需要补偿
-                        // 因为原来在底部的消息仍然可见
                         if (accumulatedHeightDelta < 0) {
-                            // 键盘弹出：向上滚动补偿
-                            // accumulatedHeightDelta 是负值，-accumulatedHeightDelta 是正值
-                            // scrollBy(0, 正值) 向上滚动内容
                             rvMessages.scrollBy(0, -accumulatedHeightDelta);
-                            Log.d(TAG, "Keyboard show scroll: accumulatedDelta=" + accumulatedHeightDelta + 
-                                  ", scrollBy=" + (-accumulatedHeightDelta));
+                            Log.d(TAG, "Keyboard show scroll: accumulatedDelta=" + accumulatedHeightDelta);
                         }
                         
-                        // 重置累积值和时间戳
                         accumulatedHeightDelta = 0;
                         lastKeyboardScrollTime = now;
                     }
                     
-                    // 记录新高度
                     lastRecyclerViewHeight = currentHeight;
                 } else if (lastRecyclerViewHeight < 0) {
-                    // 首次记录高度
                     lastRecyclerViewHeight = currentHeight;
                 }
             }
@@ -416,7 +386,6 @@ public class ChatActivity extends AppCompatActivity {
             Insets imeInsets = insets.getInsets(WindowInsetsCompat.Type.ime());
             int keyboardHeight = imeInsets.bottom;
             
-            // 检测键盘状态变化
             boolean keyboardNowVisible = keyboardHeight > 100;
             
             if (keyboardNowVisible != isKeyboardVisible) {
@@ -424,12 +393,9 @@ public class ChatActivity extends AppCompatActivity {
                 lastKeyboardHeight = keyboardHeight;
                 
                 if (keyboardNowVisible) {
-                    // 键盘弹出：延迟滚动到底部（如果用户在底部）
                     scheduleKeyboardScroll();
                 }
-                // 键盘关闭时不触发 scrollToBottomSmooth，避免重复滚动
             } else if (keyboardNowVisible && keyboardHeight != lastKeyboardHeight) {
-                // 键盘高度变化（如切换输入法）：重新滚动
                 lastKeyboardHeight = keyboardHeight;
                 scheduleKeyboardScroll();
             }
@@ -437,7 +403,6 @@ public class ChatActivity extends AppCompatActivity {
             return insets;
         });
         
-        // 输入框获取焦点时也尝试滚动
         etMessage.setOnFocusChangeListener((view, hasFocus) -> {
             if (hasFocus && isKeyboardVisible) {
                 scheduleKeyboardScroll();
@@ -447,22 +412,18 @@ public class ChatActivity extends AppCompatActivity {
     
     /**
      * 调度键盘滚动任务 - 防抖机制
-     * 只在键盘弹出时使用，用于滚动到底部
      */
     private void scheduleKeyboardScroll() {
-        // 取消之前的滚动任务（防抖）
         if (keyboardScrollRunnable != null) {
             keyboardHandler.removeCallbacks(keyboardScrollRunnable);
         }
         
-        // 创建新的滚动任务：如果用户在底部，则滚动到底部
         keyboardScrollRunnable = () -> {
             if (userAtBottom) {
                 scrollToBottomSmooth();
             }
         };
         
-        // 延迟执行，等待键盘动画完成
         keyboardHandler.postDelayed(keyboardScrollRunnable, 150);
     }
     
@@ -583,6 +544,41 @@ public class ChatActivity extends AppCompatActivity {
         }
     }
     
+    /**
+     * 从 SessionSettingsActivity 返回的结果更新会话信息
+     */
+    private void updateSessionInfoFromResult(String provider, String model, String cwd) {
+        if (provider != null && !provider.isEmpty()) {
+            currentProvider = provider;
+        }
+        if (model != null && !model.isEmpty()) {
+            currentModel = model;
+        }
+        
+        // 更新显示
+        if (currentProvider != null && currentModel != null) {
+            tvSessionInfo.setText(currentProvider + " | " + currentModel);
+        }
+        if (cwd != null) {
+            tvSessionPath.setText("cwd: " + cwd);
+        }
+        
+        // 更新本地 SessionManager
+        Session session = sessionManager.getSession(currentSessionId);
+        if (session != null) {
+            if (provider != null && !provider.isEmpty()) {
+                session.setProvider(provider);
+            }
+            if (model != null && !model.isEmpty()) {
+                session.setModel(model);
+            }
+            if (cwd != null) {
+                session.setCwd(cwd);
+            }
+            sessionManager.updateSession(session);
+        }
+    }
+    
     private void startAutoRefresh() {
         if (refreshHandler == null) {
             refreshHandler = new Handler(Looper.getMainLooper());
@@ -623,16 +619,12 @@ public class ChatActivity extends AppCompatActivity {
                             
                             int serverCount = session.getMessageCount();
                             
-                            // Bug 2 修复：检查消息池等待状态
-                            // 原因：消息推送到消息池后，最多5秒才真正发给AI
-                            // 期间服务端可能返回 in_progress=false
                             boolean hasMessagesInPool = messagesInPool.size() > 0;
                             
                             if (isInProgress || hasMessagesInPool) {
                                 setButtonStateSending();
                             } else {
                                 if (wasInProgress) {
-                                    // AI 处理完成，清理消息池等待状态
                                     messagesInPool.clear();
                                     setButtonStateNormal();
                                     fetchNewMessagesAndRestorePosition();
@@ -723,25 +715,14 @@ public class ChatActivity extends AppCompatActivity {
     
     /**
      * 查找 pending 消息的位置
-     * 
-     * Bug 1 修复：直接在 messages 列表中查找匹配的 pending 消息
-     * 不依赖 pendingMessages map（可能因超时被清理）
-     * 
-     * 匹配规则：
-     * 1. 消息必须是 pending 状态
-     * 2. 消息内容必须相同
-     * 3. 消息角色必须是 user
      */
     private int findPendingMessageIndex(String content) {
         if (content == null) {
             return -1;
         }
         
-        // Bug 1 修复：直接在 messages 列表中查找，不依赖 pendingMessages map
-        // 从后往前查找，因为 pending 消息通常在列表末尾
         for (int i = messages.size() - 1; i >= 0; i--) {
             Message msg = messages.get(i);
-            // 只匹配 pending 状态的 user 消息，且内容相同
             if (msg.isPending() && msg.isUser() && content.equals(msg.getContent())) {
                 return i;
             }
@@ -789,18 +770,13 @@ public class ChatActivity extends AppCompatActivity {
         showLoadMoreHint("⏳ 加载中...");
         stopAutoRefresh();
         
-        // 保存当前位置（使用消息时间戳作为锚点）
         saveScrollPosition();
         
         loadOlderMessages();
     }
     
     /**
-     * 保存当前滚动位置 - 使用消息时间戳作为锚点
-     * 
-     * 原因：messages 列表包含不可见消息（tool 类型），
-     * RecyclerView 显示的是过滤后的 visibleMessages，
-     * 所以不能直接用索引，必须用消息的唯一标识（created 时间戳）
+     * 保存当前滚动位置
      */
     private void saveScrollPosition() {
         LinearLayoutManager lm = (LinearLayoutManager) rvMessages.getLayoutManager();
@@ -808,7 +784,6 @@ public class ChatActivity extends AppCompatActivity {
         
         int firstVisiblePosition = lm.findFirstVisibleItemPosition();
         if (firstVisiblePosition >= 0) {
-            // 获取当前第一条可见消息（从 visibleMessages 中）
             Message anchorMsg = adapter.getVisibleMessageAt(firstVisiblePosition);
             if (anchorMsg != null) {
                 anchorMessageCreated = anchorMsg.getCreated();
@@ -822,7 +797,7 @@ public class ChatActivity extends AppCompatActivity {
     }
     
     /**
-     * 恢复滚动位置 - 根据锚点消息的时间戳找到新的可见位置
+     * 恢复滚动位置
      */
     private void restoreScrollPosition() {
         if (anchorMessageCreated < 0) return;
@@ -830,12 +805,10 @@ public class ChatActivity extends AppCompatActivity {
         LinearLayoutManager lm = (LinearLayoutManager) rvMessages.getLayoutManager();
         if (lm == null) return;
         
-        // 在新的 visibleMessages 中找到锚点消息的位置
         int newPosition = adapter.findVisiblePositionByCreated(anchorMessageCreated);
         
         Log.d(TAG, "Restore position: anchorCreated=" + anchorMessageCreated + ", newPosition=" + newPosition);
         
-        // 使用 post 确保 RecyclerView 布局完成后再恢复位置
         rvMessages.post(() -> {
             int pos = adapter.findVisiblePositionByCreated(anchorMessageCreated);
             if (pos >= 0 && pos < adapter.getItemCount()) {
@@ -918,16 +891,7 @@ public class ChatActivity extends AppCompatActivity {
     }
     
     /**
-     * 加载更早的消息 - 使用消息时间戳锚点恢复位置
-     * 
-     * 位置恢复机制：
-     * 1. 加载前：保存第一条可见消息的 created 时间戳和视觉偏移
-     * 2. 加载后：在新数据中找到该消息的可见位置，精确恢复
-     * 
-     * 注意：不能使用索引计算，因为：
-     * - messages 列表包含所有消息（含 tool 类型）
-     * - visibleMessages 只包含可见消息（过滤后）
-     * - 新增的可见消息数 != 新增的总消息数
+     * 加载更早的消息
      */
     private void loadOlderMessages() {
         if (!canLoadMore()) {
@@ -952,9 +916,8 @@ public class ChatActivity extends AppCompatActivity {
                         return;
                     }
                     
-                    // 插入新消息到头部
-                    int newTotalCount = 0;      // 新增的总消息数
-                    int newVisibleCount = 0;    // 新增的可见消息数
+                    int newTotalCount = 0;
+                    int newVisibleCount = 0;
                     
                     for (int i = chatMessages.size() - 1; i >= 0; i--) {
                         ApiClient.ChatMessage msg = chatMessages.get(i);
@@ -968,7 +931,6 @@ public class ChatActivity extends AppCompatActivity {
                             messageFingerprints.put(msg.created, msg.content);
                             newTotalCount++;
                             
-                            // 只有可见消息才计入可见计数
                             if (message.shouldDisplay()) {
                                 newVisibleCount++;
                             }
@@ -978,7 +940,6 @@ public class ChatActivity extends AppCompatActivity {
                     Log.d(TAG, "Loaded messages: total=" + newTotalCount + ", visible=" + newVisibleCount);
                     
                     if (newTotalCount == 0) {
-                        // 没有新消息，继续加载
                         currentSince = newSince;
                         isLoadingOlder = false;
                         if (canLoadMore()) {
@@ -992,23 +953,18 @@ public class ChatActivity extends AppCompatActivity {
                         return;
                     }
                     
-                    // 更新索引
                     currentSince = newSince;
                     sessionManager.updateFirstMessageIndex(currentSessionId, newSince);
                     
-                    // 刷新数据（更新 visibleMessages）
                     adapter.refreshData();
                     
-                    // 使用锚点消息的时间戳恢复位置
                     final long savedAnchor = anchorMessageCreated;
                     final int savedOffset = offsetToRestore;
                     final int loadedVisible = newVisibleCount;
                     
-                    // 使用 post 确保布局完成
                     rvMessages.post(() -> {
                         LinearLayoutManager lm = (LinearLayoutManager) rvMessages.getLayoutManager();
                         if (lm != null) {
-                            // 在新的 visibleMessages 中找到锚点消息的位置
                             int newPosition = adapter.findVisiblePositionByCreated(savedAnchor);
                             
                             Log.d(TAG, "Position restore: anchor=" + savedAnchor + 
@@ -1016,7 +972,6 @@ public class ChatActivity extends AppCompatActivity {
                                   ", newVisibleAdded=" + loadedVisible);
                             
                             if (newPosition >= 0 && newPosition < adapter.getItemCount()) {
-                                // 精确恢复位置
                                 lm.scrollToPositionWithOffset(newPosition, savedOffset);
                                 Log.d(TAG, "Restored to visible position " + newPosition + " with offset " + savedOffset);
                             } else {
@@ -1026,7 +981,6 @@ public class ChatActivity extends AppCompatActivity {
                         
                         isLoadingOlder = false;
                         
-                        // 显示加载结果
                         if (canLoadMore()) {
                             showLoadMoreHint("✓ 已加载 " + loadedVisible + " 条可见消息");
                             rvMessages.postDelayed(() -> {
@@ -1119,20 +1073,7 @@ public class ChatActivity extends AppCompatActivity {
     }
     
     /**
-     * 平滑滚动到底部 - 优化版
-     * 
-     * 目标：最后一条消息的底部定位在窗口底部
-     * 
-     * 实现原理：
-     * scrollToPositionWithOffset(position, offset) 中：
-     * - offset 表示 item 顶部与 RecyclerView 顶部的距离
-     * - 要让 item 底部在 RecyclerView 底部，需要：
-     *   offset = RecyclerView高度 - item高度
-     * 
-     * 步骤：
-     * 1. 先滚动让 item 可见
-     * 2. 获取 item 实际高度
-     * 3. 计算正确的 offset 并精确定位
+     * 平滑滚动到底部
      */
     private void scrollToBottomSmooth() {
         if (rvMessages == null || adapter == null) return;
@@ -1144,10 +1085,8 @@ public class ChatActivity extends AppCompatActivity {
         
         int lastPosition = itemCount - 1;
         
-        // 第一步：滚动让最后一条消息可见
         lm.scrollToPosition(lastPosition);
         
-        // 第二步：等待布局完成后精确调整位置
         rvMessages.post(() -> {
             if (adapter.getItemCount() == 0) return;
             
@@ -1155,16 +1094,12 @@ public class ChatActivity extends AppCompatActivity {
             View lastChild = lm.findViewByPosition(pos);
             
             if (lastChild != null) {
-                // 计算：RecyclerView高度 - item高度 = item顶部应该在的位置
-                // 这样 item 底部就会正好在 RecyclerView 底部
                 int recyclerHeight = rvMessages.getHeight();
                 int itemHeight = lastChild.getHeight();
                 int offset = recyclerHeight - itemHeight;
                 
-                // 精确定位：item 底部在 RecyclerView 底部
                 lm.scrollToPositionWithOffset(pos, offset);
             } else {
-                // 如果找不到 view（可能是 item 还没布局），使用默认滚动
                 lm.scrollToPosition(pos);
             }
         });
@@ -1184,7 +1119,6 @@ public class ChatActivity extends AppCompatActivity {
                             isInProgress = serverSession.isInProgress();
                             totalMessageCount = serverSession.getMessageCount();
                             
-                            // 根据会话状态更新按钮
                             if (isInProgress) {
                                 setButtonStateSending();
                             } else {
@@ -1281,9 +1215,6 @@ public class ChatActivity extends AppCompatActivity {
             @Override
             public void onSuccess() {
                 runOnUiThread(() -> {
-                    // Bug 2 修复：消息成功推送到消息池，但可能还在等待被AI处理（最多5秒）
-                    // 将消息添加到 messagesInPool 集合，表示正在等待AI处理
-                    // 不移除 pendingMessages，以便后续匹配服务端返回的消息
                     messagesInPool.add(content);
                     fetchNewMessagesAndRestorePosition();
                 });
@@ -1311,7 +1242,6 @@ public class ChatActivity extends AppCompatActivity {
     }
     
     private void stopSession() {
-        // Bug 2 修复：停止时清理消息池等待状态
         messagesInPool.clear();
         
         apiClient.stopSession(currentSessionId, new ApiClient.StopCallback() {
@@ -1419,9 +1349,13 @@ public class ChatActivity extends AppCompatActivity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == REQUEST_SESSION_SETTINGS && resultCode == RESULT_OK) {
-            updateSessionInfoDisplay();
-            reloadMessages();
+        if (requestCode == REQUEST_SESSION_SETTINGS && resultCode == RESULT_OK && data != null) {
+            // 从 SessionSettingsActivity 返回的结果更新显示
+            String newProvider = data.getStringExtra(SessionSettingsActivity.RESULT_PROVIDER);
+            String newModel = data.getStringExtra(SessionSettingsActivity.RESULT_MODEL);
+            String newCwd = data.getStringExtra(SessionSettingsActivity.RESULT_CWD);
+            
+            updateSessionInfoFromResult(newProvider, newModel, newCwd);
         }
     }
 }
