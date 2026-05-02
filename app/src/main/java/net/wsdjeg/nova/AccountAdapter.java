@@ -11,6 +11,7 @@ import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
@@ -34,10 +35,15 @@ public class AccountAdapter extends RecyclerView.Adapter<AccountAdapter.ViewHold
 
     public AccountAdapter(Context context) {
         this.context = context;
+        this.accounts = new ArrayList<>();
     }
 
     public void setAccounts(List<Account> accounts) {
-        this.accounts = accounts;
+        if (accounts == null) {
+            this.accounts = new ArrayList<>();
+        } else {
+            this.accounts = accounts;
+        }
         notifyDataSetChanged();
     }
 
@@ -55,11 +61,21 @@ public class AccountAdapter extends RecyclerView.Adapter<AccountAdapter.ViewHold
 
     @Override
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
-        Account account = accounts.get(position);
+        if (accounts == null || position < 0 || position >= accounts.size()) {
+            return;
+        }
         
-        // 显示名称和URL
-        holder.textName.setText(account.getDisplayName());
-        holder.textUrl.setText(account.getUrl());
+        Account account = accounts.get(position);
+        if (account == null) {
+            return;
+        }
+        
+        // 显示名称和URL（安全获取，避免 null）
+        String displayName = account.getDisplayName();
+        holder.textName.setText(displayName != null ? displayName : "");
+        
+        String url = account.getUrl();
+        holder.textUrl.setText(url != null ? url : "");
         
         // 默认状态
         if (account.isActive()) {
@@ -91,14 +107,14 @@ public class AccountAdapter extends RecyclerView.Adapter<AccountAdapter.ViewHold
         
         // 点击事件
         holder.itemView.setOnClickListener(v -> {
-            if (listener != null) {
+            if (listener != null && account != null) {
                 listener.onAccountClick(account);
             }
         });
         
         // 长按事件
         holder.itemView.setOnLongClickListener(v -> {
-            if (listener != null) {
+            if (listener != null && account != null) {
                 listener.onAccountLongClick(account);
                 return true;
             }
@@ -107,14 +123,14 @@ public class AccountAdapter extends RecyclerView.Adapter<AccountAdapter.ViewHold
         
         // 编辑按钮
         holder.btnEdit.setOnClickListener(v -> {
-            if (listener != null) {
+            if (listener != null && account != null) {
                 listener.onEditClick(account);
             }
         });
         
         // 删除按钮
         holder.btnDelete.setOnClickListener(v -> {
-            if (listener != null) {
+            if (listener != null && account != null) {
                 listener.onDeleteClick(account);
             }
         });

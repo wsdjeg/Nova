@@ -3,7 +3,7 @@ package net.wsdjeg.nova;
 import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
-import android.widget.TextView;
+import android.widget.LinearLayout;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 import androidx.recyclerview.widget.LinearLayoutManager;
@@ -24,7 +24,7 @@ public class AccountManagerActivity extends AppCompatActivity implements Account
     
     private RecyclerView recyclerView;
     private AccountAdapter adapter;
-    private TextView emptyView;
+    private LinearLayout emptyView;
     private AccountManager accountManager;
     
     @Override
