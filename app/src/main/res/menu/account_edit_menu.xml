@@ -2,9 +2,6 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
     
-    <item
-        android:id="@+id/action_save"
-        android:title="保存"
-        app:showAsAction="always" />
+    <!-- 菜单项已移除 -->
         
 </menu>
