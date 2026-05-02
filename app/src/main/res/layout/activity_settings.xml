@@ -11,11 +11,9 @@
         android:layout_width="match_parent"
         android:layout_height="?attr/actionBarSize"
         android:background="?attr/colorPrimary"
-        android:elevation="4dp"
+        android:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar"
         app:title="设置"
-        app:titleTextColor="@android:color/white"
-        app:navigationIcon="@drawable/abc_ic_ab_back_material"
-        app:navigationIconTint="@android:color/white" />
+        app:navigationIcon="?attr/homeAsUpIndicator" />
 
     <ScrollView
         android:layout_width="match_parent"
