@@ -34,7 +34,7 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * 联系界面 Activity
+ * 聊天界面 Activity
  * 
  * 核心逻辑：
  * 1. 消息排序：API 返回升序 [oldest, ..., newest]
@@ -353,7 +353,6 @@ public class ChatActivity extends AppCompatActivity {
     }
     
     /**
-    /**
      * 设置键盘监听器 - 优化的键盘响应
      * 
      * 核心逻辑：
@@ -445,21 +444,13 @@ public class ChatActivity extends AppCompatActivity {
             }
         });
     }
-        
-        // 输入框获取焦点时也尝试滚动
-        etMessage.setOnFocusChangeListener((view, hasFocus) -> {
-            if (hasFocus && isKeyboardVisible) {
-                scheduleKeyboardScroll();
-            }
-        });
-    }
     
     /**
      * 调度键盘滚动任务 - 防抖机制
      * 只在键盘弹出时使用，用于滚动到底部
      */
     private void scheduleKeyboardScroll() {
-        // 取消之前的滚动任务
+        // 取消之前的滚动任务（防抖）
         if (keyboardScrollRunnable != null) {
             keyboardHandler.removeCallbacks(keyboardScrollRunnable);
         }
