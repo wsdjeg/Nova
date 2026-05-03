@@ -1180,7 +1180,8 @@ public class ChatActivity extends AppCompatActivity {
             Toast.makeText(this, "请先配置服务器地址", Toast.LENGTH_SHORT).show();
             return;
         }
-        String previewUrl = url + "/preview/" + currentSessionId;
+        // API: GET /session?id={session_id} - HTML preview
+        String previewUrl = url + "/session?id=" + currentSessionId;
         Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(previewUrl));
         startActivity(intent);
     }
@@ -1198,6 +1199,7 @@ public class ChatActivity extends AppCompatActivity {
         }
         startActivityForResult(intent, REQUEST_SESSION_SETTINGS);
     }
+    
     private void sendMessage() {
         String content = etMessage.getText().toString().trim();
         if (content.isEmpty()) return;
