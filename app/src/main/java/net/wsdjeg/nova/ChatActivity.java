@@ -1161,15 +1161,21 @@ public class ChatActivity extends AppCompatActivity {
     
     private void updateMenuVisibility(Menu menu) {
         if (menu == null) return;
+        // 预览按钮现在可用，保持可见
         MenuItem previewItem = menu.findItem(R.id.action_preview);
         if (previewItem != null) {
-            previewItem.setVisible(false);
+            previewItem.setVisible(true);
         }
     }
     
     private void openPreviewUrl() {
         if (currentSessionId == null) return;
-        String url = settingsManager.getFullUrl();
+        // 使用当前账号的 URL
+        if (currentAccount == null) {
+            Toast.makeText(this, "账号信息无效", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        String url = currentAccount.getUrl();
         if (url == null || url.isEmpty()) {
             Toast.makeText(this, "请先配置服务器地址", Toast.LENGTH_SHORT).show();
             return;
