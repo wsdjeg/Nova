@@ -2,6 +2,7 @@ package net.wsdjeg.nova;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.LinearLayout;
 import androidx.appcompat.app.AppCompatActivity;
@@ -85,6 +86,15 @@ public class AccountManagerActivity extends AppCompatActivity implements Account
         if (resultCode == RESULT_OK) {
             loadAccounts();
         }
+    }
+    
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        if (item.getItemId() == android.R.id.home) {
+            finish();
+            return true;
+        }
+        return super.onOptionsItemSelected(item);
     }
     
     // ========== AccountAdapter.OnAccountClickListener ==========
