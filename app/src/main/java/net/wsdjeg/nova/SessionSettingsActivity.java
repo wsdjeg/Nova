@@ -255,15 +255,6 @@ public class SessionSettingsActivity extends AppCompatActivity {
                 });
             }
         });
-                        currentModel = localSession.getModel();
-                        cwd = localSession.getCwd();
-                        originalCwd = cwd;
-                        etCwd.setText(cwd != null ? cwd : "");
-                        loadProviders();
-                    }
-                });
-            }
-        });
     }
     
     /**
