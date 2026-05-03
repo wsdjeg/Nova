@@ -608,7 +608,6 @@ public class ChatActivity extends AppCompatActivity {
     }
     
     private void refreshSessionStatusForIncrementalRefresh() {
-    private void refreshSessionStatusForIncrementalRefresh() {
         apiClient.getSession(currentSessionId, accountId, new ApiClient.SessionCallback() {
             @Override
             public void onSuccess(Session session) {
