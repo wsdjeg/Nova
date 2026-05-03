@@ -608,43 +608,39 @@ public class ChatActivity extends AppCompatActivity {
     }
     
     private void refreshSessionStatusForIncrementalRefresh() {
-        apiClient.getSessions(accountId, new ApiClient.SessionsCallback() {
+    private void refreshSessionStatusForIncrementalRefresh() {
+        apiClient.getSession(currentSessionId, accountId, new ApiClient.SessionCallback() {
             @Override
-            public void onSuccess(List<Session> sessions) {
+            public void onSuccess(Session session) {
                 runOnUiThread(() -> {
-                    for (Session session : sessions) {
-                        if (session.getSessionId().equals(currentSessionId)) {
-                            boolean wasInProgress = isInProgress;
-                            isInProgress = session.isInProgress();
-                            
-                            int serverCount = session.getMessageCount();
-                            
-                            boolean hasMessagesInPool = messagesInPool.size() > 0;
-                            
-                            if (isInProgress || hasMessagesInPool) {
-                                setButtonStateSending();
-                            } else {
-                                if (wasInProgress) {
-                                    messagesInPool.clear();
-                                    setButtonStateNormal();
-                                    fetchNewMessagesAndRestorePosition();
-                                } else {
-                                    setButtonStateNormal();
-                                }
-                            }
-                            
-                            if (serverCount > processedServerMessageCount) {
-                                fetchNewMessagesAndRestorePosition();
-                            } else if (serverCount < processedServerMessageCount) {
-                                reloadMessages();
-                            } else if (isInProgress) {
-                                checkLastMessageUpdate();
-                            }
-                            
-                            totalMessageCount = serverCount;
-                            break;
+                    boolean wasInProgress = isInProgress;
+                    isInProgress = session.isInProgress();
+                    
+                    int serverCount = session.getMessageCount();
+                    
+                    boolean hasMessagesInPool = messagesInPool.size() > 0;
+                    
+                    if (isInProgress || hasMessagesInPool) {
+                        setButtonStateSending();
+                    } else {
+                        if (wasInProgress) {
+                            messagesInPool.clear();
+                            setButtonStateNormal();
+                            fetchNewMessagesAndRestorePosition();
+                        } else {
+                            setButtonStateNormal();
                         }
                     }
+                    
+                    if (serverCount > processedServerMessageCount) {
+                        fetchNewMessagesAndRestorePosition();
+                    } else if (serverCount < processedServerMessageCount) {
+                        reloadMessages();
+                    } else if (isInProgress) {
+                        checkLastMessageUpdate();
+                    }
+                    
+                    totalMessageCount = serverCount;
                 });
             }
             
@@ -654,7 +650,6 @@ public class ChatActivity extends AppCompatActivity {
             }
         });
     }
-    
     /**
      * 获取新消息并保持位置
      */
@@ -1110,46 +1105,41 @@ public class ChatActivity extends AppCompatActivity {
     }
     
     private void refreshSessionStatus(Runnable onComplete) {
-        apiClient.getSessions(accountId, new ApiClient.SessionsCallback() {
+        apiClient.getSession(currentSessionId, accountId, new ApiClient.SessionCallback() {
             @Override
-            public void onSuccess(List<Session> sessions) {
+            public void onSuccess(Session serverSession) {
                 runOnUiThread(() -> {
-                    for (Session serverSession : sessions) {
-                        if (serverSession.getSessionId().equals(currentSessionId)) {
-                            isInProgress = serverSession.isInProgress();
-                            totalMessageCount = serverSession.getMessageCount();
-                            
-                            if (isInProgress) {
-                                setButtonStateSending();
-                            } else {
-                                setButtonStateNormal();
-                            }
-                            
-                            Session localSession = sessionManager.getSession(currentSessionId);
-                            if (localSession != null) {
-                                boolean updated = false;
-                                String serverProvider = serverSession.getProvider();
-                                String serverModel = serverSession.getModel();
-                                
-                                if (serverProvider != null && !serverProvider.isEmpty() 
-                                    && !serverProvider.equals(localSession.getProvider())) {
-                                    localSession.setProvider(serverProvider);
-                                    currentProvider = serverProvider;
-                                    updated = true;
-                                }
-                                if (serverModel != null && !serverModel.isEmpty() 
-                                    && !serverModel.equals(localSession.getModel())) {
-                                    localSession.setModel(serverModel);
-                                    currentModel = serverModel;
-                                    updated = true;
-                                }
-                                
-                                if (updated) {
-                                    sessionManager.updateSession(localSession);
-                                    tvSessionInfo.setText(currentProvider + " | " + currentModel);
-                                }
-                            }
-                            break;
+                    isInProgress = serverSession.isInProgress();
+                    totalMessageCount = serverSession.getMessageCount();
+                    
+                    if (isInProgress) {
+                        setButtonStateSending();
+                    } else {
+                        setButtonStateNormal();
+                    }
+                    
+                    Session localSession = sessionManager.getSession(currentSessionId);
+                    if (localSession != null) {
+                        boolean updated = false;
+                        String serverProvider = serverSession.getProvider();
+                        String serverModel = serverSession.getModel();
+                        
+                        if (serverProvider != null && !serverProvider.isEmpty() 
+                            && !serverProvider.equals(localSession.getProvider())) {
+                            localSession.setProvider(serverProvider);
+                            currentProvider = serverProvider;
+                            updated = true;
+                        }
+                        if (serverModel != null && !serverModel.isEmpty() 
+                            && !serverModel.equals(localSession.getModel())) {
+                            localSession.setModel(serverModel);
+                            currentModel = serverModel;
+                            updated = true;
+                        }
+                        
+                        if (updated) {
+                            sessionManager.updateSession(localSession);
+                            tvSessionInfo.setText(currentProvider + " | " + currentModel);
                         }
                     }
                     

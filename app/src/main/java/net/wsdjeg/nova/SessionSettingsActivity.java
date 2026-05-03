@@ -206,57 +206,33 @@ public class SessionSettingsActivity extends AppCompatActivity {
         progressBar.setVisibility(View.VISIBLE);
         tvStatus.setText("正在获取会话信息...");
         
-        apiClient.getSessions(accountId, new ApiClient.SessionsCallback() {
+        // 使用新的 getSession API 直接获取单个会话
+        apiClient.getSession(sessionId, accountId, new ApiClient.SessionCallback() {
             @Override
-            public void onSuccess(List<Session> sessions) {
+            public void onSuccess(Session session) {
                 runOnUiThread(() -> {
-                    // 查找当前会话
-                    Session currentSession = null;
-                    for (Session session : sessions) {
-                        if (session.getSessionId().equals(sessionId)) {
-                            currentSession = session;
-                            break;
-                        }
+                    // 从服务器获取最新的 provider/model/cwd
+                    currentProvider = session.getProvider();
+                    currentModel = session.getModel();
+                    cwd = session.getCwd();
+                    originalCwd = cwd;
+                    
+                    // 更新显示
+                    etCwd.setText(cwd != null ? cwd : "");
+                    
+                    Log.d(TAG, "Session from server: provider=" + currentProvider + ", model=" + currentModel + ", cwd=" + cwd);
+                    
+                    // 更新本地 SessionManager
+                    Session localSession = sessionManager.getSession(sessionId);
+                    if (localSession != null) {
+                        localSession.setProvider(currentProvider);
+                        localSession.setModel(currentModel);
+                        localSession.setCwd(cwd);
+                        sessionManager.updateSession(localSession);
                     }
                     
-                    if (currentSession != null) {
-                        // 从服务器获取最新的 provider/model/cwd
-                        currentProvider = currentSession.getProvider();
-                        currentModel = currentSession.getModel();
-                        cwd = currentSession.getCwd();
-                        originalCwd = cwd;
-                        
-                        // 更新显示
-                        etCwd.setText(cwd != null ? cwd : "");
-                        
-                        Log.d(TAG, "Session from server: provider=" + currentProvider + ", model=" + currentModel + ", cwd=" + cwd);
-                        
-                        // 更新本地 SessionManager
-                        Session localSession = sessionManager.getSession(sessionId);
-                        if (localSession != null) {
-                            localSession.setProvider(currentProvider);
-                            localSession.setModel(currentModel);
-                            localSession.setCwd(cwd);
-                            sessionManager.updateSession(localSession);
-                        }
-                        
-                        // 加载 providers 列表
-                        loadProviders();
-                    } else {
-                        progressBar.setVisibility(View.GONE);
-                        tvStatus.setText("未找到会话");
-                        
-                        // 使用本地 session 信息备用
-                        Session localSession = sessionManager.getSession(sessionId);
-                        if (localSession != null) {
-                            currentProvider = localSession.getProvider();
-                            currentModel = localSession.getModel();
-                            cwd = localSession.getCwd();
-                            originalCwd = cwd;
-                            etCwd.setText(cwd != null ? cwd : "");
-                            loadProviders();
-                        }
-                    }
+                    // 加载 providers 列表
+                    loadProviders();
                 });
             }
             
@@ -270,6 +246,15 @@ public class SessionSettingsActivity extends AppCompatActivity {
                     Session localSession = sessionManager.getSession(sessionId);
                     if (localSession != null) {
                         currentProvider = localSession.getProvider();
+                        currentModel = localSession.getModel();
+                        cwd = localSession.getCwd();
+                        originalCwd = cwd;
+                        etCwd.setText(cwd != null ? cwd : "");
+                        loadProviders();
+                    }
+                });
+            }
+        });
                         currentModel = localSession.getModel();
                         cwd = localSession.getCwd();
                         originalCwd = cwd;

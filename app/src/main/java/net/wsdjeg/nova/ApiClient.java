@@ -83,6 +83,15 @@ public class ApiClient {
         void onError(String error);
     }
     
+    /**
+     * 获取单个会话的回调接口
+     * 用于 GET /sessions/:id API
+     */
+    public interface SessionCallback {
+        void onSuccess(Session session);
+        void onError(String error);
+    }
+    
     public static class Provider {
         public String name;
         public List<String> models;
@@ -354,6 +363,113 @@ public class ApiClient {
                 }
             } catch (Exception e) {
                 Log.e(TAG, "getSessions failed", e);
+                new Handler(Looper.getMainLooper()).post(() -> 
+                    callback.onError("Network error: " + e.getMessage()));
+            } finally {
+                if (br != null) {
+                    try { br.close(); } catch (Exception ignored) {}
+                }
+                if (conn != null) {
+                    conn.disconnect();
+                }
+            }
+        }).start();
+    }
+    
+    /**
+     * 获取单个会话详情
+     * API 端点: GET /sessions/:id
+     * 响应格式: { "id": "xxx", "title": "...", "cwd": "...", "provider": "...", "model": "...", "in_progress": false, "message_count": 5, "last_message": {...} }
+     */
+    public void getSession(String sessionId, String accountId, SessionCallback callback) {
+        String baseUrl = getBaseUrl();
+        String apiKey = getApiKey();
+        
+        if (baseUrl.isEmpty() || apiKey.isEmpty()) {
+            callback.onError("Please configure API settings");
+            return;
+        }
+        
+        if (sessionId == null || sessionId.isEmpty()) {
+            callback.onError("Session ID is required");
+            return;
+        }
+        
+        new Thread(() -> {
+            HttpURLConnection conn = null;
+            BufferedReader br = null;
+            try {
+                URL url = new URL(baseUrl + "/sessions/" + sessionId);
+                conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("GET");
+                conn.setRequestProperty("X-API-Key", apiKey);
+                conn.setRequestProperty("Connection", "close");
+                conn.setRequestProperty("Accept", "application/json");
+                conn.setConnectTimeout(15000);
+                conn.setReadTimeout(30000);
+                conn.setUseCaches(false);
+                
+                int responseCode = conn.getResponseCode();
+                
+                if (responseCode == 200) {
+                    br = new BufferedReader(new InputStreamReader(conn.getInputStream(), "UTF-8"));
+                    StringBuilder response = new StringBuilder();
+                    String line;
+                    while ((line = br.readLine()) != null) {
+                        response.append(line);
+                    }
+                    
+                    JSONObject sessionObj = new JSONObject(response.toString());
+                    String id = sessionObj.optString("id", "");
+                    String title = sessionObj.optString("title", "");
+                    String cwd = sessionObj.optString("cwd", "");
+                    String provider = sessionObj.optString("provider", "");
+                    String model = sessionObj.optString("model", "");
+                    boolean inProgress = sessionObj.optBoolean("in_progress", false);
+                    int messageCount = sessionObj.optInt("message_count", 0);
+                    long lastMessageTime = System.currentTimeMillis();
+                    String lastMessageContent = "";
+                    String lastMessageRole = "";
+                    
+                    JSONObject lastMsgObj = sessionObj.optJSONObject("last_message");
+                    if (lastMsgObj != null) {
+                        lastMessageContent = lastMsgObj.optString("content", "");
+                        lastMessageRole = lastMsgObj.optString("role", "");
+                        lastMessageTime = lastMsgObj.optLong("created", System.currentTimeMillis()) * 1000;
+                    }
+                    
+                    if (!id.isEmpty()) {
+                        Session session = new Session(id);
+                        session.setAccountId(accountId);
+                        session.setTitle(title);
+                        session.setCwd(cwd);
+                        session.setProvider(provider);
+                        session.setModel(model);
+                        session.setInProgress(inProgress);
+                        session.setLastMessage(lastMessageContent);
+                        session.setLastMessageRole(lastMessageRole);
+                        session.setMessageCount(messageCount);
+                        session.setLastMessageTime(lastMessageTime);
+                        
+                        new Handler(Looper.getMainLooper()).post(() -> 
+                            callback.onSuccess(session));
+                    } else {
+                        new Handler(Looper.getMainLooper()).post(() -> 
+                            callback.onError("Invalid session response"));
+                    }
+                } else if (responseCode == 404) {
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onError("Session not found"));
+                } else if (responseCode == 401) {
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onError("Unauthorized: Invalid API Key"));
+                } else {
+                    final int code = responseCode;
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onError("Error: " + code));
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "getSession failed", e);
                 new Handler(Looper.getMainLooper()).post(() -> 
                     callback.onError("Network error: " + e.getMessage()));
             } finally {
