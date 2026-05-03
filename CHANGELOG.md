@@ -1,0 +1,374 @@
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+## [v1.0.0] - 2025-01-11
+
+### feat (新功能)
+- 686fe54 chore: 删除 release-please 相关配置文件
+- d0a25d3 feat: 添加会话 cwd 设置功能
+- d2f17eb feat: 设置返回箭头颜色与标题一致（白色）
+- 55247f0 feat(ci): add prerelease workflow for dev builds
+- 7cc4da2 feat: add please-release workflow for official releases
+- 9e614f4 feat: add keyboard listener to scroll messages when keyboard shows
+- 50213a7 feat: 输入框消息暂存功能
+- 0f202a4 feat: about 页面 logo 背景添加圆角
+- d4641a3 feat: add high-resolution logo for about page
+- e510efe feat: 将"激活账号"改为"默认账号"，更新新建会话逻辑使用API返回值
+- 09db204 feat: 会话列表聚合显示所有账号的会话
+- 9bec449 feat: 预览按钮改为打开浏览器URL
+- 13d9025 feat: improve pull-to-load state machine with better UX
+- 0d4d25a feat: 添加下拉加载提示 TextView 到布局
+- 88de5f3 feat: 实现下拉加载更早消息功能
+- f3d0d50 feat: 在会话列表预览中添加角色图标显示
+- a32edc5 feat: add scroll to bottom FAB button
+- 42035c0 feat: implement clear session API
+- 516a7b4 feat: add clearSession API support
+- f1628f8 feat: 发送按钮状态改进
+- 28f79c2 feat: 消息列表存储所有消息，展示时过滤tool和空content
+- 1778898 feat: 实现消息分页加载功能
+- b92f585 feat(api): add getMessagesWithOptions with since/limit/last parameters
+- f92583a feat(chat): add incremental message refresh
+- 189955a feat(session-list): use incremental polling for message updates
+- b89e683 feat: add SessionSettingsActivity for per-session settings
+- 9a71981 feat: add getProviders API method for fetching provider/model list
+- b8bcc62 feat: add provider/model display in session list and settings
+- 79b5a42 feat: 实现智能增量刷新机制
+- 041c47f feat: add slash commands support
+- d98197c feat: rename app to Nova with blue theme
+- daeb3a9 feat: 添加关于页面和更新按钮，移除设置提示
+- d52da17 feat: 将菜单改为白色三竖点图标下拉菜单
+- 1cfbcdf feat: 优化首次打开app时自动同步会话消息和预览
+- b36e9ea feat: update chat header to 3-line layout with title, provider|model, CWD
+- f71ec53 feat: add auto-refresh messages every 5 seconds
+- c8516f1 feat: add session dropdown menu and remove session from settings
+- 229397a feat: add long press to copy message content
+- db4e12b feat: redesign app icon with sleek tech-style N letter
+- 7e6db56 feat: redesign Nova app icon with premium futuristic style
+- f205c89 feat: implement WeChat-style session list UI
+- a5a03b8 feat: add preview menu to open session in browser
+- 1232893 feat: 实现多账号聚合系统
+- fed846f feat: 改进账号设置颜色选择器布局，一行三个且选中后有明显区别
+- 3e59ff5 feat: 添加颜色圆形 drawable 资源和更新 Activity 代码
+- 60cdcfd feat: 设置页面增加"自动"颜色选项，账号编辑页面拆分host/port并支持颜色设置
+- efa5cb8 feat: 添加主题模式功能
+- ae2f91e feat: 移除设置页面 API 设置，添加账户标签颜色设置
+- 7c2f2c5 feat: 在会话设置页面增加 provider 和 model 下拉选择，实时获取服务器列表
+- 51fad27 feat: add in_progress spinner to session list
+- 2795029 feat: add stop/retry generation feature
+
+### fix (问题修复)
+- a2c34d5 style: 修改发送按钮背景色为蓝色
+- 98def95 fix: 修复 SessionSettingsActivity model spinner 被错误重置的问题
+- d6ea846 fix: pass provider/model/cwd to SessionSettingsActivity
+- e24f9e9 fix: SessionSettingsActivity 保存后返回数据正确更新 ChatActivity
+- b868193 fix: repair ApiClient.java broken structure from incorrect insert
+- b648100 fix: 会话设置页面Toolbar返回箭头和保存按钮改为白色
+- d531f16 fix: 修复账号管理页面闪退问题
+- a6fd43b fix: correct AccountManagerActivity API mismatches
+- b5b7056 style: use ThemeOverlay for white navigation icon in SettingsActivity
+- f57180a fix: restore session_settings_menu save item and clean AccountManagerActivity menu code
+- 2dc886d fix: remove invalid XML tag from colors.xml
+- 2f7c931 fix: resolve compilation errors for Android build
+- be53b1c fix: 修复 SessionSettingsActivity.java 缺少方法闭合括号
+- 8772f64 fix: 修复 activity_settings.xml XML 格式错误
+- d8e63c8 style: 统一所有页面返回箭头颜色为白色
+- 4895a36 fix: resolve ChatActivity.java compilation errors due to duplicated code blocks
+- 4a3b323 fix: remove unnecessary scrollBy compensation when keyboard closes
+- 42a1f7a fix: remove duplicate orphaned code in loadMessagesPage() that caused syntax errors
+- 3de608b fix: remove duplicate import statement in ChatActivity.java
+- 22908a5 fix: 修复 Bug 2 - 消息池等待状态导致按钮状态错误
+- 9895e93 fix: 修复消息发送相关的两个bug
+- c59c1c1 fix: 修复发送按钮颜色被Material3 tint覆盖的问题
+- 85bfdad fix: 修复发送/停止按钮背景色被 Material3 主题覆盖的问题
+- 558b4b7 fix: pass in_progress state from SessionListActivity to ChatActivity
+- 676a9da fix: 进入聊天界面时根据会话状态初始化按钮颜色
+- 4dd0771 fix(keyboard): 恢复键盘关闭时的scrollBy补偿并添加防抖机制
+- 18eb482 fix: 修复键盘关闭后消息下移过多的问题
+- bed6fbc fix(ci): merge duplicate env blocks in release steps
+- 3776692 fix(ci): quote if conditions with special characters
+- 7d58986 fix(ci): use env var for github.sha in run block
+- ddf49b2 fix(ci): correct YAML syntax in release workflow
+- 730f3d8 fix: set default send button background to green
+- 756bfa7 fix: handle keyboard close with reverse scroll to restore message position
+- 5cc6a22 fix: 键盘弹出时保持消息列表内容位置同步上移
+- f790dfa fix: scrollToBottomSmooth now positions last message bottom at window bottom
+- 8a76da7 fix: 修复下拉加载更多后的位置恢复问题
+- 59bc7f8 fix: lambda variable must be final or effectively final
+- 02fea85 fix: correct callback types and method calls in ChatActivity
+- 98842a4 fix: use Message.createPending() instead of non-existent 4-param constructor
+- f7c0671 fix: improve scrollToBottom to ensure message bottom is visible
+- 5f5b074 fix: 修正消息加载的 since 计算逻辑
+- 0dd3c09 fix: 恢复 btnSend 点击监听器，修复发送按钮失效问题
+- ede97d4 fix: 添加缺失的 isLoadingOlder 变量和 loadOlderMessages 方法签名
+- cefe7f9 fix: 统计实际加载的消息总数，而非过滤后的数量
+- 95dca03 fix: 修复刚进会话时错误显示"下拉加载更多"提示的问题
+- 9662bcc fix: 只在滚动到顶部且前面有消息时显示"下拉加载更多"提示
+- f7a137f fix: 初始加载后正确显示"下拉加载更多"提示
+- 1986e0a fix: 修复下拉加载更多触发逻辑并恢复代码结构
+- 6c71d9e fix: restore triggerLoadOlder() in onScrolled for loading more messages
+- 8b6f845 fix: 修复下拉加载更多后位置跳转问题
+- 1df9fbb fix: 修复消息计数逻辑，基于服务端返回的消息数
+- 2708647 fix: 修复"下拉加载更多"在消息数量减少后仍显示的问题
+- e95c319 fix: scrollToBottom now scrolls to the very bottom (cannot scroll further)
+- 0017e33 fix: 修复下拉加载更多无法触发的问题
+- 929101c fix: correct hint text for add account button position
+- aa5e689 fix: implement pending message mechanism to avoid duplicate messages
+- f855847 fix: improve scroll position stability during pull-to-load
+- 9fb0cf1 fix: 修复会话信息显示空值问题，使用成员变量存储 provider/model
+- 6239152 fix: 修复会话设置页面下拉菜单显示和返回刷新问题
+- 1200b8f fix: update session provider/model from server in ChatActivity
+- e572c0e fix: set spinner default values to current session provider/model
+- 7031074 fix: correct type declaration for WindowInsets imeInsets
+- 850952d fix: add fitsSystemWindows to chat layout for proper keyboard handling
+- c37aedc fix: improve keyboard handling with WindowInsets API for Android 11+
+- 2bcae9c fix: 改进滚动到底部逻辑，确保最后一条消息完全可见
+- 479f9c9 fix: about 页面 logo 完全匹配 ic_launcher.xml 设计
+- dc45f25 fix: 修正 about 页面 logo 设计以匹配桌面图标
+- 7ba546e fix: correct diagonal angle in about page logo to match app icon (49.5° instead of 45°)
+- 08efe84 fix: 修复图标渐变显示问题，使用 aapt:attr 正确定义渐变
+- 377ef1a fix: remove duplicate code in ApiClient.java caused by broken merge
+- c046ffe fix: createSession API returns 'id' not 'session_id'
+- 3075921 fix: 修复 item_account.xml 按钮 ID 与 AccountAdapter.java 不匹配问题
+- 39e9e42 fix: 修复 SessionListActivity.java 编译错误
+- 4be24ef fix: 会话列表按 sessionId（创建时间）降序排序
+- 40fbf93 fix: 修复创建会话 API 端点和响应字段
+- 660f935 fix: ChatActivity 设置按钮应打开 SessionSettingsActivity 而非 SettingsActivity
+- 9465227 fix: 优化下拉加载更多的显示逻辑和闪烁问题
+- 39dfd5e fix: 在 SessionListActivity 中添加 DividerItemDecoration
+- 06ab206 fix: 统一会话列表项之间的间距
+- 22c8c0b fix: 修复下拉加载一直显示"正在加载"的问题
+- 51a7eaf fix: remove newState from onScrolled method
+- 84d2eee fix: 修复下拉加载状态机，防止加载过程中重复触发请求
+- 26bb0aa fix: 使用 scrollToPositionWithOffset 确保打开会话时滚动到底部
+- 78bcbd3 fix: 账号标签与标题垂直居中对齐并保持间距
+- f5d8031 fix: spinner显示时隐藏未读数量徽章
+- 163b738 fix: 修复 ChatActivity.java 编译错误（补全缺失的括号）
+- f225e19 fix: 确保打开会话时滚动到消息底部
+- 37cc57c fix: add debug logging for session last_message preview issue
+- be4d80c fix: 强制滚动到底部无动画
+- 883b827 fix: add missing closing braces in stopSession method
+- 5acf439 fix: add missing methods and ClearCallback interface
+- e1e12fc fix: restore ApiClient.java from ff8f03f to fix compilation errors
+- 7c2f2c5 fix: resolve compilation errors in ApiClient.java
+- 6d6f7e6 style: update chat header display format
+- 84e81e2 fix: rewrite ChatActivity.java to fix syntax errors
+- 7dbf38c fix: remove duplicate code in ChatActivity.java
+- a1c224c fix: 修复打开会话后不滚动到底部的问题
+- 8a2792b fix: 禁用消息列表滚动动画，进入会话时直接定位到底部
+- ac0880f fix: 上滚加载更多消息 - 初始加载后保存 firstMessageIndex
+- cdc3e4d fix: correct class structure in ApiClient and ChatActivity
+- 2fd75f8 fix: 修复 addOnScrollListener 缺少闭合括号的语法错误
+- 71d6ef6 fix: 修复聊天界面标题显示 ID 而非会话标题的问题
+- ca6b2c4 fix: resolve Java compilation errors
+- 7705f52 fix: 修复 ChatActivity、Message、MessageAdapter 语法错误
+- b397c34 fix: 修复 ChatActivity.java 编译错误
+- fd602af fix: add stop and retry menu functionality in ChatActivity
+- a7e3e73 fix: add stop and retry menu items to chat_menu.xml
+- ff8f03f fix: add MessageCallback interface and setSession method to ApiClient, add missing menu items
+- bd18fea fix: 修复 ChatActivity.java 语法错误 - 补全缺失的右括号
+- a30f03a fix: 修复消息刷新机制 - 使用 processedServerMessageCount 追踪服务器消息总数
+- ebeda7d fix: 修复消息加载和刷新的排序逻辑问题
+- c400192 fix: correct brace structure in loadOlderMessages onError callback
+- e42bfba fix: resolve lambda effectively final error in ChatActivity.loadOlderMessages()
+- b48bbef fix: remove duplicate field declarations and fix corrupted code in ChatActivity.java
+- 5825b50 fix: declare missing member variables and fix incomplete isUserAtBottom method in ChatActivity
+- 4fe8ee0 fix: repair truncated createSession method declaration in ApiClient.java
+- 07205ce fix: 修复会话标题错误显示为路径的问题
+- e7a1250 fix: 修复消息界面频繁重绘和滚动位置错乱问题
+- fffa63a fix: SessionManager 保存和加载 title 字段
+- cb5e44e fix: 会话标题只在获取会话列表时更新，ChatActivity不再调用getSessions更新标题
+- 6ba8e5d fix: 修正消息加载顺序，确保从旧到新正确显示
+- f9100bb fix: 会话标题只从 /sessions API 获取，不再从消息内容推断
+- 8926fdc fix: add missing closing braces in getSessions and getProviders methods
+- 4a38dec fix: use last_message.content as fallback title when title is empty
+- 1c18306 fix: add missing accountId parameter to getSessions calls in ChatActivity
+- 8ad55cd fix: remove duplicate code in updateSession method
+- 52670bd fix: 修复 SessionListActivity.java 结构错误
+- 571c325 fix: remove duplicate if statement in updateSession method
+- 84bd303 fix: restore ApiClient.java getSessions method
+- ea19b80 fix: 解决两个 bug：会话列表标题/预览不更新、空会话闪退
+- b953db0 fix: 优化 Spinner 对齐布局
+- 9f72c9b fix: improve getMessages network handling to prevent "unexpected end of stream"
+- 266913f fix: 修复 ApiClient.java 中 getSessions 和 getProviders 方法的语法错误
+- b1d479a fix: 删除重复的字段声明
+- a577af9 fix: 修复 ChatActivity.java 语法错误（括号不匹配）
+- 1f31a02 fix: remove duplicate code blocks in pollSessionMessages and updateSingleSession methods
+- 58d7060 fix: complete the onError handler in initializeAllSessions method
+- a7a5f00 fix: remove duplicate Javadoc and extra closing braces in ApiClient.java
+- 989b475 fix: increase getMessages timeout to 60s for large sessions
+- f31c4a8 fix: 会话列表布局修复
+- ab26920 fix: 会话设置页面自动选择当前 session 的 provider 和 model
+- e5bd86a fix: 从会话设置返回时刷新顶部会话信息
+- fe5fd3c fix: remove duplicate getMessages method declaration in ApiClient.java
+- d0d88b5 fix: use new SessionManager(this) instead of getInstance(this)
+- 3771285 fix: remove duplicate getProviders method definition in ApiClient
+- 26320e9 fix: use correct resource IDs et_provider and et_model in SettingsActivity
+- 5c726b6 fix: 修复 SessionListActivity 重复代码问题，正确处理每个会话的 provider/model
+- 729b8f6 fix: complete catch block lambda in testConnection method
+- 59a7f39 fix: resolve syntax errors in ApiClient.java
+- fec202e fix: POST request for stop/retry must set setDoOutput(true)
+- a68b021 fix: correct syntax error in ChatActivity.java - missing closing brace in sendChatMessage method
+- ecc9ecb fix: stop button should not delete session data
+- 63e4175 fix: stop session时自动清理本地数据并返回列表
+- 554e7a3 fix: make debugInfo effectively final for lambda capture
+- 56fae5a fix: add missing EXTRA_SESSION_ID, EXTRA_SESSION_TITLE constants and buttonState variable in ChatActivity
+- 8c908c7 fix: 恢复丢失的成员变量定义
+- 1f89bdd fix: 添加调试日志并改进停止生成错误处理
+- b28954c fix: 根据 session 所属账号获取正确的 ApiClient
+- d7e7392 fix: improve CI workflow reliability
+- 06c34cd revert: restore AGP to 8.1.0 for Gradle 8.0 compatibility
+- 030d697 revert: change Java version back to 1.8
+- 98d4438 fix: update Java version to 17 for AGP 8.8.0
+- 89ea86f fix: upgrade AGP to 8.8.0 for Gradle 9.x compatibility
+- 7735fc3 fix: add missing color resources primary_light and divider
+- a1dfdce fix: 修复 AlertDialog.Builder 缺少 .this 上下文引用
+- 7c25d12 fix: escape XML quotes and remove deprecated package attribute
+- d1d7ccf fix: 调整 spinner 位置向下2dp、向右2dp
+- c1c34eb fix: correct class structure in SessionManager.java
+- 10aa2f6 fix: 正确同步 in_progress 字段以显示 spinner
+- ec98192 fix: Spinner 移到账号标签下方，使用 Barrier 防止重叠
+- 90b2828 fix: 优化会话列表布局对齐
+- e0072fa fix: 会话预览与标题左对齐
+- 5d65d30 fix: increase spinner size and use primary color for better visibility
+- 2e23248 fix: adjust spinner positioning to not affect layout constraints
+- 4819805 fix: improve progress spinner visibility in session list
+- 2ee632c fix: 修复 getSessions 方法被损坏导致的编译错误
+- 81c5399 fix: ChatActivity 使用带 sessionId 的 sendMessage 方法
+- 0a2add2 fix: sendMessage 使用 sessionId 参数而非 SettingsManager
+- f6a00e7 fix: ChatActivity 使用账号配置加载消息，会话列表账号标签与标题同行
+- ccaffeb fix: use account URL/API Key for API calls, remove account selector
+- 0d8b32a fix: 修复 AccountManager.java 和 ApiClient.java 的语法错误
+- 9b08182 fix: add testConnection method to ApiClient and fix AccountEditActivity
+- f76b23b fix: resolve compilation errors - missing resource IDs and method mismatches
+- c58538b fix: resolve API mismatches in SessionListActivity
+- effd3a9 fix: 添加缺失的颜色和 drawable 资源
+- 9ef5413 fix: 设置会话列表项固定高度为88dp
+- ba15557 fix: 增加会话列表分割线与预览消息之间的间距
+- 647065d fix: 移除 addOrUpdateSession 中保留旧未读数的错误逻辑
+- b17ebca fix: 修复会话列表未读消息刷新机制问题
+- aed083e fix: correct license from MIT to GPL v3 in About page
+- 5030142 fix: 修复会话列表未读消息数计算错误的问题
+- 819c422 fix: 添加缺失的 import java.util.List
+- 4237333 fix: 修复 SessionManager.java 编译错误
+- a5a03b8 fix: use getUrl() instead of getIpAddress() in preview
+- f7a165e fix: 修复 SessionManager 未保存/加载 provider、model、cwd 字段导致会话列表不刷新
+- 64a29df fix: 修复多个Java文件的结构问题和缺失方法
+- 7325341 fix: 使用直接跳转替代平滑滚动，避免加载会话时长时间等待
+- 4ea5cb3 fix: 修复 ChatActivity.updateMessages 调用缺少 lastMessageTime 参数
+- 0a9da92 fix: 在获取会话消息时传入最后消息的 created 时间
+- f93e579 fix: 使用消息的实际 created 时间作为会话列表显示时间
+- 88e1e44 fix: 修复设置保存后自动刷新和会话列表排序问题
+- 390a3f6 fix: 恢复 SessionManager.java 中 getCurrentSession 方法并按 sessionId 排序
+- 03e0f87 fix: 添加 SessionManager.getSession 方法
+- c53cd03 fix: use server-side 'created' timestamp for message display
+- 6ded9b0 fix: 完全重写 ChatActivity.java，修复所有语法错误
+- 1c91ce3 fix: 移除 updateMessagesList 方法后重复的代码行
+- e9a2448 fix: 修复 updateMessagesList 方法中缺少 shouldScrollToBottom 变量定义的问题
+- f3fb029 fix: 修复 LinearLayoutManager 方法名错误 - getFirstVisibleItemPosition -> findFirstVisibleItemPosition
+- 0b09151 fix: 修复 ChatActivity.java 中严重的语法错误
+- cb53da8 fix: 过滤掉 tool 角色的消息，不在聊天界面显示
+- c3b9cc3 fix: 修复启动闪退问题 - 主题与Toolbar配置冲突
+- 150692f fix: 完善多个 UI 组件和布局
+- 4fa34c6 fix: 修复 SessionListActivity 导入语句和添加 Toolbar 支持
+- 7831cb5 fix: 修复 SessionListActivity.java 语法错误
+- af4bdc7 fix: add missing drawable resources and update README
+- 3fa79a1 fix: update CI workflow with fixed debug keystore generation
+- 95416f9 fix: correct duplicate dependencies block in build.gradle
+- 6240e5d fix: exclude duplicate JetBrains annotations from syntax-highlight
+- c2555cb fix: remove duplicate deps
+- 26451dd fix: update Markwon to valid version 4.6.2 (6.0.0 doesn't exist)
+- 291bbf6 fix: correct build.gradle syntax errors
+- 72a25e2 refactor: 将包名从 com.example.myandroidapp 改为 net.wsdjeg.nova
+- 8eabdc1 chore: 删除旧包名目录 com.example.myandroidapp
+- 3e6e458 fix: remove unused btn_get_sessions button
+- bef13b0 fix: use correct color resource names in themes
+- 01af90e fix: 修复设置页面崩溃问题，PreRelease不重复创建，签名保持一致
+- 7a86457 fix: 添加可见设置按钮，移除输入框边框
+- 2c1224d fix: 修复 CI 编译错误 - 资源 ID 和 ApiClient 接口匹配
+- 45915d4 fix: use simple drawable icon instead of mipmap
+- 8402259 fix: update Java version from 11 to 17 for Android Gradle plugin compatibility
+- 216f09c chore: remove gradle wrapper, use system gradle instead
+- 982283d fix: use system gradle instead of wrapper
+- bac20d9 fix: download gradle wrapper from official distribution
+- 028b676 remove jars
+- ac4f493 fix: clean up workflow file
+- 4b32c6d fix: download gradle-wrapper.jar in CI instead of committing it
+- 4665563 fix: add gradle-wrapper.jar for CI build
+- 81832d9 Create android.yml
+- 226a866 feat: Android chat application with AI API integration
+
+### style (样式调整)
+- a2c34d5 style: 修改发送按钮背景色为蓝色
+- b5b7056 style: use ThemeOverlay for white navigation icon in SettingsActivity
+- d8e63c8 style: 统一所有页面返回箭头颜色为白色
+- 9e61871 style: redesign Nova app logo with modern geometric style
+- 6d6f7e6 style: update chat header display format
+- b8c44a0 style: 移除停止按钮的 emoji 符号
+- b3d1c81 style: unify CWD line color with provider line
+
+### refactor (代码重构)
+- 0e242f3 refactor: 合并4个workflow为1个
+- 1b6c20a refactor: 移除账号管理页面的添加按钮和账号编辑页面的保存按钮
+- 6ea2611 refactor: remove retry button logic from ChatActivity
+- 10b2925 refactor: remove retry button from chat menu
+- f1628f8 refactor: 按钮状态完全基于 session.in_progress 属性
+- 3557ad9 refactor: loadMessagesPage 清空后按 API 顺序显示消息
+- 6411190 refactor: optimize scroll experience for load more and keyboard
+- 863ec4b refactor: 使用 overwrite 重写 ChatActivity.java 修复代码完整性
+- f80d4bf refactor: adjust load page size to 50 messages
+- 8cdaa62 refactor: 重新设计下拉加载和位置保持逻辑
+- af0d049 refactor: 优化会话项布局，右侧区域垂直居中显示spinner/时间
+- 0bd3c3f refactor: 简化会话列表布局，移除预览消息
+- 719a51d refactor: 会话列表预览只使用 /sessions API 数据，移除其他 API 对预览的影响
+- fe48c0f refactor: 简化会话列表预览，只显示 content 不带角色图标
+- b33e498 refactor: 顶部文字左边与消息框对齐，移除顶部停止按钮
+- b404784 refactor: 只在打开会话时获取消息列表
+- e819b03 refactor: 优化会话项布局，左侧预留36dp正方形区域给Spinner
+- f7b5f47 refactor: optimize scroll position handling in ChatActivity
+- 38f0154 refactor: remove provider display from session list
+- 3e758a7 refactor: remove model from session list display
+- 160bf59 refactor: 统一账号编辑页面和主设置页面的颜色选择器样式
+- 72a25e2 refactor: 将包名从 com.example.myandroidapp 改为 net.wsdjeg.nova
+
+### docs (文档更新)
+- 38d4283 docs: enforce overwrite-only file modification rule in AGENTS.md
+- 9be94b8 docs: update directory structure and modules in AGENTS.md
+- 7f528f6 docs: 更新README文档，反映当前代码结构和功能
+- df6e9b3 docs: 添加文件修复规范，强制使用 overwrite 修复文件
+- 345c8c4 docs: 删除 api_doc.md，禁止下载 API 文档到本地
+- d7a8a7b docs: add HTTP API implementation reference in AGENTS.md
+- f6f9097 docs: simplify API section and add post-modification check rule
+- 85ead33 docs: add code verification rule to AGENTS.md
+- 8b18c8d docs: fix markdown formatting in README
+- a4a41a1 docs: add app screenshots section
+- 8f8c464 docs: remove desktop-only assumption, neovim can run on mobile too
+- 905bd60 docs: update README to accurately describe Nova as chat.nvim Android client
+- 5af99a9 docs: update README - fix license, add Markwon dependency, correct JDK requirement
+- 19c6745 docs: update AGENTS.md to reflect actual project structure
+- a827345 docs: remove duplicate API documentation links and completed tasks
+- 42980d5 docs: simplify README, remove detailed API docs
+- daa1b68 docs: add GPL-3.0 license
+- d4ab8c5 docs: add AGENTS.md with project structure and git workflow guidelines
+- cd940db docs: add README.md
+
+### chore (构建/工具)
+- 686fe54 chore: 删除 release-please 相关配置文件
+- 82f533e chore: update Gradle config for local development
+- 1591c3f chore: remove Makefile
+- 74ef3e8 chore: add Makefile for build automation
+- 517e0a0 chore: remove Makefile
+- 662ce77 chore: 修改 APK 名称格式为 Nova-v{version}-dev
+- 216f09c chore: remove gradle wrapper, use system gradle instead
+- 8eabdc1 chore: 删除旧包名目录 com.example.myandroidapp
+
+### ci (持续集成)
+- bed6fbc fix(ci): merge duplicate env blocks in release steps
+- 3776692 fix(ci): quote if conditions with special characters
+- 7d58986 fix(ci): use env var for github.sha in run block
+- ddf49b2 fix(ci): correct YAML syntax in release workflow
+- 55247f0 feat(ci): add prerelease workflow for dev builds
+- 0f12f41 feat(ci): add release-please for automated version management
+- 7cc4da2 feat: add please-release workflow for official releases
+- 2828496 fix: update CI workflow with fixed debug keystore generation
+- 9097cb1 ci: fix gradle setup with explicit version
