@@ -7,6 +7,7 @@ package net.wsdjeg.nova;
  * 显示过滤规则：
  * - 只显示 content 不为空的消息
  * - 只显示 role 不是 tool 的消息
+ * - 错误消息（有 error 字段）特殊显示
  */
 public class Message {
     private String content;
@@ -15,6 +16,7 @@ public class Message {
     private String role;      // 原始 role: user, assistant, tool, system 等
     private long created;      // 服务器时间戳（秒）
     private boolean isPending; // 是否是待确认的消息（本地发送但服务端尚未返回）
+    private String error;      // 错误信息（如果有）
 
     // 使用指定时间戳的构造方法
     public Message(String content, boolean isUser, long timestamp) {
@@ -24,6 +26,7 @@ public class Message {
         this.role = isUser ? "user" : "assistant";
         this.created = timestamp / 1000;
         this.isPending = false;
+        this.error = null;
     }
 
     // 完整构造方法（包含 role 和 created）
@@ -31,6 +34,18 @@ public class Message {
         this.content = content != null ? content : "";
         this.role = role != null ? role : "assistant";
         this.isUser = "user".equals(this.role);
+        this.created = created;
+        this.timestamp = created * 1000;
+        this.isPending = false;
+        this.error = null;
+    }
+
+    // 错误消息构造方法
+    public Message(String error, long created) {
+        this.content = "";
+        this.role = "error";
+        this.isUser = false;
+        this.error = error;
         this.created = created;
         this.timestamp = created * 1000;
         this.isPending = false;
@@ -44,6 +59,7 @@ public class Message {
         this.role = isUser ? "user" : "assistant";
         this.created = this.timestamp / 1000;
         this.isPending = false;
+        this.error = null;
     }
 
     // 创建 pending 消息的静态方法
@@ -81,12 +97,26 @@ public class Message {
         isPending = pending;
     }
 
+    public String getError() {
+        return error;
+    }
+
+    public boolean isError() {
+        return error != null && !error.isEmpty();
+    }
+
     /**
      * 是否应该显示在列表中
-     * - content 不为空
+     * - content 不为空（正常消息）
+     * - 或者是错误消息（有 error 字段）
      * - role 不是 tool
      */
     public boolean shouldDisplay() {
+        // 错误消息需要显示
+        if (isError()) {
+            return true;
+        }
+        // 正常消息：content 不为空，role 不是 tool
         return content != null && !content.isEmpty() && !"tool".equals(role);
     }
 }

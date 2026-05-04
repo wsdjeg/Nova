@@ -22,9 +22,15 @@ import java.util.List;
  * 消息列表适配器
  * 
  * 核心逻辑：
- * - messages 列表包含所有消息（包括 tool 类型和空 content）
+ * - messages 列表包含所有消息（包括 tool 类型、error 类型和空 content）
  * - 显示时过滤掉不可显示的消息（tool 类型或空 content）
  * - 使用 visibleMessages 缓存可见消息列表
+ * - 错误消息使用特殊样式显示（红色背景）
+ * 
+ * 消息类型：
+ * - TYPE_USER: 用户消息（蓝色背景，右侧）
+ * - TYPE_BOT: AI 消息（灰色背景，左侧）
+ * - TYPE_ERROR: 错误消息（红色背景，居中）
  * 
  * 位置恢复机制：
  * - 提供 getVisibleMessageAt() 获取指定可见位置的消息
@@ -38,6 +44,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
     private Context context;
     private static final int TYPE_USER = 1;
     private static final int TYPE_BOT = 2;
+    private static final int TYPE_ERROR = 3;
 
     public MessageAdapter(List<Message> messages, Context context) {
         this.messages = messages;
@@ -67,14 +74,24 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
 
     @Override
     public int getItemViewType(int position) {
-        return visibleMessages.get(position).isUser() ? TYPE_USER : TYPE_BOT;
+        Message msg = visibleMessages.get(position);
+        if (msg.isError()) {
+            return TYPE_ERROR;
+        }
+        return msg.isUser() ? TYPE_USER : TYPE_BOT;
     }
 
     @NonNull
     @Override
     public MessageViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-        int layout = viewType == TYPE_USER ? 
-            R.layout.item_message_user : R.layout.item_message_bot;
+        int layout;
+        if (viewType == TYPE_ERROR) {
+            layout = R.layout.item_message_error;
+        } else if (viewType == TYPE_USER) {
+            layout = R.layout.item_message_user;
+        } else {
+            layout = R.layout.item_message_bot;
+        }
         View view = LayoutInflater.from(parent.getContext())
             .inflate(layout, parent, false);
         return new MessageViewHolder(view);
@@ -84,22 +101,28 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
     public void onBindViewHolder(@NonNull MessageViewHolder holder, int position) {
         Message message = visibleMessages.get(position);
         
-        // 使用 Markwon 渲染 Markdown
-        markwon.setMarkdown(holder.messageText, message.getContent());
+        // 错误消息直接显示文本，不使用 Markdown 渲染
+        if (message.isError()) {
+            holder.messageText.setText(message.getError());
+        } else {
+            // 使用 Markwon 渲染 Markdown
+            markwon.setMarkdown(holder.messageText, message.getContent());
+        }
         
         // 使用统一的时间格式化工具
         String time = TimeUtils.formatTime(message.getTimestamp());
         holder.timeText.setText(time);
         
         // 设置长按复制功能
+        final String copyText = message.isError() ? message.getError() : message.getContent();
         holder.messageText.setOnLongClickListener(v -> {
-            copyToClipboard(message.getContent());
+            copyToClipboard(copyText);
             return true;
         });
         
         // 整个消息区域也可以长按复制
         holder.itemView.setOnLongClickListener(v -> {
-            copyToClipboard(message.getContent());
+            copyToClipboard(copyText);
             return true;
         });
     }

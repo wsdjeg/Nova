@@ -40,6 +40,7 @@ import java.util.Set;
  * 1. 消息排序：API 返回升序 [oldest, ..., newest]
  * 2. 本地列表：保持升序，最新消息在末尾
  * 3. 显示过滤：只显示 content 不为空且 role 不是 tool 的消息
+ * 4. 错误消息：带有 error 字段的消息以红色背景特殊显示
  * 
  * 消息计数说明：
  * - totalMessageCount: 服务端返回的总消息数（包含 tool 等不可显示消息）
@@ -272,6 +273,30 @@ public class ChatActivity extends AppCompatActivity {
         adapter.refreshData();
         refreshSessionStatus(() -> loadMessagesPage());
         startAutoRefresh();
+    }
+    
+    /**
+     * 从 ChatMessage 创建 Message 对象
+     * 正确处理 error 字段
+     */
+    private Message createMessageFromChatMessage(ApiClient.ChatMessage msg) {
+        // 如果有 error 字段，创建错误消息
+        if (msg.error != null && !msg.error.isEmpty()) {
+            return new Message(msg.error, msg.created);
+        }
+        // 否则创建普通消息
+        return new Message(msg.content, msg.role, msg.created);
+    }
+    
+    /**
+     * 获取消息的唯一标识（用于指纹缓存）
+     * 错误消息使用 error 内容，普通消息使用 content
+     */
+    private String getMessageIdentifier(ApiClient.ChatMessage msg) {
+        if (msg.error != null && !msg.error.isEmpty()) {
+            return "error:" + msg.error;
+        }
+        return msg.content != null ? msg.content : "";
     }
     
     /**
@@ -670,19 +695,20 @@ public class ChatActivity extends AppCompatActivity {
                             continue;
                         }
                         
-                        if ("user".equals(msg.role) && msg.content != null) {
+                        // 只对普通用户消息检查 pending 替换（错误消息不需要）
+                        if (msg.error == null && "user".equals(msg.role) && msg.content != null) {
                             int pendingIndex = findPendingMessageIndex(msg.content);
                             if (pendingIndex >= 0) {
                                 Log.d(TAG, "Replacing pending message at index " + pendingIndex);
-                                messages.set(pendingIndex, new Message(msg.content, msg.role, msg.created));
+                                messages.set(pendingIndex, createMessageFromChatMessage(msg));
                                 pendingMessages.remove(msg.content);
                                 messageFingerprints.put(msg.created, msg.content);
                                 continue;
                             }
                         }
                         
-                        messages.add(new Message(msg.content, msg.role, msg.created));
-                        messageFingerprints.put(msg.created, msg.content != null ? msg.content : "");
+                        messages.add(createMessageFromChatMessage(msg));
+                        messageFingerprints.put(msg.created, getMessageIdentifier(msg));
                         addedNew = true;
                     }
                     
@@ -851,8 +877,8 @@ public class ChatActivity extends AppCompatActivity {
                     }
                     
                     for (ApiClient.ChatMessage msg : chatMessages) {
-                        messages.add(new Message(msg.content, msg.role, msg.created));
-                        messageFingerprints.put(msg.created, msg.content != null ? msg.content : "");
+                        messages.add(createMessageFromChatMessage(msg));
+                        messageFingerprints.put(msg.created, getMessageIdentifier(msg));
                     }
                     
                     processedServerMessageCount = totalMessageCount;
@@ -916,13 +942,9 @@ public class ChatActivity extends AppCompatActivity {
                     for (int i = chatMessages.size() - 1; i >= 0; i--) {
                         ApiClient.ChatMessage msg = chatMessages.get(i);
                         if (!messageFingerprints.containsKey(msg.created)) {
-                            Message message = new Message(
-                                msg.content != null ? msg.content : "",
-                                msg.role,
-                                msg.created
-                            );
+                            Message message = createMessageFromChatMessage(msg);
                             messages.add(0, message);
-                            messageFingerprints.put(msg.created, msg.content);
+                            messageFingerprints.put(msg.created, getMessageIdentifier(msg));
                             newTotalCount++;
                             
                             if (message.shouldDisplay()) {
@@ -1018,9 +1040,16 @@ public class ChatActivity extends AppCompatActivity {
                 runOnUiThread(() -> {
                     if (chatMessages.isEmpty()) return;
                     
+                    // 找到最新的可显示消息（非 tool，有 content 或 error）
                     ApiClient.ChatMessage latestFiltered = null;
                     for (int i = chatMessages.size() - 1; i >= 0; i--) {
                         ApiClient.ChatMessage msg = chatMessages.get(i);
+                        // 错误消息也可以是最新消息
+                        if (msg.error != null && !msg.error.isEmpty()) {
+                            latestFiltered = msg;
+                            break;
+                        }
+                        // 或者有 content 且不是 tool
                         if (msg.content != null && !msg.content.isEmpty() && !"tool".equals(msg.role)) {
                             latestFiltered = msg;
                             break;
@@ -1031,11 +1060,15 @@ public class ChatActivity extends AppCompatActivity {
                     
                     if (messages.size() > 0) {
                         int lastIdx = messages.size() - 1;
-                        String lastContent = messages.get(lastIdx).getContent();
+                        Message lastMsg = messages.get(lastIdx);
                         
-                        if (!latestFiltered.content.equals(lastContent)) {
-                            messages.set(lastIdx, new Message(latestFiltered.content, "user".equals(latestFiltered.role), latestFiltered.created * 1000L));
-                            messageFingerprints.put(latestFiltered.created, latestFiltered.content);
+                        // 检查内容是否变化
+                        String newContent = latestFiltered.error != null ? latestFiltered.error : latestFiltered.content;
+                        String oldContent = lastMsg.isError() ? lastMsg.getError() : lastMsg.getContent();
+                        
+                        if (newContent != null && !newContent.equals(oldContent)) {
+                            messages.set(lastIdx, createMessageFromChatMessage(latestFiltered));
+                            messageFingerprints.put(latestFiltered.created, getMessageIdentifier(latestFiltered));
                             adapter.refreshData();
                             scrollToBottomSmooth();
                         }

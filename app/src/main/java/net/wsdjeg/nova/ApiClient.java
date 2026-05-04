@@ -102,15 +102,49 @@ public class ApiClient {
         }
     }
     
+    /**
+     * 聊天消息数据模型
+     * 包含 role、content、error 和 created 字段
+     * 
+     * 消息类型：
+     * - 正常消息：有 role 和 content
+     * - 错误消息：有 error 字段（无 role 或 role 为空）
+     */
     public static class ChatMessage {
         public String role;
         public String content;
+        public String error;    // 错误消息字段
         public long created;
         
         public ChatMessage(String role, String content, long created) {
             this.role = role;
             this.content = content;
+            this.error = null;
             this.created = created;
+        }
+        
+        /**
+         * 创建错误消息
+         */
+        public ChatMessage(String error, long created) {
+            this.role = null;
+            this.content = null;
+            this.error = error;
+            this.created = created;
+        }
+        
+        /**
+         * 是否是错误消息
+         */
+        public boolean isError() {
+            return error != null && !error.isEmpty();
+        }
+        
+        /**
+         * 是否有可显示的内容（content 或 error）
+         */
+        public boolean hasDisplayableContent() {
+            return (content != null && !content.isEmpty()) || isError();
         }
     }
     
@@ -1008,6 +1042,30 @@ public class ApiClient {
         }).start();
     }
     
+    /**
+     * 解析消息 JSON 对象
+     * 支持正常消息（role + content）和错误消息（error）
+     */
+    private ChatMessage parseMessage(JSONObject msg) {
+        String role = msg.optString("role", "");
+        String content = msg.optString("content", "");
+        String error = msg.optString("error", "");
+        long created = msg.optLong("created", System.currentTimeMillis() / 1000);
+        
+        // 如果有 error 字段，创建错误消息
+        if (!error.isEmpty()) {
+            return new ChatMessage(error, created);
+        }
+        
+        // 否则创建正常消息
+        if (!content.isEmpty()) {
+            return new ChatMessage(role, content, created);
+        }
+        
+        // 无可显示内容，返回 null
+        return null;
+    }
+    
     public void getMessages(String sessionId, MessagesCallback callback) {
         String baseUrl = getBaseUrl();
         String apiKey = getApiKey();
@@ -1057,12 +1115,9 @@ public class ApiClient {
                     
                     for (int i = 0; i < jsonArray.length(); i++) {
                         JSONObject msg = jsonArray.getJSONObject(i);
-                        String role = msg.optString("role", "");
-                        String content = msg.optString("content", "");
-                        long created = msg.optLong("created", System.currentTimeMillis() / 1000);
-                        
-                        if (!content.isEmpty()) {
-                            messages.add(new ChatMessage(role, content, created));
+                        ChatMessage chatMsg = parseMessage(msg);
+                        if (chatMsg != null && chatMsg.hasDisplayableContent()) {
+                            messages.add(chatMsg);
                         }
                     }
                     
@@ -1166,12 +1221,9 @@ public class ApiClient {
                     
                     for (int i = 0; i < jsonArray.length(); i++) {
                         JSONObject msg = jsonArray.getJSONObject(i);
-                        String role = msg.optString("role", "");
-                        String content = msg.optString("content", "");
-                        long created = msg.optLong("created", System.currentTimeMillis() / 1000);
-                        
-                        if (!content.isEmpty()) {
-                            messages.add(new ChatMessage(role, content, created));
+                        ChatMessage chatMsg = parseMessage(msg);
+                        if (chatMsg != null && chatMsg.hasDisplayableContent()) {
+                            messages.add(chatMsg);
                         }
                     }
                     
