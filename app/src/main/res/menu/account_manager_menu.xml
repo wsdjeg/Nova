@@ -2,6 +2,18 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
     
-    <!-- 菜单项已移除 -->
-        
+    <item
+        android:id="@+id/action_more"
+        android:icon="@drawable/ic_more_vert_white"
+        android:title=""
+        app:showAsAction="always">
+        <menu>
+            <item
+                android:id="@+id/action_import"
+                android:title="导入" />
+            <item
+                android:id="@+id/action_export"
+                android:title="导出" />
+        </menu>
+    </item>
 </menu>

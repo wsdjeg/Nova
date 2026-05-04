@@ -1,14 +1,23 @@
 package net.wsdjeg.nova;
 
 import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
+import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.LinearLayout;
+import android.widget.Toast;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+import org.json.JSONArray;
+import org.json.JSONObject;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -28,6 +37,11 @@ public class AccountManagerActivity extends AppCompatActivity implements Account
     private LinearLayout emptyView;
     private AccountManager accountManager;
     
+    // 导出文件选择器
+    private ActivityResultLauncher<String> exportLauncher;
+    // 导入文件选择器
+    private ActivityResultLauncher<String[]> importLauncher;
+    
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -35,8 +49,34 @@ public class AccountManagerActivity extends AppCompatActivity implements Account
         
         accountManager = AccountManager.getInstance(this);
         
+        initLaunchers();
         initViews();
         loadAccounts();
+    }
+    
+    /**
+     * 初始化文件选择器
+     */
+    private void initLaunchers() {
+        // 导出文件选择器
+        exportLauncher = registerForActivityResult(
+            new ActivityResultContracts.CreateDocument("application/json"),
+            uri -> {
+                if (uri != null) {
+                    exportAccountsToFile(uri);
+                }
+            }
+        );
+        
+        // 导入文件选择器
+        importLauncher = registerForActivityResult(
+            new ActivityResultContracts.OpenDocument(),
+            uri -> {
+                if (uri != null) {
+                    importAccountsFromFile(uri);
+                }
+            }
+        );
     }
     
     private void initViews() {
@@ -89,12 +129,101 @@ public class AccountManagerActivity extends AppCompatActivity implements Account
     }
     
     @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        getMenuInflater().inflate(R.menu.account_manager_menu, menu);
+        return true;
+    }
+    
+    @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        if (item.getItemId() == android.R.id.home) {
+        int id = item.getItemId();
+        if (id == android.R.id.home) {
             finish();
+            return true;
+        } else if (id == R.id.action_export) {
+            exportAccounts();
+            return true;
+        } else if (id == R.id.action_import) {
+            importAccounts();
             return true;
         }
         return super.onOptionsItemSelected(item);
+    }
+    
+    /**
+     * 导出账号到 JSON 文件
+     */
+    private void exportAccounts() {
+        List<Account> accounts = accountManager.getAccounts();
+        if (accounts.isEmpty()) {
+            Toast.makeText(this, "没有账号可导出", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        // 使用 Storage Access Framework 让用户选择保存位置
+        String fileName = "nova_accounts_" + System.currentTimeMillis() + ".json";
+        exportLauncher.launch(fileName);
+    }
+    
+    /**
+     * 将账号导出到指定文件
+     */
+    private void exportAccountsToFile(Uri uri) {
+        try {
+            String json = accountManager.toJson();
+            
+            if (json == null) {
+                Toast.makeText(this, "导出失败: 无法生成数据", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            
+            try (OutputStream os = getContentResolver().openOutputStream(uri)) {
+                if (os != null) {
+                    os.write(json.getBytes("UTF-8"));
+                    os.flush();
+                    Toast.makeText(this, "导出成功", Toast.LENGTH_SHORT).show();
+                }
+            }
+        } catch (Exception e) {
+            Toast.makeText(this, "导出失败: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+            e.printStackTrace();
+        }
+    }
+    
+    /**
+     * 从 JSON 文件导入账号
+     */
+    private void importAccounts() {
+        // 使用 Storage Access Framework 让用户选择文件
+        importLauncher.launch(new String[]{"application/json", "text/*"});
+    }
+    
+    /**
+     * 从指定文件导入账号
+     */
+    private void importAccountsFromFile(Uri uri) {
+        try {
+            StringBuilder sb = new StringBuilder();
+            try (InputStream is = getContentResolver().openInputStream(uri)) {
+                if (is != null) {
+                    byte[] buffer = new byte[1024];
+                    int len;
+                    while ((len = is.read(buffer)) != -1) {
+                        sb.append(new String(buffer, 0, len, "UTF-8"));
+                    }
+                }
+            }
+            
+            String json = sb.toString();
+            int importedCount = accountManager.importFromJson(json);
+            
+            loadAccounts();
+            Toast.makeText(this, "成功导入 " + importedCount + " 个账号", Toast.LENGTH_SHORT).show();
+            
+        } catch (Exception e) {
+            Toast.makeText(this, "导入失败: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+            e.printStackTrace();
+        }
     }
     
     // ========== AccountAdapter.OnAccountClickListener ==========

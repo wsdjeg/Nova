@@ -7,6 +7,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * 账号管理类
@@ -343,5 +344,137 @@ public class AccountManager {
         
         // 使用全局默认颜色
         return settingsManager.getAccountTagColor();
+    }
+
+    /**
+     * 导出所有账号为 JSON 字符串
+     * @return JSON 字符串
+     */
+    public String toJson() {
+        try {
+            JSONObject root = new JSONObject();
+            root.put("version", 1);
+            root.put("exportTime", System.currentTimeMillis());
+            root.put("appName", "Nova");
+            
+            JSONArray accountsArray = new JSONArray();
+            for (Account account : accounts) {
+                JSONObject json = new JSONObject();
+                json.put("id", account.getId());
+                json.put("name", account.getName());
+                json.put("host", account.getHost());
+                json.put("port", account.getPort());
+                json.put("apiKey", account.getApiKey() != null ? account.getApiKey() : "");
+                json.put("isDefault", account.isActive());
+                json.put("createdAt", account.getCreatedAt());
+                json.put("lastUsedAt", account.getLastUsedAt());
+                json.put("colorIndex", account.getColorIndex());
+                accountsArray.put(json);
+            }
+            root.put("accounts", accountsArray);
+            
+            return root.toString(2);  // 格式化输出
+        } catch (JSONException e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    /**
+     * 从 JSON 字符串导入账号
+     * @param jsonString JSON 字符串
+     * @return 导入的账号数量
+     * @throws JSONException 解析错误时抛出
+     */
+    public int importFromJson(String jsonString) throws JSONException {
+        JSONObject root = new JSONObject(jsonString);
+        
+        // 检查版本
+        int version = root.optInt("version", 1);
+        
+        JSONArray accountsArray = root.getJSONArray("accounts");
+        int importedCount = 0;
+        
+        for (int i = 0; i < accountsArray.length(); i++) {
+            JSONObject json = accountsArray.getJSONObject(i);
+            
+            // 检查是否已存在相同 host 的账号
+            String host = json.optString("host", "");
+            if (!host.isEmpty() && isHostExists(host)) {
+                // 跳过已存在的账号
+                continue;
+            }
+            
+            Account account = new Account();
+            // 生成新的 ID，避免 ID 冲突
+            account.setId(UUID.randomUUID().toString());
+            account.setName(json.optString("name", ""));
+            account.setHost(host);
+            account.setPort(json.optInt("port", 8080));
+            account.setApiKey(json.optString("apiKey", ""));
+            account.setActive(false);  // 导入的账号默认不设为默认
+            account.setCreatedAt(json.optLong("createdAt", System.currentTimeMillis()));
+            account.setLastUsedAt(json.optLong("lastUsedAt", System.currentTimeMillis()));
+            account.setColorIndex(json.optInt("colorIndex", -1));
+            
+            accounts.add(account);
+            importedCount++;
+        }
+        
+        if (importedCount > 0) {
+            saveAccounts();
+        }
+        
+        return importedCount;
+    }
+
+    /**
+     * 清空所有账号并从 JSON 导入（覆盖模式）
+     * @param jsonString JSON 字符串
+     * @return 导入的账号数量
+     * @throws JSONException 解析错误时抛出
+     */
+    public int importFromJsonOverride(String jsonString) throws JSONException {
+        JSONObject root = new JSONObject(jsonString);
+        
+        JSONArray accountsArray = root.getJSONArray("accounts");
+        String firstAccountId = null;
+        int importedCount = 0;
+        
+        // 清空现有账号
+        accounts.clear();
+        currentAccount = null;
+        
+        for (int i = 0; i < accountsArray.length(); i++) {
+            JSONObject json = accountsArray.getJSONObject(i);
+            
+            Account account = new Account();
+            account.setId(UUID.randomUUID().toString());  // 生成新 ID
+            account.setName(json.optString("name", ""));
+            account.setHost(json.optString("host", ""));
+            account.setPort(json.optInt("port", 8080));
+            account.setApiKey(json.optString("apiKey", ""));
+            account.setActive(json.optBoolean("isDefault", false));
+            account.setCreatedAt(json.optLong("createdAt", System.currentTimeMillis()));
+            account.setLastUsedAt(json.optLong("lastUsedAt", System.currentTimeMillis()));
+            account.setColorIndex(json.optInt("colorIndex", -1));
+            
+            // 第一个账号设为默认
+            if (i == 0) {
+                account.setActive(true);
+                firstAccountId = account.getId();
+            }
+            
+            accounts.add(account);
+            importedCount++;
+        }
+        
+        if (firstAccountId != null) {
+            currentAccount = getAccountById(firstAccountId);
+        }
+        
+        saveAccounts();
+        
+        return importedCount;
     }
 }
