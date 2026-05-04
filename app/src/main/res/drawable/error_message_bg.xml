@@ -1,11 +1,49 @@
 <?xml version="1.0" encoding="utf-8"?>
-<shape xmlns:android="http://schemas.android.com/apk/res/android"
-    android:shape="rectangle">
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     
-    <!-- 红色背景 -->
-    <solid android:color="#FFCDD2" />
+    <!-- 阴影效果 -->
+    <item
+        android:left="1dp"
+        android:top="1dp"
+        android:right="1dp"
+        android:bottom="1dp">
+        <shape android:shape="rectangle">
+            <solid android:color="#10000000" />
+            <corners android:radius="8dp" />
+        </shape>
+    </item>
     
-    <!-- 圆角 -->
-    <corners android:radius="12dp" />
+    <!-- 左侧红色强调线 -->
+    <item
+        android:left="0dp"
+        android:top="0dp"
+        android:right="0dp"
+        android:bottom="0dp">
+        <shape android:shape="rectangle">
+            <solid android:color="#E53935" />
+            <corners 
+                android:topLeftRadius="8dp"
+                android:topRightRadius="0dp"
+                android:bottomLeftRadius="8dp"
+                android:bottomRightRadius="0dp" />
+            <size android:width="3dp" />
+        </shape>
+    </item>
     
-</shape>
+    <!-- 主背景（覆盖右侧，留出左侧强调线） -->
+    <item
+        android:left="3dp"
+        android:top="0dp"
+        android:right="0dp"
+        android:bottom="0dp">
+        <shape android:shape="rectangle">
+            <solid android:color="#FFF1F0" />
+            <corners 
+                android:topLeftRadius="0dp"
+                android:topRightRadius="8dp"
+                android:bottomLeftRadius="0dp"
+                android:bottomRightRadius="8dp" />
+        </shape>
+    </item>
+    
+</layer-list>
