@@ -4,65 +4,23 @@
     android:layout_height="wrap_content"
     android:orientation="vertical"
     android:padding="8dp"
-    android:gravity="start">
+    android:gravity="center">
 
-    <LinearLayout
+    <TextView
+        android:id="@+id/messageText"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:maxWidth="280dp"
-        android:orientation="horizontal"
+        android:padding="12dp"
+        android:textSize="16sp"
         android:background="@drawable/error_message_bg"
-        android:paddingStart="16dp"
-        android:paddingEnd="16dp"
-        android:paddingTop="12dp"
-        android:paddingBottom="12dp">
+        android:textColor="#D32F2F" />
 
-        <!-- Warning 图标 -->
-        <TextView
-            android:id="@+id/errorIcon"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="⚠"
-            android:textSize="18sp"
-            android:textColor="#E53935"
-            android:layout_marginEnd="10dp"
-            android:layout_marginStart="4dp" />
-
-        <!-- 错误文本区域 -->
-        <LinearLayout
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:orientation="vertical">
-
-            <!-- 错误标题（加粗） -->
-            <TextView
-                android:id="@+id/errorTitle"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:textSize="14sp"
-                android:textStyle="bold"
-                android:textColor="#222222" />
-
-            <!-- 错误详情 -->
-            <TextView
-                android:id="@+id/messageText"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
-                android:textSize="14sp"
-                android:textColor="#333333" />
-
-        </LinearLayout>
-
-    </LinearLayout>
-
-    <!-- 时间戳 -->
     <TextView
         android:id="@+id/timeText"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="4dp"
-        android:layout_marginStart="4dp"
         android:textSize="12sp"
         android:textColor="#999999" />
 
