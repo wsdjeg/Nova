@@ -813,12 +813,6 @@ public class ApiClient {
     
     /**
      * 设置会话的置顶状态
-     * API 端点: PUT /session/:id/pinned
-     * @param sessionId 会话ID
-     * @param pinned 是否置顶
-     * @param callback 回调
-    /**
-     * 设置会话的置顶状态
      * API 端点: PUT /session/:id/pin
      * 请求格式: { "pin": true/false }
      */
@@ -881,15 +875,6 @@ public class ApiClient {
                 }
             } catch (Exception e) {
                 Log.e(TAG, "setSessionPinned failed", e);
-                new Handler(Looper.getMainLooper()).post(() -> 
-                    callback.onError("Network error: " + e.getMessage()));
-            } finally {
-                if (conn != null) {
-                    conn.disconnect();
-                }
-            }
-        }).start();
-    }
                 new Handler(Looper.getMainLooper()).post(() -> 
                     callback.onError("Network error: " + e.getMessage()));
             } finally {
