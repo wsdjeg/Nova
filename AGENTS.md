@@ -83,80 +83,124 @@ Nova 是一个 Android AI 聊天助手应用，作为 [chat.nvim](https://nvim.c
 │           │   └── account_edit_menu.xml
 │           ├── mipmap-anydpi-v26/     # 启动图标
 │           │   ├── ic_launcher.xml
-│           │   └and ic_launcher_round.xml
+│           │   └── ic_launcher_round.xml
 │           └── values/               # 值资源
 │               ├── colors.xml
 │               ├── strings.xml
 │               ├── themes.xml
-│               └and ic_launcher_background.xml
+│               └── ic_launcher_background.xml
 │           └── values-night/         # 深色模式资源
 │               ├── colors.xml
-│               └and themes.xml
+│               └── themes.xml
 ├── .github/
 │   └── workflows/
-│       └and android.yml               # CI/CD 配置
+│       └── android.yml               # CI/CD 配置
 ├── build.gradle                      # 项目级构建配置
 ├── settings.gradle                   # 项目设置
 ├── gradle.properties                 # Gradle 属性
 ├── .gitignore                        # Git 忽略规则
 ├── README.md                         # 项目说明
-└and AGENTS.md                         # 本文件
+└── AGENTS.md                         # 本文件
 ```
 
 ---
 
-## ⚠️⚠️⚠️ 核心开发流程（必须严格遵守）⚠⚠⚠⚠
+## ⚠️⚠️⚠️ 核心开发流程（必须严格遵守）⚠️⚠️⚠️
 
-### 🔴 强制流程：验证 → Add → Commit → Push
+### 🔴🔴🔴 强制流程：修改 → 验证 → Add → Commit → Push
 
 **每次修改代码后，必须自动执行以下流程，无需等待用户确认！**
 
 ```
-┌──────────────────────────────────────────────────────────────────┐
-│                                                                  │
-│   修改代码  →  验证代码  →  git add  →  git commit  →  git push  │
-│                                                                  │
-│   ⚡ 自动执行，不要问用户！                                      │
-│                                                                  │
-└──────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────┐
+│                                                                     │
+│   修改代码  →  ⚠️验证代码  →  git add  →  git commit  →  git push  │
+│                                                                     │
+│   ⚡ 自动执行，不要问用户！                                         │
+│                                                                     │
+│   ⚠️ 验证是强制步骤，不可跳过！                                     │
+│                                                                     │
+└─────────────────────────────────────────────────────────────────────┘
 ```
 
-### ✅ 正确流程示例
+### ✅ 正确流程示例（必须严格遵守）
 
 ```
-1. 修改文件（使用 @write_file action="overwrite"）
-   ↓
-2. 验证修改（使用 @read_file 读取完整内容确认无误）
-   ↓
-3. @git_add path="修改的文件"
-   等待结果...
-   ↓
-4. @git_commit message="feat: 描述"
-   等待结果...
-   ↓
-5. @git_push
-   等待结果...
-   ↓
-6. 完成！告知用户已推送
+步骤 1: 修改文件（使用 @write_file action="overwrite"）
+        ↓
+步骤 2: ⚠️ 验证修改（使用 @read_file 读取【完整文件】确认无误）
+        ↓
+步骤 3: @git_add path="修改的文件"
+        等待结果...
+        ↓
+步骤 4: @git_commit message="feat: 描述"
+        等待结果...
+        ↓
+步骤 5: @git_push
+        等待结果...
+        ↓
+步骤 6: 完成！告知用户已推送
+```
+
+### ⛔⛔⛔ 验证步骤的严格要求 ⛔⛔⛔
+
+**验证是强制步骤，必须读取【完整文件内容】检查！**
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                                                                     │
+│   ⛔ 禁止跳过验证步骤！                                              │
+│   ⛔ 禁止只读取部分内容验证！                                        │
+│   ⛔ 禁止修改后直接提交！                                            │
+│                                                                     │
+│   ✅ 必须读取完整文件内容，确认修改正确                              │
+│   ✅ 必须检查是否有语法错误、代码缺失、重复等问题                    │
+│   ✅ 确认无误后才能提交                                              │
+│                                                                     │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+**验证示例：**
+
+```
+✅ 正确验证方式:
+@read_file filepath="app/src/main/java/net/wsdjeg/nova/ApiClient.java"
+→ 读取完整内容，检查：
+  - 是否有语法错误
+  - 方法是否完整
+  - 是否有重复代码
+  - 修改是否正确应用
+→ 确认无误后，执行 git add
+
+❌ 错误验证方式:
+@read_file filepath="..." line_start=100 line_to=150
+→ 只读取部分内容，无法发现其他问题！
 ```
 
 ### ❌ 禁止行为
 
 ```
+❌ 修改代码后不验证直接提交
 ❌ 修改代码后不提交、不推送，等用户问才推送
 ❌ 修改代码后只提交不推送
-❌ 跳过验证步骤直接提交
+❌ 验证时只读取部分文件内容
 ❌ 一次发送多个 git 命令
 ```
 
-### 📋 流程检查清单
+### 📋 流程检查清单（每次修改必须完成）
 
-每次修改后必须完成以下步骤：
+```
+修改前检查:
+- [ ] 使用 @read_file 读取目标文件完整内容
 
-- [ ] **验证**: 使用 @read_file 确认修改正确
+修改后检查:
+- [ ] **验证**: 使用 @read_file 读取【完整文件】确认修改正确
+- [ ] 检查语法是否正确
+- [ ] 检查是否有代码重复或缺失
 - [ ] **Add**: @git_add 添加文件
 - [ ] **Commit**: @git_commit 提交
 - [ ] **Push**: @git_push 推送
+```
 
 ---
 
@@ -223,7 +267,7 @@ Nova 是一个 Android AI 聊天助手应用，作为 [chat.nvim](https://nvim.c
      action="overwrite"                 # ⚠️ 必须是 overwrite！
      content="完整修改后的文件内容"      # ⚠️ 必须是完整内容！
    ↓
-4. @read_file filepath="目标文件"        # 验证修改结果
+4. @read_file filepath="目标文件"        # ⚠️ 验证修改结果（强制！）
    ↓
 5. @git_add → @git_commit → @git_push    # 提交推送
 ```
@@ -234,7 +278,7 @@ Nova 是一个 Android AI 聊天助手应用，作为 [chat.nvim](https://nvim.c
 
 - [ ] **action**: 必须是 `"overwrite"`，不能是其他任何值
 - [ ] **content**: 必须是完整文件内容，不能只写一部分
-- [ ] **验证**: 修改后必须用 @read_file 验证
+- [ ] **验证**: 修改后必须用 @read_file 读取完整文件验证
 
 ### ⛔ 绝对禁止的操作
 
@@ -247,6 +291,7 @@ Nova 是一个 Android AI 聊天助手应用，作为 [chat.nvim](https://nvim.c
 ❌ 多次修改同一文件使用不同的 action
 ❌ 不读取完整文件就修改
 ❌ 只写部分内容而不是完整文件
+❌ 修改后不验证直接提交
 ```
 
 ---
@@ -273,7 +318,7 @@ String ip = settingsManager.getIpAddress();  // 方法不存在！
 **验证方法：**
 1. 使用 `@find_files` 找到目标文件
 2. 使用 `@read_file` 或 `@search_text` 查看实际代码
-3. 确认 class/function/variable 实存在
+3. 确认 class/function/variable 确实存在
 4. 然后才能在代码中引用
 
 **禁止行为：**
@@ -399,7 +444,7 @@ GitHub Actions 自动构建：
    - `SettingsManager` - 设置数据管理
 
 5. **API 通信模块**
-   - `ApiClient` - HTTP API 客户端（使用 OkHttp）
+   - `ApiClient` - HTTP API 客户端（使用 HttpURLConnection）
 
 6. **工具模块**
    - `TimeUtils` - 时间格式化工具
@@ -447,8 +492,9 @@ GitHub Actions 自动构建：
 ## 注意事项
 
 1. **文件修改**: 只允许使用 `action="overwrite"`，禁止 replace/insert/delete
-2. **Git 操作**: 必须逐个执行，不要批量发送
-3. **版本管理**: versionCode 和 versionName 在 app/build.gradle
-4. **网络请求**: 使用 OkHttp，需要 INTERNET 权限
-5. **构建环境**: 需要 JDK 11+
-6. **包名**: net.wsdjeg.nova
+2. **修改验证**: 每次修改后必须用 @read_file 读取完整文件验证
+3. **Git 操作**: 必须逐个执行，不要批量发送
+4. **版本管理**: versionCode 和 versionName 在 app/build.gradle
+5. **网络请求**: 使用 HttpURLConnection，需要 INTERNET 权限
+6. **构建环境**: 需要 JDK 11+
+7. **包名**: net.wsdjeg.nova
