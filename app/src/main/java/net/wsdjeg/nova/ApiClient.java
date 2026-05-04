@@ -817,6 +817,10 @@ public class ApiClient {
      * @param sessionId 会话ID
      * @param pinned 是否置顶
      * @param callback 回调
+    /**
+     * 设置会话的置顶状态
+     * API 端点: PUT /session/:id/pin
+     * 请求格式: { "pin": true/false }
      */
     public void setSessionPinned(String sessionId, boolean pinned, UpdateSessionCallback callback) {
         String baseUrl = getBaseUrl();
@@ -835,7 +839,8 @@ public class ApiClient {
         new Thread(() -> {
             HttpURLConnection conn = null;
             try {
-                URL url = new URL(baseUrl + "/session/" + sessionId + "/pinned");
+                // 使用正确的端点: /session/:id/pin
+                URL url = new URL(baseUrl + "/session/" + sessionId + "/pin");
                 conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("PUT");
                 conn.setRequestProperty("Content-Type", "application/json");
@@ -846,8 +851,9 @@ public class ApiClient {
                 conn.setReadTimeout(30000);
                 conn.setUseCaches(false);
 
+                // 使用正确的参数名: pin
                 JSONObject requestBody = new JSONObject();
-                requestBody.put("pinned", pinned);
+                requestBody.put("pin", pinned);
                 
                 try (OutputStream os = conn.getOutputStream()) {
                     byte[] input = requestBody.toString().getBytes(StandardCharsets.UTF_8);
@@ -867,7 +873,7 @@ public class ApiClient {
                         callback.onError("Unauthorized: Invalid API Key"));
                 } else if (responseCode == 400) {
                     new Handler(Looper.getMainLooper()).post(() -> 
-                        callback.onError("Bad Request: Invalid pinned value"));
+                        callback.onError("Bad Request: Invalid pin value"));
                 } else {
                     final int code = responseCode;
                     new Handler(Looper.getMainLooper()).post(() -> 
@@ -875,6 +881,15 @@ public class ApiClient {
                 }
             } catch (Exception e) {
                 Log.e(TAG, "setSessionPinned failed", e);
+                new Handler(Looper.getMainLooper()).post(() -> 
+                    callback.onError("Network error: " + e.getMessage()));
+            } finally {
+                if (conn != null) {
+                    conn.disconnect();
+                }
+            }
+        }).start();
+    }
                 new Handler(Looper.getMainLooper()).post(() -> 
                     callback.onError("Network error: " + e.getMessage()));
             } finally {
