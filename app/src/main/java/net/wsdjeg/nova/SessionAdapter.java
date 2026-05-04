@@ -6,6 +6,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
+import android.widget.ImageView;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import androidx.annotation.NonNull;
@@ -18,7 +19,7 @@ import java.util.List;
  * 支持多账号聚合显示
  * 
  * 布局：
- * 第一行：账号标签 + 标题
+ * 第一行：账号标签 + 置顶图标 + 标题
  * 第二行：provider | model
  * 第三行：cwd
  * 右侧：spinner 或 时间（垂直居中）
@@ -81,6 +82,13 @@ public class SessionAdapter extends RecyclerView.Adapter<SessionAdapter.SessionV
             }
         } else {
             holder.textAccount.setVisibility(View.GONE);
+        }
+        
+        // 第一行：置顶图标（在账号标签和标题之间）
+        if (session.isPinned()) {
+            holder.imagePin.setVisibility(View.VISIBLE);
+        } else {
+            holder.imagePin.setVisibility(View.GONE);
         }
         
         // 第一行：标题
@@ -231,6 +239,7 @@ public class SessionAdapter extends RecyclerView.Adapter<SessionAdapter.SessionV
         TextView textAccount;
         TextView textProviderModel;
         TextView textCwd;
+        ImageView imagePin;
         ProgressBar progressSpinner;
         FrameLayout rightArea;
         
@@ -242,6 +251,7 @@ public class SessionAdapter extends RecyclerView.Adapter<SessionAdapter.SessionV
             textAccount = itemView.findViewById(R.id.textAccount);
             textProviderModel = itemView.findViewById(R.id.textProviderModel);
             textCwd = itemView.findViewById(R.id.textSessionCwd);
+            imagePin = itemView.findViewById(R.id.imagePin);
             progressSpinner = itemView.findViewById(R.id.progressSpinner);
             rightArea = itemView.findViewById(R.id.rightArea);
         }

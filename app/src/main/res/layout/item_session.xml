@@ -17,7 +17,7 @@
     左侧内容区（标题、provider、cwd）
     右侧36dp区域（垂直居中，显示spinner或时间）
     
-    第一行：账号标签 + 标题（垂直居中对齐）
+    第一行：置顶图标 + 账号标签 + 标题（垂直居中对齐）
     第二行：provider | model
     第三行：cwd
     
@@ -56,7 +56,18 @@
             android:indeterminateTint="@color/primary" />
     </FrameLayout>
 
-    <!-- 账号标签（垂直居中于标题） -->
+    <!-- 置顶图标（垂直居中于标题） -->
+    <ImageView
+        android:id="@+id/imagePin"
+        android:layout_width="14dp"
+        android:layout_height="14dp"
+        android:src="@drawable/ic_pin"
+        android:visibility="gone"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintBottom_toBottomOf="@id/textSessionTitle"
+        app:layout_constraintTop_toTopOf="@id/textSessionTitle" />
+
+    <!-- 账号标签（垂直居中于标题，置顶图标存在时右移14dp） -->
     <TextView
         android:id="@+id/textAccount"
         android:layout_width="wrap_content"
@@ -71,11 +82,13 @@
         android:paddingTop="2dp"
         android:paddingBottom="2dp"
         android:visibility="gone"
-        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintStart_toEndOf="@id/imagePin"
         app:layout_constraintBottom_toBottomOf="@id/textSessionTitle"
-        app:layout_constraintTop_toTopOf="@id/textSessionTitle" />
+        app:layout_constraintTop_toTopOf="@id/textSessionTitle"
+        android:layout_marginStart="6dp"
+        app:layout_goneMarginStart="0dp" />
 
-    <!-- 第一行：标题（账号标签存在时右移8dp，不存在时从左边开始） -->
+    <!-- 第一行：标题（置顶图标存在时，账号标签存在时右移） -->
     <TextView
         android:id="@+id/textSessionTitle"
         android:layout_width="0dp"
@@ -90,7 +103,7 @@
         app:layout_constraintEnd_toStartOf="@id/rightArea"
         app:layout_constraintTop_toTopOf="parent"
         android:layout_marginStart="8dp"
-        app:layout_goneMarginStart="0dp" />
+        app:layout_goneMarginStart="6dp" />
 
     <!-- 第二行：Provider | Model -->
     <TextView
