@@ -83,7 +83,7 @@ public class AccountAdapter extends RecyclerView.Adapter<AccountAdapter.ViewHold
             holder.textStatusLabel.setText("默认账号");
             holder.textStatusLabel.setTextColor(0xFF4CAF50);  // 绿色
             holder.textStatusLabel.setVisibility(View.VISIBLE);
-            holder.itemView.setBackgroundColor(0xFFF5F5F5);  // 浅灰背景
+            // 不设置背景颜色，保留点击效果
         } else {
             // 显示最后使用时间
             long lastUsed = account.getLastUsedAt();
@@ -102,7 +102,7 @@ public class AccountAdapter extends RecyclerView.Adapter<AccountAdapter.ViewHold
             }
             holder.textLastUsed.setTextColor(0xFF9E9E9E);  // 灰色
             holder.textStatusLabel.setVisibility(View.GONE);
-            holder.itemView.setBackgroundColor(0xFFFFFFFF);  // 白色背景
+            // 不设置背景颜色，保留点击效果
         }
         
         // 点击事件
