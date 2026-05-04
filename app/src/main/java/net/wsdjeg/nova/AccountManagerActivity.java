@@ -230,22 +230,23 @@ public class AccountManagerActivity extends AppCompatActivity implements Account
     
     @Override
     public void onAccountClick(Account account) {
-        // 点击账号，编辑
+        // 点击账号，设为默认账号
+        accountManager.setDefaultAccount(account.getId());
+        loadAccounts();
+        Toast.makeText(this, "已设为默认账号: " + account.getDisplayName(), Toast.LENGTH_SHORT).show();
+    }
+    
+    @Override
+    public void onAccountLongClick(Account account) {
+        // 长按账号，编辑
         Intent intent = new Intent(this, AccountEditActivity.class);
         intent.putExtra(EXTRA_ACCOUNT_ID, account.getId());
         startActivityForResult(intent, REQUEST_EDIT_ACCOUNT);
     }
     
     @Override
-    public void onAccountLongClick(Account account) {
-        // 长按账号，设置为默认
-        accountManager.setDefaultAccount(account.getId());
-        loadAccounts();
-    }
-    
-    @Override
     public void onEditClick(Account account) {
-        // 编辑账号
+        // 编辑按钮，编辑账号
         Intent intent = new Intent(this, AccountEditActivity.class);
         intent.putExtra(EXTRA_ACCOUNT_ID, account.getId());
         startActivityForResult(intent, REQUEST_EDIT_ACCOUNT);
