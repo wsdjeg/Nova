@@ -322,7 +322,8 @@ public class ApiClient {
                         String provider = sessionObj.optString("provider", "");
                         String model = sessionObj.optString("model", "");
                         boolean inProgress = sessionObj.optBoolean("in_progress", false);
-                        boolean pinned = sessionObj.optBoolean("pinned", false);
+                        // 服务器返回的字段名是 "pin"，不是 "pinned"
+                        boolean pinned = sessionObj.optBoolean("pin", false);
                         int messageCount = sessionObj.optInt("message_count", 0);
                         long lastMessageTime = System.currentTimeMillis();
                         String lastMessageContent = "";
@@ -381,7 +382,7 @@ public class ApiClient {
     /**
      * 获取单个会话详情
      * API 端点: GET /sessions/:id
-     * 响应格式: { "id": "xxx", "title": "...", "cwd": "...", "provider": "...", "model": "...", "in_progress": false, "pinned": false, "message_count": 5, "last_message": {...} }
+     * 响应格式: { "id": "xxx", "title": "...", "cwd": "...", "provider": "...", "model": "...", "in_progress": false, "pin": false, "message_count": 5, "last_message": {...} }
      */
     public void getSession(String sessionId, String accountId, SessionCallback callback) {
         String baseUrl = getBaseUrl();
@@ -428,7 +429,8 @@ public class ApiClient {
                     String provider = sessionObj.optString("provider", "");
                     String model = sessionObj.optString("model", "");
                     boolean inProgress = sessionObj.optBoolean("in_progress", false);
-                    boolean pinned = sessionObj.optBoolean("pinned", false);
+                    // 服务器返回的字段名是 "pin"，不是 "pinned"
+                    boolean pinned = sessionObj.optBoolean("pin", false);
                     int messageCount = sessionObj.optInt("message_count", 0);
                     long lastMessageTime = System.currentTimeMillis();
                     String lastMessageContent = "";
@@ -567,7 +569,7 @@ public class ApiClient {
     /**
      * 创建新会话
      * API 端点: POST /session/new
-     * 响应格式: { "id": "xxx", "cwd": "...", "provider": "...", "model": "..." }
+     * 响应格式: { "id": "xxx", "cwd": "...", "provider": "...", "model": "...", "pin": false }
      */
     public void createSession(String cwd, String provider, String model, String accountId, CreateSessionCallback callback) {
         String baseUrl = getBaseUrl();
@@ -632,7 +634,8 @@ public class ApiClient {
                     String responseProvider = jsonResponse.optString("provider", provider != null ? provider : "");
                     String responseModel = jsonResponse.optString("model", model != null ? model : "");
                     String responseTitle = jsonResponse.optString("title", "");
-                    boolean responsePinned = jsonResponse.optBoolean("pinned", false);
+                    // 服务器返回的字段名是 "pin"，不是 "pinned"
+                    boolean responsePinned = jsonResponse.optBoolean("pin", false);
                     int messageCount = jsonResponse.optInt("message_count", 0);
                     boolean inProgress = jsonResponse.optBoolean("in_progress", false);
                     
