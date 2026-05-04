@@ -25,12 +25,12 @@ import java.util.List;
  * - messages 列表包含所有消息（包括 tool 类型、error 类型和空 content）
  * - 显示时过滤掉不可显示的消息（tool 类型或空 content）
  * - 使用 visibleMessages 缓存可见消息列表
- * - 错误消息使用特殊样式显示（红色背景）
+ * - 错误消息使用特殊样式显示（现代卡片样式）
  * 
  * 消息类型：
  * - TYPE_USER: 用户消息（蓝色背景，右侧）
  * - TYPE_BOT: AI 消息（灰色背景，左侧）
- * - TYPE_ERROR: 错误消息（红色背景，居中）
+ * - TYPE_ERROR: 错误消息（浅红色背景，左侧强调线）
  * 
  * 位置恢复机制：
  * - 提供 getVisibleMessageAt() 获取指定可见位置的消息
@@ -94,16 +94,16 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
         }
         View view = LayoutInflater.from(parent.getContext())
             .inflate(layout, parent, false);
-        return new MessageViewHolder(view);
+        return new MessageViewHolder(view, viewType == TYPE_ERROR);
     }
 
     @Override
     public void onBindViewHolder(@NonNull MessageViewHolder holder, int position) {
         Message message = visibleMessages.get(position);
         
-        // 错误消息直接显示文本，不使用 Markdown 渲染
+        // 错误消息使用特殊样式
         if (message.isError()) {
-            holder.messageText.setText(message.getError());
+            bindErrorMessage(holder, message);
         } else {
             // 使用 Markwon 渲染 Markdown
             markwon.setMarkdown(holder.messageText, message.getContent());
@@ -125,6 +125,47 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
             copyToClipboard(copyText);
             return true;
         });
+    }
+    
+    /**
+     * 绑定错误消息
+     * 解析错误信息并设置标题和详情
+     */
+    private void bindErrorMessage(MessageViewHolder holder, Message message) {
+        String error = message.getError();
+        
+        // 解析错误消息：提取标题和详情
+        // 格式示例: "API Error (throttling): usage allocated quota exceeded..."
+        String title = "";
+        String detail = "";
+        
+        if (error != null && !error.isEmpty()) {
+            // 查找冒号分隔符
+            int colonIndex = error.indexOf(':');
+            if (colonIndex > 0 && colonIndex < error.length() - 1) {
+                title = error.substring(0, colonIndex).trim();
+                detail = error.substring(colonIndex + 1).trim();
+            } else {
+                // 没有冒号，整条作为标题
+                title = error;
+                detail = "";
+            }
+        }
+        
+        // 设置标题（如果有）
+        if (holder.errorTitle != null) {
+            holder.errorTitle.setText(title);
+            // 如果没有详情，隐藏详情文本
+            if (detail.isEmpty()) {
+                holder.messageText.setVisibility(View.GONE);
+            } else {
+                holder.messageText.setVisibility(View.VISIBLE);
+                holder.messageText.setText(detail);
+            }
+        } else {
+            // 兼容旧布局：没有 errorTitle，直接显示完整错误
+            holder.messageText.setText(error);
+        }
     }
 
     @Override
@@ -219,11 +260,25 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
     static class MessageViewHolder extends RecyclerView.ViewHolder {
         TextView messageText;
         TextView timeText;
+        TextView errorTitle;  // 错误消息标题（仅错误消息布局有）
+        TextView errorIcon;   // 错误图标（仅错误消息布局有）
 
         MessageViewHolder(View itemView) {
+            this(itemView, false);
+        }
+        
+        MessageViewHolder(View itemView, boolean isError) {
             super(itemView);
             messageText = itemView.findViewById(R.id.messageText);
             timeText = itemView.findViewById(R.id.timeText);
+            
+            if (isError) {
+                errorTitle = itemView.findViewById(R.id.errorTitle);
+                errorIcon = itemView.findViewById(R.id.errorIcon);
+            } else {
+                errorTitle = null;
+                errorIcon = null;
+            }
         }
     }
 }
