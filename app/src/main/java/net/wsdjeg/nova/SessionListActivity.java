@@ -25,6 +25,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * 会话列表界面
  * 显示所有账号的会话（聚合视图）
  * 点击进入聊天界面
+ * 支持会话置顶功能
  */
 public class SessionListActivity extends AppCompatActivity implements SessionAdapter.OnSessionClickListener {
     
@@ -181,6 +182,7 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
     
     /**
      * 从本地加载所有账号的会话列表（聚合视图）
+     * 排序规则：置顶会话优先显示，其余按会话 ID 降序排序
      */
     private void loadSessions() {
         sessions.clear();
@@ -207,11 +209,20 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
         
         sessions.addAll(allSessions);
         
-        // 按最后消息时间降序排序
-        // 按会话 ID（创建时间格式如 2026-04-22-11-00-39）降序排序
+        // 排序规则：
+        // 1. 置顶会话优先显示（pinned = true 的排在前面）
+        // 2. 置顶会话之间按会话 ID 降序排序
+        // 3. 未置顶会话之间按会话 ID 降序排序
         Collections.sort(sessions, new Comparator<Session>() {
             @Override
             public int compare(Session s1, Session s2) {
+                // 先比较置顶状态
+                if (s1.isPinned() && !s2.isPinned()) {
+                    return -1; // s1 置顶，排在前面
+                } else if (!s1.isPinned() && s2.isPinned()) {
+                    return 1;  // s2 置顶，排在前面
+                }
+                // 同为置顶或同为非置顶，按会话 ID 降序排序
                 return s2.getSessionId().compareTo(s1.getSessionId());
             }
         });
@@ -238,6 +249,7 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
     
     /**
      * 从服务器刷新指定账号的会话列表
+     * 同步 pinned 状态
      */
     private void refreshSessionsFromServer(Account account) {
         if (account == null) {
@@ -269,10 +281,10 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
                         
                         Session localSession = sessionManager.getSession(serverSession.getSessionId());
                         if (localSession == null) {
-                            // 新会话，直接添加
+                            // 新会话，直接添加（包括 pinned 状态）
                             sessionManager.addOrUpdateSession(serverSession, accountId);
                         } else {
-                            // 已存在的会话，更新服务器返回的所有字段
+                            // 已存在的会话，更新服务器返回的所有字段（包括 pinned）
                             localSession.setTitle(serverSession.getTitle());
                             localSession.setLastMessage(serverSession.getLastMessage());
                             localSession.setLastMessageTime(serverSession.getLastMessageTime());
@@ -281,6 +293,8 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
                             localSession.setModel(serverSession.getModel());
                             localSession.setCwd(serverSession.getCwd());
                             localSession.setInProgress(serverSession.isInProgress());
+                            // 同步 pinned 状态
+                            localSession.setPinned(serverSession.isPinned());
                             sessionManager.addOrUpdateSession(localSession, accountId);
                         }
                     }
@@ -411,6 +425,27 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
     
     @Override
     public void onSessionLongClick(Session session) {
+        // 显示菜单：删除、置顶（或取消置顶）
+        String pinActionText = session.isPinned() ? "取消置顶" : "置顶";
+        
+        new androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("会话操作")
+            .setItems(new String[]{pinActionText, "删除"}, (dialog, which) -> {
+                if (which == 0) {
+                    // 置顶/取消置顶
+                    toggleSessionPin(session);
+                } else if (which == 1) {
+                    // 删除 - 需要确认
+                    confirmDeleteSession(session);
+                }
+            })
+            .show();
+    }
+    
+    /**
+     * 确认删除会话
+     */
+    private void confirmDeleteSession(Session session) {
         new androidx.appcompat.app.AlertDialog.Builder(this)
             .setTitle("删除会话")
             .setMessage("确定要删除会话 " + session.getTitle() + " 吗？\n\n此操作不可恢复。")
@@ -419,6 +454,79 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
             })
             .setNegativeButton("取消", null)
             .show();
+    }
+    
+    /**
+     * 切换会话置顶状态
+     */
+    private void toggleSessionPin(Session session) {
+        String accountId = session.getAccountId();
+        Account account = null;
+        
+        if (accountId != null && !accountId.isEmpty()) {
+            account = accountManager.getAccount(accountId);
+        }
+        
+        // 如果找不到账号，尝试使用默认账号
+        if (account == null) {
+            account = accountManager.getDefaultAccount();
+        }
+        
+        if (account == null) {
+            // 没有账号，只更新本地状态
+            session.setPinned(!session.isPinned());
+            sessionManager.addOrUpdateSession(session);
+            loadSessions();
+            Toast.makeText(this, 
+                session.isPinned() ? "已置顶（本地）" : "已取消置顶（本地）", 
+                Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        String baseUrl = account.getUrl();
+        String apiKey = account.getApiKey();
+        
+        if (baseUrl == null || baseUrl.isEmpty() || apiKey == null || apiKey.isEmpty()) {
+            // 账号配置不完整，只更新本地状态
+            session.setPinned(!session.isPinned());
+            sessionManager.addOrUpdateSession(session);
+            loadSessions();
+            Toast.makeText(this, 
+                session.isPinned() ? "已置顶（本地）" : "已取消置顶（本地）", 
+                Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        ApiClient accountApiClient = new ApiClient(baseUrl, apiKey);
+        boolean newPinnedState = !session.isPinned();
+        
+        Toast.makeText(this, 
+            newPinnedState ? "正在置顶..." : "正在取消置顶...", 
+            Toast.LENGTH_SHORT).show();
+        
+        accountApiClient.setSessionPinned(session.getSessionId(), newPinnedState, new ApiClient.UpdateSessionCallback() {
+            @Override
+            public void onSuccess() {
+                runOnUiThread(() -> {
+                    // 更新本地状态
+                    session.setPinned(newPinnedState);
+                    sessionManager.addOrUpdateSession(session);
+                    loadSessions();
+                    Toast.makeText(SessionListActivity.this, 
+                        newPinnedState ? "已置顶" : "已取消置顶", 
+                        Toast.LENGTH_SHORT).show();
+                });
+            }
+            
+            @Override
+            public void onError(String error) {
+                runOnUiThread(() -> {
+                    Toast.makeText(SessionListActivity.this, 
+                        (newPinnedState ? "置顶失败: " : "取消置顶失败: ") + error, 
+                        Toast.LENGTH_SHORT).show();
+                });
+            }
+        });
     }
     
     private void deleteSession(Session session) {
