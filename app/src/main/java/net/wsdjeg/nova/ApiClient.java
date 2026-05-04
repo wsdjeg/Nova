@@ -322,6 +322,7 @@ public class ApiClient {
                         String provider = sessionObj.optString("provider", "");
                         String model = sessionObj.optString("model", "");
                         boolean inProgress = sessionObj.optBoolean("in_progress", false);
+                        boolean pinned = sessionObj.optBoolean("pinned", false);
                         int messageCount = sessionObj.optInt("message_count", 0);
                         long lastMessageTime = System.currentTimeMillis();
                         String lastMessageContent = "";
@@ -345,11 +346,12 @@ public class ApiClient {
                             session.setProvider(provider);
                             session.setModel(model);
                             session.setInProgress(inProgress);
+                            session.setPinned(pinned);
                             session.setLastMessage(lastMessageContent);
                             session.setLastMessageRole(lastMessageRole);
                             session.setMessageCount(messageCount);
                             session.setLastMessageTime(lastMessageTime);
-                            Log.d(TAG, "Session " + id + " preview: " + session.getPreview());
+                            Log.d(TAG, "Session " + id + " preview: " + session.getPreview() + ", pinned: " + pinned);
                             sessions.add(session);
                         }
                     }
@@ -379,7 +381,7 @@ public class ApiClient {
     /**
      * 获取单个会话详情
      * API 端点: GET /sessions/:id
-     * 响应格式: { "id": "xxx", "title": "...", "cwd": "...", "provider": "...", "model": "...", "in_progress": false, "message_count": 5, "last_message": {...} }
+     * 响应格式: { "id": "xxx", "title": "...", "cwd": "...", "provider": "...", "model": "...", "in_progress": false, "pinned": false, "message_count": 5, "last_message": {...} }
      */
     public void getSession(String sessionId, String accountId, SessionCallback callback) {
         String baseUrl = getBaseUrl();
@@ -426,6 +428,7 @@ public class ApiClient {
                     String provider = sessionObj.optString("provider", "");
                     String model = sessionObj.optString("model", "");
                     boolean inProgress = sessionObj.optBoolean("in_progress", false);
+                    boolean pinned = sessionObj.optBoolean("pinned", false);
                     int messageCount = sessionObj.optInt("message_count", 0);
                     long lastMessageTime = System.currentTimeMillis();
                     String lastMessageContent = "";
@@ -446,6 +449,7 @@ public class ApiClient {
                         session.setProvider(provider);
                         session.setModel(model);
                         session.setInProgress(inProgress);
+                        session.setPinned(pinned);
                         session.setLastMessage(lastMessageContent);
                         session.setLastMessageRole(lastMessageRole);
                         session.setMessageCount(messageCount);
@@ -628,6 +632,7 @@ public class ApiClient {
                     String responseProvider = jsonResponse.optString("provider", provider != null ? provider : "");
                     String responseModel = jsonResponse.optString("model", model != null ? model : "");
                     String responseTitle = jsonResponse.optString("title", "");
+                    boolean responsePinned = jsonResponse.optBoolean("pinned", false);
                     int messageCount = jsonResponse.optInt("message_count", 0);
                     boolean inProgress = jsonResponse.optBoolean("in_progress", false);
                     
@@ -637,6 +642,7 @@ public class ApiClient {
                     session.setCwd(responseCwd);
                     session.setProvider(responseProvider);
                     session.setModel(responseModel);
+                    session.setPinned(responsePinned);
                     session.setMessageCount(messageCount);
                     session.setInProgress(inProgress);
                     
@@ -795,6 +801,80 @@ public class ApiClient {
                 }
             } catch (Exception e) {
                 Log.e(TAG, "setSessionCwd failed", e);
+                new Handler(Looper.getMainLooper()).post(() -> 
+                    callback.onError("Network error: " + e.getMessage()));
+            } finally {
+                if (conn != null) {
+                    conn.disconnect();
+                }
+            }
+        }).start();
+    }
+    
+    /**
+     * 设置会话的置顶状态
+     * API 端点: PUT /session/:id/pinned
+     * @param sessionId 会话ID
+     * @param pinned 是否置顶
+     * @param callback 回调
+     */
+    public void setSessionPinned(String sessionId, boolean pinned, UpdateSessionCallback callback) {
+        String baseUrl = getBaseUrl();
+        String apiKey = getApiKey();
+        
+        if (baseUrl.isEmpty() || apiKey.isEmpty()) {
+            callback.onError("Please configure API settings");
+            return;
+        }
+        
+        if (sessionId == null || sessionId.isEmpty()) {
+            callback.onError("Session ID is required");
+            return;
+        }
+        
+        new Thread(() -> {
+            HttpURLConnection conn = null;
+            try {
+                URL url = new URL(baseUrl + "/session/" + sessionId + "/pinned");
+                conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("PUT");
+                conn.setRequestProperty("Content-Type", "application/json");
+                conn.setRequestProperty("X-API-Key", apiKey);
+                conn.setRequestProperty("Connection", "close");
+                conn.setDoOutput(true);
+                conn.setConnectTimeout(15000);
+                conn.setReadTimeout(30000);
+                conn.setUseCaches(false);
+
+                JSONObject requestBody = new JSONObject();
+                requestBody.put("pinned", pinned);
+                
+                try (OutputStream os = conn.getOutputStream()) {
+                    byte[] input = requestBody.toString().getBytes(StandardCharsets.UTF_8);
+                    os.write(input, 0, input.length);
+                }
+
+                int responseCode = conn.getResponseCode();
+                
+                if (responseCode == 204 || responseCode == 200) {
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onSuccess());
+                } else if (responseCode == 404) {
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onError("Session not found"));
+                } else if (responseCode == 401) {
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onError("Unauthorized: Invalid API Key"));
+                } else if (responseCode == 400) {
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onError("Bad Request: Invalid pinned value"));
+                } else {
+                    final int code = responseCode;
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onError("Error: " + code));
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "setSessionPinned failed", e);
                 new Handler(Looper.getMainLooper()).post(() -> 
                     callback.onError("Network error: " + e.getMessage()));
             } finally {

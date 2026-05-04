@@ -24,6 +24,8 @@ public class Session {
     private String model;        // Model name
     private String cwd;          // Working directory
     private boolean inProgress;  // 会话是否正在进行中
+    private boolean pinned;      // 是否置顶
+    
     // 分页加载相关：当前已加载的最旧消息索引（索引从 1 开始）
     // firstMessageIndex = 1 表示已加载到第一条消息
     // firstMessageIndex = 0 表示尚未初始化
@@ -47,6 +49,7 @@ public class Session {
         this.model = "";
         this.cwd = "";
         this.inProgress = false;
+        this.pinned = false;
         this.firstMessageIndex = 0;
         this.draft = "";
     }
@@ -66,6 +69,7 @@ public class Session {
         this.model = "";
         this.cwd = "";
         this.inProgress = false;
+        this.pinned = false;
         this.firstMessageIndex = 0;
         this.draft = "";
     }
@@ -88,6 +92,7 @@ public class Session {
         this.preview = "";
         this.unreadCount = 0;
         this.inProgress = false;
+        this.pinned = false;
         this.firstMessageIndex = 0;
         this.draft = "";
     }
@@ -377,6 +382,20 @@ public class Session {
     
     public void setInProgress(boolean inProgress) {
         this.inProgress = inProgress;
+    }
+    
+    /**
+     * 获取置顶状态
+     */
+    public boolean isPinned() {
+        return pinned;
+    }
+    
+    /**
+     * 设置置顶状态
+     */
+    public void setPinned(boolean pinned) {
+        this.pinned = pinned;
     }
     
     public int getFirstMessageIndex() {

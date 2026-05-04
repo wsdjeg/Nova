@@ -56,6 +56,7 @@ public class SessionManager {
                 json.put("cwd", session.getCwd());
                 json.put("in_progress", session.isInProgress());
                 json.put("firstMessageIndex", session.getFirstMessageIndex());
+                json.put("pinned", session.isPinned());
                 jsonArray.put(json);
             } catch (JSONException e) {
                 e.printStackTrace();
@@ -94,6 +95,7 @@ public class SessionManager {
                 session.setCwd(json.optString("cwd", ""));
                 session.setInProgress(json.optBoolean("in_progress", false));
                 session.setFirstMessageIndex(json.optInt("firstMessageIndex", 0));
+                session.setPinned(json.optBoolean("pinned", false));
                 // 加载草稿
                 session.setDraft(getDraft(json.getString("sessionId")));
                 sessions.add(session);
@@ -136,11 +138,19 @@ public class SessionManager {
     
     /**
      * 加载所有账号的会话列表（聚合视图）
+     * 排序规则：置顶会话优先，然后按最后消息时间降序
      */
     public List<Session> loadAllSessions() {
         List<Session> sessions = loadSessions();
-        Collections.sort(sessions, (s1, s2) -> 
-            Long.compare(s2.getLastMessageTime(), s1.getLastMessageTime()));
+        // 先按 pinned 排序（置顶优先），再按最后消息时间降序
+        Collections.sort(sessions, (s1, s2) -> {
+            // 置顶会话优先
+            if (s1.isPinned() != s2.isPinned()) {
+                return s1.isPinned() ? -1 : 1;
+            }
+            // 相同置顶状态下，按最后消息时间降序
+            return Long.compare(s2.getLastMessageTime(), s1.getLastMessageTime());
+        });
         return sessions;
     }
     
@@ -297,6 +307,22 @@ public class SessionManager {
         for (Session session : sessions) {
             if (session.getSessionId().equals(sessionId)) {
                 session.setInProgress(inProgress);
+                break;
+            }
+        }
+        
+        saveSessions(sessions);
+    }
+    
+    /**
+     * 更新会话的置顶状态
+     */
+    public void setSessionPinned(String sessionId, boolean pinned) {
+        List<Session> sessions = loadSessions();
+        
+        for (Session session : sessions) {
+            if (session.getSessionId().equals(sessionId)) {
+                session.setPinned(pinned);
                 break;
             }
         }
