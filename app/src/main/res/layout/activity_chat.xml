@@ -8,54 +8,120 @@
     <LinearLayout
         android:id="@+id/titleBar"
         android:layout_width="match_parent"
-        android:layout_height="48dp"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
         android:background="@color/colorPrimary"
-        android:paddingStart="8dp"
-        android:paddingEnd="8dp"
         android:layout_alignParentTop="true">
 
-        <ImageButton
-            android:id="@+id/btn_back"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:src="@drawable/ic_arrow_back"
-            android:contentDescription="返回"
-            app:tint="@android:color/white" />
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp">
 
-        <TextView
-            android:id="@+id/tv_title"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="Nova Chat"
-            android:textColor="@android:color/white"
-            android:textSize="18sp"
-            android:textStyle="bold"
-            android:gravity="center"
-            android:includeFontPadding="false" />
+            <ImageButton
+                android:id="@+id/btn_back"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:src="@drawable/ic_arrow_back"
+                android:contentDescription="返回"
+                app:tint="@android:color/white" />
 
-        <ImageButton
-            android:id="@+id/btn_menu"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:src="@drawable/ic_more_vert_white"
-            android:contentDescription="菜单"
-            app:tint="@android:color/white" />
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:gravity="center">
+
+                <TextView
+                    android:id="@+id/tv_session_title"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Nova Chat"
+                    android:textColor="@android:color/white"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:includeFontPadding="false" />
+
+                <TextView
+                    android:id="@+id/tv_session_info"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text=""
+                    android:textColor="#CCFFFFFF"
+                    android:textSize="11sp"
+                    android:includeFontPadding="false"
+                    android:visibility="gone" />
+
+                <TextView
+                    android:id="@+id/tv_session_path"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text=""
+                    android:textColor="#AAFFFFFF"
+                    android:textSize="10sp"
+                    android:includeFontPadding="false"
+                    android:visibility="gone" />
+
+            </LinearLayout>
+
+            <ImageButton
+                android:id="@+id/btn_menu"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:src="@drawable/ic_more_vert_white"
+                android:contentDescription="菜单"
+                app:tint="@android:color/white" />
+
+        </LinearLayout>
 
     </LinearLayout>
 
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/rv_messages"
+    <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:layout_above="@id/inputLayout"
-        android:layout_below="@id/titleBar"
-        android:padding="8dp"
-        android:clipToPadding="false" />
+        android:layout_below="@id/titleBar">
+
+        <TextView
+            android:id="@+id/tv_load_more"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="加载更多"
+            android:textColor="#2196F3"
+            android:textSize="14sp"
+            android:gravity="center"
+            android:padding="12dp"
+            android:background="#F5F5F5"
+            android:visibility="gone"
+            android:clickable="true"
+            android:focusable="true" />
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rv_messages"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:padding="8dp"
+            android:clipToPadding="false" />
+
+        <com.google.android.material.floatingactionbutton.FloatingActionButton
+            android:id="@+id/fab_scroll_bottom"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom|end"
+            android:layout_margin="16dp"
+            android:src="@drawable/ic_arrow_down"
+            android:contentDescription="滚动到底部"
+            android:visibility="gone"
+            app:backgroundTint="@color/colorPrimary"
+            app:tint="@android:color/white" />
+
+    </FrameLayout>
 
     <LinearLayout
         android:id="@+id/inputLayout"
