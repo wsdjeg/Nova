@@ -393,6 +393,7 @@ public class AccountManager {
         int version = root.optInt("version", 1);
         
         JSONArray accountsArray = root.getJSONArray("accounts");
+        Account firstImportedAccount = null;
         int importedCount = 0;
         
         for (int i = 0; i < accountsArray.length(); i++) {
@@ -418,7 +419,19 @@ public class AccountManager {
             account.setColorIndex(json.optInt("colorIndex", -1));
             
             accounts.add(account);
+            
+            // 记录第一个成功导入的账号
+            if (firstImportedAccount == null) {
+                firstImportedAccount = account;
+            }
+            
             importedCount++;
+        }
+        
+        // 如果导入成功且当前没有默认账号，设置第一个导入的账号为默认
+        if (importedCount > 0 && currentAccount == null && firstImportedAccount != null) {
+            firstImportedAccount.setActive(true);
+            currentAccount = firstImportedAccount;
         }
         
         if (importedCount > 0) {
