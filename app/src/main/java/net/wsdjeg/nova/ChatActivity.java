@@ -159,6 +159,9 @@ public class ChatActivity extends AppCompatActivity {
         
         toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
+        // 启用返回按钮
+        getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+        getSupportActionBar().setDisplayShowHomeEnabled(true);
         
         tvSessionTitle = findViewById(R.id.tv_session_title);
         tvSessionInfo = findViewById(R.id.tv_session_info);
@@ -517,6 +520,11 @@ public class ChatActivity extends AppCompatActivity {
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         int id = item.getItemId();
+        // 处理返回按钮点击
+        if (id == android.R.id.home) {
+            finish();
+            return true;
+        }
         if (id == R.id.action_refresh) {
             reloadMessages();
             return true;
