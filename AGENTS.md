@@ -1,500 +1,105 @@
-# 项目指南 - Nova Android Chat App
+# Nova Android Chat App - 项目指南
 
-## 项目概述
+## 技术栈
 
-Nova 是一个 Android AI 聊天助手应用，作为 [chat.nvim](https://nvim.chat) 的移动端客户端。
+| 项目 | 说明 |
+|------|------|
+| 语言 | Java |
+| 最低 SDK | 24 (Android 7.0) |
+| 目标 SDK | 34 (Android 14) |
+| 构建工具 | Gradle 8.0 |
+| 网络库 | OkHttp 4.12.0 |
+| 包名 | net.wsdjeg.nova |
 
-### 技术栈
-- **语言**: Java
-- **最低 SDK**: 24 (Android 7.0)
-- **目标 SDK**: 34 (Android 14)
-- **构建工具**: Gradle 8.0
-- **依赖库**: 
-  - AndroidX AppCompat 1.6.1
-  - Material Design 1.11.0
-  - ConstraintLayout 2.1.4
-  - OkHttp 4.12.0 (网络请求)
-
-## 目录结构
+## 核心模块
 
 ```
-├── app/                              # 主应用模块
-│   ├── build.gradle                  # 应用级构建配置
-│   ├── proguard-rules.pro            # ProGuard 规则
-│   └── src/main/
-│       ├── AndroidManifest.xml       # 应用清单
-│       ├── java/net/wsdjeg/nova/
-│       │   ├── ChatActivity.java          # 聊天界面
-│       │   ├── SessionListActivity.java   # 会话列表界面
-│       │   ├── SessionSettingsActivity.java # 会话设置界面
-│       │   ├── SettingsActivity.java      # 设置界面
-│       │   ├── AccountManagerActivity.java # 账户管理界面
-│       │   ├── AccountEditActivity.java   # 账户编辑界面
-│       │   ├── AboutActivity.java         # 关于界面
-│       │   ├── ApiClient.java             # API 客户端
-│       │   ├── SettingsManager.java       # 设置管理
-│       │   ├── SessionManager.java        # 会话管理
-│       │   ├── AccountManager.java        # 账户管理
-│       │   ├── Message.java               # 消息模型
-│       │   ├── MessageAdapter.java        # 消息列表适配器
-│       │   ├── Session.java               # 会话模型
-│       │   ├── SessionAdapter.java        # 会话列表适配器
-│       │   ├── Account.java               # 账户模型
-│       │   ├── AccountAdapter.java        # 账户列表适配器
-│       │   ├── TimeUtils.java             # 时间工具类
-│       │   └── NovaApplication.java       # Application 类
-│       └── res/
-│           ├── layout/               # 布局文件
-│           │   ├── activity_chat.xml
-│           │   ├── activity_session_list.xml
-│           │   ├── activity_session_settings.xml
-│           │   ├── activity_settings.xml
-│           │   ├── activity_account_manager.xml
-│           │   ├── activity_account_edit.xml
-│           │   ├── activity_about.xml
-│           │   ├── item_message.xml
-│           │   ├── item_message_user.xml
-│           │   ├── item_message_bot.xml
-│           │   ├── item_session.xml
-│           │   ├── item_account.xml
-│           │   └── dialog_account.xml
-│           ├── drawable/              # drawable 资源
-│           │   ├── ai_message_bg.xml
-│           │   ├── user_message_bg.xml
-│           │   ├── send_button_bg.xml
-│           │   ├── btn_stop_bg.xml
-│           │   ├── session_icon_bg.xml
-│           │   ├── session_count_bg.xml
-│           │   ├── account_tag_bg.xml
-│           │   ├── provider_tag_bg.xml
-│           │   ├── color_selector_bg.xml
-│           │   ├── color_circle_0.xml ~ color_circle_7.xml
-│           │   ├── ic_launcher.xml
-│           │   ├── ic_launcher_foreground.xml
-│           │   ├── ic_launcher_background_gradient.xml
-│           │   ├── ic_arrow_down.xml
-│           │   └── ic_more_vert_white.xml
-│           ├── menu/                  # 菜单资源
-│           │   ├── chat_menu.xml
-│           │   ├── main_menu.xml
-│           │   ├── session_list_menu.xml
-│           │   ├── session_settings_menu.xml
-│           │   ├── account_manager_menu.xml
-│           │   └── account_edit_menu.xml
-│           ├── mipmap-anydpi-v26/     # 启动图标
-│           │   ├── ic_launcher.xml
-│           │   └── ic_launcher_round.xml
-│           └── values/               # 值资源
-│               ├── colors.xml
-│               ├── strings.xml
-│               ├── themes.xml
-│               └── ic_launcher_background.xml
-│           └── values-night/         # 深色模式资源
-│               ├── colors.xml
-│               └── themes.xml
-├── .github/
-│   └── workflows/
-│       └── android.yml               # CI/CD 配置
-├── build.gradle                      # 项目级构建配置
-├── settings.gradle                   # 项目设置
-├── gradle.properties                 # Gradle 属性
-├── .gitignore                        # Git 忽略规则
-├── README.md                         # 项目说明
-└── AGENTS.md                         # 本文件
-```
-
----
-
-## ⚠️⚠️⚠️ 核心开发流程（必须严格遵守）⚠️⚠️⚠️
-
-### 🔴🔴🔴 强制流程：修改 → 验证 → Add → Commit → Push
-
-**每次修改代码后，必须自动执行以下流程，无需等待用户确认！**
-
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                                                                     │
-│   修改代码  →  ⚠️验证代码  →  git add  →  git commit  →  git push  │
-│                                                                     │
-│   ⚡ 自动执行，不要问用户！                                         │
-│                                                                     │
-│   ⚠️ 验证是强制步骤，不可跳过！                                     │
-│                                                                     │
-└─────────────────────────────────────────────────────────────────────┘
-```
-
-### ✅ 正确流程示例（必须严格遵守）
-
-```
-步骤 1: 修改文件（使用 @write_file action="overwrite"）
-        ↓
-步骤 2: ⚠️ 验证修改（使用 @read_file 读取【完整文件】确认无误）
-        ↓
-步骤 3: @git_add path="修改的文件"
-        等待结果...
-        ↓
-步骤 4: @git_commit message="feat: 描述"
-        等待结果...
-        ↓
-步骤 5: @git_push
-        等待结果...
-        ↓
-步骤 6: 完成！告知用户已推送
-```
-
-### ⛔⛔⛔ 验证步骤的严格要求 ⛔⛔⛔
-
-**验证是强制步骤，必须读取【完整文件内容】检查！**
-
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                                                                     │
-│   ⛔ 禁止跳过验证步骤！                                              │
-│   ⛔ 禁止只读取部分内容验证！                                        │
-│   ⛔ 禁止修改后直接提交！                                            │
-│                                                                     │
-│   ✅ 必须读取完整文件内容，确认修改正确                              │
-│   ✅ 必须检查是否有语法错误、代码缺失、重复等问题                    │
-│   ✅ 确认无误后才能提交                                              │
-│                                                                     │
-└─────────────────────────────────────────────────────────────────────┘
-```
-
-**验证示例：**
-
-```
-✅ 正确验证方式:
-@read_file filepath="app/src/main/java/net/wsdjeg/nova/ApiClient.java"
-→ 读取完整内容，检查：
-  - 是否有语法错误
-  - 方法是否完整
-  - 是否有重复代码
-  - 修改是否正确应用
-→ 确认无误后，执行 git add
-
-❌ 错误验证方式:
-@read_file filepath="..." line_start=100 line_to=150
-→ 只读取部分内容，无法发现其他问题！
-```
-
-### ❌ 禁止行为
-
-```
-❌ 修改代码后不验证直接提交
-❌ 修改代码后不提交、不推送，等用户问才推送
-❌ 修改代码后只提交不推送
-❌ 验证时只读取部分文件内容
-❌ 一次发送多个 git 命令
-```
-
-### 📋 流程检查清单（每次修改必须完成）
-
-```
-修改前检查:
-- [ ] 使用 @read_file 读取目标文件完整内容
-
-修改后检查:
-- [ ] **验证**: 使用 @read_file 读取【完整文件】确认修改正确
-- [ ] 检查语法是否正确
-- [ ] 检查是否有代码重复或缺失
-- [ ] **Add**: @git_add 添加文件
-- [ ] **Commit**: @git_commit 提交
-- [ ] **Push**: @git_push 推送
-```
-
----
-
-## ⛔⛔⛔ 文件修改规范（最高优先级，必须严格遵守）⛔⛔⛔
-
-### 🔴🔴🔴 强制使用 action="overwrite" 修改任何文件！
-
-**任何文件修改，无论大小，都必须使用 `action="overwrite"` 重写整个文件！**
-
-```
-┌────────────────────────────────────────────────────────────────────┐
-│                                                                    │
-│   ⛔ 禁止使用 action="replace"                                      │
-│   ⛔ 禁止使用 action="insert"                                       │
-│   ⛔ 禁止使用 action="delete"                                       │
-│                                                                    │
-│   ✅ 只允许使用 action="overwrite"                                  │
-│                                                                    │
-│   哪怕只改一行代码，也要用 overwrite 重写整个文件！                  │
-│                                                                    │
-└────────────────────────────────────────────────────────────────────┘
-```
-
-### ❌ 为什么禁止 replace/insert/delete？
-
-**这些操作会导致灾难性错误！**
-
-```
-❌ action="replace" line_start=100 line_to=105
-   → 替换后，后续所有行号都会变化！
-   → 下一次操作如果还用旧行号，就会改错位置！
-   → 最终导致：代码重复、方法缺失、语法错误！
-
-❌ action="insert" line_start=150
-   → 插入后，后续所有行号都会增加！
-   → 行号错位，导致后续操作全部失败！
-
-❌ action="delete" line_start=200 line_to=210
-   → 删除后，后续所有行号都会减少！
-   → 行号错位，导致后续操作全部失败！
-```
-
-**真实案例：ApiClient.java 损坏**
-
-```
-原本正确的方法被多次 replace/insert/delete 操作后：
-- deleteSession 方法后面出现重复代码
-- updateSession 方法签名丢失
-- 整个文件 600-700 行变成垃圾代码
-- 导致编译失败！
-```
-
-### ✅ 正确做法：只使用 overwrite
-
-```
-✅ 修改任何文件的标准流程：
-
-1. @read_file filepath="目标文件"        # 读取完整内容
-   ↓
-2. 在回复中编辑完整内容（修改需要改的部分）
-   ↓
-3. @write_file 
-     filepath="目标文件" 
-     action="overwrite"                 # ⚠️ 必须是 overwrite！
-     content="完整修改后的文件内容"      # ⚠️ 必须是完整内容！
-   ↓
-4. @read_file filepath="目标文件"        # ⚠️ 验证修改结果（强制！）
-   ↓
-5. @git_add → @git_commit → @git_push    # 提交推送
-```
-
-### 📋 overwrite 检查清单
-
-每次使用 @write_file 时必须确认：
-
-- [ ] **action**: 必须是 `"overwrite"`，不能是其他任何值
-- [ ] **content**: 必须是完整文件内容，不能只写一部分
-- [ ] **验证**: 修改后必须用 @read_file 读取完整文件验证
-
-### ⛔ 绝对禁止的操作
-
-```
-⛔ 以下是绝对禁止的操作，违反将导致代码损坏！
-
-❌ @write_file action="replace" line_start=X line_to=Y content="..."
-❌ @write_file action="insert" line_start=X content="..."
-❌ @write_file action="delete" line_start=X line_to=Y
-❌ 多次修改同一文件使用不同的 action
-❌ 不读取完整文件就修改
-❌ 只写部分内容而不是完整文件
-❌ 修改后不验证直接提交
+app/src/main/java/net/wsdjeg/nova/
+├── ChatActivity.java          # 聊天界面
+├── SessionListActivity.java   # 会话列表
+├── SessionSettingsActivity.java
+├── SettingsActivity.java
+├── AccountManagerActivity.java
+├── AccountEditActivity.java
+├── AboutActivity.java
+├── ApiClient.java             # HTTP API 客户端
+├── SettingsManager.java       # 设置管理
+├── SessionManager.java        # 会话管理
+├── AccountManager.java        # 账户管理
+├── Message/Session/Account    # 数据模型
+├── *Adapter.java              # RecyclerView 适配器
+├── TimeUtils.java
+└── NovaApplication.java
 ```
 
 ---
 
 ## 开发规范
 
-### 代码修改规范
+### 文件修改
 
-**⚠️ 极其重要：修改前必须验证存在性！**
+**必须使用 `action="overwrite"` 重写整个文件**
 
-在修改任何 class、函数、变量之前，**必须先检查它们是否存在**：
+禁止操作：replace、insert、delete（会导致行号错位、代码损坏）
 
-```
-❌ 错误示例（不要瞎猜）:
-// 直接调用不存在的方法
-String ip = settingsManager.getIpAddress();  // 方法不存在！
-
-✅ 正确示例（先验证再使用）:
-1. 先用 @search_text 或 @read_file 检查源码
-2. 确认 SettingsManager 类中有 getUrl() 方法
-3. 然后使用: String ip = settingsManager.getUrl();
-```
-
-**验证方法：**
-1. 使用 `@find_files` 找到目标文件
-2. 使用 `@read_file` 或 `@search_text` 查看实际代码
-3. 确认 class/function/variable 确实存在
-4. 然后才能在代码中引用
-
-**禁止行为：**
-- 禁止凭记忆或猜测调用方法
-- 禁止假设某个类有某个方法
-- 禁止不看源码就写代码
-
-### API 实现规范
-
-Nova 作为 chat.nvim 的移动端客户端，需要实现 HTTP API 与服务端通信。
-
-**⚠️ 禁止下载 API 文档到本地！**
+### 修改流程
 
 ```
-❌ 禁止行为:
-- 禁止使用 @fetch_web 的 output 参数保存文档到文件
-- 禁止创建 api_doc.md 或任何本地 API 文档文件
-- 禁止将 API 文档内容写入项目目录
-
-✅ 正确做法:
-- 使用 @fetch_web 直接在线查阅
-- 查阅后直接根据文档内容实现代码
-- 不保留任何文档副本
+修改 → 验证(读取完整文件) → git_add → git_commit → git_push
 ```
 
-**获取最新 API 文档：**
+- 验证必须读取完整文件，不能只读部分
+- Git 操作必须逐个执行，不能批量发送
+- 修改后自动提交推送，无需等待用户确认
 
-当需要实现或修改 API 相关功能时，使用 `@fetch_web` 直接查阅在线文档：
+### 代码修改原则
 
+修改任何 class/function/variable 前，必须先用 `@read_file` 或 `@search_text` 检查源码确认存在。
+
+禁止凭记忆或猜测调用方法。
+
+### API 文档
+
+查阅最新 API 文档：
 ```
 @fetch_web url="https://raw.githubusercontent.com/wsdjeg/chat.nvim/refs/heads/master/docs/api/http.md"
 ```
 
-该文档包含：
-- API 端点定义
-- 请求/响应格式
-- 认证方式
-- 错误处理
-- 代码示例
+禁止下载文档到本地，每次都在线查阅确保最新版本。
 
-**为什么不保存文档？**
-- API 文档会持续更新，本地文档容易过时
-- 在线查阅确保每次都获取最新版本
-- 减少项目文件维护负担
-- 避免"离线文档与实际 API 不一致"的问题
-
-**注意：** 每次修改 API 相关代码时都应先查阅最新文档确认。
-
-### Git 工作流
-
-**⚠️ 重要：Git 工具必须逐个执行！**
-
-使用 git 相关工具时，必须一个一个发送执行，**严禁**一次发送多个 git 工具调用！
+### 提交信息格式
 
 ```
-❌ 错误示例（不要这样）:
-@git_add path="file1.java"
-@git_commit message="update"
-@git_push
-
-✅ 正确示例（必须这样）:
-第一步: @git_add path="file1.java"
-等待结果...
-第二步: @git_commit message="update"
-等待结果...
-第三步: @git_push
-等待结果...
+feat: 新功能
+fix: Bug 修复
+refactor: 代码重构
+docs: 文档更新
+chore: 构建/工具
 ```
-
-### 提交信息规范
-
-使用约定式提交：
-- `feat:` 新功能
-- `fix:` Bug 修复
-- `refactor:` 代码重构
-- `docs:` 文档更新
-- `style:` 代码格式
-- `test:` 测试相关
-- `chore:` 构建/工具
-
-### 分支策略
-
-- `master`: 主分支，保持稳定
-- 功能开发: 从 master 创建 feature 分支
-- 修复: 从 master 创建 fix 分支
 
 ---
 
-## 构建与运行
+## 资源文件
 
-### CI/CD 流程
+### 布局 (res/layout/)
+- activity_chat.xml、activity_session_list.xml、activity_session_settings.xml
+- activity_settings.xml、activity_account_manager.xml、activity_account_edit.xml
+- activity_about.xml、item_*.xml
 
-GitHub Actions 自动构建：
-- 触发: push 到 master
-- 输出: PreRelease APK
-- 命名: `Nova-v{version}.apk`
+### 菜单 (res/menu/)
+- chat_menu.xml、main_menu.xml、session_list_menu.xml
+- session_settings_menu.xml、account_manager_menu.xml
 
-## 功能模块
+### Drawable
+- ai_message_bg.xml、user_message_bg.xml、send_button_bg.xml
+- ic_launcher*.xml、ic_arrow_down.xml、ic_more_vert_white.xml
+- color_circle_0~7.xml
 
-### 核心功能模块
-
-1. **会话管理模块**
-   - `SessionListActivity` - 会话列表主界面
-   - `SessionSettingsActivity` - 会话设置界面
-   - `SessionManager` - 会话数据管理
-   - `Session` - 会话数据模型
-   - `SessionAdapter` - 会话列表适配器
-
-2. **聊天模块**
-   - `ChatActivity` - 聊天主界面
-   - `Message` - 消息数据模型
-   - `MessageAdapter` - 消息列表适配器
-
-3. **账户管理模块**
-   - `AccountManagerActivity` - 账户列表管理界面
-   - `AccountEditActivity` - 账户编辑界面
-   - `AccountManager` - 账户数据管理
-   - `Account` - 账户数据模型
-   - `AccountAdapter` - 账户列表适配器
-
-4. **设置模块**
-   - `SettingsActivity` - 应用设置界面
-   - `SettingsManager` - 设置数据管理
-
-5. **API 通信模块**
-   - `ApiClient` - HTTP API 客户端（使用 HttpURLConnection）
-
-6. **工具模块**
-   - `TimeUtils` - 时间格式化工具
-   - `NovaApplication` - Application 入口类
-
-7. **关于模块**
-   - `AboutActivity` - 关于页面
-
-### 资源文件
-
-**布局文件 (layout/)**:
-- `activity_chat.xml` - 聊天界面布局
-- `activity_session_list.xml` - 会话列表布局
-- `activity_session_settings.xml` - 会话设置布局
-- `activity_settings.xml` - 设置界面布局
-- `activity_account_manager.xml` - 账户管理布局
-- `activity_account_edit.xml` - 账户编辑布局
-- `activity_about.xml` - 关于页面布局
-- `item_message.xml`, `item_message_user.xml`, `item_message_bot.xml` - 消息项布局
-- `item_session.xml` - 会话项布局
-- `item_account.xml` - 账户项布局
-- `dialog_account.xml` - 账户对话框布局
-
-**菜单文件 (menu/)**:
-- `chat_menu.xml` - 聊天界面菜单
-- `main_menu.xml` - 主菜单
-- `session_list_menu.xml` - 会话列表菜单
-- `session_settings_menu.xml` - 会话设置菜单
-- `account_manager_menu.xml` - 账户管理菜单
-- `account_edit_menu.xml` - 账户编辑菜单
-
-**Drawable 资源**:
-- 消息背景: `ai_message_bg.xml`, `user_message_bg.xml`
-- 按钮背景: `send_button_bg.xml`, `btn_stop_bg.xml`
-- 图标背景: `session_icon_bg.xml`, `session_count_bg.xml`
-- 标签背景: `account_tag_bg.xml`, `provider_tag_bg.xml`
-- 颜色选择器: `color_selector_bg.xml`, `color_circle_0~7.xml`
-- 图标: `ic_launcher*.xml`, `ic_arrow_down.xml`, `ic_more_vert_white.xml`
-
-**主题与样式**:
-- `themes.xml` - 应用主题（支持深色模式）
-- `colors.xml` - 颜色定义（支持深色模式）
-- `strings.xml` - 字符串资源
+---
 
 ## 注意事项
 
-1. **文件修改**: 只允许使用 `action="overwrite"`，禁止 replace/insert/delete
-2. **修改验证**: 每次修改后必须用 @read_file 读取完整文件验证
-3. **Git 操作**: 必须逐个执行，不要批量发送
-4. **版本管理**: versionCode 和 versionName 在 app/build.gradle
-5. **网络请求**: 使用 HttpURLConnection，需要 INTERNET 权限
-6. **构建环境**: 需要 JDK 11+
-7. **包名**: net.wsdjeg.nova
+1. versionCode/versionName 在 app/build.gradle
+2. 网络请求需要 INTERNET 权限
+3. 构建需要 JDK 11+
+4. 支持深色模式（values-night/）
