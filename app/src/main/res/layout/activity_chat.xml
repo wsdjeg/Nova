@@ -131,10 +131,14 @@
             android:id="@+id/btn_send"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:minHeight="0dp"
             android:text="发送"
             android:textColor="@android:color/white"
             android:textSize="16sp"
-            android:padding="10dp"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:paddingTop="10dp"
+            android:paddingBottom="10dp"
             android:background="@drawable/send_button_bg"
             app:backgroundTint="@null" />
     </LinearLayout>
