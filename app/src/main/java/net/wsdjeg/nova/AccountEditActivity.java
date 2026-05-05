@@ -64,7 +64,7 @@ public class AccountEditActivity extends AppCompatActivity {
         toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-        getSupportActionBar().setTitle(isEditMode ? "编辑账号" : "添加账号");
+        getSupportActionBar().setTitle("添加账号");
         
         etName = findViewById(R.id.et_account_name);
         etHost = findViewById(R.id.et_host);
@@ -171,23 +171,45 @@ public class AccountEditActivity extends AppCompatActivity {
         accountId = intent.getStringExtra(EXTRA_ACCOUNT_ID);
         
         if (accountId != null && !accountId.isEmpty()) {
-            isEditMode = true;
-            getSupportActionBar().setTitle("编辑账号");
+            // 根据 accountId 从 AccountManager 获取账号信息
+            Account account = accountManager.getAccountById(accountId);
             
-            etName.setText(intent.getStringExtra(EXTRA_ACCOUNT_NAME));
-            etHost.setText(intent.getStringExtra(EXTRA_ACCOUNT_HOST));
-            
-            int port = intent.getIntExtra(EXTRA_ACCOUNT_PORT, 0);
-            if (port > 0) {
-                etPort.setText(String.valueOf(port));
+            if (account != null) {
+                isEditMode = true;
+                getSupportActionBar().setTitle("编辑账号");
+                
+                etName.setText(account.getName());
+                etHost.setText(account.getHost());
+                
+                int port = account.getPort();
+                if (port > 0) {
+                    etPort.setText(String.valueOf(port));
+                }
+                
+                etApiKey.setText(account.getApiKey());
+                selectColor(account.getColorIndex());
+                
+                btnDelete.setVisibility(View.VISIBLE);
+            } else {
+                // 账号不存在，回退到 Intent 数据（兼容旧方式）
+                isEditMode = true;
+                getSupportActionBar().setTitle("编辑账号");
+                
+                etName.setText(intent.getStringExtra(EXTRA_ACCOUNT_NAME));
+                etHost.setText(intent.getStringExtra(EXTRA_ACCOUNT_HOST));
+                
+                int port = intent.getIntExtra(EXTRA_ACCOUNT_PORT, 0);
+                if (port > 0) {
+                    etPort.setText(String.valueOf(port));
+                }
+                
+                etApiKey.setText(intent.getStringExtra(EXTRA_ACCOUNT_API_KEY));
+                
+                int colorIndex = intent.getIntExtra(EXTRA_ACCOUNT_COLOR_INDEX, -1);
+                selectColor(colorIndex);
+                
+                btnDelete.setVisibility(View.VISIBLE);
             }
-            
-            etApiKey.setText(intent.getStringExtra(EXTRA_ACCOUNT_API_KEY));
-            
-            int colorIndex = intent.getIntExtra(EXTRA_ACCOUNT_COLOR_INDEX, -1);
-            selectColor(colorIndex);
-            
-            btnDelete.setVisibility(View.VISIBLE);
         }
     }
     
@@ -233,8 +255,10 @@ public class AccountEditActivity extends AppCompatActivity {
                 account.setApiKey(apiKey);
                 account.setColorIndex(selectedColorIndex);
                 accountManager.updateAccount(account);
+                Toast.makeText(this, "账号已更新", Toast.LENGTH_SHORT).show();
+            } else {
+                Toast.makeText(this, "账号不存在", Toast.LENGTH_SHORT).show();
             }
-            Toast.makeText(this, "账号已更新", Toast.LENGTH_SHORT).show();
         } else {
             // 新增模式：创建新账号
             Account account = new Account();
@@ -245,10 +269,7 @@ public class AccountEditActivity extends AppCompatActivity {
             account.setColorIndex(selectedColorIndex);
             accountManager.addAccount(account);
             
-            // 如果是第一个账号，设置为默认
-            if (accountManager.getAccountCount() == 1) {
-                accountManager.setDefaultAccount(account.getId());
-            }
+            // addAccount 已经会自动处理第一个账号为默认的情况
             Toast.makeText(this, "账号已添加", Toast.LENGTH_SHORT).show();
         }
         

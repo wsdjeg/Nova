@@ -12,6 +12,12 @@ import java.util.UUID;
 /**
  * 账号管理类
  * 支持多账号存储、切换、聚合等功能
+ * 
+ * 默认账号规则：
+ * 1. 无账号时添加：第一个账号自动设为默认，后续添加为非默认
+ * 2. 无账号时导入：检查导入数据是否有 isDefault，有则使用，无则第一个为默认
+ * 3. 有账号时导入：导入的全部为非默认（保持现有默认账号）
+ * 4. 删除默认账号：自动将第一个剩余账号设为默认
  */
 public class AccountManager {
     private static final String PREF_NAME = "nova_accounts";
@@ -161,12 +167,16 @@ public class AccountManager {
 
     /**
      * 添加账号
+     * 规则：第一个账号自动设为默认，后续添加为非默认
      */
     public void addAccount(Account account) {
         // 如果是第一个账号，自动设为默认
         if (accounts.isEmpty()) {
             account.setActive(true);
             currentAccount = account;
+        } else {
+            // 已有账号时，新添加的账号为非默认
+            account.setActive(false);
         }
         accounts.add(account);
         saveAccounts();
@@ -190,6 +200,7 @@ public class AccountManager {
 
     /**
      * 删除账号
+     * 规则：如果删除的是默认账号，自动将第一个剩余账号设为默认
      */
     public void deleteAccount(String accountId) {
         Account toDelete = null;
@@ -381,7 +392,11 @@ public class AccountManager {
     }
 
     /**
-     * 从 JSON 字符串导入账号
+     * 从 JSON 字符串导入账号（追加模式）
+     * 规则：
+     * - 无账号时导入：检查导入数据是否有 isDefault，有则使用，无则第一个为默认
+     * - 有账号时导入：导入的全部为非默认（保持现有默认账号）
+     * 
      * @param jsonString JSON 字符串
      * @return 导入的账号数量
      * @throws JSONException 解析错误时抛出
@@ -394,7 +409,11 @@ public class AccountManager {
         
         JSONArray accountsArray = root.getJSONArray("accounts");
         Account firstImportedAccount = null;
+        Account markedDefaultAccount = null;  // 导入数据中标记为默认的账号
         int importedCount = 0;
+        
+        // 是否已有账号（决定默认账号逻辑）
+        boolean hadExistingAccounts = !accounts.isEmpty();
         
         for (int i = 0; i < accountsArray.length(); i++) {
             JSONObject json = accountsArray.getJSONObject(i);
@@ -413,14 +432,30 @@ public class AccountManager {
             account.setHost(host);
             account.setPort(json.optInt("port", 8080));
             account.setApiKey(json.optString("apiKey", ""));
-            account.setActive(false);  // 导入的账号默认不设为默认
             account.setCreatedAt(json.optLong("createdAt", System.currentTimeMillis()));
             account.setLastUsedAt(json.optLong("lastUsedAt", System.currentTimeMillis()));
             account.setColorIndex(json.optInt("colorIndex", -1));
             
+            // 默认账号逻辑：
+            // - 有账号时：导入的全部为非默认
+            // - 无账号时：检查导入数据的 isDefault 标记
+            if (hadExistingAccounts) {
+                account.setActive(false);
+            } else {
+                // 无账号时，检查导入数据是否有 isDefault 标记
+                boolean isMarkedDefault = json.optBoolean("isDefault", false);
+                if (isMarkedDefault && markedDefaultAccount == null) {
+                    // 第一个标记为默认的账号设为默认
+                    account.setActive(true);
+                    markedDefaultAccount = account;
+                } else {
+                    account.setActive(false);
+                }
+            }
+            
             accounts.add(account);
             
-            // 记录第一个成功导入的账号
+            // 记录第一个成功导入的账号（用于无默认账号时的后备）
             if (firstImportedAccount == null) {
                 firstImportedAccount = account;
             }
@@ -428,10 +463,16 @@ public class AccountManager {
             importedCount++;
         }
         
-        // 如果导入成功且当前没有默认账号，设置第一个导入的账号为默认
-        if (importedCount > 0 && currentAccount == null && firstImportedAccount != null) {
-            firstImportedAccount.setActive(true);
-            currentAccount = firstImportedAccount;
+        // 如果导入成功且当前没有默认账号，设置默认账号
+        if (importedCount > 0 && currentAccount == null) {
+            if (markedDefaultAccount != null) {
+                // 使用导入数据中标记为默认的账号
+                currentAccount = markedDefaultAccount;
+            } else if (firstImportedAccount != null) {
+                // 后备：使用第一个导入的账号
+                firstImportedAccount.setActive(true);
+                currentAccount = firstImportedAccount;
+            }
         }
         
         if (importedCount > 0) {
@@ -443,6 +484,8 @@ public class AccountManager {
 
     /**
      * 清空所有账号并从 JSON 导入（覆盖模式）
+     * 规则：检查导入数据是否有 isDefault，有则使用，无则第一个为默认
+     * 
      * @param jsonString JSON 字符串
      * @return 导入的账号数量
      * @throws JSONException 解析错误时抛出
@@ -451,7 +494,8 @@ public class AccountManager {
         JSONObject root = new JSONObject(jsonString);
         
         JSONArray accountsArray = root.getJSONArray("accounts");
-        String firstAccountId = null;
+        Account markedDefaultAccount = null;  // 导入数据中标记为默认的账号
+        Account firstImportedAccount = null;
         int importedCount = 0;
         
         // 清空现有账号
@@ -467,23 +511,38 @@ public class AccountManager {
             account.setHost(json.optString("host", ""));
             account.setPort(json.optInt("port", 8080));
             account.setApiKey(json.optString("apiKey", ""));
-            account.setActive(json.optBoolean("isDefault", false));
             account.setCreatedAt(json.optLong("createdAt", System.currentTimeMillis()));
             account.setLastUsedAt(json.optLong("lastUsedAt", System.currentTimeMillis()));
             account.setColorIndex(json.optInt("colorIndex", -1));
             
-            // 第一个账号设为默认
-            if (i == 0) {
+            // 检查导入数据是否有 isDefault 标记
+            boolean isMarkedDefault = json.optBoolean("isDefault", false);
+            if (isMarkedDefault && markedDefaultAccount == null) {
+                // 第一个标记为默认的账号设为默认
                 account.setActive(true);
-                firstAccountId = account.getId();
+                markedDefaultAccount = account;
+            } else {
+                account.setActive(false);
+            }
+            
+            // 记录第一个导入的账号（后备）
+            if (firstImportedAccount == null) {
+                firstImportedAccount = account;
             }
             
             accounts.add(account);
             importedCount++;
         }
         
-        if (firstAccountId != null) {
-            currentAccount = getAccountById(firstAccountId);
+        // 设置默认账号
+        if (importedCount > 0) {
+            if (markedDefaultAccount != null) {
+                currentAccount = markedDefaultAccount;
+            } else if (firstImportedAccount != null) {
+                // 没有标记为默认的账号，使用第一个
+                firstImportedAccount.setActive(true);
+                currentAccount = firstImportedAccount;
+            }
         }
         
         saveAccounts();
