@@ -96,7 +96,7 @@
         android:layout_above="@id/inputLayout"
         android:layout_alignParentEnd="true"
         android:layout_marginEnd="16dp"
-        android:layout_marginBottom="16dp"
+        android:layout_marginBottom="8dp"
         android:src="@drawable/ic_arrow_down"
         android:visibility="gone"
         android:contentDescription="滚动到底部"
@@ -111,7 +111,7 @@
         android:layout_alignParentBottom="true"
         android:orientation="horizontal"
         android:gravity="center_vertical"
-        android:padding="12dp"
+        android:padding="6dp"
         android:background="#F5F5F5">
 
         <EditText
@@ -122,8 +122,8 @@
             android:hint="输入消息..."
             android:inputType="textMultiLine"
             android:maxLines="4"
-            android:padding="12dp"
-            android:background="#FFFFFF"
+            android:padding="10dp"
+            android:background="@drawable/input_bg"
             android:layout_marginEnd="8dp"
             android:importantForAutofill="no" />
 
@@ -134,7 +134,7 @@
             android:text="发送"
             android:textColor="@android:color/white"
             android:textSize="16sp"
-            android:padding="12dp"
+            android:padding="10dp"
             android:background="@drawable/send_button_bg"
             app:backgroundTint="@null" />
     </LinearLayout>
