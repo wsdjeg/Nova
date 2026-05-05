@@ -2,7 +2,9 @@ package net.wsdjeg.nova;
 
 import android.content.Intent;
 import android.graphics.Color;
+import android.graphics.PorterDuff;
 import android.graphics.Rect;
+import android.graphics.drawable.Drawable;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
@@ -19,6 +21,7 @@ import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
+import androidx.core.content.ContextCompat;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
@@ -162,6 +165,13 @@ public class ChatActivity extends AppCompatActivity {
         // 启用返回按钮
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
         getSupportActionBar().setDisplayShowHomeEnabled(true);
+        
+        // 设置返回箭头颜色为白色
+        Drawable navigationIcon = toolbar.getNavigationIcon();
+        if (navigationIcon != null) {
+            navigationIcon.setColorFilter(ContextCompat.getColor(this, android.R.color.white), PorterDuff.Mode.SRC_IN);
+            toolbar.setNavigationIcon(navigationIcon);
+        }
         
         tvSessionTitle = findViewById(R.id.tv_session_title);
         tvSessionInfo = findViewById(R.id.tv_session_info);
@@ -764,7 +774,7 @@ public class ChatActivity extends AppCompatActivity {
         
         for (Map.Entry<String, Long> entry : pendingMessages.entrySet()) {
             if (now - entry.getValue() > 30000) {
-                toRemove.add(entry.getKey());
+                toRemove.add(entry.getKey);
                 for (int i = messages.size() - 1; i >= 0; i--) {
                     Message msg = messages.get(i);
                     if (msg.isPending() && entry.getKey().equals(msg.getContent())) {
