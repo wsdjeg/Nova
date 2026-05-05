@@ -774,7 +774,7 @@ public class ChatActivity extends AppCompatActivity {
         
         for (Map.Entry<String, Long> entry : pendingMessages.entrySet()) {
             if (now - entry.getValue() > 30000) {
-                toRemove.add(entry.getKey);
+                toRemove.add(entry.getKey());  // 使用 getKey() 方法
                 for (int i = messages.size() - 1; i >= 0; i--) {
                     Message msg = messages.get(i);
                     if (msg.isPending() && entry.getKey().equals(msg.getContent())) {
