@@ -17,7 +17,8 @@
         app:popupTheme="@style/ThemeOverlay.AppCompat.Light"
         app:titleTextColor="@android:color/white"
         app:subtitleTextColor="#CCCCCC"
-        app:navigationIcon="@drawable/ic_arrow_back">
+        app:navigationIcon="@drawable/ic_arrow_back"
+        app:navigationIconTint="@android:color/white">
         
         <!-- Session Info embedded in Toolbar - 3 lines -->
         <LinearLayout
