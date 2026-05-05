@@ -660,12 +660,14 @@ public class ChatActivity extends AppCompatActivity {
                     
                     int serverCount = session.getMessageCount();
                     
-                    boolean hasMessagesInPool = messagesInPool.size() > 0;
-                    
-                    if (isInProgress || hasMessagesInPool) {
+                    // 按钮状态逻辑：
+                    // 1. 服务端 in_progress=true → 显示停止按钮
+                    // 2. 服务端 in_progress=false → 清除 messagesInPool，显示发送按钮
+                    if (isInProgress) {
                         setButtonStateSending();
                     } else {
-                        if (wasInProgress) {
+                        // 服务端已完成处理，清除消息池并恢复按钮
+                        if (wasInProgress || messagesInPool.size() > 0) {
                             messagesInPool.clear();
                             setButtonStateNormal();
                             fetchNewMessagesAndRestorePosition();
