@@ -40,7 +40,8 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:orientation="vertical"
-                    android:gravity="center">
+                    android:gravity="start|center_vertical"
+                    android:layout_marginStart="8dp">
 
                     <TextView
                         android:id="@+id/tv_session_title"
@@ -117,7 +118,7 @@
             android:src="@drawable/ic_arrow_down"
             android:contentDescription="滚动到底部"
             android:visibility="gone"
-            app:backgroundTint="@color/colorPrimary"
+            app:backgroundTint="#80000000"
             app:tint="@android:color/white" />
 
     </FrameLayout>
