@@ -110,7 +110,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_alignParentBottom="true"
-        android:padding="12dp"
+        android:padding="8dp"
         android:background="#F5F5F5">
 
         <!-- EditText Input -->
