@@ -105,22 +105,21 @@
         app:fabSize="mini" />
 
     <!-- Input Area Container with #F5F5F5 background -->
-    <LinearLayout
+    <RelativeLayout
         android:id="@+id/inputArea"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_alignParentBottom="true"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
         android:padding="12dp"
         android:background="#F5F5F5">
 
         <!-- EditText Input -->
         <EditText
             android:id="@+id/et_message"
-            android:layout_width="0dp"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
+            android:layout_toStartOf="@id/btn_send"
+            android:layout_marginEnd="8dp"
             android:minHeight="44dp"
             android:maxHeight="100dp"
             android:background="@drawable/input_bg"
@@ -129,19 +128,19 @@
             android:maxLines="4"
             android:paddingStart="12dp"
             android:paddingEnd="12dp"
-            android:paddingTop="10dp"
-            android:paddingBottom="10dp"
+            android:paddingTop="8dp"
+            android:paddingBottom="8dp"
             android:gravity="center_vertical"
             android:scrollbars="vertical"
             android:importantForAutofill="no" />
 
-        <!-- Send Button -->
+        <!-- Send Button - always aligned to bottom of input area -->
         <Button
             android:id="@+id/btn_send"
             android:layout_width="wrap_content"
             android:layout_height="44dp"
-            android:layout_marginStart="8dp"
-            android:minHeight="0dp"
+            android:layout_alignParentEnd="true"
+            android:layout_alignBottom="@id/et_message"
             android:text="发送"
             android:textColor="@android:color/white"
             android:textSize="16sp"
@@ -152,5 +151,5 @@
             android:paddingBottom="10dp"
             android:background="@drawable/send_button_bg"
             app:backgroundTint="@null" />
-    </LinearLayout>
+    </RelativeLayout>
 </RelativeLayout>
