@@ -32,7 +32,7 @@ import java.util.List;
  */
 public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageViewHolder> {
     private List<Message> messages;
-    private List<Message> visibleMessages;  // 过滤后的可见消息
+    private List<Message> visibleMessages;
     private Markwon markwon;
     private Context context;
     private static final int TYPE_USER = 1;
@@ -44,13 +44,17 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
         this.visibleMessages = new ArrayList<>();
         this.context = context;
         
-        // 配置 Markwon，自定义链接颜色
+        // 配置 Markwon，使用默认 CorePlugin 并自定义链接颜色
+        int linkColor = ContextCompat.getColor(context, R.color.primary);
+        MarkwonTheme theme = MarkwonTheme.builderWithDefaults(context)
+            .linkColor(linkColor)
+            .build();
+        
+        CorePlugin corePlugin = CorePlugin.create();
+        corePlugin.defaultTheme(theme);
+        
         this.markwon = Markwon.builder(context)
-            .usePlugin(CorePlugin.create(plugin -> {
-                plugin.defaultTheme(MarkwonTheme.builder(context)
-                    .linkColor(ContextCompat.getColor(context, R.color.primary))
-                    .build());
-            }))
+            .usePlugin(corePlugin)
             .usePlugin(TablePlugin.create(context))
             .usePlugin(TaskListPlugin.create(context))
             .usePlugin(StrikethroughPlugin.create())
@@ -97,7 +101,6 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
     public void onBindViewHolder(@NonNull MessageViewHolder holder, int position) {
         Message message = visibleMessages.get(position);
         
-        // 错误消息直接显示文本，不使用 Markdown 渲染
         if (message.isError()) {
             holder.messageText.setText(message.getError());
         } else {
