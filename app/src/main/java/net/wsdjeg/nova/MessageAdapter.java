@@ -3,14 +3,18 @@ package net.wsdjeg.nova;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
+import android.text.style.ForegroundColorSpan;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
 import android.widget.Toast;
 import androidx.annotation.NonNull;
+import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.RecyclerView;
 import io.noties.markwon.Markwon;
+import io.noties.markwon.core.CorePlugin;
+import io.noties.markwon.core.MarkwonTheme;
 import io.noties.markwon.ext.tables.TablePlugin;
 import io.noties.markwon.ext.tasklist.TaskListPlugin;
 import io.noties.markwon.ext.strikethrough.StrikethroughPlugin;
@@ -39,7 +43,14 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
         this.messages = messages;
         this.visibleMessages = new ArrayList<>();
         this.context = context;
+        
+        // 配置 Markwon，自定义链接颜色
         this.markwon = Markwon.builder(context)
+            .usePlugin(CorePlugin.create(plugin -> {
+                plugin.defaultTheme(MarkwonTheme.builder(context)
+                    .linkColor(ContextCompat.getColor(context, R.color.primary))
+                    .build());
+            }))
             .usePlugin(TablePlugin.create(context))
             .usePlugin(TaskListPlugin.create(context))
             .usePlugin(StrikethroughPlugin.create())
@@ -173,3 +184,4 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
         }
     }
 }
+
