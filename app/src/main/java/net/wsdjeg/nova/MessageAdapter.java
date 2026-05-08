@@ -3,7 +3,7 @@ package net.wsdjeg.nova;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
-import android.text.style.ForegroundColorSpan;
+import android.text.method.LinkMovementMethod;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -13,8 +13,6 @@ import androidx.annotation.NonNull;
 import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.RecyclerView;
 import io.noties.markwon.Markwon;
-import io.noties.markwon.core.CorePlugin;
-import io.noties.markwon.core.MarkwonTheme;
 import io.noties.markwon.ext.tables.TablePlugin;
 import io.noties.markwon.ext.tasklist.TaskListPlugin;
 import io.noties.markwon.ext.strikethrough.StrikethroughPlugin;
@@ -35,6 +33,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
     private List<Message> visibleMessages;
     private Markwon markwon;
     private Context context;
+    private int linkColor;
     private static final int TYPE_USER = 1;
     private static final int TYPE_BOT = 2;
     private static final int TYPE_ERROR = 3;
@@ -43,18 +42,10 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
         this.messages = messages;
         this.visibleMessages = new ArrayList<>();
         this.context = context;
+        this.linkColor = ContextCompat.getColor(context, R.color.primary);
         
-        // 配置 Markwon，使用默认 CorePlugin 并自定义链接颜色
-        int linkColor = ContextCompat.getColor(context, R.color.primary);
-        MarkwonTheme theme = MarkwonTheme.builderWithDefaults(context)
-            .linkColor(linkColor)
-            .build();
-        
-        CorePlugin corePlugin = CorePlugin.create();
-        corePlugin.defaultTheme(theme);
-        
+        // 使用默认配置的 Markwon
         this.markwon = Markwon.builder(context)
-            .usePlugin(corePlugin)
             .usePlugin(TablePlugin.create(context))
             .usePlugin(TaskListPlugin.create(context))
             .usePlugin(StrikethroughPlugin.create())
@@ -105,6 +96,9 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
             holder.messageText.setText(message.getError());
         } else {
             markwon.setMarkdown(holder.messageText, message.getContent());
+            // 设置链接可点击并使用自定义颜色
+            holder.messageText.setMovementMethod(LinkMovementMethod.getInstance());
+            holder.messageText.setLinkTextColor(linkColor);
         }
         
         String time = TimeUtils.formatTime(message.getTimestamp());
