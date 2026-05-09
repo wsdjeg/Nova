@@ -334,8 +334,9 @@ public class ChatActivity extends AppCompatActivity {
                 // 更新 FAB 可见性
                 fabScrollBottom.setVisibility(isAtBottom ? View.GONE : View.VISIBLE);
                 
-                // 更新位置记录（用于加载更多后恢复）
-                if (firstVisible >= 0 && !isLoadingOlder) {
+                // 更新位置记录（用于刷新后恢复）
+                // 只要滚屏就记录位置，确保刷新后能恢复
+                if (firstVisible >= 0) {
                     Message anchorMsg = adapter.getVisibleMessageAt(firstVisible);
                     if (anchorMsg != null) {
                         anchorMessageCreated = anchorMsg.getCreated();
@@ -741,6 +742,9 @@ public class ChatActivity extends AppCompatActivity {
                     if (addedNew) {
                         if (userAtBottom) {
                             scrollToBottomSmooth();
+                        } else {
+                            // 用户不在底部时，恢复之前保存的位置
+                            restoreScrollPosition();
                         }
                     }
                 });
