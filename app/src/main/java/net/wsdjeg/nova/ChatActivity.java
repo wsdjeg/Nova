@@ -1324,7 +1324,7 @@ public class ChatActivity extends AppCompatActivity {
     private void stopSession() {
         messagesInPool.clear();
         
-        apiClient.stopSession(currentSessionId, new ApiClient.StopCallback) {
+        apiClient.stopSession(currentSessionId, new ApiClient.StopCallback() {
             @Override
             public void onSuccess() {
                 runOnUiThread(() -> {
