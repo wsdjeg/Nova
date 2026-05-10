@@ -103,24 +103,71 @@ public class ApiClient {
     }
     
     /**
+     * 工具调用参数
+     */
+    public static class ToolCallFunction {
+        public String name;
+        public String arguments; // JSON 字符串
+        
+        public ToolCallFunction(String name, String arguments) {
+            this.name = name;
+            this.arguments = arguments;
+        }
+    }
+    
+    /**
+     * 工具调用
+     */
+    public static class ToolCall {
+        public String id;
+        public String type;
+        public ToolCallFunction function;
+        
+        public ToolCall(String id, String type, ToolCallFunction function) {
+            this.id = id;
+            this.type = type;
+            this.function = function;
+        }
+    }
+    
+    /**
+     * 工具调用状态（用于工具结果消息）
+     */
+    public static class ToolCallState {
+        public String name;
+        public String error;
+        
+        public ToolCallState(String name, String error) {
+            this.name = name;
+            this.error = error;
+        }
+    }
+    
+    /**
      * 聊天消息数据模型
-     * 包含 role、content、error 和 created 字段
+     * 包含 role、content、error、created、tool_calls 和 tool_call_state 字段
      * 
      * 消息类型：
      * - 正常消息：有 role 和 content
      * - 错误消息：有 error 字段（无 role 或 role 为空）
+     * - 工具调用消息：有 tool_calls（role=assistant）
+     * - 工具结果消息：role=tool，有 tool_call_state 和 content
      */
     public static class ChatMessage {
         public String role;
         public String content;
         public String error;    // 错误消息字段
         public long created;
+        public List<ToolCall> toolCalls;  // 工具调用（AI 调用工具时）
+        public ToolCallState toolCallState;  // 工具状态（工具结果消息）
         
         public ChatMessage(String role, String content, long created) {
             this.role = role;
             this.content = content;
             this.error = null;
             this.created = created;
+            this.toolCalls = null;
+            this.toolCallState = null;
         }
         
         /**
@@ -131,6 +178,29 @@ public class ApiClient {
             this.content = null;
             this.error = error;
             this.created = created;
+            this.toolCalls = null;
+            this.toolCallState = null;
+        }
+        
+        /**
+         * 创建带工具调用的消息
+         */
+        public ChatMessage(String role, String content, long created, List<ToolCall> toolCalls) {
+            this.role = role;
+            this.content = content;
+            this.error = null;
+            this.created = created;
+            this.toolCalls = toolCalls;
+            this.toolCallState = null;
+        }
+        
+        /**
+         * 创建工具结果消息
+         */
+        public static ChatMessage createToolResult(String content, long created, ToolCallState state) {
+            ChatMessage msg = new ChatMessage("tool", content, created);
+            msg.toolCallState = state;
+            return msg;
         }
         
         /**
@@ -138,6 +208,28 @@ public class ApiClient {
          */
         public boolean isError() {
             return error != null && !error.isEmpty();
+        }
+        
+        /**
+         * 是否有工具调用
+         */
+        public boolean hasToolCalls() {
+            return toolCalls != null && !toolCalls.isEmpty();
+        }
+        
+        /**
+         * 是否是工具结果消息
+         */
+        public boolean isToolResult() {
+            return "tool".equals(role) && toolCallState != null;
+        }
+        
+        /**
+         * 是否是工具错误消息
+         */
+        public boolean isToolError() {
+            return "tool".equals(role) && toolCallState != null 
+                && toolCallState.error != null && !toolCallState.error.isEmpty();
         }
         
         /**
@@ -1044,7 +1136,7 @@ public class ApiClient {
     
     /**
      * 解析消息 JSON 对象
-     * 支持正常消息（role + content）和错误消息（error）
+     * 支持正常消息（role + content）、错误消息（error）、工具调用（tool_calls）、工具结果（role=tool）
      */
     private ChatMessage parseMessage(JSONObject msg) {
         String role = msg.optString("role", "");
@@ -1052,9 +1144,51 @@ public class ApiClient {
         String error = msg.optString("error", "");
         long created = msg.optLong("created", System.currentTimeMillis() / 1000);
         
+        // 解析 tool_calls
+        List<ToolCall> toolCalls = null;
+        JSONArray toolCallsArray = msg.optJSONArray("tool_calls");
+        if (toolCallsArray != null && toolCallsArray.length() > 0) {
+            toolCalls = new ArrayList<>();
+            for (int i = 0; i < toolCallsArray.length(); i++) {
+                try {
+                    JSONObject tc = toolCallsArray.getJSONObject(i);
+                    String id = tc.optString("id", "");
+                    String type = tc.optString("type", "function");
+                    
+                    JSONObject funcObj = tc.optJSONObject("function");
+                    if (funcObj != null) {
+                        String name = funcObj.optString("name", "");
+                        String args = funcObj.optString("arguments", "");
+                        toolCalls.add(new ToolCall(id, type, new ToolCallFunction(name, args)));
+                    }
+                } catch (Exception e) {
+                    Log.w(TAG, "Failed to parse tool_call: " + e.getMessage());
+                }
+            }
+        }
+        
+        // 解析 tool_call_state (用于 role=tool 的消息)
+        ToolCallState toolCallState = null;
+        JSONObject stateObj = msg.optJSONObject("tool_call_state");
+        if (stateObj != null) {
+            String name = stateObj.optString("name", "");
+            String stateError = stateObj.optString("error", "");
+            toolCallState = new ToolCallState(name, stateError);
+        }
+        
         // 如果有 error 字段，创建错误消息
         if (!error.isEmpty()) {
             return new ChatMessage(error, created);
+        }
+        
+        // 如果是工具结果消息
+        if ("tool".equals(role) && toolCallState != null) {
+            return ChatMessage.createToolResult(content, created, toolCallState);
+        }
+        
+        // 如果有工具调用
+        if (toolCalls != null && !toolCalls.isEmpty()) {
+            return new ChatMessage(role, content, created, toolCalls);
         }
         
         // 否则创建正常消息
@@ -1116,7 +1250,7 @@ public class ApiClient {
                     for (int i = 0; i < jsonArray.length(); i++) {
                         JSONObject msg = jsonArray.getJSONObject(i);
                         ChatMessage chatMsg = parseMessage(msg);
-                        if (chatMsg != null && chatMsg.hasDisplayableContent()) {
+                        if (chatMsg != null && (chatMsg.hasDisplayableContent() || chatMsg.hasToolCalls() || chatMsg.isToolResult())) {
                             messages.add(chatMsg);
                         }
                     }
@@ -1222,7 +1356,7 @@ public class ApiClient {
                     for (int i = 0; i < jsonArray.length(); i++) {
                         JSONObject msg = jsonArray.getJSONObject(i);
                         ChatMessage chatMsg = parseMessage(msg);
-                        if (chatMsg != null && chatMsg.hasDisplayableContent()) {
+                        if (chatMsg != null && (chatMsg.hasDisplayableContent() || chatMsg.hasToolCalls() || chatMsg.isToolResult())) {
                             messages.add(chatMsg);
                         }
                     }

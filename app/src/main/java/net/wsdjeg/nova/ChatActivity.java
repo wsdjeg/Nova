@@ -44,6 +44,8 @@ import java.util.Set;
  * 2. 本地列表：保持升序，最新消息在末尾
  * 3. 显示过滤：只显示 content 不为空且 role 不是 tool 的消息
  * 4. 错误消息：带有 error 字段的消息以红色背景特殊显示
+ * 5. 工具调用：assistant 消息中的 tool_calls 拆分显示
+ * 6. 工具结果：role=tool 的消息单独显示（带工具名称和状态）
  * 
  * 消息计数说明：
  * - totalMessageCount: 服务端返回的总消息数（包含 tool 等不可显示消息）
@@ -290,15 +292,29 @@ public class ChatActivity extends AppCompatActivity {
     
     /**
      * 从 ChatMessage 创建 Message 对象
-     * 正确处理 error 字段
+     * 正确处理 error 字段、tool_calls 和 tool_call_state
      */
     private Message createMessageFromChatMessage(ApiClient.ChatMessage msg) {
         // 如果有 error 字段，创建错误消息
         if (msg.error != null && !msg.error.isEmpty()) {
             return new Message(msg.error, msg.created);
         }
-        // 否则创建普通消息
-        return new Message(msg.content, msg.role, msg.created);
+        
+        // 创建基础消息
+        Message message = new Message(msg.content, msg.role, msg.created);
+        
+        // 设置 tool_calls（assistant 消息中的工具调用请求）
+        if (msg.toolCalls != null && !msg.toolCalls.isEmpty()) {
+            message.setToolCalls(msg.toolCalls);
+        }
+        
+        // 设置 tool_call_state（tool 消息中的工具状态）
+        if (msg.toolCallState != null) {
+            message.setToolName(msg.toolCallState.name);
+            message.setToolError(msg.toolCallState.error);
+        }
+        
+        return message;
     }
     
     /**
@@ -337,13 +353,15 @@ public class ChatActivity extends AppCompatActivity {
                 // 更新位置记录（用于刷新后恢复）
                 // 只要滚屏就记录位置，确保刷新后能恢复
                 if (firstVisible >= 0) {
-                    Message anchorMsg = adapter.getVisibleMessageAt(firstVisible);
-                    if (anchorMsg != null) {
-                        anchorMessageCreated = anchorMsg.getCreated();
-                        View firstChild = lm.findViewByPosition(firstVisible);
-                        if (firstChild != null) {
-                            offsetToRestore = firstChild.getTop();
-                        }
+                    Object item = adapter.getVisibleItemAt(firstVisible);
+                    if (item instanceof Message) {
+                        anchorMessageCreated = ((Message) item).getCreated();
+                    } else if (item instanceof MessageAdapter.ToolCallItem) {
+                        anchorMessageCreated = ((MessageAdapter.ToolCallItem) item).getCreated();
+                    }
+                    View firstChild = lm.findViewByPosition(firstVisible);
+                    if (firstChild != null) {
+                        offsetToRestore = firstChild.getTop();
                     }
                 }
                 
@@ -828,15 +846,17 @@ public class ChatActivity extends AppCompatActivity {
         
         int firstVisiblePosition = lm.findFirstVisibleItemPosition();
         if (firstVisiblePosition >= 0) {
-            Message anchorMsg = adapter.getVisibleMessageAt(firstVisiblePosition);
-            if (anchorMsg != null) {
-                anchorMessageCreated = anchorMsg.getCreated();
-                View firstChild = lm.findViewByPosition(firstVisiblePosition);
-                if (firstChild != null) {
-                    offsetToRestore = firstChild.getTop();
-                }
-                Log.d(TAG, "Saved position: anchorCreated=" + anchorMessageCreated + ", offset=" + offsetToRestore);
+            Object item = adapter.getVisibleItemAt(firstVisiblePosition);
+            if (item instanceof Message) {
+                anchorMessageCreated = ((Message) item).getCreated();
+            } else if (item instanceof MessageAdapter.ToolCallItem) {
+                anchorMessageCreated = ((MessageAdapter.ToolCallItem) item).getCreated();
             }
+            View firstChild = lm.findViewByPosition(firstVisiblePosition);
+            if (firstChild != null) {
+                offsetToRestore = firstChild.getTop();
+            }
+            Log.d(TAG, "Saved position: anchorCreated=" + anchorMessageCreated + ", offset=" + offsetToRestore);
         }
     }
     
@@ -1304,7 +1324,7 @@ public class ChatActivity extends AppCompatActivity {
     private void stopSession() {
         messagesInPool.clear();
         
-        apiClient.stopSession(currentSessionId, new ApiClient.StopCallback() {
+        apiClient.stopSession(currentSessionId, new ApiClient.StopCallback) {
             @Override
             public void onSuccess() {
                 runOnUiThread(() -> {
