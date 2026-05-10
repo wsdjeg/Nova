@@ -4,84 +4,94 @@
     android:layout_height="wrap_content"
     android:orientation="vertical"
     android:padding="8dp"
-    android:layout_marginStart="16dp"
-    android:layout_marginEnd="48dp"
-    android:background="@drawable/tool_result_bg">
+    android:gravity="start">
 
-    <!-- Tool result header -->
+    <!-- 工具结果卡片 -->
     <LinearLayout
-        android:layout_width="match_parent"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical">
+        android:maxWidth="320dp"
+        android:orientation="vertical"
+        android:background="@drawable/tool_result_bg"
+        android:padding="12dp">
 
-        <TextView
-            android:id="@+id/statusIcon"
+        <!-- Tool result header -->
+        <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textSize="14sp"
-            android:paddingEnd="4dp" />
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
 
-        <TextView
-            android:id="@+id/toolNameText"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:textColor="#2196F3"
-            android:textSize="13sp"
-            android:fontFamily="monospace"
-            android:textStyle="bold" />
+            <TextView
+                android:id="@+id/statusIcon"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="14sp"
+                android:paddingEnd="4dp" />
 
-        <TextView
-            android:id="@+id/expandHint"
+            <TextView
+                android:id="@+id/toolNameText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#2196F3"
+                android:textSize="13sp"
+                android:fontFamily="monospace"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/expandHint"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:text="展开 ▼"
+                android:textSize="11sp"
+                android:textColor="#2196F3"
+                android:padding="4dp"
+                android:visibility="gone" />
+
+        </LinearLayout>
+
+        <!-- Tool result content container - 可滚动 -->
+        <HorizontalScrollView
+            android:id="@+id/contentScrollH"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginStart="8dp"
-            android:text="展开 ▼"
-            android:textSize="11sp"
-            android:textColor="#2196F3"
-            android:padding="4dp"
-            android:visibility="gone" />
+            android:layout_marginTop="4dp"
+            android:scrollbars="horizontal"
+            android:fillViewport="false">
 
-        <TextView
-            android:id="@+id/timeText"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:textSize="10sp"
-            android:textColor="@color/text_hint" />
+            <ScrollView
+                android:id="@+id/contentScrollV"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:scrollbars="vertical"
+                android:fillViewport="false">
+
+                <TextView
+                    android:id="@+id/contentText"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:padding="8dp"
+                    android:background="@color/ai_message_bg"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="11sp"
+                    android:fontFamily="monospace"
+                    android:visibility="gone" />
+
+            </ScrollView>
+
+        </HorizontalScrollView>
 
     </LinearLayout>
 
-    <!-- Tool result content container - 可滚动 -->
-    <HorizontalScrollView
-        android:id="@+id/contentScrollH"
-        android:layout_width="match_parent"
+    <!-- 时间戳 -->
+    <TextView
+        android:id="@+id/timeText"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="4dp"
-        android:scrollbars="horizontal"
-        android:fillViewport="false">
-
-        <ScrollView
-            android:id="@+id/contentScrollV"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:scrollbars="vertical"
-            android:fillViewport="false">
-
-            <TextView
-                android:id="@+id/contentText"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:padding="8dp"
-                android:background="@color/ai_message_bg"
-                android:textColor="@color/text_secondary"
-                android:textSize="11sp"
-                android:fontFamily="monospace"
-                android:maxWidth="10000dp"
-                android:visibility="gone" />
-
-        </ScrollView>
-
-    </HorizontalScrollView>
+        android:layout_marginStart="8dp"
+        android:textSize="12sp"
+        android:textColor="#999999" />
 
 </LinearLayout>
