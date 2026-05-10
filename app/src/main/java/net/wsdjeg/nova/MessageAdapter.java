@@ -14,9 +14,11 @@ import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.RecyclerView;
 import io.noties.markwon.Markwon;
 import io.noties.markwon.ext.tables.TablePlugin;
+import io.noties.markwon.ext.tables.TableTheme;
 import io.noties.markwon.ext.tasklist.TaskListPlugin;
 import io.noties.markwon.ext.strikethrough.StrikethroughPlugin;
 import io.noties.markwon.html.HtmlPlugin;
+import io.noties.markwon.core.MarkwonTheme;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -44,9 +46,19 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
         this.context = context;
         this.linkColor = ContextCompat.getColor(context, R.color.primary);
         
-        // 使用默认配置的 Markwon
+        // 配置表格主题
+        TableTheme tableTheme = TableTheme.builder(context)
+            .tableBorderWidth(1)
+            .tableBorderColor(0xFFCCCCCC)
+            .tableCellPadding(12)
+            .tableHeaderRowBackgroundColor(0xFFF5F5F5)
+            .tableEvenRowBackgroundColor(0xFFFFFFFF)
+            .tableOddRowBackgroundColor(0xFFFAFAFA)
+            .build();
+        
+        // 使用完整配置的 Markwon
         this.markwon = Markwon.builder(context)
-            .usePlugin(TablePlugin.create(context))
+            .usePlugin(TablePlugin.create(tableTheme))
             .usePlugin(TaskListPlugin.create(context))
             .usePlugin(StrikethroughPlugin.create())
             .usePlugin(HtmlPlugin.create())
@@ -162,7 +174,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
     }
     
     private void copyToClipboard(String text) {
-        ClipboardManager clipboard = (ClipboardManager) context.getSystemService(Context.CLIPBOARD_SERVICE);
+        ClipboardManager clipboard = (ClipboardManager) context.getSystemService(Context.CLipboardService);
         if (clipboard != null) {
             ClipData clip = ClipData.newPlainText("消息内容", text);
             clipboard.setPrimaryClip(clip);
@@ -181,4 +193,3 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
         }
     }
 }
-

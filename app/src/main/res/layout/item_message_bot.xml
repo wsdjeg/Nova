@@ -6,21 +6,34 @@
     android:padding="8dp"
     android:gravity="start">
 
-    <TextView
-        android:id="@+id/messageText"
+    <androidx.cardview.widget.CardView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:maxWidth="280dp"
-        android:padding="12dp"
-        android:textSize="16sp"
-        android:background="@drawable/ai_message_bg"
-        android:textColor="#333333" />
+        android:maxWidth="320dp"
+        app:cardCornerRadius="16dp"
+        app:cardElevation="0dp"
+        app:cardBackgroundColor="@android:color/transparent"
+        xmlns:app="http://schemas.android.com/apk/res-auto">
+
+        <TextView
+            android:id="@+id/messageText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:maxWidth="320dp"
+            android:padding="16dp"
+            android:textSize="15sp"
+            android:lineSpacingExtra="4dp"
+            android:background="@drawable/ai_message_bg"
+            android:textColor="#333333" />
+
+    </androidx.cardview.widget.CardView>
 
     <TextView
         android:id="@+id/timeText"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="4dp"
+        android:layout_marginStart="8dp"
         android:textSize="12sp"
         android:textColor="#999999" />
 
