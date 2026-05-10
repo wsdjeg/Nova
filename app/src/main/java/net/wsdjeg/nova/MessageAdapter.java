@@ -112,6 +112,7 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
         
         for (Message msg : messages) {
             if (!msg.shouldDisplay()) {
+                Log.d(TAG, "updateVisibleItems: skipping message, shouldDisplay=false, role=" + msg.getRole());
                 continue;
             }
             
@@ -123,6 +124,7 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
             
             // assistant 消息：检查是否有 tool_calls
             if (msg.isAssistant() && msg.hasToolCalls()) {
+                Log.d(TAG, "updateVisibleItems: assistant message with tool_calls, content=" + (msg.getContent() == null ? "null" : (msg.getContent().trim().isEmpty() ? "empty" : "has content")));
                 // 先显示 content（如果有且不为空）
                 if (msg.getContent() != null && !msg.getContent().trim().isEmpty()) {
                     visibleItems.add(msg);
@@ -143,8 +145,6 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
         
         Log.d(TAG, "updateVisibleItems: " + visibleItems.size() + " items from " + messages.size() + " messages");
     }
-
-    @Override
     public int getItemViewType(int position) {
         Object item = visibleItems.get(position);
         

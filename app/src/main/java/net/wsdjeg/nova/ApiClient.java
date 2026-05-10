@@ -1149,6 +1149,7 @@ public class ApiClient {
         JSONArray toolCallsArray = msg.optJSONArray("tool_calls");
         if (toolCallsArray != null && toolCallsArray.length() > 0) {
             toolCalls = new ArrayList<>();
+            Log.d(TAG, "parseMessage: found tool_calls array, length=" + toolCallsArray.length() + ", role=" + role);
             for (int i = 0; i < toolCallsArray.length(); i++) {
                 try {
                     JSONObject tc = toolCallsArray.getJSONObject(i);
@@ -1160,6 +1161,7 @@ public class ApiClient {
                         String name = funcObj.optString("name", "");
                         String args = funcObj.optString("arguments", "");
                         toolCalls.add(new ToolCall(id, type, new ToolCallFunction(name, args)));
+                        Log.d(TAG, "parseMessage: parsed tool_call[" + i + "] id=" + id + ", name=" + name);
                     }
                 } catch (Exception e) {
                     Log.w(TAG, "Failed to parse tool_call: " + e.getMessage());
@@ -1188,6 +1190,7 @@ public class ApiClient {
         
         // 如果有工具调用
         if (toolCalls != null && !toolCalls.isEmpty()) {
+            Log.d(TAG, "parseMessage: creating ChatMessage with toolCalls, role=" + role + ", content=" + (content.isEmpty() ? "(empty)" : content.substring(0, Math.min(50, content.length()))));
             return new ChatMessage(role, content, created, toolCalls);
         }
         
@@ -1197,6 +1200,7 @@ public class ApiClient {
         }
         
         // 无可显示内容，返回 null
+        Log.d(TAG, "parseMessage: returning null for role=" + role + ", content empty=" + content.isEmpty() + ", toolCalls=" + (toolCalls == null ? "null" : toolCalls.size()));
         return null;
     }
     

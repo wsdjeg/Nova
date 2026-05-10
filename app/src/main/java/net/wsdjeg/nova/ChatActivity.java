@@ -306,6 +306,7 @@ public class ChatActivity extends AppCompatActivity {
         // 设置 tool_calls（assistant 消息中的工具调用请求）
         if (msg.toolCalls != null && !msg.toolCalls.isEmpty()) {
             message.setToolCalls(msg.toolCalls);
+            Log.d(TAG, "createMessageFromChatMessage: set toolCalls=" + msg.toolCalls.size() + " for role=" + msg.role);
         }
         
         // 设置 tool_call_state（tool 消息中的工具状态）
@@ -330,8 +331,6 @@ public class ChatActivity extends AppCompatActivity {
     
     /**
      * 设置滚动监听器 - 优化的下拉加载
-     */
-    private void setupScrollListener() {
         rvMessages.addOnScrollListener(new RecyclerView.OnScrollListener() {
             @Override
             public void onScrolled(RecyclerView recyclerView, int dx, int dy) {
