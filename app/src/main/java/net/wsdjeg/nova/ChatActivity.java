@@ -285,7 +285,7 @@ public class ChatActivity extends AppCompatActivity {
         updateSessionInfo(intentProvider, intentModel, intentCwd);
         
         messages.add(new Message("正在加载消息...", false));
-        adapter.refreshData();
+        adapter.notifyDataSetChangedWithUpdate();
         refreshSessionStatus(() -> loadMessagesPage());
         startAutoRefresh();
     }
@@ -331,6 +331,8 @@ public class ChatActivity extends AppCompatActivity {
     
     /**
      * 设置滚动监听器 - 优化的下拉加载
+     */
+    private void setupScrollListener() {
         rvMessages.addOnScrollListener(new RecyclerView.OnScrollListener() {
             @Override
             public void onScrolled(RecyclerView recyclerView, int dx, int dy) {
@@ -754,7 +756,7 @@ public class ChatActivity extends AppCompatActivity {
                     
                     cleanupPendingMessages();
                     
-                    adapter.refreshData();
+                    adapter.notifyDataSetChangedWithUpdate();
                     
                     if (addedNew) {
                         if (userAtBottom) {
@@ -892,7 +894,7 @@ public class ChatActivity extends AppCompatActivity {
             addSystemMessage("暂无消息");
             processedServerMessageCount = 0;
             currentSince = 0;
-            adapter.refreshData();
+            adapter.notifyDataSetChangedWithUpdate();
             hideLoadMoreHint();
             isInitialLoadComplete = true;
             return;
@@ -913,7 +915,7 @@ public class ChatActivity extends AppCompatActivity {
                         addSystemMessage("暂无消息");
                         processedServerMessageCount = 0;
                         currentSince = 0;
-                        adapter.refreshData();
+                        adapter.notifyDataSetChangedWithUpdate();
                         hideLoadMoreHint();
                         isInitialLoadComplete = true;
                         return;
@@ -926,7 +928,7 @@ public class ChatActivity extends AppCompatActivity {
                     
                     processedServerMessageCount = totalMessageCount;
                     sessionManager.updateFirstMessageIndex(currentSessionId, currentSince);
-                    adapter.refreshData();
+                    adapter.notifyDataSetChangedWithUpdate();
                     
                     isInitialLoadComplete = true;
                     hideLoadMoreHint();
@@ -945,7 +947,7 @@ public class ChatActivity extends AppCompatActivity {
                     messagesInPool.clear();
                     addSystemMessage("加载失败: " + error);
                     currentSince = 0;
-                    adapter.refreshData();
+                    adapter.notifyDataSetChangedWithUpdate();
                     hideLoadMoreHint();
                     isInitialLoadComplete = true;
                 });
@@ -1015,7 +1017,7 @@ public class ChatActivity extends AppCompatActivity {
                     currentSince = newSince;
                     sessionManager.updateFirstMessageIndex(currentSessionId, newSince);
                     
-                    adapter.refreshData();
+                    adapter.notifyDataSetChangedWithUpdate();
                     
                     final long savedAnchor = anchorMessageCreated;
                     final int savedOffset = offsetToRestore;
@@ -1112,7 +1114,7 @@ public class ChatActivity extends AppCompatActivity {
                         if (newContent != null && !newContent.equals(oldContent)) {
                             messages.set(lastIdx, createMessageFromChatMessage(latestFiltered));
                             messageFingerprints.put(latestFiltered.created, getMessageIdentifier(latestFiltered));
-                            adapter.refreshData();
+                            adapter.notifyDataSetChangedWithUpdate();
                             scrollToBottomSmooth();
                         }
                     }
@@ -1284,7 +1286,7 @@ public class ChatActivity extends AppCompatActivity {
         Message pendingMsg = Message.createPending(content, true);
         messages.add(pendingMsg);
         pendingMessages.put(content, System.currentTimeMillis());
-        adapter.refreshData();
+        adapter.notifyDataSetChangedWithUpdate();
         scrollToBottomSmooth();
         
         setButtonStateSending();
@@ -1311,7 +1313,7 @@ public class ChatActivity extends AppCompatActivity {
                             break;
                         }
                     }
-                    adapter.refreshData();
+                    adapter.notifyDataSetChangedWithUpdate();
                     setButtonStateNormal();
                     isInProgress = false;
                     Toast.makeText(ChatActivity.this, "发送失败: " + error, Toast.LENGTH_SHORT).show();
@@ -1374,7 +1376,7 @@ public class ChatActivity extends AppCompatActivity {
                             processedServerMessageCount = 0;
                             currentSince = 0;
                             totalMessageCount = 0;
-                            adapter.refreshData();
+                            adapter.notifyDataSetChangedWithUpdate();
                             addSystemMessage("会话已清空");
                             sessionManager.updateFirstMessageIndex(currentSessionId, 0);
                             Toast.makeText(ChatActivity.this, "会话已清空", Toast.LENGTH_SHORT).show();
@@ -1422,7 +1424,7 @@ public class ChatActivity extends AppCompatActivity {
     
     private void addSystemMessage(String text) {
         messages.add(new Message(text, false));
-        adapter.refreshData();
+        adapter.notifyDataSetChangedWithUpdate();
     }
     
     @Override
