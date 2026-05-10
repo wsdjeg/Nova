@@ -240,10 +240,11 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
     }
     
     private void bindToolCallViewHolder(ToolCallViewHolder holder, ToolCallItem item, int position) {
-        // 工具名称
-        holder.toolNameText.setText("🔧 " + item.getToolName());
-        holder.toolNameText.setTypeface(null, Typeface.BOLD);
+        // 状态图标
+        holder.statusIcon.setText("🔧");
         
+        // 工具名称
+        holder.toolNameText.setText(item.getToolName());
         // 工具参数
         String args = item.getArguments();
         if (args != null && !args.isEmpty()) {
@@ -527,9 +528,11 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
     }
     
     /**
+    /**
      * 工具调用 ViewHolder
      */
     static class ToolCallViewHolder extends RecyclerView.ViewHolder {
+        TextView statusIcon;
         TextView toolNameText;
         TextView argsText;
         TextView timeText;
@@ -537,6 +540,7 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
 
         ToolCallViewHolder(View itemView) {
             super(itemView);
+            statusIcon = itemView.findViewById(R.id.statusIcon);
             toolNameText = itemView.findViewById(R.id.toolNameText);
             argsText = itemView.findViewById(R.id.argsText);
             timeText = itemView.findViewById(R.id.timeText);
