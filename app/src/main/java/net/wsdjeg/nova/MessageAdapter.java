@@ -32,7 +32,7 @@ import java.util.List;
  * - TYPE_BOT: AI 消息（灰色背景，左侧）
  * - TYPE_ERROR: 错误消息（浅红色背景，居中，红色文字）
  * - TYPE_TOOL_CALL: 工具调用请求（assistant 消息中的 tool_calls）
- * - TYPE_TOOL_RESULT: 工具执行结果（role=tool 的消息）
+ * - TYPE_TOOL_RESULT: 工具执行结果（role=tool 的消息，简洁显示）
  */
 public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     private static final String TAG = "MessageAdapter";
@@ -107,7 +107,7 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
      * 更新可见项列表
      * 将消息拆分为多个显示项：
      * - 普通消息直接添加
-     * - tool 消息直接添加
+     * - tool 消息直接添加（简洁显示）
      * - assistant 消息如果有 tool_calls，拆分为多个 ToolCallItem
      * - assistant 消息如果有 content，单独显示 content
      */
@@ -276,50 +276,34 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
         });
     }
     
+    /**
+     * 工具结果：简洁显示，只显示状态图标和工具名称
+     * 不显示完整结果内容（太长）
+     */
     private void bindToolResultViewHolder(ToolResultViewHolder holder, Message message) {
         String toolName = message.getToolName();
         
         // 检查是否有错误
         if (message.hasToolError()) {
-            holder.headerText.setText("❌ Tool Error: " + toolName);
-            holder.headerText.setTextColor(ContextCompat.getColor(context, R.color.error));
-            holder.contentText.setText(message.getToolError());
-            holder.contentText.setTextColor(ContextCompat.getColor(context, R.color.error));
+            holder.statusIcon.setText("❌");
+            holder.toolNameText.setText(toolName + " (error)");
+            holder.toolNameText.setTextColor(ContextCompat.getColor(context, R.color.error));
         } else {
-            holder.headerText.setText("✅ " + toolName);
-            holder.headerText.setTextColor(ContextCompat.getColor(context, R.color.success));
-            
-            String content = message.getContent();
-            if (content != null && !content.isEmpty()) {
-                // 工具结果通常是纯文本或 JSON
-                try {
-                    org.json.JSONObject json = new org.json.JSONObject(content);
-                    String formatted = formatJson(json);
-                    holder.contentText.setText(formatted);
-                } catch (Exception e1) {
-                    try {
-                        org.json.JSONArray jsonArray = new org.json.JSONArray(content);
-                        String formatted = formatJsonArray(jsonArray);
-                        holder.contentText.setText(formatted);
-                    } catch (Exception e2) {
-                        // 不是 JSON，显示原始文本
-                        holder.contentText.setText(content);
-                    }
-                }
-                holder.contentText.setTextColor(ContextCompat.getColor(context, android.R.color.black));
-            } else {
-                holder.contentText.setText("(no output)");
-            }
+            holder.statusIcon.setText("✅");
+            holder.toolNameText.setText(toolName);
+            holder.toolNameText.setTextColor(ContextCompat.getColor(context, R.color.success));
         }
         
         // 时间戳
         String time = TimeUtils.formatTime(message.getTimestamp());
         holder.timeText.setText(time);
         
-        // 长按复制结果
+        // 长按复制结果内容
         final String copyText = message.getContent();
         holder.itemView.setOnLongClickListener(v -> {
-            copyToClipboard(copyText);
+            if (copyText != null && !copyText.isEmpty()) {
+                copyToClipboard(copyText);
+            }
             return true;
         });
     }
@@ -330,35 +314,6 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
     private String formatJson(org.json.JSONObject json) {
         StringBuilder sb = new StringBuilder();
         formatJsonRecursive(json, sb, 0);
-        return sb.toString();
-    }
-    
-    /**
-     * 格式化 JSON 数组为可读字符串
-     */
-    private String formatJsonArray(org.json.JSONArray array) {
-        StringBuilder sb = new StringBuilder();
-        sb.append("[\n");
-        for (int i = 0; i < array.length(); i++) {
-            sb.append("  ");
-            try {
-                Object item = array.get(i);
-                if (item instanceof org.json.JSONObject) {
-                    formatJsonRecursive((org.json.JSONObject) item, sb, 1);
-                } else if (item instanceof org.json.JSONArray) {
-                    sb.append(formatJsonArray((org.json.JSONArray) item));
-                } else {
-                    sb.append(item.toString());
-                }
-            } catch (Exception e) {
-                sb.append("?");
-            }
-            if (i < array.length() - 1) {
-                sb.append(",");
-            }
-            sb.append("\n");
-        }
-        sb.append("]");
         return sb.toString();
     }
     
@@ -396,6 +351,35 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
             sb.append("\n");
         }
         sb.append(prefix).append("}");
+    }
+    
+    /**
+     * 格式化 JSON 数组为可读字符串
+     */
+    private String formatJsonArray(org.json.JSONArray array) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("[\n");
+        for (int i = 0; i < array.length(); i++) {
+            sb.append("  ");
+            try {
+                Object item = array.get(i);
+                if (item instanceof org.json.JSONObject) {
+                    formatJsonRecursive((org.json.JSONObject) item, sb, 1);
+                } else if (item instanceof org.json.JSONArray) {
+                    sb.append(formatJsonArray((org.json.JSONArray) item));
+                } else {
+                    sb.append(item.toString());
+                }
+            } catch (Exception e) {
+                sb.append("?");
+            }
+            if (i < array.length() - 1) {
+                sb.append(",");
+            }
+            sb.append("\n");
+        }
+        sb.append("]");
+        return sb.toString();
     }
 
     @Override
@@ -495,17 +479,17 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
     }
     
     /**
-     * 工具结果 ViewHolder
+     * 工具结果 ViewHolder - 简洁显示
      */
     static class ToolResultViewHolder extends RecyclerView.ViewHolder {
-        TextView headerText;
-        TextView contentText;
+        TextView statusIcon;
+        TextView toolNameText;
         TextView timeText;
 
         ToolResultViewHolder(View itemView) {
             super(itemView);
-            headerText = itemView.findViewById(R.id.headerText);
-            contentText = itemView.findViewById(R.id.contentText);
+            statusIcon = itemView.findViewById(R.id.statusIcon);
+            toolNameText = itemView.findViewById(R.id.toolNameText);
             timeText = itemView.findViewById(R.id.timeText);
         }
     }
