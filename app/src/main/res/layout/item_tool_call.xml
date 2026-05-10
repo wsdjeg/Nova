@@ -16,17 +16,10 @@
         android:gravity="center_vertical">
 
         <TextView
+            android:id="@+id/toolNameText"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="🔧"
-            android:textSize="14sp"
-            android:layout_marginEnd="6dp" />
-
-        <TextView
-            android:id="@+id/toolFunctionName"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:textColor="@color/tool_function_name"
+            android:textColor="@color/primary_dark"
             android:textSize="13sp"
             android:textStyle="bold"
             android:fontFamily="monospace" />
@@ -39,18 +32,26 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
         android:maxHeight="150dp"
-        android:background="@color/tool_args_bg">
+        android:background="@color/ai_message_bg">
 
         <TextView
-            android:id="@+id/toolArguments"
+            android:id="@+id/argsText"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:padding="8dp"
-            android:textColor="@color/tool_args_text"
+            android:textColor="@color/text_secondary"
             android:textSize="11sp"
-            android:fontFamily="monospace"
-            android:typeface="monospace" />
+            android:fontFamily="monospace" />
 
     </ScrollView>
+    
+    <!-- Time -->
+    <TextView
+        android:id="@+id/timeText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:textSize="10sp"
+        android:textColor="@color/text_hint" />
 
 </LinearLayout>
