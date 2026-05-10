@@ -2,30 +2,66 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:orientation="horizontal"
+    android:orientation="vertical"
     android:padding="8dp"
-    android:gravity="center_vertical">
+    android:layout_marginStart="16dp"
+    android:layout_marginEnd="48dp"
+    android:background="@drawable/tool_result_bg">
 
-    <TextView
-        android:id="@+id/statusIcon"
-        android:layout_width="wrap_content"
+    <!-- Tool result header -->
+    <LinearLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:textSize="14sp"
-        android:paddingEnd="4dp" />
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
 
-    <TextView
-        android:id="@+id/toolNameText"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_weight="1"
-        android:textSize="14sp"
-        android:textColor="@color/text_secondary" />
+        <TextView
+            android:id="@+id/statusIcon"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="14sp"
+            android:paddingEnd="4dp" />
 
+        <TextView
+            android:id="@+id/toolNameText"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:textSize="13sp"
+            android:textColor="@color/text_secondary" />
+
+        <TextView
+            android:id="@+id/expandHint"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:text="点击展开"
+            android:textSize="10sp"
+            android:textColor="@color/text_hint"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/timeText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="10sp"
+            android:textColor="@color/text_hint" />
+
+    </LinearLayout>
+
+    <!-- Tool result content - 默认显示3行 -->
     <TextView
-        android:id="@+id/timeText"
-        android:layout_width="wrap_content"
+        android:id="@+id/contentText"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:textSize="12sp"
-        android:textColor="@color/text_hint" />
+        android:layout_marginTop="4dp"
+        android:padding="8dp"
+        android:background="@color/ai_message_bg"
+        android:textColor="@color/text_secondary"
+        android:textSize="11sp"
+        android:fontFamily="monospace"
+        android:maxLines="3"
+        android:ellipsize="end"
+        android:visibility="gone" />
 
 </LinearLayout>

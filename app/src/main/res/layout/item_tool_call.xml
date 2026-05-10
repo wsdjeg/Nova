@@ -24,26 +24,31 @@
             android:textStyle="bold"
             android:fontFamily="monospace" />
 
+        <TextView
+            android:id="@+id/expandHint"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:text="点击展开"
+            android:textSize="10sp"
+            android:textColor="@color/text_hint"
+            android:visibility="gone" />
+
     </LinearLayout>
 
-    <!-- Tool arguments -->
-    <ScrollView
+    <!-- Tool arguments - 默认显示3行 -->
+    <TextView
+        android:id="@+id/argsText"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
-        android:maxHeight="150dp"
-        android:background="@color/ai_message_bg">
-
-        <TextView
-            android:id="@+id/argsText"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:padding="8dp"
-            android:textColor="@color/text_secondary"
-            android:textSize="11sp"
-            android:fontFamily="monospace" />
-
-    </ScrollView>
+        android:padding="8dp"
+        android:background="@color/ai_message_bg"
+        android:textColor="@color/text_secondary"
+        android:textSize="11sp"
+        android:fontFamily="monospace"
+        android:maxLines="3"
+        android:ellipsize="end" />
     
     <!-- Time -->
     <TextView
