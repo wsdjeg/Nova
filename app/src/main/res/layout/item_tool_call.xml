@@ -28,18 +28,20 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:textColor="@color/text_secondary"
+            android:textColor="#2196F3"
             android:textSize="13sp"
-            android:fontFamily="monospace" />
+            android:fontFamily="monospace"
+            android:textStyle="bold" />
 
         <TextView
             android:id="@+id/expandHint"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="8dp"
-            android:text="点击展开"
-            android:textSize="10sp"
-            android:textColor="@color/text_hint"
+            android:text="展开 ▼"
+            android:textSize="11sp"
+            android:textColor="#2196F3"
+            android:padding="4dp"
             android:visibility="gone" />
 
         <TextView
@@ -51,19 +53,37 @@
 
     </LinearLayout>
 
-    <!-- Tool arguments - 默认显示3行 -->
-    <TextView
-        android:id="@+id/argsText"
+    <!-- Tool arguments container - 可滚动 -->
+    <HorizontalScrollView
+        android:id="@+id/contentScrollH"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="4dp"
-        android:padding="8dp"
-        android:background="@color/ai_message_bg"
-        android:textColor="@color/text_secondary"
-        android:textSize="11sp"
-        android:fontFamily="monospace"
-        android:maxLines="3"
-        android:ellipsize="end"
-        android:visibility="gone" />
+        android:scrollbars="horizontal"
+        android:fillViewport="false">
+
+        <ScrollView
+            android:id="@+id/contentScrollV"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:scrollbars="vertical"
+            android:fillViewport="false">
+
+            <TextView
+                android:id="@+id/argsText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:padding="8dp"
+                android:background="@color/ai_message_bg"
+                android:textColor="@color/text_secondary"
+                android:textSize="11sp"
+                android:fontFamily="monospace"
+                android:maxWidth="10000dp"
+                android:visibility="gone" />
+
+        </ScrollView>
+
+    </HorizontalScrollView>
 
 </LinearLayout>
+</FileContent>

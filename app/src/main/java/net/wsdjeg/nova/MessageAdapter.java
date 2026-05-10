@@ -9,6 +9,8 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.HorizontalScrollView;
+import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 import androidx.annotation.NonNull;
@@ -37,7 +39,9 @@ import java.util.Set;
  */
 public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     private static final String TAG = "MessageAdapter";
-    private static final int MAX_COLLAPSED_LINES = 3;
+    private static final int COLLAPSED_LINES = 3;   // 折叠时显示行数
+    private static final int EXPANDED_LINES = 10;   // 展开时显示行数
+    private static final float LINE_HEIGHT_SP = 14f; // 每行高度(sp)
     
     private List<Message> messages;
     private List<Object> visibleItems;  // 可以是 Message 或 ToolCallItem
@@ -145,6 +149,8 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
         
         Log.d(TAG, "updateVisibleItems: " + visibleItems.size() + " items from " + messages.size() + " messages");
     }
+    
+    @Override
     public int getItemViewType(int position) {
         Object item = visibleItems.get(position);
         
@@ -239,12 +245,23 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
         });
     }
     
+    /**
+     * 计算内容区域的高度（dp）
+     */
+    private int calculateHeightPx(int lines) {
+        // 每行高度(像素) = sp值 * density
+        float density = context.getResources().getDisplayMetrics().density;
+        float lineSp = LINE_HEIGHT_SP + 4f; // 11sp文字 + 内边距
+        return (int) (lineSp * lines * density);
+    }
+    
     private void bindToolCallViewHolder(ToolCallViewHolder holder, ToolCallItem item, int position) {
         // 状态图标
         holder.statusIcon.setText("🔧");
         
-        // 工具名称
+        // 工具名称 - 蓝色粗体
         holder.toolNameText.setText(item.getToolName());
+        
         // 工具参数
         String args = item.getArguments();
         if (args != null && !args.isEmpty()) {
@@ -252,28 +269,30 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
                 // 尝试格式化 JSON
                 org.json.JSONObject json = new org.json.JSONObject(args);
                 String formatted = formatJson(json);
-                holder.argsText.setText(formatted);
+                holder.contentText.setText(formatted);
             } catch (Exception e) {
                 // 不是有效 JSON，直接显示原始文本
-                holder.argsText.setText(args);
+                holder.contentText.setText(args);
             }
-            holder.argsText.setVisibility(View.VISIBLE);
+            holder.contentText.setVisibility(View.VISIBLE);
             
-            // 检查内容是否超过3行
-            holder.argsText.post(() -> {
-                int lineCount = holder.argsText.getLineCount();
-                if (lineCount > MAX_COLLAPSED_LINES) {
+            // 检查内容是否超过折叠行数
+            holder.contentText.post(() -> {
+                int lineCount = holder.contentText.getLineCount();
+                if (lineCount > COLLAPSED_LINES) {
                     holder.expandHint.setVisibility(View.VISIBLE);
                     // 检查展开状态
                     boolean isExpanded = expandedToolCalls.contains(position);
-                    holder.argsText.setMaxLines(isExpanded ? Integer.MAX_VALUE : MAX_COLLAPSED_LINES);
-                    holder.expandHint.setText(isExpanded ? "点击收起" : "点击展开");
+                    updateContentHeight(holder, isExpanded);
+                    holder.expandHint.setText(isExpanded ? "收起 ▲" : "展开 ▼");
                 } else {
                     holder.expandHint.setVisibility(View.GONE);
+                    // 内容不足折叠行数，设置实际高度
+                    holder.contentScrollV.getLayoutParams().height = ViewGroup.LayoutParams.WRAP_CONTENT;
                 }
             });
         } else {
-            holder.argsText.setVisibility(View.GONE);
+            holder.contentText.setVisibility(View.GONE);
             holder.expandHint.setVisibility(View.GONE);
         }
         
@@ -286,15 +305,14 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
             boolean isExpanded = expandedToolCalls.contains(position);
             if (isExpanded) {
                 expandedToolCalls.remove(position);
-                holder.argsText.setMaxLines(MAX_COLLAPSED_LINES);
-                holder.expandHint.setText("点击展开");
+                updateContentHeight(holder, false);
+                holder.expandHint.setText("展开 ▼");
             } else {
                 expandedToolCalls.add(position);
-                holder.argsText.setMaxLines(Integer.MAX_VALUE);
-                holder.expandHint.setText("点击收起");
+                updateContentHeight(holder, true);
+                holder.expandHint.setText("收起 ▲");
             }
         };
-        holder.argsText.setOnClickListener(toggleListener);
         holder.expandHint.setOnClickListener(toggleListener);
         
         // 长按复制参数
@@ -302,6 +320,24 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
             copyToClipboard(item.getToolName() + "\n" + args);
             return true;
         });
+    }
+    
+    /**
+     * 更新内容区域高度
+     */
+    private void updateContentHeight(ToolCallViewHolder holder, boolean isExpanded) {
+        int heightPx = calculateHeightPx(isExpanded ? EXPANDED_LINES : COLLAPSED_LINES);
+        holder.contentScrollV.getLayoutParams().height = heightPx;
+        holder.contentScrollV.requestLayout();
+    }
+    
+    /**
+     * 更新内容区域高度 (ToolResult)
+     */
+    private void updateResultContentHeight(ToolResultViewHolder holder, boolean isExpanded) {
+        int heightPx = calculateHeightPx(isExpanded ? EXPANDED_LINES : COLLAPSED_LINES);
+        holder.contentScrollV.getLayoutParams().height = heightPx;
+        holder.contentScrollV.requestLayout();
     }
     
     /**
@@ -318,7 +354,7 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
         } else {
             holder.statusIcon.setText("✅");
             holder.toolNameText.setText(toolName);
-            holder.toolNameText.setTextColor(ContextCompat.getColor(context, R.color.success));
+            holder.toolNameText.setTextColor(0xFF2196F3); // 蓝色
         }
         
         // 显示内容，默认3行
@@ -327,16 +363,18 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
             holder.contentText.setText(content);
             holder.contentText.setVisibility(View.VISIBLE);
             
-            // 检查内容是否超过3行
+            // 检查内容是否超过折叠行数
             holder.contentText.post(() -> {
                 int lineCount = holder.contentText.getLineCount();
-                if (lineCount > MAX_COLLAPSED_LINES) {
+                if (lineCount > COLLAPSED_LINES) {
                     holder.expandHint.setVisibility(View.VISIBLE);
                     boolean isExpanded = expandedToolResults.contains(position);
-                    holder.contentText.setMaxLines(isExpanded ? Integer.MAX_VALUE : MAX_COLLAPSED_LINES);
-                    holder.expandHint.setText(isExpanded ? "点击收起" : "点击展开");
+                    updateResultContentHeight(holder, isExpanded);
+                    holder.expandHint.setText(isExpanded ? "收起 ▲" : "展开 ▼");
                 } else {
                     holder.expandHint.setVisibility(View.GONE);
+                    // 内容不足折叠行数，设置实际高度
+                    holder.contentScrollV.getLayoutParams().height = ViewGroup.LayoutParams.WRAP_CONTENT;
                 }
             });
         } else {
@@ -353,15 +391,14 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
             boolean isExpanded = expandedToolResults.contains(position);
             if (isExpanded) {
                 expandedToolResults.remove(position);
-                holder.contentText.setMaxLines(MAX_COLLAPSED_LINES);
-                holder.expandHint.setText("点击展开");
+                updateResultContentHeight(holder, false);
+                holder.expandHint.setText("展开 ▼");
             } else {
                 expandedToolResults.add(position);
-                holder.contentText.setMaxLines(Integer.MAX_VALUE);
-                holder.expandHint.setText("点击收起");
+                updateResultContentHeight(holder, true);
+                holder.expandHint.setText("收起 ▲");
             }
         };
-        holder.contentText.setOnClickListener(toggleListener);
         holder.expandHint.setOnClickListener(toggleListener);
         
         // 长按复制结果内容
@@ -452,21 +489,14 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
         return visibleItems.size();
     }
     
-    public int getVisibleMessageCount() {
-        return visibleItems.size();
-    }
-    
-    public void refreshData() {
+    public void updateMessages(List<Message> newMessages) {
+        this.messages.clear();
+        this.messages.addAll(newMessages);
         updateVisibleItems();
         super.notifyDataSetChanged();
     }
     
-    public void notifyMessageInserted() {
-        updateVisibleItems();
-        super.notifyDataSetChanged();
-    }
-    
-    public void notifyMessagesRangeInserted(int positionStart, int itemCount) {
+    public void notifyDataSetChangedWithUpdate() {
         updateVisibleItems();
         super.notifyDataSetChanged();
     }
@@ -528,23 +558,26 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
     }
     
     /**
-    /**
      * 工具调用 ViewHolder
      */
     static class ToolCallViewHolder extends RecyclerView.ViewHolder {
         TextView statusIcon;
         TextView toolNameText;
-        TextView argsText;
+        TextView contentText;
         TextView timeText;
         TextView expandHint;
+        HorizontalScrollView contentScrollH;
+        ScrollView contentScrollV;
 
         ToolCallViewHolder(View itemView) {
             super(itemView);
             statusIcon = itemView.findViewById(R.id.statusIcon);
             toolNameText = itemView.findViewById(R.id.toolNameText);
-            argsText = itemView.findViewById(R.id.argsText);
+            contentText = itemView.findViewById(R.id.argsText);
             timeText = itemView.findViewById(R.id.timeText);
             expandHint = itemView.findViewById(R.id.expandHint);
+            contentScrollH = itemView.findViewById(R.id.contentScrollH);
+            contentScrollV = itemView.findViewById(R.id.contentScrollV);
         }
     }
     
@@ -557,6 +590,8 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
         TextView timeText;
         TextView contentText;
         TextView expandHint;
+        HorizontalScrollView contentScrollH;
+        ScrollView contentScrollV;
 
         ToolResultViewHolder(View itemView) {
             super(itemView);
@@ -565,6 +600,8 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
             timeText = itemView.findViewById(R.id.timeText);
             contentText = itemView.findViewById(R.id.contentText);
             expandHint = itemView.findViewById(R.id.expandHint);
+            contentScrollH = itemView.findViewById(R.id.contentScrollH);
+            contentScrollV = itemView.findViewById(R.id.contentScrollV);
         }
     }
 }
