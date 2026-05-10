@@ -16,7 +16,6 @@ import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.RecyclerView;
 import io.noties.markwon.Markwon;
 import io.noties.markwon.ext.tables.TablePlugin;
-import io.noties.markwon.ext.tables.TableTheme;
 import io.noties.markwon.ext.tasklist.TaskListPlugin;
 import io.noties.markwon.ext.strikethrough.StrikethroughPlugin;
 import io.noties.markwon.html.HtmlPlugin;
@@ -83,19 +82,9 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
         this.context = context;
         this.linkColor = ContextCompat.getColor(context, R.color.primary);
         
-        // 配置表格主题
-        TableTheme tableTheme = TableTheme.builder(context)
-            .tableBorderWidth(1)
-            .tableBorderColor(0xFFCCCCCC)
-            .tableCellPadding(12)
-            .tableHeaderRowBackgroundColor(0xFFF5F5F5)
-            .tableEvenRowBackgroundColor(0xFFFFFFFF)
-            .tableOddRowBackgroundColor(0xFFFAFAFA)
-            .build();
-        
-        // 使用完整配置的 Markwon
+        // 使用简化配置的 Markwon（ext-tables 模块不提供 TableTheme）
         this.markwon = Markwon.builder(context)
-            .usePlugin(TablePlugin.create(tableTheme))
+            .usePlugin(TablePlugin.create(context))
             .usePlugin(TaskListPlugin.create(context))
             .usePlugin(StrikethroughPlugin.create())
             .usePlugin(HtmlPlugin.create())
