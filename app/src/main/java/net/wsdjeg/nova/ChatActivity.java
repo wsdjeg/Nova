@@ -745,10 +745,31 @@ public class ChatActivity extends AppCompatActivity {
                 runOnUiThread(() -> {
                     if (chatMessages.isEmpty()) return;
                     
+                    Log.d(TAG, "=== FETCH: received " + chatMessages.size() + " messages ===");
+                    
                     boolean addedNew = false;
-                    for (ApiClient.ChatMessage msg : chatMessages) {
+                    for (int i = 0; i < chatMessages.size(); i++) {
+                        ApiClient.ChatMessage msg = chatMessages.get(i);
+                        
+                        // 详细日志
+                        boolean hasToolCalls = msg.toolCalls != null && !msg.toolCalls.isEmpty();
+                        boolean isTool = "tool".equals(msg.role);
+                        StringBuilder tcInfo = new StringBuilder();
+                        if (hasToolCalls) {
+                            tcInfo.append("tool_calls[").append(msg.toolCalls.size()).append("]:");
+                            for (ApiClient.ToolCall tc : msg.toolCalls) {
+                                tcInfo.append(tc.name).append(",");
+                            }
+                        }
+                        Log.d(TAG, "  MSG[" + i + "] role=" + msg.role + 
+                              ", hasToolCalls=" + hasToolCalls + 
+                              ", isTool=" + isTool + 
+                              ", toolCallState=" + (msg.toolCallState != null ? msg.toolCallState.name : "null") +
+                              ", contentLen=" + (msg.content == null ? "null" : msg.content.length()) +
+                              (tcInfo.length() > 0 ? ", " + tcInfo.toString() : ""));
+                        
                         if (messageFingerprints.containsKey(msg.created)) {
-                            Log.d(TAG, "Message already exists, skipping: created=" + msg.created);
+                            Log.d(TAG, "  → SKIP: already exists");
                             continue;
                         }
                         
@@ -756,7 +777,7 @@ public class ChatActivity extends AppCompatActivity {
                         if (msg.error == null && "user".equals(msg.role) && msg.content != null) {
                             int pendingIndex = findPendingMessageIndex(msg.content);
                             if (pendingIndex >= 0) {
-                                Log.d(TAG, "Replacing pending message at index " + pendingIndex);
+                                Log.d(TAG, "  → REPLACE pending at " + pendingIndex);
                                 messages.set(pendingIndex, createMessageFromChatMessage(msg));
                                 pendingMessages.remove(msg.content);
                                 messageFingerprints.put(msg.created, msg.content);
@@ -765,7 +786,9 @@ public class ChatActivity extends AppCompatActivity {
                         }
                         
                         messages.add(createMessageFromChatMessage(msg));
-                        messageFingerprints.put(msg.created, getMessageIdentifier(msg));
+                        String fingerprint = getMessageIdentifier(msg);
+                        messageFingerprints.put(msg.created, fingerprint);
+                        Log.d(TAG, "  → ADD: fingerprint=" + fingerprint);
                         addedNew = true;
                     }
                     

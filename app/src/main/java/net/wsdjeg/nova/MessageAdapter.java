@@ -101,8 +101,6 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
             .usePlugin(HtmlPlugin.create())
             .build();
         updateVisibleItems();
-    }
-    
     /**
      * 更新可见项列表
      * 将消息拆分为多个显示项：
@@ -113,24 +111,28 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
      */
     private void updateVisibleItems() {
         visibleItems.clear();
+        Log.d(TAG, "=== updateVisibleItems: " + messages.size() + " messages ===");
         
-        for (Message msg : messages) {
+        for (int msgIdx = 0; msgIdx < messages.size(); msgIdx++) {
+            Message msg = messages.get(msgIdx);
             if (!msg.shouldDisplay()) {
-                Log.d(TAG, "updateVisibleItems: skipping message, shouldDisplay=false, role=" + msg.getRole());
+                Log.d(TAG, "  MSG[" + msgIdx + "]: SKIP shouldDisplay=false, role=" + msg.getRole());
                 continue;
             }
             
             // tool 消息：直接添加
             if (msg.isToolMessage()) {
+                Log.d(TAG, "  MSG[" + msgIdx + "]: ADD tool message, toolName=" + msg.getToolName());
                 visibleItems.add(msg);
                 continue;
             }
             
             // assistant 消息：检查是否有 tool_calls
             if (msg.isAssistant() && msg.hasToolCalls()) {
-                Log.d(TAG, "updateVisibleItems: assistant message with tool_calls, content=" + (msg.getContent() == null ? "null" : (msg.getContent().trim().isEmpty() ? "empty" : "has content")));
+                Log.d(TAG, "  MSG[" + msgIdx + "]: assistant with tool_calls[" + msg.getToolCalls().size() + "]");
                 // 先显示 content（如果有且不为空）
                 if (msg.getContent() != null && !msg.getContent().trim().isEmpty()) {
+                    Log.d(TAG, "    → ADD content item");
                     visibleItems.add(msg);
                 }
                 
@@ -138,21 +140,19 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
                 List<ApiClient.ToolCall> toolCalls = msg.getToolCalls();
                 for (int i = 0; i < toolCalls.size(); i++) {
                     ToolCallItem item = new ToolCallItem(msg, toolCalls.get(i), i);
+                    Log.d(TAG, "    → ADD ToolCallItem: " + toolCalls.get(i).name);
                     visibleItems.add(item);
                 }
                 continue;
             }
             
             // 其他消息：直接添加
+            Log.d(TAG, "  MSG[" + msgIdx + "]: ADD " + (msg.isUser() ? "user" : "bot") + " message");
             visibleItems.add(msg);
         }
         
-        Log.d(TAG, "updateVisibleItems: " + visibleItems.size() + " items from " + messages.size() + " messages");
+        Log.d(TAG, "=== updateVisibleItems result: " + visibleItems.size() + " visible items ===");
     }
-    
-    @Override
-    public int getItemViewType(int position) {
-        Object item = visibleItems.get(position);
         
         if (item instanceof ToolCallItem) {
             return TYPE_TOOL_CALL;
