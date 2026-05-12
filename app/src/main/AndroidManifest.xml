@@ -60,6 +60,12 @@
             android:exported="false"
             android:label="编辑账号" />
 
+        <!-- LogViewerActivity 日志查看界面 -->
+        <activity
+            android:name=".LogViewerActivity"
+            android:exported="false"
+            android:label="日志查看器" />
+
     </application>
 
 </manifest>

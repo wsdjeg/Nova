@@ -566,6 +566,7 @@ public class ChatActivity extends AppCompatActivity {
             return true;
         }
         if (id == R.id.action_refresh) {
+        if (id == R.id.action_refresh) {
             reloadMessages();
             return true;
         } else if (id == R.id.action_clear_session) {
@@ -580,9 +581,10 @@ public class ChatActivity extends AppCompatActivity {
         } else if (id == R.id.action_settings) {
             openSessionSettings();
             return true;
+        } else if (id == R.id.action_view_logs) {
+            startActivity(new Intent(this, LogViewerActivity.class));
+            return true;
         }
-        return super.onOptionsItemSelected(item);
-    }
     
     private void updateSessionInfo(String intentProvider, String intentModel, String intentCwd) {
         if (intentProvider != null && !intentProvider.isEmpty() && 
