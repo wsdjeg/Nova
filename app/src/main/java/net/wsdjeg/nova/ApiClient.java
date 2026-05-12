@@ -1592,7 +1592,7 @@ public class ApiClient {
                         callback.onError("Session is not in progress"));
                 } else if (responseCode == 401) {
                     new Handler(Looper.getMainLooper()).post(() -> 
-                        callback.onError("Unauthorized: Invalid API Key");
+                        callback.onError("Unauthorized: Invalid API Key"));
                 } else {
                     final int code = responseCode;
                     new Handler(Looper.getMainLooper()).post(() -> 
