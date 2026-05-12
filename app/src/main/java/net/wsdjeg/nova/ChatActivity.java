@@ -620,12 +620,16 @@ public class ChatActivity extends AppCompatActivity {
     /**
      * 从 SessionSettingsActivity 返回的结果更新会话信息
      */
-    private void updateSessionInfoFromResult(String provider, String model, String cwd) {
+    private void updateSessionInfoFromResult(String provider, String model, String cwd, String title) {
         if (provider != null && !provider.isEmpty()) {
             currentProvider = provider;
         }
         if (model != null && !model.isEmpty()) {
             currentModel = model;
+        }
+        if (title != null && !title.isEmpty()) {
+            currentSessionTitle = title;
+            tvSessionTitle.setText(title);
         }
         
         // 更新显示
@@ -647,6 +651,9 @@ public class ChatActivity extends AppCompatActivity {
             }
             if (cwd != null) {
                 session.setCwd(cwd);
+            }
+            if (title != null && !title.isEmpty()) {
+                session.setTitle(title);
             }
             sessionManager.updateSession(session);
         }
@@ -1210,6 +1217,7 @@ public class ChatActivity extends AppCompatActivity {
                         boolean updated = false;
                         String serverProvider = serverSession.getProvider();
                         String serverModel = serverSession.getModel();
+                        String serverTitle = serverSession.getTitle();
                         
                         if (serverProvider != null && !serverProvider.isEmpty() 
                             && !serverProvider.equals(localSession.getProvider())) {
@@ -1221,6 +1229,13 @@ public class ChatActivity extends AppCompatActivity {
                             && !serverModel.equals(localSession.getModel())) {
                             localSession.setModel(serverModel);
                             currentModel = serverModel;
+                            updated = true;
+                        }
+                        if (serverTitle != null && !serverTitle.isEmpty()
+                            && !serverTitle.equals(localSession.getTitle())) {
+                            localSession.setTitle(serverTitle);
+                            currentSessionTitle = serverTitle;
+                            tvSessionTitle.setText(serverTitle);
                             updated = true;
                         }
                         
@@ -1278,12 +1293,13 @@ public class ChatActivity extends AppCompatActivity {
         Intent intent = new Intent(this, SessionSettingsActivity.class);
         intent.putExtra(SessionSettingsActivity.EXTRA_SESSION_ID, currentSessionId);
         intent.putExtra(SessionSettingsActivity.EXTRA_ACCOUNT_ID, accountId);
-        // 传递当前的 provider/model/cwd 作为初始值
+        // 传递当前的 provider/model/cwd/title 作为初始值
         intent.putExtra(SessionSettingsActivity.EXTRA_PROVIDER, currentProvider);
         intent.putExtra(SessionSettingsActivity.EXTRA_MODEL, currentModel);
         Session session = sessionManager.getSession(currentSessionId);
         if (session != null) {
             intent.putExtra(SessionSettingsActivity.EXTRA_CWD, session.getCwd());
+            intent.putExtra(SessionSettingsActivity.EXTRA_TITLE, session.getTitle());
         }
         startActivityForResult(intent, REQUEST_SESSION_SETTINGS);
     }
@@ -1445,8 +1461,9 @@ public class ChatActivity extends AppCompatActivity {
             String newProvider = data.getStringExtra(SessionSettingsActivity.RESULT_PROVIDER);
             String newModel = data.getStringExtra(SessionSettingsActivity.RESULT_MODEL);
             String newCwd = data.getStringExtra(SessionSettingsActivity.RESULT_CWD);
+            String newTitle = data.getStringExtra(SessionSettingsActivity.RESULT_TITLE);
             
-            updateSessionInfoFromResult(newProvider, newModel, newCwd);
+            updateSessionInfoFromResult(newProvider, newModel, newCwd, newTitle);
         }
     }
 }

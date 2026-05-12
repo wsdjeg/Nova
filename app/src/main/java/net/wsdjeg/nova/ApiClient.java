@@ -941,6 +941,78 @@ public class ApiClient {
     }
     
     /**
+     * 设置会话的标题
+     * API 端点: PUT /session/:id/title
+     * 请求格式: { "title": "会话标题" }
+     */
+    public void setSessionTitle(String sessionId, String title, UpdateSessionCallback callback) {
+        String baseUrl = getBaseUrl();
+        String apiKey = getApiKey();
+        
+        if (baseUrl.isEmpty() || apiKey.isEmpty()) {
+            callback.onError("Please configure API settings");
+            return;
+        }
+        
+        if (sessionId == null || sessionId.isEmpty()) {
+            callback.onError("Session ID is required");
+            return;
+        }
+        
+        new Thread(() -> {
+            HttpURLConnection conn = null;
+            try {
+                URL url = new URL(baseUrl + "/session/" + sessionId + "/title");
+                conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("PUT");
+                conn.setRequestProperty("Content-Type", "application/json");
+                conn.setRequestProperty("X-API-Key", apiKey);
+                conn.setRequestProperty("Connection", "close");
+                conn.setDoOutput(true);
+                conn.setConnectTimeout(15000);
+                conn.setReadTimeout(30000);
+                conn.setUseCaches(false);
+
+                JSONObject requestBody = new JSONObject();
+                requestBody.put("title", title != null ? title : "");
+                
+                try (OutputStream os = conn.getOutputStream()) {
+                    byte[] input = requestBody.toString().getBytes(StandardCharsets.UTF_8);
+                    os.write(input, 0, input.length);
+                }
+
+                int responseCode = conn.getResponseCode();
+                
+                if (responseCode == 204 || responseCode == 200) {
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onSuccess());
+                } else if (responseCode == 404) {
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onError("Session not found"));
+                } else if (responseCode == 401) {
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onError("Unauthorized: Invalid API Key"));
+                } else if (responseCode == 400) {
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onError("Bad Request: Invalid title"));
+                } else {
+                    final int code = responseCode;
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onError("Error: " + code));
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "setSessionTitle failed", e);
+                new Handler(Looper.getMainLooper()).post(() -> 
+                    callback.onError("Network error: " + e.getMessage()));
+            } finally {
+                if (conn != null) {
+                    conn.disconnect();
+                }
+            }
+        }).start();
+    }
+    
+    /**
      * 设置会话的置顶状态
      * API 端点: PUT /session/:id/pin
      * 请求格式: { "pin": true/false }
@@ -1520,7 +1592,7 @@ public class ApiClient {
                         callback.onError("Session is not in progress"));
                 } else if (responseCode == 401) {
                     new Handler(Looper.getMainLooper()).post(() -> 
-                        callback.onError("Unauthorized: Invalid API Key"));
+                        callback.onError("Unauthorized: Invalid API Key");
                 } else {
                     final int code = responseCode;
                     new Handler(Looper.getMainLooper()).post(() -> 

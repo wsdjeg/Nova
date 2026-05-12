@@ -48,6 +48,31 @@
                 android:textColor="?android:attr/textColorSecondary"
                 android:layout_marginBottom="8dp" />
             
+            <!-- 标题编辑 -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="会话标题"
+                android:textSize="14sp"
+                android:textColor="?android:attr/textColorSecondary"
+                android:layout_marginTop="8dp"
+                android:layout_marginBottom="4dp" />
+            
+            <EditText
+                android:id="@+id/et_title"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:hint="输入会话标题（可选）"
+                android:textSize="14sp"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:background="@android:drawable/edit_text"
+                android:inputType="text"
+                android:layout_marginBottom="16dp"
+                android:importantForAutofill="no"
+                android:maxLength="100"
+                android:maxLines="1" />
+            
             <!-- 工作目录编辑 -->
             <TextView
                 android:layout_width="match_parent"

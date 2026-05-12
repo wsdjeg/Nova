@@ -22,7 +22,7 @@ import java.util.Map;
 
 /**
  * 会话设置页面
- * 显示当前会话的 provider、model 和 cwd，并允许从服务器获取可用的 provider/model 列表
+ * 显示当前会话的 title、provider、model 和 cwd，并允许从服务器获取可用的 provider/model 列表
  * 支持修改会话配置并调用 API 更新
  */
 public class SessionSettingsActivity extends AppCompatActivity {
@@ -34,14 +34,17 @@ public class SessionSettingsActivity extends AppCompatActivity {
     public static final String EXTRA_PROVIDER = "provider";
     public static final String EXTRA_MODEL = "model";
     public static final String EXTRA_CWD = "cwd";
+    public static final String EXTRA_TITLE = "title";
     
     // Result extras for returning data to caller
     public static final String RESULT_PROVIDER = "result_provider";
     public static final String RESULT_MODEL = "result_model";
     public static final String RESULT_CWD = "result_cwd";
+    public static final String RESULT_TITLE = "result_title";
     
     private Toolbar toolbar;
     private TextView tvSessionId;
+    private EditText etTitle;
     private EditText etCwd;
     private Spinner spinnerProvider;
     private Spinner spinnerModel;
@@ -53,7 +56,9 @@ public class SessionSettingsActivity extends AppCompatActivity {
     private String currentProvider;
     private String currentModel;
     private String cwd;
+    private String title;
     private String originalCwd;  // 保存原始 cwd 用于比较
+    private String originalTitle;  // 保存原始 title 用于比较
     
     private ApiClient apiClient;
     private SettingsManager settingsManager;
@@ -86,6 +91,7 @@ public class SessionSettingsActivity extends AppCompatActivity {
         currentProvider = getIntent().getStringExtra(EXTRA_PROVIDER);
         currentModel = getIntent().getStringExtra(EXTRA_MODEL);
         cwd = getIntent().getStringExtra(EXTRA_CWD);
+        title = getIntent().getStringExtra(EXTRA_TITLE);
         
         if (sessionId == null || sessionId.isEmpty()) {
             Toast.makeText(this, "无效的会话ID", Toast.LENGTH_SHORT).show();
@@ -108,6 +114,7 @@ public class SessionSettingsActivity extends AppCompatActivity {
         getSupportActionBar().setTitle("会话设置");
         
         tvSessionId = findViewById(R.id.tv_session_id);
+        etTitle = findViewById(R.id.et_title);
         etCwd = findViewById(R.id.et_cwd);
         spinnerProvider = findViewById(R.id.spinner_provider);
         spinnerModel = findViewById(R.id.spinner_model);
@@ -177,7 +184,9 @@ public class SessionSettingsActivity extends AppCompatActivity {
         // 显示会话基本信息
         tvSessionId.setText("会话 ID: " + sessionId);
         etCwd.setText(cwd != null ? cwd : "");
+        etTitle.setText(title != null ? title : "");
         originalCwd = cwd;
+        originalTitle = title;
         
         // 获取账号信息并创建 ApiClient
         Account account = null;
@@ -211,16 +220,19 @@ public class SessionSettingsActivity extends AppCompatActivity {
             @Override
             public void onSuccess(Session session) {
                 runOnUiThread(() -> {
-                    // 从服务器获取最新的 provider/model/cwd
+                    // 从服务器获取最新的 provider/model/cwd/title
                     currentProvider = session.getProvider();
                     currentModel = session.getModel();
                     cwd = session.getCwd();
+                    title = session.getTitle();
                     originalCwd = cwd;
+                    originalTitle = title;
                     
                     // 更新显示
                     etCwd.setText(cwd != null ? cwd : "");
+                    etTitle.setText(title != null ? title : "");
                     
-                    Log.d(TAG, "Session from server: provider=" + currentProvider + ", model=" + currentModel + ", cwd=" + cwd);
+                    Log.d(TAG, "Session from server: provider=" + currentProvider + ", model=" + currentModel + ", cwd=" + cwd + ", title=" + title);
                     
                     // 更新本地 SessionManager
                     Session localSession = sessionManager.getSession(sessionId);
@@ -228,6 +240,7 @@ public class SessionSettingsActivity extends AppCompatActivity {
                         localSession.setProvider(currentProvider);
                         localSession.setModel(currentModel);
                         localSession.setCwd(cwd);
+                        localSession.setTitle(title);
                         sessionManager.updateSession(localSession);
                     }
                     
@@ -248,8 +261,11 @@ public class SessionSettingsActivity extends AppCompatActivity {
                         currentProvider = localSession.getProvider();
                         currentModel = localSession.getModel();
                         cwd = localSession.getCwd();
+                        title = localSession.getTitle();
                         originalCwd = cwd;
+                        originalTitle = title;
                         etCwd.setText(cwd != null ? cwd : "");
+                        etTitle.setText(title != null ? title : "");
                         loadProviders();
                     }
                 });
@@ -440,13 +456,15 @@ public class SessionSettingsActivity extends AppCompatActivity {
         String newProvider = providerNames.get(selectedProviderIndex);
         String newModel = currentModels.get(selectedModelIndex);
         String newCwd = etCwd.getText().toString().trim();
+        String newTitle = etTitle.getText().toString().trim();
         
         // 检查是否有变化
         boolean providerChanged = !newProvider.equals(currentProvider);
         boolean modelChanged = !newModel.equals(currentModel);
-        boolean cwdChanged = !newCwd.equals(originalCwd);
+        boolean cwdChanged = !newCwd.equals(originalCwd != null ? originalCwd : "");
+        boolean titleChanged = !newTitle.equals(originalTitle != null ? originalTitle : "");
         
-        if (!providerChanged && !modelChanged && !cwdChanged) {
+        if (!providerChanged && !modelChanged && !cwdChanged && !titleChanged) {
             Toast.makeText(this, "配置未改变", Toast.LENGTH_SHORT).show();
             return;
         }
@@ -454,7 +472,7 @@ public class SessionSettingsActivity extends AppCompatActivity {
         progressBar.setVisibility(View.VISIBLE);
         tvStatus.setText("正在保存...");
         
-        Log.d(TAG, "Saving session settings: provider=" + newProvider + ", model=" + newModel + ", cwd=" + newCwd);
+        Log.d(TAG, "Saving session settings: provider=" + newProvider + ", model=" + newModel + ", cwd=" + newCwd + ", title=" + newTitle);
         
         // 使用计数器跟踪多个 API 调用的完成状态
         final int[] pendingCalls = new int[1];
@@ -462,11 +480,11 @@ public class SessionSettingsActivity extends AppCompatActivity {
         final String[] errorMessage = new String[1];
         
         // 需要调用的 API 数量
-        int apiCallsNeeded = (providerChanged || modelChanged ? 1 : 0) + (cwdChanged ? 1 : 0);
+        int apiCallsNeeded = (providerChanged || modelChanged ? 1 : 0) + (cwdChanged ? 1 : 0) + (titleChanged ? 1 : 0);
         
         if (apiCallsNeeded == 0) {
             // 没有需要调用的 API，直接保存到本地
-            finishSave(newProvider, newModel, newCwd);
+            finishSave(newProvider, newModel, newCwd, newTitle);
             return;
         }
         
@@ -480,7 +498,7 @@ public class SessionSettingsActivity extends AppCompatActivity {
                     runOnUiThread(() -> {
                         pendingCalls[0]--;
                         if (pendingCalls[0] == 0 && !hasError[0]) {
-                            finishSave(newProvider, newModel, newCwd);
+                            finishSave(newProvider, newModel, newCwd, newTitle);
                         }
                     });
                 }
@@ -492,7 +510,7 @@ public class SessionSettingsActivity extends AppCompatActivity {
                         // 如果 API 不支持，允许继续（后续会保存到本地）
                         if (error.contains("PATCH") || error.contains("not supported") || error.contains("404")) {
                             if (pendingCalls[0] == 0) {
-                                finishSave(newProvider, newModel, newCwd);
+                                finishSave(newProvider, newModel, newCwd, newTitle);
                             }
                         } else {
                             hasError[0] = true;
@@ -514,7 +532,7 @@ public class SessionSettingsActivity extends AppCompatActivity {
                     runOnUiThread(() -> {
                         pendingCalls[0]--;
                         if (pendingCalls[0] == 0 && !hasError[0]) {
-                            finishSave(newProvider, newModel, newCwd);
+                            finishSave(newProvider, newModel, newCwd, newTitle);
                         }
                     });
                 }
@@ -526,11 +544,45 @@ public class SessionSettingsActivity extends AppCompatActivity {
                         // 如果 API 不支持，允许继续（后续会保存到本地）
                         if (error.contains("404") || error.contains("not supported")) {
                             if (pendingCalls[0] == 0) {
-                                finishSave(newProvider, newModel, newCwd);
+                                finishSave(newProvider, newModel, newCwd, newTitle);
                             }
                         } else {
                             hasError[0] = true;
                             errorMessage[0] = "CWD 更新失败: " + error;
+                            progressBar.setVisibility(View.GONE);
+                            tvStatus.setText("");
+                            Toast.makeText(SessionSettingsActivity.this, errorMessage[0], Toast.LENGTH_SHORT).show();
+                        }
+                    });
+                }
+            });
+        }
+        
+        // 更新 title
+        if (titleChanged) {
+            apiClient.setSessionTitle(sessionId, newTitle, new ApiClient.UpdateSessionCallback() {
+                @Override
+                public void onSuccess() {
+                    runOnUiThread(() -> {
+                        pendingCalls[0]--;
+                        if (pendingCalls[0] == 0 && !hasError[0]) {
+                            finishSave(newProvider, newModel, newCwd, newTitle);
+                        }
+                    });
+                }
+                
+                @Override
+                public void onError(String error) {
+                    runOnUiThread(() -> {
+                        pendingCalls[0]--;
+                        // 如果 API 不支持，允许继续（后续会保存到本地）
+                        if (error.contains("404") || error.contains("not supported")) {
+                            if (pendingCalls[0] == 0) {
+                                finishSave(newProvider, newModel, newCwd, newTitle);
+                            }
+                        } else {
+                            hasError[0] = true;
+                            errorMessage[0] = "标题更新失败: " + error;
                             progressBar.setVisibility(View.GONE);
                             tvStatus.setText("");
                             Toast.makeText(SessionSettingsActivity.this, errorMessage[0], Toast.LENGTH_SHORT).show();
@@ -544,7 +596,7 @@ public class SessionSettingsActivity extends AppCompatActivity {
     /**
      * 完成保存操作
      */
-    private void finishSave(String newProvider, String newModel, String newCwd) {
+    private void finishSave(String newProvider, String newModel, String newCwd, String newTitle) {
         progressBar.setVisibility(View.GONE);
         tvStatus.setText("");
         
@@ -554,6 +606,7 @@ public class SessionSettingsActivity extends AppCompatActivity {
             session.setProvider(newProvider);
             session.setModel(newModel);
             session.setCwd(newCwd);
+            session.setTitle(newTitle);
             sessionManager.updateSession(session);
         }
         
@@ -562,6 +615,7 @@ public class SessionSettingsActivity extends AppCompatActivity {
         result.putExtra(RESULT_PROVIDER, newProvider);
         result.putExtra(RESULT_MODEL, newModel);
         result.putExtra(RESULT_CWD, newCwd);
+        result.putExtra(RESULT_TITLE, newTitle);
         setResult(RESULT_OK, result);
         
         Toast.makeText(SessionSettingsActivity.this, "设置已保存", Toast.LENGTH_SHORT).show();
