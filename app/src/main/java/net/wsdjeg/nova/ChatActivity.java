@@ -867,9 +867,9 @@ public class ChatActivity extends AppCompatActivity {
                     boolean addedNew = false;
                     for (int i = 0; i < chatMessages.size(); i++) {
                         ApiClient.ChatMessage msg = chatMessages.get(i);
-                        
                         // 详细日志
                         boolean isTool = "tool".equals(msg.role);
+                        boolean hasToolCalls = (msg.toolCalls != null && !msg.toolCalls.isEmpty());
                         StringBuilder tcInfo = new StringBuilder();
                         if (hasToolCalls) {
                             tcInfo.append("tool_calls[").append(msg.toolCalls.size()).append("]:");
@@ -880,7 +880,7 @@ public class ChatActivity extends AppCompatActivity {
                         }
                         Log.d(TAG, "  MSG[" + i + "] role=" + msg.role + 
                               ", hasToolCalls=" + hasToolCalls + 
-                              ", isTool=" + isTool +
+                              ", isTool=" + isTool + 
                               ", isTool=" + isTool + 
                               ", toolCallState=" + (msg.toolCallState != null ? msg.toolCallState.name : "null") +
                               ", contentLen=" + (msg.content == null ? "null" : msg.content.length()) +
