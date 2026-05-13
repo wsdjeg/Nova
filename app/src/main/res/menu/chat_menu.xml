@@ -25,6 +25,10 @@
                 android:title="预览" />
             
             <item
+                android:id="@+id/action_view_json"
+                android:title="查看JSON" />
+            
+            <item
                 android:id="@+id/action_view_log"
                 android:title="查看日志" />
             
