@@ -295,6 +295,11 @@ public class ChatActivity extends AppCompatActivity {
      * 正确处理 error 字段、tool_calls 和 tool_call_state
      */
     private Message createMessageFromChatMessage(ApiClient.ChatMessage msg) {
+        Log.d(TAG, "createMessageFromChatMessage: role=" + msg.role 
+            + ", hasToolCalls=" + (msg.toolCalls != null && !msg.toolCalls.isEmpty())
+            + ", toolCallState=" + (msg.toolCallState != null ? msg.toolCallState.name : "null")
+            + ", contentLen=" + (msg.content == null ? "null" : msg.content.length()));
+        
         // 如果有 error 字段，创建错误消息
         if (msg.error != null && !msg.error.isEmpty()) {
             return new Message(msg.error, msg.created);
@@ -306,18 +311,22 @@ public class ChatActivity extends AppCompatActivity {
         // 设置 tool_calls（assistant 消息中的工具调用请求）
         if (msg.toolCalls != null && !msg.toolCalls.isEmpty()) {
             message.setToolCalls(msg.toolCalls);
-            Log.d(TAG, "createMessageFromChatMessage: set toolCalls=" + msg.toolCalls.size() + " for role=" + msg.role);
+            Log.d(TAG, "  → set toolCalls=" + msg.toolCalls.size() + " on Message object");
+            for (ApiClient.ToolCall tc : msg.toolCalls) {
+                Log.d(TAG, "    toolCall: id=" + tc.id + ", name=" + tc.name);
+            }
         }
         
         // 设置 tool_call_state（tool 消息中的工具状态）
         if (msg.toolCallState != null) {
             message.setToolName(msg.toolCallState.name);
             message.setToolError(msg.toolCallState.error);
+            Log.d(TAG, "  → set toolCallState: name=" + msg.toolCallState.name);
         }
         
+        Log.d(TAG, "  → result: Message.hasToolCalls=" + message.hasToolCalls());
         return message;
     }
-    
     /**
      * 获取消息的唯一标识（用于指纹缓存）
      * 错误消息使用 error 内容

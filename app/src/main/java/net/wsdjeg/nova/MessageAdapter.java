@@ -109,45 +109,67 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
      * - assistant 消息如果有 tool_calls，拆分为多个 ToolCallItem
      * - assistant 消息如果有 content，单独显示 content
      */
+    /**
+     * 更新可见项列表
+     * 将消息拆分为多个显示项：
+     * - 普通消息直接添加
+     * - tool 消息直接添加（简洁显示）
+     * - assistant 消息如果有 tool_calls，拆分为多个 ToolCallItem
+     * - assistant 消息如果有 content，单独显示 content
+     */
     private void updateVisibleItems() {
         visibleItems.clear();
         Log.d(TAG, "=== updateVisibleItems: " + messages.size() + " messages ===");
         
         for (int msgIdx = 0; msgIdx < messages.size(); msgIdx++) {
             Message msg = messages.get(msgIdx);
+            
+            // 详细记录每条消息的状态
+            Log.d(TAG, "  MSG[" + msgIdx + "]: role=" + msg.getRole() 
+                + ", hasToolCalls=" + msg.hasToolCalls()
+                + ", isTool=" + msg.isToolMessage()
+                + ", contentLen=" + (msg.getContent() == null ? "null" : msg.getContent().length())
+                + ", shouldDisplay=" + msg.shouldDisplay());
+            
             if (!msg.shouldDisplay()) {
-                Log.d(TAG, "  MSG[" + msgIdx + "]: SKIP shouldDisplay=false, role=" + msg.getRole());
+                Log.d(TAG, "    → SKIP: shouldDisplay=false");
                 continue;
             }
             
             // tool 消息：直接添加
             if (msg.isToolMessage()) {
-                Log.d(TAG, "  MSG[" + msgIdx + "]: ADD tool message, toolName=" + msg.getToolName());
+                Log.d(TAG, "    → ADD tool message, toolName=" + msg.getToolName());
                 visibleItems.add(msg);
                 continue;
             }
             
             // assistant 消息：检查是否有 tool_calls
-            if (msg.isAssistant() && msg.hasToolCalls()) {
-                Log.d(TAG, "  MSG[" + msgIdx + "]: assistant with tool_calls[" + msg.getToolCalls().size() + "]");
-                // 先显示 content（如果有且不为空）
-                if (msg.getContent() != null && !msg.getContent().trim().isEmpty()) {
-                    Log.d(TAG, "    → ADD content item");
+            if (msg.isAssistant()) {
+                if (msg.hasToolCalls()) {
+                    Log.d(TAG, "    → assistant with tool_calls[" + msg.getToolCalls().size() + "]");
+                    // 先显示 content（如果有且不为空）
+                    if (msg.getContent() != null && !msg.getContent().trim().isEmpty()) {
+                        Log.d(TAG, "      → ADD content item");
+                        visibleItems.add(msg);
+                    }
+                    
+                    // 拆分 tool_calls 为单独的显示项
+                    List<ApiClient.ToolCall> toolCalls = msg.getToolCalls();
+                    for (int i = 0; i < toolCalls.size(); i++) {
+                        ToolCallItem item = new ToolCallItem(msg, toolCalls.get(i), i);
+                        Log.d(TAG, "      → ADD ToolCallItem: " + toolCalls.get(i).name);
+                        visibleItems.add(item);
+                    }
+                } else {
+                    // assistant 消息没有 tool_calls，直接显示 content
+                    Log.d(TAG, "    → ADD assistant message (no tool_calls)");
                     visibleItems.add(msg);
-                }
-                
-                // 拆分 tool_calls 为单独的显示项
-                List<ApiClient.ToolCall> toolCalls = msg.getToolCalls();
-                for (int i = 0; i < toolCalls.size(); i++) {
-                    ToolCallItem item = new ToolCallItem(msg, toolCalls.get(i), i);
-                    Log.d(TAG, "    → ADD ToolCallItem: " + toolCalls.get(i).name);
-                    visibleItems.add(item);
                 }
                 continue;
             }
             
             // 其他消息：直接添加
-            Log.d(TAG, "  MSG[" + msgIdx + "]: ADD " + (msg.isUser() ? "user" : "bot") + " message");
+            Log.d(TAG, "    → ADD " + (msg.isUser() ? "user" : "other") + " message");
             visibleItems.add(msg);
         }
         
