@@ -317,11 +317,12 @@ public class ChatActivity extends AppCompatActivity {
             message.setToolCalls(msg.toolCalls);
             Log.d(TAG, "  → set toolCalls=" + msg.toolCalls.size() + " on Message object");
             for (ApiClient.ToolCall tc : msg.toolCalls) {
-                Log.d(TAG, "    toolCall: id=" + tc.id + ", name=" + tc.name);
+                String toolName = (tc.function != null) ? tc.function.name : "<unknown>";
+                Log.d(TAG, "    toolCall: id=" + tc.id + ", name=" + toolName);
             }
         }
         
-        // 设置 tool_call_state（tool 消息中的工具状态）
+        // 设置 tool_call-state（tool 消息中的工具状态）
         if (msg.toolCallState != null) {
             message.setToolName(msg.toolCallState.name);
             message.setToolError(msg.toolCallState.error);
@@ -868,17 +869,18 @@ public class ChatActivity extends AppCompatActivity {
                         ApiClient.ChatMessage msg = chatMessages.get(i);
                         
                         // 详细日志
-                        boolean hasToolCalls = msg.toolCalls != null && !msg.toolCalls.isEmpty();
                         boolean isTool = "tool".equals(msg.role);
                         StringBuilder tcInfo = new StringBuilder();
                         if (hasToolCalls) {
                             tcInfo.append("tool_calls[").append(msg.toolCalls.size()).append("]:");
                             for (ApiClient.ToolCall tc : msg.toolCalls) {
-                                tcInfo.append(tc.name).append(",");
+                                String toolName = (tc.function != null) ? tc.function.name : "<unknown>";
+                                tcInfo.append(toolName).append(",");
                             }
                         }
                         Log.d(TAG, "  MSG[" + i + "] role=" + msg.role + 
                               ", hasToolCalls=" + hasToolCalls + 
+                              ", isTool=" + isTool +
                               ", isTool=" + isTool + 
                               ", toolCallState=" + (msg.toolCallState != null ? msg.toolCallState.name : "null") +
                               ", contentLen=" + (msg.content == null ? "null" : msg.content.length()) +
