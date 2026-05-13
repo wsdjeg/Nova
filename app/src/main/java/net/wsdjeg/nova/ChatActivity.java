@@ -16,9 +16,11 @@ import android.view.View;
 import android.view.ViewTreeObserver;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 import androidx.core.content.ContextCompat;
@@ -29,6 +31,8 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
+import org.json.JSONArray;
+import org.json.JSONObject;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -575,7 +579,6 @@ public class ChatActivity extends AppCompatActivity {
             return true;
         }
         if (id == R.id.action_refresh) {
-        if (id == R.id.action_refresh) {
             reloadMessages();
             return true;
         } else if (id == R.id.action_clear_session) {
@@ -587,13 +590,115 @@ public class ChatActivity extends AppCompatActivity {
         } else if (id == R.id.action_preview) {
             openPreviewUrl();
             return true;
+        } else if (id == R.id.action_view_json) {
+            showSessionJson();
+            return true;
         } else if (id == R.id.action_settings) {
             openSessionSettings();
             return true;
-        } else if (id == R.id.action_view_logs) {
+        } else if (id == R.id.action_view_log) {
             startActivity(new Intent(this, LogViewerActivity.class));
             return true;
         }
+        return super.onOptionsItemSelected(item);
+    }
+    
+    /**
+     * 显示会话 JSON 查看器
+     * 使用 GET /sessions/:id/raw API 获取原始 JSON
+     */
+    private void showSessionJson() {
+        if (apiClient == null || currentSessionId == null) {
+            Toast.makeText(this, "会话信息无效", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        // 显示加载提示
+        Toast.makeText(this, "正在获取JSON...", Toast.LENGTH_SHORT).show();
+        
+        apiClient.getSessionRaw(currentSessionId, new ApiClient.ApiCallback() {
+            @Override
+            public void onSuccess(String response) {
+                runOnUiThread(() -> {
+                    // 格式化 JSON
+                    String formattedJson = formatJson(response);
+                    showJsonDialog(formattedJson);
+                });
+            }
+            
+            @Override
+            public void onError(String error) {
+                runOnUiThread(() -> {
+                    Toast.makeText(ChatActivity.this, "获取JSON失败: " + error, Toast.LENGTH_SHORT).show();
+                });
+            }
+        });
+    }
+    
+    /**
+     * 格式化 JSON 字符串，使其更易阅读
+     */
+    private String formatJson(String json) {
+        try {
+            // 尝试作为 JSONObject 解析
+            JSONObject obj = new JSONObject(json);
+            return obj.toString(2);  // 缩进2个空格
+        } catch (Exception e1) {
+            try {
+                // 尝试作为 JSONArray 解析
+                JSONArray arr = new JSONArray(json);
+                return arr.toString(2);
+            } catch (Exception e2) {
+                // 无法解析，返回原始内容
+                return json;
+            }
+        }
+    }
+    
+    /**
+     * 显示 JSON 对话框
+     */
+    private void showJsonDialog(String json) {
+        // 创建 ScrollView 包裹 TextView
+        ScrollView scrollView = new ScrollView(this);
+        scrollView.setBackgroundColor(Color.parseColor("#1E1E1E"));
+        
+        TextView textView = new TextView(this);
+        textView.setText(json);
+        textView.setTextColor(Color.parseColor("#D4D4D4"));
+        textView.setTextSize(12);
+        textView.setPadding(16, 16, 16, 16);
+        textView.setTextIsSelectable(true);  // 允许选择复制
+        
+        scrollView.addView(textView);
+        
+        // 创建对话框
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("会话JSON - " + currentSessionId);
+        builder.setView(scrollView);
+        builder.setPositiveButton("关闭", null);
+        builder.setNegativeButton("复制", (dialog, which) -> {
+            // 复制到剪贴板
+            android.content.ClipboardManager clipboard = 
+                (android.content.ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
+            android.content.ClipData clip = android.content.ClipData.newPlainText("session_json", json);
+            clipboard.setPrimaryClip(clip);
+            Toast.makeText(this, "已复制到剪贴板", Toast.LENGTH_SHORT).show();
+        });
+        
+        AlertDialog dialog = builder.create();
+        dialog.show();
+        
+        // 设置对话框最大高度为屏幕高度的 70%
+        android.view.Window window = dialog.getWindow();
+        if (window != null) {
+            int maxHeight = (int) (getResources().getDisplayMetrics().heightPixels * 0.7);
+            window.setLayout(
+                android.view.WindowManager.LayoutParams.MATCH_PARENT,
+                maxHeight
+            );
+        }
+    }
     
     private void updateSessionInfo(String intentProvider, String intentModel, String intentCwd) {
         if (intentProvider != null && !intentProvider.isEmpty() && 
@@ -1421,7 +1526,7 @@ public class ChatActivity extends AppCompatActivity {
     }
     
     private void clearSession() {
-        new android.app.AlertDialog.Builder(this)
+        new AlertDialog.Builder(this)
             .setTitle("清空会话")
             .setMessage("确定要清空当前会话的所有消息吗？")
             .setPositiveButton("清空", (dialog, which) -> {
@@ -1456,7 +1561,7 @@ public class ChatActivity extends AppCompatActivity {
     }
     
     private void deleteSession() {
-        new android.app.AlertDialog.Builder(this)
+        new AlertDialog.Builder(this)
             .setTitle("删除会话")
             .setMessage("确定要删除当前会话吗？")
             .setPositiveButton("删除", (dialog, which) -> {

@@ -615,6 +615,93 @@ public class ApiClient {
         }).start();
     }
     
+    /**
+     * 获取会话原始 JSON 数据
+     * API 端点: GET /sessions/:id/raw
+     * 响应格式: 完整的会话 JSON 数据（包含所有消息）
+     */
+    public void getSessionRaw(String sessionId, ApiCallback callback) {
+        String baseUrl = getBaseUrl();
+        String apiKey = getApiKey();
+        
+        if (baseUrl.isEmpty() || apiKey.isEmpty()) {
+            callback.onError("Please configure API settings");
+            return;
+        }
+        
+        if (sessionId == null || sessionId.isEmpty()) {
+            callback.onError("Session ID is required");
+            return;
+        }
+        
+        new Thread(() -> {
+            HttpURLConnection conn = null;
+            BufferedReader br = null;
+            try {
+                URL url = new URL(baseUrl + "/sessions/" + sessionId + "/raw");
+                conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("GET");
+                conn.setRequestProperty("X-API-Key", apiKey);
+                conn.setRequestProperty("Connection", "close");
+                conn.setRequestProperty("Accept", "application/json");
+                conn.setConnectTimeout(15000);
+                conn.setReadTimeout(60000);
+                conn.setUseCaches(false);
+                
+                int responseCode = conn.getResponseCode();
+                
+                if (responseCode == 200) {
+                    br = new BufferedReader(new InputStreamReader(conn.getInputStream(), "UTF-8"));
+                    StringBuilder response = new StringBuilder();
+                    String line;
+                    while ((line = br.readLine()) != null) {
+                        response.append(line);
+                    }
+                    
+                    // 尝试格式化 JSON 以便于阅读
+                    String jsonString = response.toString();
+                    try {
+                        JSONObject jsonObj = new JSONObject(jsonString);
+                        jsonString = jsonObj.toString(2);  // 缩进2个空格
+                    } catch (Exception e) {
+                        // 如果不是 JSON 对象，可能是 JSON 数组
+                        try {
+                            JSONArray jsonArr = new JSONArray(jsonString);
+                            jsonString = jsonArr.toString(2);
+                        } catch (Exception e2) {
+                            // 保持原始格式
+                        }
+                    }
+                    
+                    final String formattedJson = jsonString;
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onSuccess(formattedJson));
+                } else if (responseCode == 404) {
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onError("Session not found"));
+                } else if (responseCode == 401) {
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onError("Unauthorized: Invalid API Key"));
+                } else {
+                    final int code = responseCode;
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onError("Error: HTTP " + code));
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "getSessionRaw failed", e);
+                new Handler(Looper.getMainLooper()).post(() -> 
+                    callback.onError("Network error: " + e.getMessage()));
+            } finally {
+                if (br != null) {
+                    try { br.close(); } catch (Exception ignored) {}
+                }
+                if (conn != null) {
+                    conn.disconnect();
+                }
+            }
+        }).start();
+    }
+    
     public void getProviders(ProvidersCallback callback) {
         String baseUrl = getBaseUrl();
         String apiKey = getApiKey();
