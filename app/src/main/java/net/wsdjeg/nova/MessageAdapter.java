@@ -101,14 +101,8 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
             .usePlugin(HtmlPlugin.create())
             .build();
         updateVisibleItems();
-    /**
-     * 更新可见项列表
-     * 将消息拆分为多个显示项：
-     * - 普通消息直接添加
-     * - tool 消息直接添加（简洁显示）
-     * - assistant 消息如果有 tool_calls，拆分为多个 ToolCallItem
-     * - assistant 消息如果有 content，单独显示 content
-     */
+    }
+    
     /**
      * 更新可见项列表
      * 将消息拆分为多个显示项：
@@ -175,6 +169,10 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
         
         Log.d(TAG, "=== updateVisibleItems result: " + visibleItems.size() + " visible items ===");
     }
+    
+    @Override
+    public int getItemViewType(int position) {
+        Object item = visibleItems.get(position);
         
         if (item instanceof ToolCallItem) {
             return TYPE_TOOL_CALL;
