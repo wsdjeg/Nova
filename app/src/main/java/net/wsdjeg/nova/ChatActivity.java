@@ -159,7 +159,7 @@ public class ChatActivity extends AppCompatActivity {
     private Runnable keyboardScrollRunnable = null;
     private int lastRecyclerViewHeight = -1;  // 记录 RecyclerView 高度变化
     private long lastKeyboardScrollTime = 0;  // 键盘滚动防抖时间戳
-    private int accumulatedHeightDelta = 0;   // 累积的高度变化（用于防抖）
+    private int accumulatedHeightDelta = 0;   // 皴积的高度变化（用于防抖）
     
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -596,9 +596,6 @@ public class ChatActivity extends AppCompatActivity {
             return true;
         } else if (id == R.id.action_settings) {
             openSessionSettings();
-            return true;
-        } else if (id == R.id.action_view_log) {
-            startActivity(new Intent(this, LogViewerActivity.class));
             return true;
         }
         return super.onOptionsItemSelected(item);
