@@ -305,6 +305,10 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
             }
             holder.contentText.setVisibility(View.VISIBLE);
             
+            // 始终设置固定高度，让内容可以滚动
+            int collapsedHeightPx = calculateHeightPx(COLLAPSED_LINES);
+            int expandedHeightPx = calculateHeightPx(EXPANDED_LINES);
+            
             // 检查内容是否超过折叠行数
             holder.contentText.post(() -> {
                 int lineCount = holder.contentText.getLineCount();
@@ -312,12 +316,15 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
                     holder.expandHint.setVisibility(View.VISIBLE);
                     // 检查展开状态
                     boolean isExpanded = expandedToolCalls.contains(position);
-                    updateContentHeight(holder, isExpanded);
+                    int heightPx = isExpanded ? expandedHeightPx : collapsedHeightPx;
+                    holder.contentScrollV.getLayoutParams().height = heightPx;
+                    holder.contentScrollV.requestLayout();
                     holder.expandHint.setText(isExpanded ? "收起 ▲" : "展开 ▼");
                 } else {
+                    // 内容不足折叠行数，也设置固定高度（允许内部滚动）
                     holder.expandHint.setVisibility(View.GONE);
-                    // 内容不足折叠行数，设置实际高度
-                    holder.contentScrollV.getLayoutParams().height = ViewGroup.LayoutParams.WRAP_CONTENT;
+                    holder.contentScrollV.getLayoutParams().height = collapsedHeightPx;
+                    holder.contentScrollV.requestLayout();
                 }
             });
         } else {
@@ -334,13 +341,14 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
             boolean isExpanded = expandedToolCalls.contains(position);
             if (isExpanded) {
                 expandedToolCalls.remove(position);
-                updateContentHeight(holder, false);
+                holder.contentScrollV.getLayoutParams().height = calculateHeightPx(COLLAPSED_LINES);
                 holder.expandHint.setText("展开 ▼");
             } else {
                 expandedToolCalls.add(position);
-                updateContentHeight(holder, true);
+                holder.contentScrollV.getLayoutParams().height = calculateHeightPx(EXPANDED_LINES);
                 holder.expandHint.setText("收起 ▲");
             }
+            holder.contentScrollV.requestLayout();
         };
         holder.expandHint.setOnClickListener(toggleListener);
         
@@ -349,24 +357,6 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
             copyToClipboard(item.getToolName() + "\n" + args);
             return true;
         });
-    }
-    
-    /**
-     * 更新内容区域高度
-     */
-    private void updateContentHeight(ToolCallViewHolder holder, boolean isExpanded) {
-        int heightPx = calculateHeightPx(isExpanded ? EXPANDED_LINES : COLLAPSED_LINES);
-        holder.contentScrollV.getLayoutParams().height = heightPx;
-        holder.contentScrollV.requestLayout();
-    }
-    
-    /**
-     * 更新内容区域高度 (ToolResult)
-     */
-    private void updateResultContentHeight(ToolResultViewHolder holder, boolean isExpanded) {
-        int heightPx = calculateHeightPx(isExpanded ? EXPANDED_LINES : COLLAPSED_LINES);
-        holder.contentScrollV.getLayoutParams().height = heightPx;
-        holder.contentScrollV.requestLayout();
     }
     
     /**
@@ -392,18 +382,25 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
             holder.contentText.setText(content);
             holder.contentText.setVisibility(View.VISIBLE);
             
+            // 始终设置固定高度，让内容可以滚动
+            int collapsedHeightPx = calculateHeightPx(COLLAPSED_LINES);
+            int expandedHeightPx = calculateHeightPx(EXPANDED_LINES);
+            
             // 检查内容是否超过折叠行数
             holder.contentText.post(() -> {
                 int lineCount = holder.contentText.getLineCount();
                 if (lineCount > COLLAPSED_LINES) {
                     holder.expandHint.setVisibility(View.VISIBLE);
                     boolean isExpanded = expandedToolResults.contains(position);
-                    updateResultContentHeight(holder, isExpanded);
+                    int heightPx = isExpanded ? expandedHeightPx : collapsedHeightPx;
+                    holder.contentScrollV.getLayoutParams().height = heightPx;
+                    holder.contentScrollV.requestLayout();
                     holder.expandHint.setText(isExpanded ? "收起 ▲" : "展开 ▼");
                 } else {
+                    // 内容不足折叠行数，也设置固定高度（允许内部滚动）
                     holder.expandHint.setVisibility(View.GONE);
-                    // 内容不足折叠行数，设置实际高度
-                    holder.contentScrollV.getLayoutParams().height = ViewGroup.LayoutParams.WRAP_CONTENT;
+                    holder.contentScrollV.getLayoutParams().height = collapsedHeightPx;
+                    holder.contentScrollV.requestLayout();
                 }
             });
         } else {
@@ -420,13 +417,14 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
             boolean isExpanded = expandedToolResults.contains(position);
             if (isExpanded) {
                 expandedToolResults.remove(position);
-                updateResultContentHeight(holder, false);
+                holder.contentScrollV.getLayoutParams().height = calculateHeightPx(COLLAPSED_LINES);
                 holder.expandHint.setText("展开 ▼");
             } else {
                 expandedToolResults.add(position);
-                updateResultContentHeight(holder, true);
+                holder.contentScrollV.getLayoutParams().height = calculateHeightPx(EXPANDED_LINES);
                 holder.expandHint.setText("收起 ▲");
             }
+            holder.contentScrollV.requestLayout();
         };
         holder.expandHint.setOnClickListener(toggleListener);
         
