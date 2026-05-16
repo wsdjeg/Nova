@@ -15,11 +15,18 @@ import android.widget.TextView;
 import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.core.content.ContextCompat;
+import androidx.core.widget.NestedScrollView;
 import androidx.recyclerview.widget.RecyclerView;
 import io.noties.markwon.Markwon;
 import io.noties.markwon.ext.tables.TablePlugin;
 import io.noties.markwon.ext.tasklist.TaskListPlugin;
 import io.noties.markwon.ext.strikethrough.StrikethroughPlugin;
+import io.noties.markwon.html.HtmlPlugin;
+import io.noties.markwon.core.MarkwonTheme;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 import io.noties.markwon.html.HtmlPlugin;
 import io.noties.markwon.core.MarkwonTheme;
 import java.util.ArrayList;
@@ -589,7 +596,7 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
         TextView timeText;
         TextView expandHint;
         HorizontalScrollView contentScrollH;
-        ScrollView contentScrollV;
+        NestedScrollView contentScrollV;
 
         ToolCallViewHolder(View itemView) {
             super(itemView);
@@ -613,7 +620,7 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
         TextView contentText;
         TextView expandHint;
         HorizontalScrollView contentScrollH;
-        ScrollView contentScrollV;
+        NestedScrollView contentScrollV;
 
         ToolResultViewHolder(View itemView) {
             super(itemView);
