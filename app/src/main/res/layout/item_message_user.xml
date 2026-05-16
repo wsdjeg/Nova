@@ -3,25 +3,35 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:padding="8dp"
-    android:gravity="end">
+    android:padding="8dp">
 
-    <TextView
-        android:id="@+id/messageText"
-        android:layout_width="wrap_content"
+    <!-- 水平容器用于控制宽度占比 -->
+    <LinearLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:maxWidth="320dp"
-        android:padding="14dp"
-        android:textSize="16sp"
-        android:lineSpacingExtra="4dp"
-        android:background="@drawable/user_message_bg"
-        android:textColor="#FFFFFF" />
+        android:orientation="horizontal"
+        android:gravity="end"
+        android:weightSum="1.0">
+
+        <TextView
+            android:id="@+id/messageText"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="0.9"
+            android:padding="14dp"
+            android:textSize="16sp"
+            android:lineSpacingExtra="4dp"
+            android:background="@drawable/user_message_bg"
+            android:textColor="#FFFFFF" />
+
+    </LinearLayout>
 
     <TextView
         android:id="@+id/timeText"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="4dp"
+        android:layout_gravity="end"
         android:textSize="12sp"
         android:textColor="#999999" />
 
