@@ -52,20 +52,20 @@
 
         </LinearLayout>
 
-        <!-- Tool arguments container - 可滚动 -->
-        <HorizontalScrollView
-            android:id="@+id/contentScrollH"
+        <!-- Tool arguments container - 垂直滚动在外层，水平滚动在内层 -->
+        <ScrollView
+            android:id="@+id/contentScrollV"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
-            android:scrollbars="horizontal"
+            android:scrollbars="vertical"
             android:fillViewport="false">
 
-            <ScrollView
-                android:id="@+id/contentScrollV"
+            <HorizontalScrollView
+                android:id="@+id/contentScrollH"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:scrollbars="vertical"
+                android:scrollbars="horizontal"
                 android:fillViewport="false">
 
                 <TextView
@@ -79,9 +79,9 @@
                     android:fontFamily="monospace"
                     android:visibility="gone" />
 
-            </ScrollView>
+            </HorizontalScrollView>
 
-        </HorizontalScrollView>
+        </ScrollView>
 
     </LinearLayout>
 
