@@ -10,7 +10,6 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.HorizontalScrollView;
-import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 import androidx.annotation.NonNull;
@@ -22,13 +21,6 @@ import io.noties.markwon.ext.tables.TablePlugin;
 import io.noties.markwon.ext.tasklist.TaskListPlugin;
 import io.noties.markwon.ext.strikethrough.StrikethroughPlugin;
 import io.noties.markwon.html.HtmlPlugin;
-import io.noties.markwon.core.MarkwonTheme;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import io.noties.markwon.html.HtmlPlugin;
-import io.noties.markwon.core.MarkwonTheme;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -284,6 +276,19 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
         return (int) (lineSp * lines * density);
     }
     
+    /**
+     * 安全设置视图高度
+     * 添加空检查避免闪退
+     */
+    private void safeSetHeight(NestedScrollView scrollView, int heightPx) {
+        if (scrollView == null) return;
+        ViewGroup.LayoutParams params = scrollView.getLayoutParams();
+        if (params != null) {
+            params.height = heightPx;
+            scrollView.requestLayout();
+        }
+    }
+    
     private void bindToolCallViewHolder(ToolCallViewHolder holder, ToolCallItem item, int position) {
         // 状态图标
         holder.statusIcon.setText("🔧");
@@ -305,26 +310,38 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
             }
             holder.contentText.setVisibility(View.VISIBLE);
             
+            // 使用 final 变量避免在 post() 中使用可变状态
+            final NestedScrollView contentScrollV = holder.contentScrollV;
+            final TextView contentText = holder.contentText;
+            final TextView expandHint = holder.expandHint;
+            final int collapsedHeightPx = calculateHeightPx(COLLAPSED_LINES);
+            final int expandedHeightPx = calculateHeightPx(EXPANDED_LINES);
+            final int originalPosition = position;
+            
             // 始终设置固定高度，让内容可以滚动
-            int collapsedHeightPx = calculateHeightPx(COLLAPSED_LINES);
-            int expandedHeightPx = calculateHeightPx(EXPANDED_LINES);
+            safeSetHeight(contentScrollV, collapsedHeightPx);
             
             // 检查内容是否超过折叠行数
-            holder.contentText.post(() -> {
-                int lineCount = holder.contentText.getLineCount();
+            contentText.post(() -> {
+                // 检查 holder 是否仍然有效
+                if (contentScrollV == null || expandHint == null) return;
+                
+                // 使用 holder 的当前位置，而不是原来的 position
+                int currentPos = holder.getAdapterPosition();
+                if (currentPos == RecyclerView.NO_POSITION) return;
+                
+                int lineCount = contentText.getLineCount();
                 if (lineCount > COLLAPSED_LINES) {
-                    holder.expandHint.setVisibility(View.VISIBLE);
-                    // 检查展开状态
-                    boolean isExpanded = expandedToolCalls.contains(position);
+                    expandHint.setVisibility(View.VISIBLE);
+                    // 检查展开状态（使用当前位置）
+                    boolean isExpanded = expandedToolCalls.contains(currentPos);
                     int heightPx = isExpanded ? expandedHeightPx : collapsedHeightPx;
-                    holder.contentScrollV.getLayoutParams().height = heightPx;
-                    holder.contentScrollV.requestLayout();
-                    holder.expandHint.setText(isExpanded ? "收起 ▲" : "展开 ▼");
+                    safeSetHeight(contentScrollV, heightPx);
+                    expandHint.setText(isExpanded ? "收起 ▲" : "展开 ▼");
                 } else {
                     // 内容不足折叠行数，也设置固定高度（允许内部滚动）
-                    holder.expandHint.setVisibility(View.GONE);
-                    holder.contentScrollV.getLayoutParams().height = collapsedHeightPx;
-                    holder.contentScrollV.requestLayout();
+                    expandHint.setVisibility(View.GONE);
+                    safeSetHeight(contentScrollV, collapsedHeightPx);
                 }
             });
         } else {
@@ -336,19 +353,21 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
         String time = TimeUtils.formatTime(item.getCreated() * 1000);
         holder.timeText.setText(time);
         
-        // 点击展开/折叠
+        // 点击展开/折叠 - 使用 holder 引用避免 position 问题
         View.OnClickListener toggleListener = v -> {
-            boolean isExpanded = expandedToolCalls.contains(position);
+            int currentPos = holder.getAdapterPosition();
+            if (currentPos == RecyclerView.NO_POSITION) return;
+            
+            boolean isExpanded = expandedToolCalls.contains(currentPos);
             if (isExpanded) {
-                expandedToolCalls.remove(position);
-                holder.contentScrollV.getLayoutParams().height = calculateHeightPx(COLLAPSED_LINES);
+                expandedToolCalls.remove(currentPos);
+                safeSetHeight(holder.contentScrollV, calculateHeightPx(COLLAPSED_LINES));
                 holder.expandHint.setText("展开 ▼");
             } else {
-                expandedToolCalls.add(position);
-                holder.contentScrollV.getLayoutParams().height = calculateHeightPx(EXPANDED_LINES);
+                expandedToolCalls.add(currentPos);
+                safeSetHeight(holder.contentScrollV, calculateHeightPx(EXPANDED_LINES));
                 holder.expandHint.setText("收起 ▲");
             }
-            holder.contentScrollV.requestLayout();
         };
         holder.expandHint.setOnClickListener(toggleListener);
         
@@ -382,25 +401,36 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
             holder.contentText.setText(content);
             holder.contentText.setVisibility(View.VISIBLE);
             
+            // 使用 final 变量避免在 post() 中使用可变状态
+            final NestedScrollView contentScrollV = holder.contentScrollV;
+            final TextView contentText = holder.contentText;
+            final TextView expandHint = holder.expandHint;
+            final int collapsedHeightPx = calculateHeightPx(COLLAPSED_LINES);
+            final int expandedHeightPx = calculateHeightPx(EXPANDED_LINES);
+            
             // 始终设置固定高度，让内容可以滚动
-            int collapsedHeightPx = calculateHeightPx(COLLAPSED_LINES);
-            int expandedHeightPx = calculateHeightPx(EXPANDED_LINES);
+            safeSetHeight(contentScrollV, collapsedHeightPx);
             
             // 检查内容是否超过折叠行数
-            holder.contentText.post(() -> {
-                int lineCount = holder.contentText.getLineCount();
+            contentText.post(() -> {
+                // 检查 holder 是否仍然有效
+                if (contentScrollV == null || expandHint == null) return;
+                
+                // 使用 holder 的当前位置，而不是原来的 position
+                int currentPos = holder.getAdapterPosition();
+                if (currentPos == RecyclerView.NO_POSITION) return;
+                
+                int lineCount = contentText.getLineCount();
                 if (lineCount > COLLAPSED_LINES) {
-                    holder.expandHint.setVisibility(View.VISIBLE);
-                    boolean isExpanded = expandedToolResults.contains(position);
+                    expandHint.setVisibility(View.VISIBLE);
+                    boolean isExpanded = expandedToolResults.contains(currentPos);
                     int heightPx = isExpanded ? expandedHeightPx : collapsedHeightPx;
-                    holder.contentScrollV.getLayoutParams().height = heightPx;
-                    holder.contentScrollV.requestLayout();
-                    holder.expandHint.setText(isExpanded ? "收起 ▲" : "展开 ▼");
+                    safeSetHeight(contentScrollV, heightPx);
+                    expandHint.setText(isExpanded ? "收起 ▲" : "展开 ▼");
                 } else {
                     // 内容不足折叠行数，也设置固定高度（允许内部滚动）
-                    holder.expandHint.setVisibility(View.GONE);
-                    holder.contentScrollV.getLayoutParams().height = collapsedHeightPx;
-                    holder.contentScrollV.requestLayout();
+                    expandHint.setVisibility(View.GONE);
+                    safeSetHeight(contentScrollV, collapsedHeightPx);
                 }
             });
         } else {
@@ -414,17 +444,19 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
         
         // 点击展开/折叠
         View.OnClickListener toggleListener = v -> {
-            boolean isExpanded = expandedToolResults.contains(position);
+            int currentPos = holder.getAdapterPosition();
+            if (currentPos == RecyclerView.NO_POSITION) return;
+            
+            boolean isExpanded = expandedToolResults.contains(currentPos);
             if (isExpanded) {
-                expandedToolResults.remove(position);
-                holder.contentScrollV.getLayoutParams().height = calculateHeightPx(COLLAPSED_LINES);
+                expandedToolResults.remove(currentPos);
+                safeSetHeight(holder.contentScrollV, calculateHeightPx(COLLAPSED_LINES));
                 holder.expandHint.setText("展开 ▼");
             } else {
-                expandedToolResults.add(position);
-                holder.contentScrollV.getLayoutParams().height = calculateHeightPx(EXPANDED_LINES);
+                expandedToolResults.add(currentPos);
+                safeSetHeight(holder.contentScrollV, calculateHeightPx(EXPANDED_LINES));
                 holder.expandHint.setText("收起 ▲");
             }
-            holder.contentScrollV.requestLayout();
         };
         holder.expandHint.setOnClickListener(toggleListener);
         
