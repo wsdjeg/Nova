@@ -57,6 +57,11 @@ import java.util.Set;
  * - processedServerMessageCount: 已处理的服务端消息数（基于服务端计数）
  * - adapter.getItemCount(): 显示的消息数（过滤后的，与服务端计数无关）
  * 
+ * 消息指纹机制：
+ * - 使用综合指纹：role + created + content + toolcall id
+ * - 判断消息是否已存在，避免重复追加
+ * - 同一时间戳可能有多条消息（如多个工具调用结果）
+ * 
  * 下拉加载更多 - 位置恢复机制：
  * - 使用消息 created 时间戳作为锚点（而非索引）
  * - 保存：记录第一条可见消息的 created 时间戳和视觉偏移
@@ -140,8 +145,8 @@ public class ChatActivity extends AppCompatActivity {
     private boolean isLoadingOlder = false;
     private long lastLoadTriggerTime = 0;
     
-    // 消息指纹缓存（使用服务端时间戳 created 作为 key）
-    private Map<Long, String> messageFingerprints = new HashMap<>();
+    // 消息指纹缓存（使用综合指纹：role + created + content + toolcall id）
+    private Set<String> messageFingerprints = new HashSet<>();
     
     // Pending 消息：存储正在发送的消息内容，等待服务端确认（用于UI显示）
     private Map<String, Long> pendingMessages = new HashMap<>();
@@ -332,25 +337,74 @@ public class ChatActivity extends AppCompatActivity {
         Log.d(TAG, "  → result: Message.hasToolCalls=" + message.hasToolCalls());
         return message;
     }
+    
     /**
-     * 获取消息的唯一标识（用于指纹缓存）
-     * 错误消息使用 error 内容
-     * 有 tool_calls 的消息使用 tool_calls 的第一个 ID
-     * 普通消息使用 content
+     * 生成消息的综合指纹
+     * 综合考虑：role + created + content + toolcall id
+     * 
+     * 格式：role|created|content_hash|toolcall_ids
+     * 
+     * 使用场景：
+     * - 判断消息是否已存在，避免重复追加
+     * - 同一时间戳可能有多条消息（如多个工具调用结果）
      */
-    private String getMessageIdentifier(ApiClient.ChatMessage msg) {
-        // 错误消息使用 error 内容
-        if (msg.error != null && !msg.error.isEmpty()) {
-            return "error:" + msg.error;
-        }
+    private String generateMessageFingerprint(ApiClient.ChatMessage msg) {
+        StringBuilder sb = new StringBuilder();
         
-        // 有 tool_calls 的消息使用第一个 tool_call 的 ID
+        // 1. role（消息角色：user/assistant/tool/system）
+        sb.append("role=").append(msg.role != null ? msg.role : "unknown");
+        sb.append("|");
+        
+        // 2. created（服务端时间戳，毫秒级）
+        sb.append("created=").append(msg.created);
+        sb.append("|");
+        
+        // 3. content hash（截取前50字符，避免指纹过长）
+        // 同时包含内容长度，提高区分度
+        if (msg.content != null && !msg.content.isEmpty()) {
+            int len = msg.content.length();
+            String contentPreview = len > 50 ? msg.content.substring(0, 50) : msg.content;
+            // 转义分隔符，避免指纹解析错误
+            contentPreview = contentPreview.replace("|", "\\|").replace("=", "\\=");
+            sb.append("content=").append(contentPreview).append("[len=").append(len).append("]");
+        } else {
+            sb.append("content=empty");
+        }
+        sb.append("|");
+        
+        // 4. toolcall ids（所有 tool_call 的 ID，逗号分隔）
+        // assistant 消息可能包含多个工具调用请求
         if (msg.toolCalls != null && !msg.toolCalls.isEmpty()) {
-            return "tool_call:" + msg.toolCalls.get(0).id;
+            sb.append("toolcalls=");
+            for (int i = 0; i < msg.toolCalls.size(); i++) {
+                ApiClient.ToolCall tc = msg.toolCalls.get(i);
+                sb.append(tc.id);
+                if (i < msg.toolCalls.size() - 1) {
+                    sb.append(",");
+                }
+            }
+        } else {
+            sb.append("toolcalls=none");
         }
         
-        // 普通消息使用 content
-        return msg.content != null ? "content:" + msg.content : "empty";
+        return sb.toString();
+    }
+    
+    /**
+     * 检查消息是否已存在（基于综合指纹）
+     */
+    private boolean isMessageExists(ApiClient.ChatMessage msg) {
+        String fingerprint = generateMessageFingerprint(msg);
+        return messageFingerprints.contains(fingerprint);
+    }
+    
+    /**
+     * 将消息指纹添加到缓存
+     */
+    private void addMessageFingerprint(ApiClient.ChatMessage msg) {
+        String fingerprint = generateMessageFingerprint(msg);
+        messageFingerprints.add(fingerprint);
+        Log.d(TAG, "Added fingerprint: " + fingerprint);
     }
     
     /**
@@ -845,8 +899,14 @@ public class ChatActivity extends AppCompatActivity {
             }
         });
     }
+    
     /**
      * 获取新消息并保持位置
+     * 
+     * 追加判断依据：综合指纹（role + created + content + toolcall id）
+     * - 已存在指纹 → 跳过
+     * - 用户消息匹配 pending → 替换
+     * - 其他 → 追加到末尾
      */
     private void fetchNewMessagesAndRestorePosition() {
         int sinceIndex = processedServerMessageCount + 1;
@@ -864,6 +924,7 @@ public class ChatActivity extends AppCompatActivity {
                     boolean addedNew = false;
                     for (int i = 0; i < chatMessages.size(); i++) {
                         ApiClient.ChatMessage msg = chatMessages.get(i);
+                        
                         // 详细日志
                         boolean isTool = "tool".equals(msg.role);
                         boolean hasToolCalls = (msg.toolCalls != null && !msg.toolCalls.isEmpty());
@@ -876,15 +937,17 @@ public class ChatActivity extends AppCompatActivity {
                             }
                         }
                         Log.d(TAG, "  MSG[" + i + "] role=" + msg.role + 
+                              ", created=" + msg.created +
                               ", hasToolCalls=" + hasToolCalls + 
-                              ", isTool=" + isTool + 
                               ", isTool=" + isTool + 
                               ", toolCallState=" + (msg.toolCallState != null ? msg.toolCallState.name : "null") +
                               ", contentLen=" + (msg.content == null ? "null" : msg.content.length()) +
                               (tcInfo.length() > 0 ? ", " + tcInfo.toString() : ""));
                         
-                        if (messageFingerprints.containsKey(msg.created)) {
-                            Log.d(TAG, "  → SKIP: already exists");
+                        // 使用综合指纹判断是否已存在
+                        String fingerprint = generateMessageFingerprint(msg);
+                        if (messageFingerprints.contains(fingerprint)) {
+                            Log.d(TAG, "  → SKIP: fingerprint already exists: " + fingerprint);
                             continue;
                         }
                         
@@ -895,15 +958,15 @@ public class ChatActivity extends AppCompatActivity {
                                 Log.d(TAG, "  → REPLACE pending at " + pendingIndex);
                                 messages.set(pendingIndex, createMessageFromChatMessage(msg));
                                 pendingMessages.remove(msg.content);
-                                messageFingerprints.put(msg.created, msg.content);
+                                addMessageFingerprint(msg);
                                 continue;
                             }
                         }
                         
+                        // 追加新消息
                         messages.add(createMessageFromChatMessage(msg));
-                        String fingerprint = getMessageIdentifier(msg);
-                        messageFingerprints.put(msg.created, fingerprint);
-                        Log.d(TAG, "  → ADD: fingerprint=" + fingerprint);
+                        addMessageFingerprint(msg);
+                        Log.d(TAG, "  → ADD: new message appended");
                         addedNew = true;
                     }
                     
@@ -1078,7 +1141,7 @@ public class ChatActivity extends AppCompatActivity {
                     
                     for (ApiClient.ChatMessage msg : chatMessages) {
                         messages.add(createMessageFromChatMessage(msg));
-                        messageFingerprints.put(msg.created, getMessageIdentifier(msg));
+                        addMessageFingerprint(msg);
                     }
                     
                     processedServerMessageCount = totalMessageCount;
@@ -1141,10 +1204,12 @@ public class ChatActivity extends AppCompatActivity {
                     
                     for (int i = chatMessages.size() - 1; i >= 0; i--) {
                         ApiClient.ChatMessage msg = chatMessages.get(i);
-                        if (!messageFingerprints.containsKey(msg.created)) {
+                        String fingerprint = generateMessageFingerprint(msg);
+                        
+                        if (!messageFingerprints.contains(fingerprint)) {
                             Message message = createMessageFromChatMessage(msg);
                             messages.add(0, message);
-                            messageFingerprints.put(msg.created, getMessageIdentifier(msg));
+                            addMessageFingerprint(msg);
                             newTotalCount++;
                             
                             if (message.shouldDisplay()) {
@@ -1268,7 +1333,7 @@ public class ChatActivity extends AppCompatActivity {
                         
                         if (newContent != null && !newContent.equals(oldContent)) {
                             messages.set(lastIdx, createMessageFromChatMessage(latestFiltered));
-                            messageFingerprints.put(latestFiltered.created, getMessageIdentifier(latestFiltered));
+                            addMessageFingerprint(latestFiltered);
                             adapter.notifyDataSetChangedWithUpdate();
                             scrollToBottomSmooth();
                         }
