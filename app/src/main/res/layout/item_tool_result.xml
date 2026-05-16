@@ -60,11 +60,12 @@
             <!-- Tool result content container - 嵌套滚动：外层垂直，内层水平 -->
             <androidx.core.widget.NestedScrollView
                 android:id="@+id/contentScrollV"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
+                android:layout_width="match_parent"
+                android:layout_height="60dp"
                 android:layout_marginTop="4dp"
                 android:scrollbars="vertical"
-                android:fillViewport="false">
+                android:fillViewport="false"
+                android:nestedScrollingEnabled="true">
 
                 <HorizontalScrollView
                     android:id="@+id/contentScrollH"
