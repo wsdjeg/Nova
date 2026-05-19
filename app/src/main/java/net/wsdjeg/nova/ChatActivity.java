@@ -691,6 +691,10 @@ public class ChatActivity extends AppCompatActivity {
      * 格式化 JSON 字符串，使其更易阅读
      */
     private String formatJson(String json) {
+        // null 检查：防止 NPE
+        if (json == null || json.isEmpty()) {
+            return "";
+        }
         try {
             // 尝试作为 JSONObject 解析
             JSONObject obj = new JSONObject(json);
@@ -706,8 +710,6 @@ public class ChatActivity extends AppCompatActivity {
             }
         }
     }
-    
-    /**
      * 显示 JSON 对话框
      */
     private void showJsonDialog(String json) {

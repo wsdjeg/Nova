@@ -43,17 +43,17 @@ public class SessionManager {
         for (Session session : sessions) {
             JSONObject json = new JSONObject();
             try {
-                json.put("sessionId", session.getSessionId());
-                json.put("accountId", session.getAccountId());
-                json.put("title", session.getTitle());
-                json.put("firstMessage", session.getFirstMessage());
-                json.put("lastMessage", session.getLastMessage());
+                json.put("sessionId", session.getSessionId() != null ? session.getSessionId() : "");
+                json.put("accountId", session.getAccountId() != null ? session.getAccountId() : "");
+                json.put("title", session.getTitle() != null ? session.getTitle() : "");
+                json.put("firstMessage", session.getFirstMessage() != null ? session.getFirstMessage() : "");
+                json.put("lastMessage", session.getLastMessage() != null ? session.getLastMessage() : "");
                 json.put("lastMessageTime", session.getLastMessageTime());
                 json.put("messageCount", session.getMessageCount());
                 json.put("unreadCount", session.getUnreadCount());
-                json.put("provider", session.getProvider());
-                json.put("model", session.getModel());
-                json.put("cwd", session.getCwd());
+                json.put("provider", session.getProvider() != null ? session.getProvider() : "");
+                json.put("model", session.getModel() != null ? session.getModel() : "");
+                json.put("cwd", session.getCwd() != null ? session.getCwd() : "");
                 json.put("in_progress", session.isInProgress());
                 json.put("firstMessageIndex", session.getFirstMessageIndex());
                 json.put("pinned", session.isPinned());
@@ -67,6 +67,7 @@ public class SessionManager {
     
     /**
      * 加载会话列表，按 sessionId 排序
+     * 使用 optString 避免 JSON 字段缺失导致的崩溃
      */
     public List<Session> loadSessions() {
         List<Session> sessions = new ArrayList<>();
@@ -80,15 +81,20 @@ public class SessionManager {
             JSONArray jsonArray = new JSONArray(jsonStr);
             for (int i = 0; i < jsonArray.length(); i++) {
                 JSONObject json = jsonArray.getJSONObject(i);
-                Session session = new Session(
-                    json.getString("sessionId"),
-                    json.optString("firstMessage", ""),
-                    json.optString("lastMessage", ""),
-                    json.optLong("lastMessageTime", System.currentTimeMillis()),
-                    json.optInt("messageCount", 0)
-                );
+                
+                // 使用 optString 安全获取字段，避免崩溃
+                String sessionId = json.optString("sessionId", "");
+                if (sessionId.isEmpty()) {
+                    continue;  // 跳过无效会话
+                }
+                
+                Session session = new Session(sessionId);
                 session.setAccountId(json.optString("accountId", ""));
                 session.setTitle(json.optString("title", ""));
+                session.setFirstMessage(json.optString("firstMessage", ""));
+                session.setLastMessage(json.optString("lastMessage", ""));
+                session.setLastMessageTime(json.optLong("lastMessageTime", System.currentTimeMillis()));
+                session.setMessageCount(json.optInt("messageCount", 0));
                 session.setUnreadCount(json.optInt("unreadCount", 0));
                 session.setProvider(json.optString("provider", ""));
                 session.setModel(json.optString("model", ""));
@@ -97,11 +103,12 @@ public class SessionManager {
                 session.setFirstMessageIndex(json.optInt("firstMessageIndex", 0));
                 session.setPinned(json.optBoolean("pinned", false));
                 // 加载草稿
-                session.setDraft(getDraft(json.getString("sessionId")));
+                session.setDraft(getDraft(sessionId));
                 sessions.add(session);
             }
         } catch (JSONException e) {
             e.printStackTrace();
+            // JSON 解析失败，返回空列表而不是崩溃
         }
         
         Collections.sort(sessions, (s1, s2) -> 
@@ -158,6 +165,10 @@ public class SessionManager {
      * 添加或更新会话
      */
     public void addOrUpdateSession(Session newSession) {
+        if (newSession == null || newSession.getSessionId() == null) {
+            return;  // 安全检查
+        }
+        
         List<Session> sessions = loadSessions();
         boolean found = false;
         
@@ -180,7 +191,8 @@ public class SessionManager {
      * 添加或更新会话（指定账号）
      */
     public void addOrUpdateSession(Session session, String accountId) {
-        session.setAccountId(accountId);
+        if (session == null) return;
+        session.setAccountId(accountId != null ? accountId : "");
         addOrUpdateSession(session);
     }
     
@@ -195,6 +207,8 @@ public class SessionManager {
      * 更新会话的消息信息
      */
     public void updateMessages(String sessionId, String firstMessage, String lastMessage, int messageCount, long lastMessageTime) {
+        if (sessionId == null || sessionId.isEmpty()) return;
+        
         List<Session> sessions = loadSessions();
         
         for (Session session : sessions) {
@@ -202,7 +216,7 @@ public class SessionManager {
                 if (firstMessage != null && !firstMessage.isEmpty()) {
                     session.setFirstMessage(firstMessage);
                 }
-                session.setLastMessage(lastMessage);
+                session.setLastMessage(lastMessage != null ? lastMessage : "");
                 session.setLastMessageTime(lastMessageTime);
                 session.setMessageCount(messageCount);
                 break;
@@ -216,6 +230,8 @@ public class SessionManager {
      * 更新会话的 firstMessageIndex
      */
     public void updateFirstMessageIndex(String sessionId, int firstMessageIndex) {
+        if (sessionId == null || sessionId.isEmpty()) return;
+        
         List<Session> sessions = loadSessions();
         
         for (Session session : sessions) {
@@ -232,6 +248,8 @@ public class SessionManager {
      * 增加会话的未读消息数
      */
     public void incrementUnreadCount(String sessionId) {
+        if (sessionId == null || sessionId.isEmpty()) return;
+        
         List<Session> sessions = loadSessions();
         
         for (Session session : sessions) {
@@ -248,6 +266,8 @@ public class SessionManager {
      * 清除会话的未读消息数
      */
     public void clearUnreadCount(String sessionId) {
+        if (sessionId == null || sessionId.isEmpty()) return;
+        
         List<Session> sessions = loadSessions();
         
         for (Session session : sessions) {
@@ -264,6 +284,8 @@ public class SessionManager {
      * 删除会话
      */
     public void deleteSession(String sessionId) {
+        if (sessionId == null || sessionId.isEmpty()) return;
+        
         List<Session> sessions = loadSessions();
         List<Session> toRemove = new ArrayList<>();
         
@@ -283,6 +305,8 @@ public class SessionManager {
      * 删除指定账号的所有会话
      */
     public void deleteAccountSessions(String accountId) {
+        if (accountId == null || accountId.isEmpty()) return;
+        
         List<Session> sessions = loadSessions();
         List<Session> toRemove = new ArrayList<>();
         
@@ -302,6 +326,8 @@ public class SessionManager {
      * 更新会话的 in_progress 状态
      */
     public void setSessionInProgress(String sessionId, boolean inProgress) {
+        if (sessionId == null || sessionId.isEmpty()) return;
+        
         List<Session> sessions = loadSessions();
         
         for (Session session : sessions) {
@@ -318,6 +344,8 @@ public class SessionManager {
      * 更新会话的置顶状态
      */
     public void setSessionPinned(String sessionId, boolean pinned) {
+        if (sessionId == null || sessionId.isEmpty()) return;
+        
         List<Session> sessions = loadSessions();
         
         for (Session session : sessions) {
@@ -334,7 +362,7 @@ public class SessionManager {
      * 保存当前会话 ID
      */
     public void saveCurrentSession(String sessionId) {
-        prefs.edit().putString(KEY_CURRENT_SESSION, sessionId).apply();
+        prefs.edit().putString(KEY_CURRENT_SESSION, sessionId != null ? sessionId : "").apply();
     }
     
     /**
@@ -370,6 +398,8 @@ public class SessionManager {
      * 根据 ID 获取会话
      */
     public Session getSession(String sessionId) {
+        if (sessionId == null || sessionId.isEmpty()) return null;
+        
         List<Session> sessions = loadSessions();
         for (Session session : sessions) {
             if (session.getSessionId().equals(sessionId)) {
@@ -383,6 +413,8 @@ public class SessionManager {
      * 获取会话在列表中的索引
      */
     public int getSessionIndex(String sessionId, List<Session> sessions) {
+        if (sessionId == null) return -1;
+        
         for (int i = 0; i < sessions.size(); i++) {
             if (sessions.get(i).getSessionId().equals(sessionId)) {
                 return i;
@@ -397,9 +429,13 @@ public class SessionManager {
      * 保存已初始化的会话列表
      */
     public void saveInitializedSessions(Set<String> initializedSessions) {
+        if (initializedSessions == null) return;
+        
         JSONArray jsonArray = new JSONArray();
         for (String sessionId : initializedSessions) {
-            jsonArray.put(sessionId);
+            if (sessionId != null) {
+                jsonArray.put(sessionId);
+            }
         }
         prefs.edit().putString(KEY_INITIALIZED_SESSIONS, jsonArray.toString()).apply();
     }
@@ -418,7 +454,10 @@ public class SessionManager {
         try {
             JSONArray jsonArray = new JSONArray(jsonStr);
             for (int i = 0; i < jsonArray.length(); i++) {
-                initializedSessions.add(jsonArray.getString(i));
+                String id = jsonArray.optString(i, "");
+                if (!id.isEmpty()) {
+                    initializedSessions.add(id);
+                }
             }
         } catch (JSONException e) {
             e.printStackTrace();
@@ -431,6 +470,8 @@ public class SessionManager {
      * 添加已初始化的会话
      */
     public void addInitializedSession(String sessionId) {
+        if (sessionId == null || sessionId.isEmpty()) return;
+        
         Set<String> initializedSessions = loadInitializedSessions();
         initializedSessions.add(sessionId);
         saveInitializedSessions(initializedSessions);
@@ -440,6 +481,8 @@ public class SessionManager {
      * 移除已初始化的会话
      */
     public void removeInitializedSession(String sessionId) {
+        if (sessionId == null || sessionId.isEmpty()) return;
+        
         Set<String> initializedSessions = loadInitializedSessions();
         initializedSessions.remove(sessionId);
         saveInitializedSessions(initializedSessions);
@@ -449,6 +492,7 @@ public class SessionManager {
      * 检查会话是否已初始化
      */
     public boolean isSessionInitialized(String sessionId) {
+        if (sessionId == null || sessionId.isEmpty()) return false;
         return loadInitializedSessions().contains(sessionId);
     }
     
@@ -465,10 +509,14 @@ public class SessionManager {
      * 保存已读消息数映射
      */
     public void saveReadMessageCounts(Map<String, Integer> readCounts) {
+        if (readCounts == null) return;
+        
         JSONObject json = new JSONObject();
         for (Map.Entry<String, Integer> entry : readCounts.entrySet()) {
             try {
-                json.put(entry.getKey(), entry.getValue());
+                if (entry.getKey() != null) {
+                    json.put(entry.getKey(), entry.getValue());
+                }
             } catch (JSONException e) {
                 e.printStackTrace();
             }
@@ -492,7 +540,9 @@ public class SessionManager {
             Iterator<String> keys = json.keys();
             while (keys.hasNext()) {
                 String key = keys.next();
-                readCounts.put(key, json.getInt(key));
+                if (key != null && !key.isEmpty()) {
+                    readCounts.put(key, json.optInt(key, 0));
+                }
             }
         } catch (JSONException e) {
             e.printStackTrace();
@@ -505,6 +555,8 @@ public class SessionManager {
      * 保存单个会话的已读消息数
      */
     public void saveReadMessageCount(String sessionId, int count) {
+        if (sessionId == null || sessionId.isEmpty()) return;
+        
         Map<String, Integer> readCounts = loadReadMessageCounts();
         readCounts.put(sessionId, count);
         saveReadMessageCounts(readCounts);
@@ -514,6 +566,8 @@ public class SessionManager {
      * 获取单个会话的已读消息数
      */
     public int getReadMessageCount(String sessionId) {
+        if (sessionId == null || sessionId.isEmpty()) return 0;
+        
         Map<String, Integer> readCounts = loadReadMessageCounts();
         return readCounts.getOrDefault(sessionId, 0);
     }
@@ -533,6 +587,8 @@ public class SessionManager {
      * @param draft 草稿内容
      */
     public void saveDraft(String sessionId, String draft) {
+        if (sessionId == null || sessionId.isEmpty()) return;
+        
         Map<String, String> drafts = loadDrafts();
         if (draft != null && !draft.isEmpty()) {
             drafts.put(sessionId, draft);
@@ -548,6 +604,8 @@ public class SessionManager {
      * @return 草稿内容，如果没有则返回空字符串
      */
     public String getDraft(String sessionId) {
+        if (sessionId == null || sessionId.isEmpty()) return "";
+        
         Map<String, String> drafts = loadDrafts();
         return drafts.getOrDefault(sessionId, "");
     }
@@ -564,10 +622,14 @@ public class SessionManager {
      * 保存草稿映射
      */
     private void saveDrafts(Map<String, String> drafts) {
+        if (drafts == null) return;
+        
         JSONObject json = new JSONObject();
         for (Map.Entry<String, String> entry : drafts.entrySet()) {
             try {
-                json.put(entry.getKey(), entry.getValue());
+                if (entry.getKey() != null && entry.getValue() != null) {
+                    json.put(entry.getKey(), entry.getValue());
+                }
             } catch (JSONException e) {
                 e.printStackTrace();
             }
@@ -591,7 +653,12 @@ public class SessionManager {
             Iterator<String> keys = json.keys();
             while (keys.hasNext()) {
                 String key = keys.next();
-                drafts.put(key, json.getString(key));
+                if (key != null && !key.isEmpty()) {
+                    String value = json.optString(key, "");
+                    if (!value.isEmpty()) {
+                        drafts.put(key, value);
+                    }
+                }
             }
         } catch (JSONException e) {
             e.printStackTrace();

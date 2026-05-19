@@ -2,6 +2,7 @@ package net.wsdjeg.nova;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.util.Log;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -20,6 +21,7 @@ import java.util.UUID;
  * 4. 删除默认账号：自动将第一个剩余账号设为默认
  */
 public class AccountManager {
+    private static final String TAG = "AccountManager";
     private static final String PREF_NAME = "nova_accounts";
     private static final String KEY_ACCOUNTS = "accounts";
     private static final String KEY_CURRENT_ACCOUNT_ID = "current_account_id";
@@ -43,6 +45,7 @@ public class AccountManager {
 
     /**
      * 从 SharedPreferences 加载账号列表
+     * 使用 optString 避免 JSONException 崩溃
      */
     private void loadAccounts() {
         accounts = new ArrayList<>();
@@ -52,16 +55,55 @@ public class AccountManager {
             JSONArray jsonArray = new JSONArray(accountsJson);
             for (int i = 0; i < jsonArray.length(); i++) {
                 JSONObject json = jsonArray.getJSONObject(i);
+                
+                // 使用 optString 避免 JSONException，提供默认值
+                String id = json.optString("id", "");
+                if (id.isEmpty()) {
+                    // 如果没有有效的 id，生成一个新 ID
+                    id = UUID.randomUUID().toString();
+                    Log.w(TAG, "Account missing id, generated new: " + id);
+                }
+                
                 Account account = new Account();
-                account.setId(json.getString("id"));
+                account.setId(id);
                 account.setName(json.optString("name", ""));
                 
                 // 兼容旧数据：优先读取 host/port，如果没有则读取 url
-                if (json.has("host")) {
-                    account.setHost(json.getString("host"));
+                String host = json.optString("host", "");
+                if (!host.isEmpty()) {
+                    account.setHost(host);
                     account.setPort(json.optInt("port", 8080));
                 } else {
-                    account.setUrl(json.optString("url", ""));
+                    // 尝试从 url 解析或直接使用
+                    String url = json.optString("url", "");
+                    account.setUrl(url);
+                    // 如果 url 有值但没有 host，尝试解析
+                    if (!url.isEmpty() && account.getHost().isEmpty()) {
+                        // 简单解析 URL
+                        try {
+                            if (url.startsWith("http://")) {
+                                url = url.substring(7);
+                            } else if (url.startsWith("https://")) {
+                                url = url.substring(8);
+                            }
+                            // 移除端口后的路径
+                            int pathIndex = url.indexOf('/');
+                            if (pathIndex > 0) {
+                                url = url.substring(0, pathIndex);
+                            }
+                            // 分离 host 和 port
+                            int portIndex = url.indexOf(':');
+                            if (portIndex > 0) {
+                                account.setHost(url.substring(0, portIndex));
+                                account.setPort(Integer.parseInt(url.substring(portIndex + 1)));
+                            } else {
+                                account.setHost(url);
+                                account.setPort(8080);
+                            }
+                        } catch (Exception e) {
+                            Log.w(TAG, "Failed to parse url: " + url, e);
+                        }
+                    }
                 }
                 
                 account.setApiKey(json.optString("apiKey", ""));
@@ -69,15 +111,23 @@ public class AccountManager {
                 account.setCreatedAt(json.optLong("createdAt", System.currentTimeMillis()));
                 account.setLastUsedAt(json.optLong("lastUsedAt", System.currentTimeMillis()));
                 account.setColorIndex(json.optInt("colorIndex", -1));  // 默认使用全局设置
-                accounts.add(account);
+                
+                // 验证账号是否有必要的字段
+                if (account.getHost() != null && !account.getHost().isEmpty()) {
+                    accounts.add(account);
+                } else {
+                    Log.w(TAG, "Skipping invalid account: id=" + id);
+                }
             }
         } catch (JSONException e) {
-            e.printStackTrace();
+            Log.e(TAG, "Failed to load accounts", e);
+            // 解析失败时清空列表，避免后续使用错误数据
+            accounts.clear();
         }
 
         // 加载当前默认账号
         String currentId = prefs.getString(KEY_CURRENT_ACCOUNT_ID, null);
-        if (currentId != null) {
+        if (currentId != null && !currentId.isEmpty()) {
             currentAccount = getAccountById(currentId);
         }
 
@@ -114,7 +164,7 @@ public class AccountManager {
                     .putString(KEY_CURRENT_ACCOUNT_ID, currentAccount != null ? currentAccount.getId() : "")
                     .apply();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Log.e(TAG, "Failed to save accounts", e);
         }
     }
 
@@ -150,6 +200,9 @@ public class AccountManager {
      * 根据 ID 获取账号
      */
     public Account getAccountById(String id) {
+        if (id == null || id.isEmpty()) {
+            return null;
+        }
         for (Account account : accounts) {
             if (account.getId().equals(id)) {
                 return account;
@@ -268,8 +321,11 @@ public class AccountManager {
      * 检查 Host 是否已存在
      */
     public boolean isHostExists(String host) {
+        if (host == null || host.isEmpty()) {
+            return false;
+        }
         for (Account account : accounts) {
-            if (account.getHost().equals(host)) {
+            if (account.getHost() != null && account.getHost().equals(host)) {
                 return true;
             }
         }
@@ -280,8 +336,11 @@ public class AccountManager {
      * 检查 URL 是否已存在（兼容旧方法）
      */
     public boolean isUrlExists(String url) {
+        if (url == null || url.isEmpty()) {
+            return false;
+        }
         for (Account account : accounts) {
-            if (account.getUrl().equals(url)) {
+            if (account.getUrl() != null && account.getUrl().equals(url)) {
                 return true;
             }
         }
@@ -292,8 +351,11 @@ public class AccountManager {
      * 检查名称是否已存在
      */
     public boolean isNameExists(String name) {
+        if (name == null || name.isEmpty()) {
+            return false;
+        }
         for (Account account : accounts) {
-            if (account.getName().equals(name)) {
+            if (account.getName() != null && account.getName().equals(name)) {
                 return true;
             }
         }
@@ -337,14 +399,21 @@ public class AccountManager {
     /**
      * 获取账号的颜色
      * 优先级：账号自己的颜色 > 全局设置
-     * @param account 贗号
+     * @param account 账号
      * @param settingsManager 设置管理器
      * @return 颜色字符串
      */
     public static String getAccountColor(Account account, SettingsManager settingsManager) {
+        if (account == null || settingsManager == null) {
+            return SettingsManager.ACCOUNT_TAG_COLORS[2]; // 默认蓝色
+        }
+        
         // 如果账号设置了自定义颜色，优先使用
         if (account.hasCustomColor()) {
-            return SettingsManager.ACCOUNT_TAG_COLORS[account.getColorIndex()];
+            int index = account.getColorIndex();
+            if (index >= 0 && index < SettingsManager.ACCOUNT_TAG_COLORS.length) {
+                return SettingsManager.ACCOUNT_TAG_COLORS[index];
+            }
         }
         
         // 检查全局设置是否为自动模式
@@ -386,7 +455,7 @@ public class AccountManager {
             
             return root.toString(2);  // 格式化输出
         } catch (JSONException e) {
-            e.printStackTrace();
+            Log.e(TAG, "Failed to export accounts", e);
             return null;
         }
     }
@@ -402,12 +471,20 @@ public class AccountManager {
      * @throws JSONException 解析错误时抛出
      */
     public int importFromJson(String jsonString) throws JSONException {
+        if (jsonString == null || jsonString.isEmpty()) {
+            return 0;
+        }
+        
         JSONObject root = new JSONObject(jsonString);
         
         // 检查版本
         int version = root.optInt("version", 1);
         
-        JSONArray accountsArray = root.getJSONArray("accounts");
+        JSONArray accountsArray = root.optJSONArray("accounts");
+        if (accountsArray == null) {
+            return 0;
+        }
+        
         Account firstImportedAccount = null;
         Account markedDefaultAccount = null;  // 导入数据中标记为默认的账号
         int importedCount = 0;
@@ -416,7 +493,8 @@ public class AccountManager {
         boolean hadExistingAccounts = !accounts.isEmpty();
         
         for (int i = 0; i < accountsArray.length(); i++) {
-            JSONObject json = accountsArray.getJSONObject(i);
+            JSONObject json = accountsArray.optJSONObject(i);
+            if (json == null) continue;
             
             // 检查是否已存在相同 host 的账号
             String host = json.optString("host", "");
@@ -435,6 +513,11 @@ public class AccountManager {
             account.setCreatedAt(json.optLong("createdAt", System.currentTimeMillis()));
             account.setLastUsedAt(json.optLong("lastUsedAt", System.currentTimeMillis()));
             account.setColorIndex(json.optInt("colorIndex", -1));
+            
+            // 验证账号是否有必要的字段
+            if (account.getHost() == null || account.getHost().isEmpty()) {
+                continue;
+            }
             
             // 默认账号逻辑：
             // - 有账号时：导入的全部为非默认
@@ -491,9 +574,17 @@ public class AccountManager {
      * @throws JSONException 解析错误时抛出
      */
     public int importFromJsonOverride(String jsonString) throws JSONException {
+        if (jsonString == null || jsonString.isEmpty()) {
+            return 0;
+        }
+        
         JSONObject root = new JSONObject(jsonString);
         
-        JSONArray accountsArray = root.getJSONArray("accounts");
+        JSONArray accountsArray = root.optJSONArray("accounts");
+        if (accountsArray == null) {
+            return 0;
+        }
+        
         Account markedDefaultAccount = null;  // 导入数据中标记为默认的账号
         Account firstImportedAccount = null;
         int importedCount = 0;
@@ -503,7 +594,8 @@ public class AccountManager {
         currentAccount = null;
         
         for (int i = 0; i < accountsArray.length(); i++) {
-            JSONObject json = accountsArray.getJSONObject(i);
+            JSONObject json = accountsArray.optJSONObject(i);
+            if (json == null) continue;
             
             Account account = new Account();
             account.setId(UUID.randomUUID().toString());  // 生成新 ID
@@ -514,6 +606,11 @@ public class AccountManager {
             account.setCreatedAt(json.optLong("createdAt", System.currentTimeMillis()));
             account.setLastUsedAt(json.optLong("lastUsedAt", System.currentTimeMillis()));
             account.setColorIndex(json.optInt("colorIndex", -1));
+            
+            // 验证账号是否有必要的字段
+            if (account.getHost() == null || account.getHost().isEmpty()) {
+                continue;
+            }
             
             // 检查导入数据是否有 isDefault 标记
             boolean isMarkedDefault = json.optBoolean("isDefault", false);
