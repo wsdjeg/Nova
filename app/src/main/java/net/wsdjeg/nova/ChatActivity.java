@@ -94,6 +94,9 @@ public class ChatActivity extends AppCompatActivity {
     // 键盘防抖：最小触发间隔
     private static final long MIN_KEYBOARD_SCROLL_INTERVAL_MS = 50;
     
+    // 滚动事件防抖：避免频繁处理
+    private static final long MIN_SCROLL_UPDATE_INTERVAL_MS = 100;
+    
     public static final String EXTRA_SESSION_ID = "session_id";
     public static final String EXTRA_SESSION_TITLE = "session_title";
     
@@ -144,6 +147,9 @@ public class ChatActivity extends AppCompatActivity {
     // 加载更早消息的状态标志
     private boolean isLoadingOlder = false;
     private long lastLoadTriggerTime = 0;
+    
+    // 滚动事件处理时间戳（防抖）
+    private long lastScrollUpdateTime = 0;
     
     // 消息指纹缓存（使用综合指纹：role + created + content + toolcall id）
     private Set<String> messageFingerprints = new HashSet<>();
@@ -408,50 +414,81 @@ public class ChatActivity extends AppCompatActivity {
     }
     
     /**
-     * 设置滚动监听器 - 优化的下拉加载
+     * 设置滚动监听器 - 带异常保护和防抖机制
+     * 
+     * 修复：滚屏闪退问题
+     * - 添加 try-catch 保护所有操作
+     * - 使用防抖避免频繁处理
+     * - 检查所有对象有效性
      */
     private void setupScrollListener() {
         rvMessages.addOnScrollListener(new RecyclerView.OnScrollListener() {
             @Override
             public void onScrolled(RecyclerView recyclerView, int dx, int dy) {
-                LinearLayoutManager lm = (LinearLayoutManager) recyclerView.getLayoutManager();
-                if (lm == null) return;
-                
-                int firstVisible = lm.findFirstVisibleItemPosition();
-                int lastVisible = lm.findLastVisibleItemPosition();
-                int total = adapter.getItemCount();
-                
-                boolean isAtBottom = (total == 0) || (lastVisible >= total - BOTTOM_THRESHOLD);
-                
-                // 更新用户是否在底部的状态
-                userAtBottom = isAtBottom;
-                
-                // 更新 FAB 可见性
-                fabScrollBottom.setVisibility(isAtBottom ? View.GONE : View.VISIBLE);
-                
-                // 更新位置记录（用于刷新后恢复）
-                // 只要滚屏就记录位置，确保刷新后能恢复
-                if (firstVisible >= 0) {
-                    Object item = adapter.getVisibleItemAt(firstVisible);
-                    if (item instanceof Message) {
-                        anchorMessageCreated = ((Message) item).getCreated();
-                    } else if (item instanceof MessageAdapter.ToolCallItem) {
-                        anchorMessageCreated = ((MessageAdapter.ToolCallItem) item).getCreated();
+                // 异常保护：防止滚动过程中崩溃
+                try {
+                    LinearLayoutManager lm = (LinearLayoutManager) recyclerView.getLayoutManager();
+                    if (lm == null || adapter == null) return;
+                    
+                    int total = adapter.getItemCount();
+                    if (total == 0) return;
+                    
+                    int firstVisible = lm.findFirstVisibleItemPosition();
+                    int lastVisible = lm.findLastVisibleItemPosition();
+                    
+                    // 检查位置有效性（RecyclerView.NO_POSITION = -1）
+                    if (firstVisible == RecyclerView.NO_POSITION || lastVisible == RecyclerView.NO_POSITION) {
+                        return;
                     }
-                    View firstChild = lm.findViewByPosition(firstVisible);
-                    if (firstChild != null) {
-                        offsetToRestore = firstChild.getTop();
+                    
+                    boolean isAtBottom = (lastVisible >= total - BOTTOM_THRESHOLD);
+                    
+                    // 更新用户是否在底部的状态
+                    userAtBottom = isAtBottom;
+                    
+                    // 更新 FAB 可见性
+                    if (fabScrollBottom != null) {
+                        fabScrollBottom.setVisibility(isAtBottom ? View.GONE : View.VISIBLE);
                     }
-                }
-                
-                // 显示/隐藏加载提示
-                boolean isAtTop = (firstVisible == 0 && total > 0);
-                if (!isLoadingOlder) {
-                    if (isAtTop && canLoadMore()) {
-                        showLoadMoreHint("↑ 下拉加载更多");
-                    } else {
-                        hideLoadMoreHint();
+                    
+                    // 防抖：避免频繁更新位置记录
+                    long now = System.currentTimeMillis();
+                    if (now - lastScrollUpdateTime >= MIN_SCROLL_UPDATE_INTERVAL_MS) {
+                        lastScrollUpdateTime = now;
+                        
+                        // 更新位置记录（用于刷新后恢复）
+                        if (firstVisible >= 0 && firstVisible < total) {
+                            Object item = adapter.getVisibleItemAt(firstVisible);
+                            if (item != null) {
+                                if (item instanceof Message) {
+                                    anchorMessageCreated = ((Message) item).getCreated();
+                                } else if (item instanceof MessageAdapter.ToolCallItem) {
+                                    anchorMessageCreated = ((MessageAdapter.ToolCallItem) item).getCreated();
+                                }
+                            }
+                            
+                            try {
+                                View firstChild = lm.findViewByPosition(firstVisible);
+                                if (firstChild != null) {
+                                    offsetToRestore = firstChild.getTop();
+                                }
+                            } catch (Exception e) {
+                                Log.d(TAG, "Failed to get view position: " + e.getMessage());
+                            }
+                        }
                     }
+                    
+                    // 显示/隐藏加载提示
+                    boolean isAtTop = (firstVisible == 0 && total > 0);
+                    if (!isLoadingOlder) {
+                        if (isAtTop && canLoadMore()) {
+                            showLoadMoreHint("↑ 下拉加载更多");
+                        } else {
+                            hideLoadMoreHint();
+                        }
+                    }
+                } catch (Exception e) {
+                    Log.e(TAG, "Scroll error: " + e.getMessage(), e);
                 }
             }
             
@@ -459,24 +496,33 @@ public class ChatActivity extends AppCompatActivity {
             public void onScrollStateChanged(RecyclerView recyclerView, int newState) {
                 super.onScrollStateChanged(recyclerView, newState);
                 
-                // 只在滚动停止时检查是否需要加载更多
-                if (newState == RecyclerView.SCROLL_STATE_IDLE) {
-                    LinearLayoutManager lm = (LinearLayoutManager) recyclerView.getLayoutManager();
-                    if (lm == null) return;
-                    
-                    int firstVisible = lm.findFirstVisibleItemPosition();
-                    int total = adapter.getItemCount();
-                    boolean isAtTop = (firstVisible == 0 && total > 0);
-                    
-                    // 到达顶部且可以加载更多时触发
-                    if (isAtTop && canLoadMore() && !isLoadingOlder) {
-                        // 防抖：避免快速滑动时多次触发
-                        long now = System.currentTimeMillis();
-                        if (now - lastLoadTriggerTime >= MIN_LOAD_INTERVAL_MS) {
-                            lastLoadTriggerTime = now;
-                            triggerLoadOlder();
+                // 异常保护
+                try {
+                    // 只在滚动停止时检查是否需要加载更多
+                    if (newState == RecyclerView.SCROLL_STATE_IDLE) {
+                        LinearLayoutManager lm = (LinearLayoutManager) recyclerView.getLayoutManager();
+                        if (lm == null || adapter == null) return;
+                        
+                        int total = adapter.getItemCount();
+                        if (total == 0) return;
+                        
+                        int firstVisible = lm.findFirstVisibleItemPosition();
+                        if (firstVisible == RecyclerView.NO_POSITION) return;
+                        
+                        boolean isAtTop = (firstVisible == 0 && total > 0);
+                        
+                        // 到达顶部且可以加载更多时触发
+                        if (isAtTop && canLoadMore() && !isLoadingOlder) {
+                            // 防抖：避免快速滑动时多次触发
+                            long now = System.currentTimeMillis();
+                            if (now - lastLoadTriggerTime >= MIN_LOAD_INTERVAL_MS) {
+                                lastLoadTriggerTime = now;
+                                triggerLoadOlder();
+                            }
                         }
                     }
+                } catch (Exception e) {
+                    Log.e(TAG, "Scroll state error: " + e.getMessage(), e);
                 }
             }
         });
@@ -492,27 +538,32 @@ public class ChatActivity extends AppCompatActivity {
         rvMessages.getViewTreeObserver().addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener() {
             @Override
             public void onGlobalLayout() {
-                int currentHeight = rvMessages.getHeight();
-                
-                if (lastRecyclerViewHeight > 0 && currentHeight != lastRecyclerViewHeight) {
-                    int heightDelta = currentHeight - lastRecyclerViewHeight;
-                    long now = System.currentTimeMillis();
+                // 异常保护
+                try {
+                    int currentHeight = rvMessages.getHeight();
                     
-                    accumulatedHeightDelta += heightDelta;
-                    
-                    if (now - lastKeyboardScrollTime >= MIN_KEYBOARD_SCROLL_INTERVAL_MS) {
-                        if (accumulatedHeightDelta < 0) {
-                            rvMessages.scrollBy(0, -accumulatedHeightDelta);
-                            Log.d(TAG, "Keyboard show scroll: accumulatedDelta=" + accumulatedHeightDelta);
+                    if (lastRecyclerViewHeight > 0 && currentHeight != lastRecyclerViewHeight) {
+                        int heightDelta = currentHeight - lastRecyclerViewHeight;
+                        long now = System.currentTimeMillis();
+                        
+                        accumulatedHeightDelta += heightDelta;
+                        
+                        if (now - lastKeyboardScrollTime >= MIN_KEYBOARD_SCROLL_INTERVAL_MS) {
+                            if (accumulatedHeightDelta < 0) {
+                                rvMessages.scrollBy(0, -accumulatedHeightDelta);
+                                Log.d(TAG, "Keyboard show scroll: accumulatedDelta=" + accumulatedHeightDelta);
+                            }
+                            
+                            accumulatedHeightDelta = 0;
+                            lastKeyboardScrollTime = now;
                         }
                         
-                        accumulatedHeightDelta = 0;
-                        lastKeyboardScrollTime = now;
+                        lastRecyclerViewHeight = currentHeight;
+                    } else if (lastRecyclerViewHeight < 0) {
+                        lastRecyclerViewHeight = currentHeight;
                     }
-                    
-                    lastRecyclerViewHeight = currentHeight;
-                } else if (lastRecyclerViewHeight < 0) {
-                    lastRecyclerViewHeight = currentHeight;
+                } catch (Exception e) {
+                    Log.e(TAG, "Keyboard listener error: " + e.getMessage(), e);
                 }
             }
         });
@@ -710,6 +761,8 @@ public class ChatActivity extends AppCompatActivity {
             }
         }
     }
+    
+    /**
      * 显示 JSON 对话框
      */
     private void showJsonDialog(String json) {
@@ -768,7 +821,7 @@ public class ChatActivity extends AppCompatActivity {
         if (session != null) {
             currentProvider = session.getProvider();
             currentModel = session.getModel();
-            tvSessionInfo.setText(currentProvider + " | " + currentModel);
+            tvSessionInfo.setText(currentProvider + " | " currentModel);
             tvSessionPath.setText("cwd: " + (session.getCwd() != null ? session.getCwd() : ""));
         }
     }
@@ -1063,20 +1116,31 @@ public class ChatActivity extends AppCompatActivity {
      */
     private void saveScrollPosition() {
         LinearLayoutManager lm = (LinearLayoutManager) rvMessages.getLayoutManager();
-        if (lm == null) return;
+        if (lm == null || adapter == null) return;
+        
+        int total = adapter.getItemCount();
+        if (total == 0) return;
         
         int firstVisiblePosition = lm.findFirstVisibleItemPosition();
-        if (firstVisiblePosition >= 0) {
+        if (firstVisiblePosition >= 0 && firstVisiblePosition < total) {
             Object item = adapter.getVisibleItemAt(firstVisiblePosition);
-            if (item instanceof Message) {
-                anchorMessageCreated = ((Message) item).getCreated();
-            } else if (item instanceof MessageAdapter.ToolCallItem) {
-                anchorMessageCreated = ((MessageAdapter.ToolCallItem) item).getCreated();
+            if (item != null) {
+                if (item instanceof Message) {
+                    anchorMessageCreated = ((Message) item).getCreated();
+                } else if (item instanceof MessageAdapter.ToolCallItem) {
+                    anchorMessageCreated = ((MessageAdapter.ToolCallItem) item).getCreated();
+                }
             }
-            View firstChild = lm.findViewByPosition(firstVisiblePosition);
-            if (firstChild != null) {
-                offsetToRestore = firstChild.getTop();
+            
+            try {
+                View firstChild = lm.findViewByPosition(firstVisiblePosition);
+                if (firstChild != null) {
+                    offsetToRestore = firstChild.getTop();
+                }
+            } catch (Exception e) {
+                Log.d(TAG, "Failed to save scroll position: " + e.getMessage());
             }
+            
             Log.d(TAG, "Saved position: anchorCreated=" + anchorMessageCreated + ", offset=" + offsetToRestore);
         }
     }
@@ -1088,17 +1152,21 @@ public class ChatActivity extends AppCompatActivity {
         if (anchorMessageCreated < 0) return;
         
         LinearLayoutManager lm = (LinearLayoutManager) rvMessages.getLayoutManager();
-        if (lm == null) return;
+        if (lm == null || adapter == null) return;
         
         int newPosition = adapter.findVisiblePositionByCreated(anchorMessageCreated);
         
         Log.d(TAG, "Restore position: anchorCreated=" + anchorMessageCreated + ", newPosition=" + newPosition);
         
         rvMessages.post(() -> {
-            int pos = adapter.findVisiblePositionByCreated(anchorMessageCreated);
-            if (pos >= 0 && pos < adapter.getItemCount()) {
-                lm.scrollToPositionWithOffset(pos, offsetToRestore);
-                Log.d(TAG, "Restored to position " + pos + " with offset " + offsetToRestore);
+            try {
+                int pos = adapter.findVisiblePositionByCreated(anchorMessageCreated);
+                if (pos >= 0 && pos < adapter.getItemCount()) {
+                    lm.scrollToPositionWithOffset(pos, offsetToRestore);
+                    Log.d(TAG, "Restored to position " + pos + " with offset " + offsetToRestore);
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Failed to restore scroll position: " + e.getMessage(), e);
             }
         });
     }
@@ -1246,20 +1314,24 @@ public class ChatActivity extends AppCompatActivity {
                     final int loadedVisible = newVisibleCount;
                     
                     rvMessages.post(() -> {
-                        LinearLayoutManager lm = (LinearLayoutManager) rvMessages.getLayoutManager();
-                        if (lm != null) {
-                            int newPosition = adapter.findVisiblePositionByCreated(savedAnchor);
-                            
-                            Log.d(TAG, "Position restore: anchor=" + savedAnchor + 
-                                  ", oldVisiblePos=" + newPosition + 
-                                  ", newVisibleAdded=" + loadedVisible);
-                            
-                            if (newPosition >= 0 && newPosition < adapter.getItemCount()) {
-                                lm.scrollToPositionWithOffset(newPosition, savedOffset);
-                                Log.d(TAG, "Restored to visible position " + newPosition + " with offset " + savedOffset);
-                            } else {
-                                Log.d(TAG, "Anchor message not found in visibleMessages");
+                        try {
+                            LinearLayoutManager lm = (LinearLayoutManager) rvMessages.getLayoutManager();
+                            if (lm != null && adapter != null) {
+                                int newPosition = adapter.findVisiblePositionByCreated(savedAnchor);
+                                
+                                Log.d(TAG, "Position restore: anchor=" + savedAnchor + 
+                                      ", oldVisiblePos=" + newPosition + 
+                                      ", newVisibleAdded=" + loadedVisible);
+                                
+                                if (newPosition >= 0 && newPosition < adapter.getItemCount()) {
+                                    lm.scrollToPositionWithOffset(newPosition, savedOffset);
+                                    Log.d(TAG, "Restored to visible position " + newPosition + " with offset " + savedOffset);
+                                } else {
+                                    Log.d(TAG, "Anchor message not found in visibleMessages");
+                                }
                             }
+                        } catch (Exception e) {
+                            Log.e(TAG, "Failed to restore position after load: " + e.getMessage(), e);
                         }
                         
                         isLoadingOlder = false;
@@ -1379,24 +1451,32 @@ public class ChatActivity extends AppCompatActivity {
         
         int lastPosition = itemCount - 1;
         
-        lm.scrollToPosition(lastPosition);
-        
-        rvMessages.post(() -> {
-            if (adapter.getItemCount() == 0) return;
+        try {
+            lm.scrollToPosition(lastPosition);
             
-            int pos = adapter.getItemCount() - 1;
-            View lastChild = lm.findViewByPosition(pos);
-            
-            if (lastChild != null) {
-                int recyclerHeight = rvMessages.getHeight();
-                int itemHeight = lastChild.getHeight();
-                int offset = recyclerHeight - itemHeight;
-                
-                lm.scrollToPositionWithOffset(pos, offset);
-            } else {
-                lm.scrollToPosition(pos);
-            }
-        });
+            rvMessages.post(() -> {
+                try {
+                    if (adapter == null || adapter.getItemCount() == 0) return;
+                    
+                    int pos = adapter.getItemCount() - 1;
+                    View lastChild = lm.findViewByPosition(pos);
+                    
+                    if (lastChild != null) {
+                        int recyclerHeight = rvMessages.getHeight();
+                        int itemHeight = lastChild.getHeight();
+                        int offset = recyclerHeight - itemHeight;
+                        
+                        lm.scrollToPositionWithOffset(pos, offset);
+                    } else {
+                        lm.scrollToPosition(pos);
+                    }
+                } catch (Exception e) {
+                    Log.e(TAG, "Scroll to bottom error: " + e.getMessage(), e);
+                }
+            });
+        } catch (Exception e) {
+            Log.e(TAG, "ScrollToPosition error: " + e.getMessage(), e);
+        }
     }
     
     private void refreshSessionStatus() {
