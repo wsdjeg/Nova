@@ -58,7 +58,7 @@
 
             </LinearLayout>
 
-            <!-- Tool arguments container - 嵌套滚动：外层垂直，内层水平 -->
+            <!-- Tool arguments container - 禁用嵌套滚动避免与 RecyclerView 冲突 -->
             <androidx.core.widget.NestedScrollView
                 android:id="@+id/contentScrollV"
                 android:layout_width="match_parent"
@@ -66,7 +66,7 @@
                 android:layout_marginTop="4dp"
                 android:scrollbars="vertical"
                 android:fillViewport="false"
-                android:nestedScrollingEnabled="true">
+                android:nestedScrollingEnabled="false">
 
                 <HorizontalScrollView
                     android:id="@+id/contentScrollH"

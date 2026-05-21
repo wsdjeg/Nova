@@ -39,6 +39,7 @@ import java.util.Set;
  * 并发安全修复：
  * - 使用临时列表构建新数据，避免清空后逐步添加导致的中间状态问题
  * - 所有数据访问方法都有边界检查
+ * - post() 操作使用 itemView.post() 更安全
  */
 public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     private static final String TAG = "MessageAdapter";
@@ -122,21 +123,14 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
     
     /**
      * 更新可见项列表 - 使用临时列表避免并发问题
-     * 
-     * 修复：下拉闪退问题
-     * - 先在临时列表中构建完整数据
-     * - 然后一次性替换 visibleItems
-     * - 避免 RecyclerView 在滚动时访问到中间状态（空列表）
      */
     private void updateVisibleItems() {
-        // 使用临时列表构建数据，避免并发访问问题
         List<Object> newVisibleItems = new ArrayList<>();
         Log.d(TAG, "=== updateVisibleItems: " + messages.size() + " messages ===");
         
         for (int msgIdx = 0; msgIdx < messages.size(); msgIdx++) {
             Message msg = messages.get(msgIdx);
             
-            // 详细记录每条消息的状态
             Log.d(TAG, "  MSG[" + msgIdx + "]: role=" + msg.getRole() 
                 + ", hasToolCalls=" + msg.hasToolCalls()
                 + ", isTool=" + msg.isToolMessage()
@@ -169,7 +163,6 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
                     List<ApiClient.ToolCall> toolCalls = msg.getToolCalls();
                     for (int i = 0; i < toolCalls.size(); i++) {
                         ApiClient.ToolCall tc = toolCalls.get(i);
-                        // 只添加有效的 tool_call（function 不为 null）
                         if (tc != null && tc.function != null) {
                             ToolCallItem item = new ToolCallItem(msg, tc, i);
                             String toolName = tc.function.name != null ? tc.function.name : "<unknown>";
@@ -180,7 +173,6 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
                         }
                     }
                 } else {
-                    // assistant 消息没有 tool_calls，直接显示 content
                     Log.d(TAG, "    → ADD assistant message (no tool_calls)");
                     newVisibleItems.add(msg);
                 }
@@ -201,10 +193,9 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
     
     @Override
     public int getItemViewType(int position) {
-        // 安全边界检查
         if (position < 0 || position >= visibleItems.size()) {
             Log.w(TAG, "getItemViewType: invalid position=" + position + ", size=" + visibleItems.size());
-            return TYPE_BOT;  // 安全默认值
+            return TYPE_BOT;
         }
         
         Object item = visibleItems.get(position);
@@ -262,7 +253,6 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
 
     @Override
     public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
-        // 安全边界检查
         if (position < 0 || position >= visibleItems.size()) {
             Log.w(TAG, "onBindViewHolder: invalid position=" + position + ", size=" + visibleItems.size());
             return;
@@ -349,13 +339,13 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
             holder.statusIcon.setText("🔧");
             
             // 工具名称
-            String toolName = item.getToolName();
+            final String toolName = item.getToolName();
             if (holder.toolNameText != null) {
                 holder.toolNameText.setText(toolName);
             }
             
             // 工具参数
-            String args = item.getArguments();
+            final String args = item.getArguments();
             if (holder.contentText != null) {
                 if (args != null && !args.isEmpty()) {
                     try {
@@ -371,22 +361,28 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
                     final int collapsedHeightPx = calculateHeightPx(COLLAPSED_LINES);
                     safeSetHeight(holder.contentScrollV, collapsedHeightPx);
                     
-                    // 检查内容行数
-                    holder.contentText.post(() -> {
-                        if (holder.contentScrollV == null) return;
-                        
-                        int currentPos = holder.getAdapterPosition();
-                        if (currentPos == RecyclerView.NO_POSITION) return;
-                        
-                        int lineCount = holder.contentText.getLineCount();
-                        if (lineCount > COLLAPSED_LINES && holder.expandHint != null) {
-                            holder.expandHint.setVisibility(View.VISIBLE);
-                            boolean isExpanded = expandedToolCalls.contains(currentPos);
-                            int heightPx = isExpanded ? calculateHeightPx(EXPANDED_LINES) : collapsedHeightPx;
-                            safeSetHeight(holder.contentScrollV, heightPx);
-                            holder.expandHint.setText(isExpanded ? "收起 ▲" : "展开 ▼");
-                        } else if (holder.expandHint != null) {
-                            holder.expandHint.setVisibility(View.GONE);
+                    // 使用 itemView.post() 更安全，避免 ViewHolder 被回收后 post 失败
+                    holder.itemView.post(() -> {
+                        try {
+                            // 检查 ViewHolder 是否仍然有效
+                            int currentPos = holder.getAdapterPosition();
+                            if (currentPos == RecyclerView.NO_POSITION) return;
+                            
+                            // 再次检查 contentScrollV 和 contentText 是否存在
+                            if (holder.contentScrollV == null || holder.contentText == null) return;
+                            
+                            int lineCount = holder.contentText.getLineCount();
+                            if (lineCount > COLLAPSED_LINES && holder.expandHint != null) {
+                                holder.expandHint.setVisibility(View.VISIBLE);
+                                boolean isExpanded = expandedToolCalls.contains(currentPos);
+                                int heightPx = isExpanded ? calculateHeightPx(EXPANDED_LINES) : collapsedHeightPx;
+                                safeSetHeight(holder.contentScrollV, heightPx);
+                                holder.expandHint.setText(isExpanded ? "收起 ▲" : "展开 ▼");
+                            } else if (holder.expandHint != null) {
+                                holder.expandHint.setVisibility(View.GONE);
+                            }
+                        } catch (Exception e) {
+                            Log.e(TAG, "post runnable error: " + e.getMessage());
                         }
                     });
                 } else {
@@ -456,7 +452,7 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
             }
             
             // 内容
-            String content = message.getContent();
+            final String content = message.getContent();
             if (holder.contentText != null) {
                 if (content != null && !content.isEmpty()) {
                     holder.contentText.setText(content);
@@ -465,21 +461,26 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
                     final int collapsedHeightPx = calculateHeightPx(COLLAPSED_LINES);
                     safeSetHeight(holder.contentScrollV, collapsedHeightPx);
                     
-                    holder.contentText.post(() -> {
-                        if (holder.contentScrollV == null) return;
-                        
-                        int currentPos = holder.getAdapterPosition();
-                        if (currentPos == RecyclerView.NO_POSITION) return;
-                        
-                        int lineCount = holder.contentText.getLineCount();
-                        if (lineCount > COLLAPSED_LINES && holder.expandHint != null) {
-                            holder.expandHint.setVisibility(View.VISIBLE);
-                            boolean isExpanded = expandedToolResults.contains(currentPos);
-                            int heightPx = isExpanded ? calculateHeightPx(EXPANDED_LINES) : collapsedHeightPx;
-                            safeSetHeight(holder.contentScrollV, heightPx);
-                            holder.expandHint.setText(isExpanded ? "收起 ▲" : "展开 ▼");
-                        } else if (holder.expandHint != null) {
-                            holder.expandHint.setVisibility(View.GONE);
+                    // 使用 itemView.post() 更安全
+                    holder.itemView.post(() -> {
+                        try {
+                            int currentPos = holder.getAdapterPosition();
+                            if (currentPos == RecyclerView.NO_POSITION) return;
+                            
+                            if (holder.contentScrollV == null || holder.contentText == null) return;
+                            
+                            int lineCount = holder.contentText.getLineCount();
+                            if (lineCount > COLLAPSED_LINES && holder.expandHint != null) {
+                                holder.expandHint.setVisibility(View.VISIBLE);
+                                boolean isExpanded = expandedToolResults.contains(currentPos);
+                                int heightPx = isExpanded ? calculateHeightPx(EXPANDED_LINES) : collapsedHeightPx;
+                                safeSetHeight(holder.contentScrollV, heightPx);
+                                holder.expandHint.setText(isExpanded ? "收起 ▲" : "展开 ▼");
+                            } else if (holder.expandHint != null) {
+                                holder.expandHint.setVisibility(View.GONE);
+                            }
+                        } catch (Exception e) {
+                            Log.e(TAG, "post runnable error: " + e.getMessage());
                         }
                     });
                 } else {
@@ -604,10 +605,6 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
         notifyDataSetChanged();
     }
     
-    /**
-     * 安全更新数据并通知刷新
-     * 使用临时列表构建数据，避免并发问题
-     */
     public void notifyDataSetChangedWithUpdate() {
         updateVisibleItems();
         notifyDataSetChanged();
@@ -622,9 +619,6 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
         return null;
     }
     
-    /**
-     * 安全获取指定位置的可见项
-     */
     public Object getVisibleItemAt(int position) {
         if (position >= 0 && position < visibleItems.size()) {
             return visibleItems.get(position);
@@ -633,9 +627,6 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
         return null;
     }
     
-    /**
-     * 根据 created 时间戳查找可见位置
-     */
     public int findVisiblePositionByCreated(long created) {
         for (int i = 0; i < visibleItems.size(); i++) {
             Object item = visibleItems.get(i);
