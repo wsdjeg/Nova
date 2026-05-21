@@ -35,6 +35,10 @@ import java.util.Set;
  * - TYPE_ERROR: 错误消息（浅红色背景，居中，红色文字）
  * - TYPE_TOOL_CALL: 工具调用请求（assistant 消息中的 tool_calls）
  * - TYPE_TOOL_RESULT: 工具执行结果（role=tool 的消息，简洁显示）
+ * 
+ * 并发安全修复：
+ * - 使用临时列表构建新数据，避免清空后逐步添加导致的中间状态问题
+ * - 所有数据访问方法都有边界检查
  */
 public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     private static final String TAG = "MessageAdapter";
@@ -42,15 +46,15 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
     private static final int EXPANDED_LINES = 10;   // 展开时显示行数
     private static final float LINE_HEIGHT_SP = 14f; // 每行高度(sp)
     
-    private List<Message> messages;
-    private List<Object> visibleItems;  // 可以是 Message 或 ToolCallItem
-    private Markwon markwon;
-    private Context context;
-    private int linkColor;
+    private final List<Message> messages;
+    private final List<Object> visibleItems;  // 可以是 Message 或 ToolCallItem
+    private final Markwon markwon;
+    private final Context context;
+    private final int linkColor;
     
     // 记录展开状态的项
-    private Set<Integer> expandedToolCalls = new HashSet<>();
-    private Set<Integer> expandedToolResults = new HashSet<>();
+    private final Set<Integer> expandedToolCalls = new HashSet<>();
+    private final Set<Integer> expandedToolResults = new HashSet<>();
     
     private static final int TYPE_USER = 1;
     private static final int TYPE_BOT = 2;
@@ -117,15 +121,16 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
     }
     
     /**
-     * 更新可见项列表
-     * 将消息拆分为多个显示项：
-     * - 普通消息直接添加
-     * - tool 消息直接添加（简洁显示）
-     * - assistant 消息如果有 tool_calls，拆分为多个 ToolCallItem
-     * - assistant 消息如果有 content，单独显示 content
+     * 更新可见项列表 - 使用临时列表避免并发问题
+     * 
+     * 修复：下拉闪退问题
+     * - 先在临时列表中构建完整数据
+     * - 然后一次性替换 visibleItems
+     * - 避免 RecyclerView 在滚动时访问到中间状态（空列表）
      */
     private void updateVisibleItems() {
-        visibleItems.clear();
+        // 使用临时列表构建数据，避免并发访问问题
+        List<Object> newVisibleItems = new ArrayList<>();
         Log.d(TAG, "=== updateVisibleItems: " + messages.size() + " messages ===");
         
         for (int msgIdx = 0; msgIdx < messages.size(); msgIdx++) {
@@ -146,7 +151,7 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
             // tool 消息：直接添加
             if (msg.isToolMessage()) {
                 Log.d(TAG, "    → ADD tool message, toolName=" + msg.getToolName());
-                visibleItems.add(msg);
+                newVisibleItems.add(msg);
                 continue;
             }
             
@@ -157,7 +162,7 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
                     // 先显示 content（如果有且不为空）
                     if (msg.getContent() != null && !msg.getContent().trim().isEmpty()) {
                         Log.d(TAG, "      → ADD content item");
-                        visibleItems.add(msg);
+                        newVisibleItems.add(msg);
                     }
                     
                     // 拆分 tool_calls 为单独的显示项
@@ -169,7 +174,7 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
                             ToolCallItem item = new ToolCallItem(msg, tc, i);
                             String toolName = tc.function.name != null ? tc.function.name : "<unknown>";
                             Log.d(TAG, "      → ADD ToolCallItem: " + toolName);
-                            visibleItems.add(item);
+                            newVisibleItems.add(item);
                         } else {
                             Log.d(TAG, "      → SKIP invalid ToolCall (function=null)");
                         }
@@ -177,22 +182,28 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
                 } else {
                     // assistant 消息没有 tool_calls，直接显示 content
                     Log.d(TAG, "    → ADD assistant message (no tool_calls)");
-                    visibleItems.add(msg);
+                    newVisibleItems.add(msg);
                 }
                 continue;
             }
             
             // 其他消息：直接添加
             Log.d(TAG, "    → ADD " + (msg.isUser() ? "user" : "other") + " message");
-            visibleItems.add(msg);
+            newVisibleItems.add(msg);
         }
         
-        Log.d(TAG, "=== updateVisibleItems result: " + visibleItems.size() + " visible items ===");
+        Log.d(TAG, "=== updateVisibleItems result: " + newVisibleItems.size() + " visible items ===");
+        
+        // 一次性替换，避免中间状态
+        visibleItems.clear();
+        visibleItems.addAll(newVisibleItems);
     }
     
     @Override
     public int getItemViewType(int position) {
+        // 安全边界检查
         if (position < 0 || position >= visibleItems.size()) {
+            Log.w(TAG, "getItemViewType: invalid position=" + position + ", size=" + visibleItems.size());
             return TYPE_BOT;  // 安全默认值
         }
         
@@ -251,49 +262,61 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
 
     @Override
     public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
+        // 安全边界检查
         if (position < 0 || position >= visibleItems.size()) {
-            return;  // 安全检查
+            Log.w(TAG, "onBindViewHolder: invalid position=" + position + ", size=" + visibleItems.size());
+            return;
         }
         
         Object item = visibleItems.get(position);
         
-        if (holder instanceof ToolCallViewHolder && item instanceof ToolCallItem) {
-            bindToolCallViewHolder((ToolCallViewHolder) holder, (ToolCallItem) item);
-        } else if (holder instanceof ToolResultViewHolder && item instanceof Message) {
-            bindToolResultViewHolder((ToolResultViewHolder) holder, (Message) item);
-        } else if (holder instanceof MessageViewHolder && item instanceof Message) {
-            bindMessageViewHolder((MessageViewHolder) holder, (Message) item);
+        try {
+            if (holder instanceof ToolCallViewHolder && item instanceof ToolCallItem) {
+                bindToolCallViewHolder((ToolCallViewHolder) holder, (ToolCallItem) item);
+            } else if (holder instanceof ToolResultViewHolder && item instanceof Message) {
+                bindToolResultViewHolder((ToolResultViewHolder) holder, (Message) item);
+            } else if (holder instanceof MessageViewHolder && item instanceof Message) {
+                bindMessageViewHolder((MessageViewHolder) holder, (Message) item);
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "onBindViewHolder error at position " + position + ": " + e.getMessage(), e);
         }
     }
     
     private void bindMessageViewHolder(MessageViewHolder holder, Message message) {
-        if (message == null) return;
+        if (message == null || holder.messageText == null) return;
         
-        if (message.isError()) {
-            String error = message.getError();
-            holder.messageText.setText(error != null ? error : "");
-        } else {
-            String content = message.getContent();
-            if (content != null) {
-                markwon.setMarkdown(holder.messageText, content);
-                holder.messageText.setMovementMethod(LinkMovementMethod.getInstance());
-                holder.messageText.setLinkTextColor(linkColor);
+        try {
+            if (message.isError()) {
+                String error = message.getError();
+                holder.messageText.setText(error != null ? error : "");
+            } else {
+                String content = message.getContent();
+                if (content != null) {
+                    markwon.setMarkdown(holder.messageText, content);
+                    holder.messageText.setMovementMethod(LinkMovementMethod.getInstance());
+                    holder.messageText.setLinkTextColor(linkColor);
+                }
             }
-        }
-        
-        String time = TimeUtils.formatTime(message.getTimestamp());
-        holder.timeText.setText(time);
-        
-        final String copyText = message.isError() ? message.getError() : message.getContent();
-        if (copyText != null) {
-            holder.messageText.setOnLongClickListener(v -> {
-                copyToClipboard(copyText);
-                return true;
-            });
-            holder.itemView.setOnLongClickListener(v -> {
-                copyToClipboard(copyText);
-                return true;
-            });
+            
+            if (holder.timeText != null) {
+                String time = TimeUtils.formatTime(message.getTimestamp());
+                holder.timeText.setText(time);
+            }
+            
+            final String copyText = message.isError() ? message.getError() : message.getContent();
+            if (copyText != null) {
+                holder.messageText.setOnLongClickListener(v -> {
+                    copyToClipboard(copyText);
+                    return true;
+                });
+                holder.itemView.setOnLongClickListener(v -> {
+                    copyToClipboard(copyText);
+                    return true;
+                });
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "bindMessageViewHolder error: " + e.getMessage(), e);
         }
     }
     
@@ -319,159 +342,189 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
     }
     
     private void bindToolCallViewHolder(ToolCallViewHolder holder, ToolCallItem item) {
-        if (item == null) return;
+        if (item == null || holder.statusIcon == null) return;
         
-        // 状态图标
-        holder.statusIcon.setText("🔧");
-        
-        // 工具名称
-        String toolName = item.getToolName();
-        holder.toolNameText.setText(toolName);
-        
-        // 工具参数
-        String args = item.getArguments();
-        if (args != null && !args.isEmpty()) {
-            try {
-                org.json.JSONObject json = new org.json.JSONObject(args);
-                String formatted = formatJson(json);
-                holder.contentText.setText(formatted);
-            } catch (Exception e) {
-                holder.contentText.setText(args);
+        try {
+            // 状态图标
+            holder.statusIcon.setText("🔧");
+            
+            // 工具名称
+            String toolName = item.getToolName();
+            if (holder.toolNameText != null) {
+                holder.toolNameText.setText(toolName);
             }
-            holder.contentText.setVisibility(View.VISIBLE);
             
-            // 设置初始高度
-            final int collapsedHeightPx = calculateHeightPx(COLLAPSED_LINES);
-            safeSetHeight(holder.contentScrollV, collapsedHeightPx);
-            
-            // 检查内容行数
-            holder.contentText.post(() -> {
-                if (holder.contentScrollV == null) return;
-                
-                int currentPos = holder.getAdapterPosition();
-                if (currentPos == RecyclerView.NO_POSITION) return;
-                
-                int lineCount = holder.contentText.getLineCount();
-                if (lineCount > COLLAPSED_LINES && holder.expandHint != null) {
-                    holder.expandHint.setVisibility(View.VISIBLE);
-                    boolean isExpanded = expandedToolCalls.contains(currentPos);
-                    int heightPx = isExpanded ? calculateHeightPx(EXPANDED_LINES) : collapsedHeightPx;
-                    safeSetHeight(holder.contentScrollV, heightPx);
-                    holder.expandHint.setText(isExpanded ? "收起 ▲" : "展开 ▼");
-                } else if (holder.expandHint != null) {
-                    holder.expandHint.setVisibility(View.GONE);
+            // 工具参数
+            String args = item.getArguments();
+            if (holder.contentText != null) {
+                if (args != null && !args.isEmpty()) {
+                    try {
+                        org.json.JSONObject json = new org.json.JSONObject(args);
+                        String formatted = formatJson(json);
+                        holder.contentText.setText(formatted);
+                    } catch (Exception e) {
+                        holder.contentText.setText(args);
+                    }
+                    holder.contentText.setVisibility(View.VISIBLE);
+                    
+                    // 设置初始高度
+                    final int collapsedHeightPx = calculateHeightPx(COLLAPSED_LINES);
+                    safeSetHeight(holder.contentScrollV, collapsedHeightPx);
+                    
+                    // 检查内容行数
+                    holder.contentText.post(() -> {
+                        if (holder.contentScrollV == null) return;
+                        
+                        int currentPos = holder.getAdapterPosition();
+                        if (currentPos == RecyclerView.NO_POSITION) return;
+                        
+                        int lineCount = holder.contentText.getLineCount();
+                        if (lineCount > COLLAPSED_LINES && holder.expandHint != null) {
+                            holder.expandHint.setVisibility(View.VISIBLE);
+                            boolean isExpanded = expandedToolCalls.contains(currentPos);
+                            int heightPx = isExpanded ? calculateHeightPx(EXPANDED_LINES) : collapsedHeightPx;
+                            safeSetHeight(holder.contentScrollV, heightPx);
+                            holder.expandHint.setText(isExpanded ? "收起 ▲" : "展开 ▼");
+                        } else if (holder.expandHint != null) {
+                            holder.expandHint.setVisibility(View.GONE);
+                        }
+                    });
+                } else {
+                    holder.contentText.setVisibility(View.GONE);
+                    if (holder.expandHint != null) {
+                        holder.expandHint.setVisibility(View.GONE);
+                    }
                 }
-            });
-        } else {
-            holder.contentText.setVisibility(View.GONE);
-            holder.expandHint.setVisibility(View.GONE);
-        }
-        
-        // 时间戳
-        String time = TimeUtils.formatTime(item.getCreated() * 1000);
-        holder.timeText.setText(time);
-        
-        // 点击展开/折叠
-        holder.expandHint.setOnClickListener(v -> {
-            int currentPos = holder.getAdapterPosition();
-            if (currentPos == RecyclerView.NO_POSITION) return;
-            
-            boolean isExpanded = expandedToolCalls.contains(currentPos);
-            if (isExpanded) {
-                expandedToolCalls.remove(currentPos);
-                safeSetHeight(holder.contentScrollV, calculateHeightPx(COLLAPSED_LINES));
-                holder.expandHint.setText("展开 ▼");
-            } else {
-                expandedToolCalls.add(currentPos);
-                safeSetHeight(holder.contentScrollV, calculateHeightPx(EXPANDED_LINES));
-                holder.expandHint.setText("收起 ▲");
             }
-        });
-        
-        // 长按复制
-        holder.itemView.setOnLongClickListener(v -> {
-            String copyText = toolName + "\n" + (args != null ? args : "");
-            copyToClipboard(copyText);
-            return true;
-        });
+            
+            // 时间戳
+            if (holder.timeText != null) {
+                String time = TimeUtils.formatTime(item.getCreated() * 1000);
+                holder.timeText.setText(time);
+            }
+            
+            // 点击展开/折叠
+            if (holder.expandHint != null) {
+                holder.expandHint.setOnClickListener(v -> {
+                    int currentPos = holder.getAdapterPosition();
+                    if (currentPos == RecyclerView.NO_POSITION) return;
+                    
+                    boolean isExpanded = expandedToolCalls.contains(currentPos);
+                    if (isExpanded) {
+                        expandedToolCalls.remove(currentPos);
+                        safeSetHeight(holder.contentScrollV, calculateHeightPx(COLLAPSED_LINES));
+                        holder.expandHint.setText("展开 ▼");
+                    } else {
+                        expandedToolCalls.add(currentPos);
+                        safeSetHeight(holder.contentScrollV, calculateHeightPx(EXPANDED_LINES));
+                        holder.expandHint.setText("收起 ▲");
+                    }
+                });
+            }
+            
+            // 长按复制
+            holder.itemView.setOnLongClickListener(v -> {
+                String copyText = toolName + "\n" + (args != null ? args : "");
+                copyToClipboard(copyText);
+                return true;
+            });
+        } catch (Exception e) {
+            Log.e(TAG, "bindToolCallViewHolder error: " + e.getMessage(), e);
+        }
     }
     
     private void bindToolResultViewHolder(ToolResultViewHolder holder, Message message) {
-        if (message == null) return;
+        if (message == null || holder.statusIcon == null) return;
         
-        String toolName = message.getToolName();
-        if (toolName == null) toolName = "<unknown>";
-        
-        // 状态图标
-        if (message.hasToolError()) {
-            holder.statusIcon.setText("❌");
-            holder.toolNameText.setText(toolName + " (error)");
-            holder.toolNameText.setTextColor(ContextCompat.getColor(context, R.color.error));
-        } else {
-            holder.statusIcon.setText("✅");
-            holder.toolNameText.setText(toolName);
-            holder.toolNameText.setTextColor(0xFF2196F3);
-        }
-        
-        // 内容
-        String content = message.getContent();
-        if (content != null && !content.isEmpty()) {
-            holder.contentText.setText(content);
-            holder.contentText.setVisibility(View.VISIBLE);
+        try {
+            String toolName = message.getToolName();
+            if (toolName == null) toolName = "<unknown>";
             
-            final int collapsedHeightPx = calculateHeightPx(COLLAPSED_LINES);
-            safeSetHeight(holder.contentScrollV, collapsedHeightPx);
-            
-            holder.contentText.post(() -> {
-                if (holder.contentScrollV == null) return;
-                
-                int currentPos = holder.getAdapterPosition();
-                if (currentPos == RecyclerView.NO_POSITION) return;
-                
-                int lineCount = holder.contentText.getLineCount();
-                if (lineCount > COLLAPSED_LINES && holder.expandHint != null) {
-                    holder.expandHint.setVisibility(View.VISIBLE);
-                    boolean isExpanded = expandedToolResults.contains(currentPos);
-                    int heightPx = isExpanded ? calculateHeightPx(EXPANDED_LINES) : collapsedHeightPx;
-                    safeSetHeight(holder.contentScrollV, heightPx);
-                    holder.expandHint.setText(isExpanded ? "收起 ▲" : "展开 ▼");
-                } else if (holder.expandHint != null) {
-                    holder.expandHint.setVisibility(View.GONE);
+            // 状态图标
+            if (message.hasToolError()) {
+                holder.statusIcon.setText("❌");
+                if (holder.toolNameText != null) {
+                    holder.toolNameText.setText(toolName + " (error)");
+                    holder.toolNameText.setTextColor(ContextCompat.getColor(context, R.color.error));
                 }
-            });
-        } else {
-            holder.contentText.setVisibility(View.GONE);
-            holder.expandHint.setVisibility(View.GONE);
-        }
-        
-        // 时间戳
-        String time = TimeUtils.formatTime(message.getTimestamp());
-        holder.timeText.setText(time);
-        
-        // 点击展开/折叠
-        holder.expandHint.setOnClickListener(v -> {
-            int currentPos = holder.getAdapterPosition();
-            if (currentPos == RecyclerView.NO_POSITION) return;
-            
-            boolean isExpanded = expandedToolResults.contains(currentPos);
-            if (isExpanded) {
-                expandedToolResults.remove(currentPos);
-                safeSetHeight(holder.contentScrollV, calculateHeightPx(COLLAPSED_LINES));
-                holder.expandHint.setText("展开 ▼");
             } else {
-                expandedToolResults.add(currentPos);
-                safeSetHeight(holder.contentScrollV, calculateHeightPx(EXPANDED_LINES));
-                holder.expandHint.setText("收起 ▲");
+                holder.statusIcon.setText("✅");
+                if (holder.toolNameText != null) {
+                    holder.toolNameText.setText(toolName);
+                    holder.toolNameText.setTextColor(0xFF2196F3);
+                }
             }
-        });
-        
-        // 长按复制
-        holder.itemView.setOnLongClickListener(v -> {
-            if (content != null && !content.isEmpty()) {
-                copyToClipboard(content);
+            
+            // 内容
+            String content = message.getContent();
+            if (holder.contentText != null) {
+                if (content != null && !content.isEmpty()) {
+                    holder.contentText.setText(content);
+                    holder.contentText.setVisibility(View.VISIBLE);
+                    
+                    final int collapsedHeightPx = calculateHeightPx(COLLAPSED_LINES);
+                    safeSetHeight(holder.contentScrollV, collapsedHeightPx);
+                    
+                    holder.contentText.post(() -> {
+                        if (holder.contentScrollV == null) return;
+                        
+                        int currentPos = holder.getAdapterPosition();
+                        if (currentPos == RecyclerView.NO_POSITION) return;
+                        
+                        int lineCount = holder.contentText.getLineCount();
+                        if (lineCount > COLLAPSED_LINES && holder.expandHint != null) {
+                            holder.expandHint.setVisibility(View.VISIBLE);
+                            boolean isExpanded = expandedToolResults.contains(currentPos);
+                            int heightPx = isExpanded ? calculateHeightPx(EXPANDED_LINES) : collapsedHeightPx;
+                            safeSetHeight(holder.contentScrollV, heightPx);
+                            holder.expandHint.setText(isExpanded ? "收起 ▲" : "展开 ▼");
+                        } else if (holder.expandHint != null) {
+                            holder.expandHint.setVisibility(View.GONE);
+                        }
+                    });
+                } else {
+                    holder.contentText.setVisibility(View.GONE);
+                    if (holder.expandHint != null) {
+                        holder.expandHint.setVisibility(View.GONE);
+                    }
+                }
             }
-            return true;
-        });
+            
+            // 时间戳
+            if (holder.timeText != null) {
+                String time = TimeUtils.formatTime(message.getTimestamp());
+                holder.timeText.setText(time);
+            }
+            
+            // 点击展开/折叠
+            if (holder.expandHint != null) {
+                holder.expandHint.setOnClickListener(v -> {
+                    int currentPos = holder.getAdapterPosition();
+                    if (currentPos == RecyclerView.NO_POSITION) return;
+                    
+                    boolean isExpanded = expandedToolResults.contains(currentPos);
+                    if (isExpanded) {
+                        expandedToolResults.remove(currentPos);
+                        safeSetHeight(holder.contentScrollV, calculateHeightPx(COLLAPSED_LINES));
+                        holder.expandHint.setText("展开 ▼");
+                    } else {
+                        expandedToolResults.add(currentPos);
+                        safeSetHeight(holder.contentScrollV, calculateHeightPx(EXPANDED_LINES));
+                        holder.expandHint.setText("收起 ▲");
+                    }
+                });
+            }
+            
+            // 长按复制
+            holder.itemView.setOnLongClickListener(v -> {
+                if (content != null && !content.isEmpty()) {
+                    copyToClipboard(content);
+                }
+                return true;
+            });
+        } catch (Exception e) {
+            Log.e(TAG, "bindToolResultViewHolder error: " + e.getMessage(), e);
+        }
     }
     
     private String formatJson(org.json.JSONObject json) {
@@ -551,6 +604,10 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
         notifyDataSetChanged();
     }
     
+    /**
+     * 安全更新数据并通知刷新
+     * 使用临时列表构建数据，避免并发问题
+     */
     public void notifyDataSetChangedWithUpdate() {
         updateVisibleItems();
         notifyDataSetChanged();
@@ -565,13 +622,20 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
         return null;
     }
     
+    /**
+     * 安全获取指定位置的可见项
+     */
     public Object getVisibleItemAt(int position) {
         if (position >= 0 && position < visibleItems.size()) {
             return visibleItems.get(position);
         }
+        Log.w(TAG, "getVisibleItemAt: invalid position=" + position + ", size=" + visibleItems.size());
         return null;
     }
     
+    /**
+     * 根据 created 时间戳查找可见位置
+     */
     public int findVisiblePositionByCreated(long created) {
         for (int i = 0; i < visibleItems.size(); i++) {
             Object item = visibleItems.get(i);
@@ -589,11 +653,15 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
     }
     
     private void copyToClipboard(String text) {
-        ClipboardManager clipboard = (ClipboardManager) context.getSystemService(Context.CLIPBOARD_SERVICE);
-        if (clipboard != null && text != null) {
-            ClipData clip = ClipData.newPlainText("消息内容", text);
-            clipboard.setPrimaryClip(clip);
-            Toast.makeText(context, "已复制到剪贴板", Toast.LENGTH_SHORT).show();
+        try {
+            ClipboardManager clipboard = (ClipboardManager) context.getSystemService(Context.CLIPBOARD_SERVICE);
+            if (clipboard != null && text != null) {
+                ClipData clip = ClipData.newPlainText("消息内容", text);
+                clipboard.setPrimaryClip(clip);
+                Toast.makeText(context, "已复制到剪贴板", Toast.LENGTH_SHORT).show();
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "copyToClipboard error: " + e.getMessage(), e);
         }
     }
 
