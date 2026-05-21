@@ -217,16 +217,22 @@ public class ChatActivity extends AppCompatActivity {
         Session session = sessionManager.getSession(currentSessionId);
         Account sessionAccount = null;
         
-        Log.d(TAG, "Initializing with sessionId: " + currentSessionId);
+        Log.d(TAG, "Initializing with sessionId: " + currentSessionId + ", session=" + (session != null ? "found" : "null"));
+        
         // 优先使用 intent 传递的 in_progress 状态
         if (intentInProgress) {
             isInProgress = true;
             Log.d(TAG, "Using intent in_progress: true");
-        } else if (session != null) {
+        }
+        
+        // 从 session 获取信息（如果存在）
+        if (session != null) {
             Log.d(TAG, "Session: accountId=" + session.getAccountId());
             totalMessageCount = session.getMessageCount();
             currentSince = 0;
-            isInProgress = session.isInProgress();
+            if (!intentInProgress) {
+                isInProgress = session.isInProgress();
+            }
             Log.d(TAG, "Using session in_progress: " + isInProgress);
             
             if (session.getAccountId() != null && !session.getAccountId().isEmpty()) {
@@ -234,9 +240,12 @@ public class ChatActivity extends AppCompatActivity {
             }
         }
         
+        // 如果还没有 sessionAccount，尝试从活跃账号获取
         if (sessionAccount == null) {
             sessionAccount = accountManager.getActiveAccount();
+            Log.d(TAG, "Trying active account: " + (sessionAccount != null ? sessionAccount.getId() : "null"));
         }
+        
         if (sessionAccount == null) {
             Toast.makeText(this, "请先添加账号", Toast.LENGTH_SHORT).show();
             finish();
