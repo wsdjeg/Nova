@@ -20,6 +20,7 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.appcompat.app.ActionBar;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
@@ -175,19 +176,35 @@ public class ChatActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_chat);
+        
+        try {
+            setContentView(R.layout.activity_chat);
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to set content view: " + e.getMessage(), e);
+            Toast.makeText(this, "界面加载失败", Toast.LENGTH_SHORT).show();
+            finish();
+            return;
+        }
         
         toolbar = findViewById(R.id.toolbar);
-        setSupportActionBar(toolbar);
-        // 启用返回按钮
-        getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-        getSupportActionBar().setDisplayShowHomeEnabled(true);
+        if (toolbar != null) {
+            setSupportActionBar(toolbar);
+        }
         
-        // 设置返回箭头颜色为白色
-        Drawable navigationIcon = toolbar.getNavigationIcon();
-        if (navigationIcon != null) {
-            navigationIcon.setColorFilter(ContextCompat.getColor(this, android.R.color.white), PorterDuff.Mode.SRC_IN);
-            toolbar.setNavigationIcon(navigationIcon);
+        // 启用返回按钮 - 添加空指针检查
+        ActionBar actionBar = getSupportActionBar();
+        if (actionBar != null) {
+            actionBar.setDisplayHomeAsUpEnabled(true);
+            actionBar.setDisplayShowHomeEnabled(true);
+        }
+        
+        // 设置返回箭头颜色为白色 - 添加空指针检查
+        if (toolbar != null) {
+            Drawable navigationIcon = toolbar.getNavigationIcon();
+            if (navigationIcon != null) {
+                navigationIcon.setColorFilter(ContextCompat.getColor(this, android.R.color.white), PorterDuff.Mode.SRC_IN);
+                toolbar.setNavigationIcon(navigationIcon);
+            }
         }
         
         tvSessionTitle = findViewById(R.id.tv_session_title);
@@ -209,7 +226,9 @@ public class ChatActivity extends AppCompatActivity {
             return;
         }
         
-        toolbar.setTitle("");
+        if (toolbar != null) {
+            toolbar.setTitle("");
+        }
         settingsManager = new SettingsManager(this);
         sessionManager = new SessionManager(this);
         accountManager = AccountManager.getInstance(this);
