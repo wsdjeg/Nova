@@ -78,6 +78,10 @@ import java.util.Set;
  * - 键盘弹出/关闭时，RecyclerView 高度变化
  * - 使用 scrollBy 补偿，保持消息相对于输入框的位置不变
  * - 使用防抖机制避免 GlobalLayoutListener 多次触发导致的重复滚动
+ * 
+ * Activity 生命周期安全：
+ * - isActivityActive 标志防止 Activity 销毁后回调执行导致崩溃
+ * - 所有 runOnUiThread 回调都会先检查 isActivityActive
  */
 public class ChatActivity extends AppCompatActivity {
     
@@ -100,6 +104,10 @@ public class ChatActivity extends AppCompatActivity {
     
     public static final String EXTRA_SESSION_ID = "session_id";
     public static final String EXTRA_SESSION_TITLE = "session_title";
+    
+    // Activity 生命周期状态标志
+    // 用于防止 Activity 销毁后回调执行导致崩溃
+    private boolean isActivityActive = false;
     
     private Toolbar toolbar;
     private TextView tvSessionTitle;
@@ -176,6 +184,8 @@ public class ChatActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        
+        isActivityActive = true;
         
         try {
             setContentView(R.layout.activity_chat);
@@ -334,6 +344,18 @@ public class ChatActivity extends AppCompatActivity {
     }
     
     /**
+     * 安全执行 UI 操作
+     * 检查 Activity 是否仍在活跃状态，防止销毁后执行导致崩溃
+     */
+    private void runOnUiThreadSafe(Runnable action) {
+        if (isActivityActive && !isFinishing()) {
+            runOnUiThread(action);
+        } else {
+            Log.d(TAG, "Skipping UI action: activity not active");
+        }
+    }
+    
+    /**
      * 从 ChatMessage 创建 Message 对象
      * 正确处理 error 字段、tool_calls 和 tool_call_state
      */
@@ -412,7 +434,7 @@ public class ChatActivity extends AppCompatActivity {
             sb.append("toolcalls=");
             for (int i = 0; i < msg.toolCalls.size(); i++) {
                 ApiClient.ToolCall tc = msg.toolCalls.get(i);
-                sb.append(tc.id);
+                sb.append(tc.id != null ? tc.id : "null");
                 if (i < msg.toolCalls.size() - 1) {
                     sb.append(",");
                 }
@@ -455,6 +477,8 @@ public class ChatActivity extends AppCompatActivity {
             public void onScrolled(RecyclerView recyclerView, int dx, int dy) {
                 // 异常保护：防止滚动过程中崩溃
                 try {
+                    if (!isActivityActive) return;
+                    
                     LinearLayoutManager lm = (LinearLayoutManager) recyclerView.getLayoutManager();
                     if (lm == null || adapter == null) return;
                     
@@ -526,6 +550,8 @@ public class ChatActivity extends AppCompatActivity {
                 
                 // 异常保护
                 try {
+                    if (!isActivityActive) return;
+                    
                     // 只在滚动停止时检查是否需要加载更多
                     if (newState == RecyclerView.SCROLL_STATE_IDLE) {
                         LinearLayoutManager lm = (LinearLayoutManager) recyclerView.getLayoutManager();
@@ -568,6 +594,8 @@ public class ChatActivity extends AppCompatActivity {
             public void onGlobalLayout() {
                 // 异常保护
                 try {
+                    if (!isActivityActive) return;
+                    
                     int currentHeight = rvMessages.getHeight();
                     
                     if (lastRecyclerViewHeight > 0 && currentHeight != lastRecyclerViewHeight) {
@@ -634,7 +662,7 @@ public class ChatActivity extends AppCompatActivity {
         }
         
         keyboardScrollRunnable = () -> {
-            if (userAtBottom) {
+            if (isActivityActive && userAtBottom) {
                 scrollToBottomSmooth();
             }
         };
@@ -684,6 +712,7 @@ public class ChatActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
+        isActivityActive = true;
         isAutoRefreshEnabled = true;
         startAutoRefresh();
     }
@@ -694,6 +723,20 @@ public class ChatActivity extends AppCompatActivity {
         isAutoRefreshEnabled = false;
         stopAutoRefresh();
         saveDraft();
+    }
+    
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        isActivityActive = false;
+        stopAutoRefresh();
+        
+        // 清理键盘 Handler
+        if (keyboardHandler != null && keyboardScrollRunnable != null) {
+            keyboardHandler.removeCallbacks(keyboardScrollRunnable);
+        }
+        
+        Log.d(TAG, "ChatActivity destroyed, isActivityActive=" + isActivityActive);
     }
     
     @Override
@@ -750,7 +793,7 @@ public class ChatActivity extends AppCompatActivity {
         apiClient.getSessionRaw(currentSessionId, new ApiClient.ApiCallback() {
             @Override
             public void onSuccess(String response) {
-                runOnUiThread(() -> {
+                runOnUiThreadSafe(() -> {
                     // 格式化 JSON
                     String formattedJson = formatJson(response);
                     showJsonDialog(formattedJson);
@@ -759,7 +802,7 @@ public class ChatActivity extends AppCompatActivity {
             
             @Override
             public void onError(String error) {
-                runOnUiThread(() -> {
+                runOnUiThreadSafe(() -> {
                     Toast.makeText(ChatActivity.this, "获取JSON失败: " + error, Toast.LENGTH_SHORT).show();
                 });
             }
@@ -794,6 +837,8 @@ public class ChatActivity extends AppCompatActivity {
      * 显示 JSON 对话框
      */
     private void showJsonDialog(String json) {
+        if (!isActivityActive) return;
+        
         // 创建 ScrollView 包裹 TextView
         ScrollView scrollView = new ScrollView(this);
         scrollView.setBackgroundColor(Color.parseColor("#1E1E1E"));
@@ -918,7 +963,7 @@ public class ChatActivity extends AppCompatActivity {
         refreshRunnable = new Runnable() {
             @Override
             public void run() {
-                if (isAutoRefreshEnabled && !isLoadingOlder) {
+                if (isActivityActive && isAutoRefreshEnabled && !isLoadingOlder) {
                     refreshMessages();
                     refreshHandler.postDelayed(this, REFRESH_INTERVAL_MS);
                 }
@@ -942,7 +987,7 @@ public class ChatActivity extends AppCompatActivity {
         apiClient.getSession(currentSessionId, accountId, new ApiClient.SessionCallback() {
             @Override
             public void onSuccess(Session session) {
-                runOnUiThread(() -> {
+                runOnUiThreadSafe(() -> {
                     boolean wasInProgress = isInProgress;
                     isInProgress = session.isInProgress();
                     
@@ -999,7 +1044,7 @@ public class ChatActivity extends AppCompatActivity {
         apiClient.getNewMessages(currentSessionId, sinceIndex, new ApiClient.MessagesCallback() {
             @Override
             public void onSuccess(List<ApiClient.ChatMessage> chatMessages) {
-                runOnUiThread(() -> {
+                runOnUiThreadSafe(() -> {
                     if (chatMessages.isEmpty()) return;
                     
                     Log.d(TAG, "=== FETCH: received " + chatMessages.size() + " messages ===");
@@ -1188,6 +1233,8 @@ public class ChatActivity extends AppCompatActivity {
         
         rvMessages.post(() -> {
             try {
+                if (!isActivityActive) return;
+                
                 int pos = adapter.findVisiblePositionByCreated(anchorMessageCreated);
                 if (pos >= 0 && pos < adapter.getItemCount()) {
                     lm.scrollToPositionWithOffset(pos, offsetToRestore);
@@ -1221,7 +1268,7 @@ public class ChatActivity extends AppCompatActivity {
         apiClient.getNewMessages(currentSessionId, since, new ApiClient.MessagesCallback() {
             @Override
             public void onSuccess(List<ApiClient.ChatMessage> chatMessages) {
-                runOnUiThread(() -> {
+                runOnUiThreadSafe(() -> {
                     messages.clear();
                     messageFingerprints.clear();
                     pendingMessages.clear();
@@ -1256,7 +1303,7 @@ public class ChatActivity extends AppCompatActivity {
             
             @Override
             public void onError(String error) {
-                runOnUiThread(() -> {
+                runOnUiThreadSafe(() -> {
                     messages.clear();
                     messageFingerprints.clear();
                     pendingMessages.clear();
@@ -1287,7 +1334,7 @@ public class ChatActivity extends AppCompatActivity {
         apiClient.getNewMessages(currentSessionId, newSince, new ApiClient.MessagesCallback() {
             @Override
             public void onSuccess(List<ApiClient.ChatMessage> chatMessages) {
-                runOnUiThread(() -> {
+                runOnUiThreadSafe(() -> {
                     if (chatMessages.isEmpty()) {
                         currentSince = 1;
                         isLoadingOlder = false;
@@ -1323,7 +1370,11 @@ public class ChatActivity extends AppCompatActivity {
                         isLoadingOlder = false;
                         if (canLoadMore()) {
                             showLoadMoreHint("⏳ 继续加载...");
-                            rvMessages.postDelayed(() -> triggerLoadOlder(), 200);
+                            rvMessages.postDelayed(() -> {
+                                if (isActivityActive) {
+                                    triggerLoadOlder();
+                                }
+                            }, 200);
                         } else {
                             hideLoadMoreHint();
                             Toast.makeText(ChatActivity.this, "已到第一条消息", Toast.LENGTH_SHORT).show();
@@ -1343,6 +1394,8 @@ public class ChatActivity extends AppCompatActivity {
                     
                     rvMessages.post(() -> {
                         try {
+                            if (!isActivityActive) return;
+                            
                             LinearLayoutManager lm = (LinearLayoutManager) rvMessages.getLayoutManager();
                             if (lm != null && adapter != null) {
                                 int newPosition = adapter.findVisiblePositionByCreated(savedAnchor);
@@ -1367,6 +1420,8 @@ public class ChatActivity extends AppCompatActivity {
                         if (canLoadMore()) {
                             showLoadMoreHint("✓ 已加载 " + loadedVisible + " 条可见消息");
                             rvMessages.postDelayed(() -> {
+                                if (!isActivityActive) return;
+                                
                                 LinearLayoutManager lm2 = (LinearLayoutManager) rvMessages.getLayoutManager();
                                 if (lm2 != null && lm2.findFirstVisibleItemPosition() == 0 && canLoadMore()) {
                                     showLoadMoreHint("↑ 下拉加载更多");
@@ -1386,7 +1441,7 @@ public class ChatActivity extends AppCompatActivity {
             
             @Override
             public void onError(String error) {
-                runOnUiThread(() -> {
+                runOnUiThreadSafe(() -> {
                     isLoadingOlder = false;
                     hideLoadMoreHint();
                     Toast.makeText(ChatActivity.this, "加载失败: " + error, Toast.LENGTH_SHORT).show();
@@ -1404,7 +1459,7 @@ public class ChatActivity extends AppCompatActivity {
         apiClient.getNewMessages(currentSessionId, sinceIndex, new ApiClient.MessagesCallback() {
             @Override
             public void onSuccess(List<ApiClient.ChatMessage> chatMessages) {
-                runOnUiThread(() -> {
+                runOnUiThreadSafe(() -> {
                     if (chatMessages.isEmpty()) return;
                     
                     // 找到最新的可显示消息（非 tool，有 content 或 error）
@@ -1470,7 +1525,7 @@ public class ChatActivity extends AppCompatActivity {
      * 平滑滚动到底部
      */
     private void scrollToBottomSmooth() {
-        if (rvMessages == null || adapter == null) return;
+        if (!isActivityActive || rvMessages == null || adapter == null) return;
         int itemCount = adapter.getItemCount();
         if (itemCount == 0) return;
         
@@ -1484,7 +1539,7 @@ public class ChatActivity extends AppCompatActivity {
             
             rvMessages.post(() -> {
                 try {
-                    if (adapter == null || adapter.getItemCount() == 0) return;
+                    if (!isActivityActive || adapter == null || adapter.getItemCount() == 0) return;
                     
                     int pos = adapter.getItemCount() - 1;
                     View lastChild = lm.findViewByPosition(pos);
@@ -1515,7 +1570,7 @@ public class ChatActivity extends AppCompatActivity {
         apiClient.getSession(currentSessionId, accountId, new ApiClient.SessionCallback() {
             @Override
             public void onSuccess(Session serverSession) {
-                runOnUiThread(() -> {
+                runOnUiThreadSafe(() -> {
                     isInProgress = serverSession.isInProgress();
                     totalMessageCount = serverSession.getMessageCount();
                     
@@ -1566,7 +1621,7 @@ public class ChatActivity extends AppCompatActivity {
             
             @Override
             public void onError(String error) {
-                runOnUiThread(() -> {
+                runOnUiThreadSafe(() -> {
                     if (onComplete != null) {
                         onComplete.run();
                     }
@@ -1634,7 +1689,7 @@ public class ChatActivity extends AppCompatActivity {
         apiClient.sendMessage(currentSessionId, content, new ApiClient.MessageCallback() {
             @Override
             public void onSuccess() {
-                runOnUiThread(() -> {
+                runOnUiThreadSafe(() -> {
                     messagesInPool.add(content);
                     fetchNewMessagesAndRestorePosition();
                 });
@@ -1642,7 +1697,7 @@ public class ChatActivity extends AppCompatActivity {
             
             @Override
             public void onError(String error) {
-                runOnUiThread(() -> {
+                runOnUiThreadSafe(() -> {
                     pendingMessages.remove(content);
                     messagesInPool.remove(content);
                     for (int i = messages.size() - 1; i >= 0; i--) {
@@ -1667,7 +1722,7 @@ public class ChatActivity extends AppCompatActivity {
         apiClient.stopSession(currentSessionId, new ApiClient.StopCallback() {
             @Override
             public void onSuccess() {
-                runOnUiThread(() -> {
+                runOnUiThreadSafe(() -> {
                     setButtonStateNormal();
                     isInProgress = false;
                     refreshMessages();
@@ -1676,7 +1731,7 @@ public class ChatActivity extends AppCompatActivity {
             
             @Override
             public void onError(String error) {
-                runOnUiThread(() -> {
+                runOnUiThreadSafe(() -> {
                     setButtonStateNormal();
                     isInProgress = false;
                     Toast.makeText(ChatActivity.this, "停止失败: " + error, Toast.LENGTH_SHORT).show();
@@ -1707,7 +1762,7 @@ public class ChatActivity extends AppCompatActivity {
                 apiClient.clearSession(currentSessionId, new ApiClient.ClearCallback() {
                     @Override
                     public void onSuccess() {
-                        runOnUiThread(() -> {
+                        runOnUiThreadSafe(() -> {
                             messages.clear();
                             messageFingerprints.clear();
                             pendingMessages.clear();
@@ -1724,7 +1779,7 @@ public class ChatActivity extends AppCompatActivity {
 
                     @Override
                     public void onError(String error) {
-                        runOnUiThread(() -> {
+                        runOnUiThreadSafe(() -> {
                             Toast.makeText(ChatActivity.this, "清空失败: " + error, Toast.LENGTH_SHORT).show();
                         });
                     }
@@ -1742,7 +1797,7 @@ public class ChatActivity extends AppCompatActivity {
                 apiClient.deleteSession(currentSessionId, new ApiClient.DeleteSessionCallback() {
                     @Override
                     public void onSuccess() {
-                        runOnUiThread(() -> {
+                        runOnUiThreadSafe(() -> {
                             sessionManager.deleteSession(currentSessionId);
                             Toast.makeText(ChatActivity.this, "会话已删除", Toast.LENGTH_SHORT).show();
                             finish();
@@ -1751,7 +1806,7 @@ public class ChatActivity extends AppCompatActivity {
                     
                     @Override
                     public void onError(String error) {
-                        runOnUiThread(() -> {
+                        runOnUiThreadSafe(() -> {
                             Toast.makeText(ChatActivity.this, "删除失败: " + error, Toast.LENGTH_SHORT).show();
                         });
                     }
