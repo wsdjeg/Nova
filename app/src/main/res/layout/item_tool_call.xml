@@ -62,7 +62,7 @@
             <androidx.core.widget.NestedScrollView
                 android:id="@+id/contentScrollV"
                 android:layout_width="match_parent"
-                android:layout_height="60dp"
+                android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
                 android:scrollbars="vertical"
                 android:fillViewport="false"
@@ -83,8 +83,7 @@
                         android:background="@color/ai_message_bg"
                         android:textColor="@color/text_secondary"
                         android:textSize="11sp"
-                        android:fontFamily="monospace"
-                        android:visibility="gone" />
+                        android:fontFamily="monospace" />
 
                 </HorizontalScrollView>
 

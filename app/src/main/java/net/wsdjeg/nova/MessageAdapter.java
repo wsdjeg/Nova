@@ -39,7 +39,9 @@ import java.util.Set;
  * 并发安全修复：
  * - 使用临时列表构建新数据，避免清空后逐步添加导致的中间状态问题
  * - 所有数据访问方法都有边界检查
- * - post() 操作使用 itemView.post() 更安全
+ * - 使用稳定的标识（tool_call_id 或 created 时间戳）记录展开状态，而非 position
+ * - 移除不安全的 post() 操作，避免 ViewHolder 回收后执行回调导致崩溃
+ * - 当没有内容时隐藏整个容器（contentScrollV），避免空容器占用空间
  */
 public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     private static final String TAG = "MessageAdapter";
@@ -53,9 +55,11 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
     private final Context context;
     private final int linkColor;
     
-    // 记录展开状态的项
-    private final Set<Integer> expandedToolCalls = new HashSet<>();
-    private final Set<Integer> expandedToolResults = new HashSet<>();
+    // 记录展开状态的项 - 使用稳定标识而非 position
+    // ToolCallItem: 使用 tool_call.id (String)
+    // ToolResult (Message): 使用 created 时间戳 (Long)
+    private final Set<String> expandedToolCallIds = new HashSet<>();
+    private final Set<Long> expandedToolResultCreateds = new HashSet<>();
     
     private static final int TYPE_USER = 1;
     private static final int TYPE_BOT = 2;
@@ -80,6 +84,18 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
         
         public long getCreated() {
             return parentMessage.getCreated();
+        }
+        
+        /**
+         * 获取稳定的标识符（tool_call.id）
+         * 用于记录展开状态
+         */
+        public String getStableId() {
+            if (toolCall != null && toolCall.id != null) {
+                return toolCall.id;
+            }
+            // fallback: 使用 created + index
+            return "tc_" + getCreated() + "_" + index;
         }
         
         /**
@@ -331,6 +347,15 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
         }
     }
     
+    /**
+     * 绑定 ToolCall ViewHolder
+     * 
+     * 关键修复：
+     * 1. 使用 stableId (tool_call.id) 记录展开状态，而非 position
+     * 2. 移除不安全的 post() 操作，避免 ViewHolder 回收后崩溃
+     * 3. 先设置内容再设置 VISIBLE，确保文本已渲染
+     * 4. 当没有内容时隐藏整个容器
+     */
     private void bindToolCallViewHolder(ToolCallViewHolder holder, ToolCallItem item) {
         if (item == null || holder.statusIcon == null) return;
         
@@ -344,51 +369,55 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
                 holder.toolNameText.setText(toolName);
             }
             
+            // 获取稳定标识
+            final String stableId = item.getStableId();
+            final boolean isExpanded = expandedToolCallIds.contains(stableId);
+            
             // 工具参数
             final String args = item.getArguments();
-            if (holder.contentText != null) {
-                if (args != null && !args.isEmpty()) {
-                    try {
-                        org.json.JSONObject json = new org.json.JSONObject(args);
-                        String formatted = formatJson(json);
-                        holder.contentText.setText(formatted);
-                    } catch (Exception e) {
-                        holder.contentText.setText(args);
-                    }
-                    holder.contentText.setVisibility(View.VISIBLE);
-                    
-                    // 设置初始高度
-                    final int collapsedHeightPx = calculateHeightPx(COLLAPSED_LINES);
-                    safeSetHeight(holder.contentScrollV, collapsedHeightPx);
-                    
-                    // 使用 itemView.post() 更安全，避免 ViewHolder 被回收后 post 失败
-                    holder.itemView.post(() -> {
-                        try {
-                            // 检查 ViewHolder 是否仍然有效
-                            int currentPos = holder.getAdapterPosition();
-                            if (currentPos == RecyclerView.NO_POSITION) return;
-                            
-                            // 再次检查 contentScrollV 和 contentText 是否存在
-                            if (holder.contentScrollV == null || holder.contentText == null) return;
-                            
-                            int lineCount = holder.contentText.getLineCount();
-                            if (lineCount > COLLAPSED_LINES && holder.expandHint != null) {
-                                holder.expandHint.setVisibility(View.VISIBLE);
-                                boolean isExpanded = expandedToolCalls.contains(currentPos);
-                                int heightPx = isExpanded ? calculateHeightPx(EXPANDED_LINES) : collapsedHeightPx;
-                                safeSetHeight(holder.contentScrollV, heightPx);
-                                holder.expandHint.setText(isExpanded ? "收起 ▲" : "展开 ▼");
-                            } else if (holder.expandHint != null) {
-                                holder.expandHint.setVisibility(View.GONE);
-                            }
-                        } catch (Exception e) {
-                            Log.e(TAG, "post runnable error: " + e.getMessage());
-                        }
-                    });
+            
+            // 先隐藏容器，根据内容决定是否显示
+            if (holder.contentScrollV != null) {
+                holder.contentScrollV.setVisibility(View.GONE);
+            }
+            if (holder.expandHint != null) {
+                holder.expandHint.setVisibility(View.GONE);
+            }
+            
+            if (args != null && !args.isEmpty() && holder.contentText != null) {
+                // 设置内容
+                try {
+                    org.json.JSONObject json = new org.json.JSONObject(args);
+                    String formatted = formatJson(json);
+                    holder.contentText.setText(formatted);
+                } catch (Exception e) {
+                    holder.contentText.setText(args);
+                }
+                
+                // 显示容器
+                if (holder.contentScrollV != null) {
+                    holder.contentScrollV.setVisibility(View.VISIBLE);
+                }
+                
+                // 使用稳定的展开状态设置高度
+                final int collapsedHeightPx = calculateHeightPx(COLLAPSED_LINES);
+                final int expandedHeightPx = calculateHeightPx(EXPANDED_LINES);
+                
+                // 根据内容长度和展开状态决定高度
+                // 粗略估算：每行约 40 字符（11sp monospace）
+                int estimatedLines = Math.max(1, args.length() / 40);
+                boolean needsExpandButton = estimatedLines > COLLAPSED_LINES;
+                
+                if (needsExpandButton && holder.expandHint != null) {
+                    holder.expandHint.setVisibility(View.VISIBLE);
+                    holder.expandHint.setText(isExpanded ? "收起 ▲" : "展开 ▼");
+                    safeSetHeight(holder.contentScrollV, isExpanded ? expandedHeightPx : collapsedHeightPx);
                 } else {
-                    holder.contentText.setVisibility(View.GONE);
-                    if (holder.expandHint != null) {
-                        holder.expandHint.setVisibility(View.GONE);
+                    // 内容较少，不限制高度
+                    ViewGroup.LayoutParams params = holder.contentScrollV.getLayoutParams();
+                    if (params != null) {
+                        params.height = ViewGroup.LayoutParams.WRAP_CONTENT;
+                        holder.contentScrollV.requestLayout();
                     }
                 }
             }
@@ -399,19 +428,16 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
                 holder.timeText.setText(time);
             }
             
-            // 点击展开/折叠
+            // 点击展开/折叠 - 使用 stableId
             if (holder.expandHint != null) {
                 holder.expandHint.setOnClickListener(v -> {
-                    int currentPos = holder.getAdapterPosition();
-                    if (currentPos == RecyclerView.NO_POSITION) return;
-                    
-                    boolean isExpanded = expandedToolCalls.contains(currentPos);
-                    if (isExpanded) {
-                        expandedToolCalls.remove(currentPos);
+                    boolean nowExpanded = expandedToolCallIds.contains(stableId);
+                    if (nowExpanded) {
+                        expandedToolCallIds.remove(stableId);
                         safeSetHeight(holder.contentScrollV, calculateHeightPx(COLLAPSED_LINES));
                         holder.expandHint.setText("展开 ▼");
                     } else {
-                        expandedToolCalls.add(currentPos);
+                        expandedToolCallIds.add(stableId);
                         safeSetHeight(holder.contentScrollV, calculateHeightPx(EXPANDED_LINES));
                         holder.expandHint.setText("收起 ▲");
                     }
@@ -429,6 +455,15 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
         }
     }
     
+    /**
+     * 绑定 ToolResult ViewHolder
+     * 
+     * 关键修复：
+     * 1. 使用 created 时间戳记录展开状态，而非 position
+     * 2. 移除不安全的 post() 操作
+     * 3. 先设置内容再设置 VISIBLE
+     * 4. 当没有内容时隐藏整个容器
+     */
     private void bindToolResultViewHolder(ToolResultViewHolder holder, Message message) {
         if (message == null || holder.statusIcon == null) return;
         
@@ -451,42 +486,46 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
                 }
             }
             
+            // 获取稳定标识（created 时间戳）
+            final long created = message.getCreated();
+            final boolean isExpanded = expandedToolResultCreateds.contains(created);
+            
             // 内容
             final String content = message.getContent();
-            if (holder.contentText != null) {
-                if (content != null && !content.isEmpty()) {
-                    holder.contentText.setText(content);
-                    holder.contentText.setVisibility(View.VISIBLE);
-                    
-                    final int collapsedHeightPx = calculateHeightPx(COLLAPSED_LINES);
-                    safeSetHeight(holder.contentScrollV, collapsedHeightPx);
-                    
-                    // 使用 itemView.post() 更安全
-                    holder.itemView.post(() -> {
-                        try {
-                            int currentPos = holder.getAdapterPosition();
-                            if (currentPos == RecyclerView.NO_POSITION) return;
-                            
-                            if (holder.contentScrollV == null || holder.contentText == null) return;
-                            
-                            int lineCount = holder.contentText.getLineCount();
-                            if (lineCount > COLLAPSED_LINES && holder.expandHint != null) {
-                                holder.expandHint.setVisibility(View.VISIBLE);
-                                boolean isExpanded = expandedToolResults.contains(currentPos);
-                                int heightPx = isExpanded ? calculateHeightPx(EXPANDED_LINES) : collapsedHeightPx;
-                                safeSetHeight(holder.contentScrollV, heightPx);
-                                holder.expandHint.setText(isExpanded ? "收起 ▲" : "展开 ▼");
-                            } else if (holder.expandHint != null) {
-                                holder.expandHint.setVisibility(View.GONE);
-                            }
-                        } catch (Exception e) {
-                            Log.e(TAG, "post runnable error: " + e.getMessage());
-                        }
-                    });
+            
+            // 先隐藏容器，根据内容决定是否显示
+            if (holder.contentScrollV != null) {
+                holder.contentScrollV.setVisibility(View.GONE);
+            }
+            if (holder.expandHint != null) {
+                holder.expandHint.setVisibility(View.GONE);
+            }
+            
+            if (content != null && !content.isEmpty() && holder.contentText != null) {
+                // 设置内容
+                holder.contentText.setText(content);
+                
+                // 显示容器
+                if (holder.contentScrollV != null) {
+                    holder.contentScrollV.setVisibility(View.VISIBLE);
+                }
+                
+                final int collapsedHeightPx = calculateHeightPx(COLLAPSED_LINES);
+                final int expandedHeightPx = calculateHeightPx(EXPANDED_LINES);
+                
+                // 根据内容长度估算是否需要展开按钮
+                int estimatedLines = Math.max(1, content.length() / 40);
+                boolean needsExpandButton = estimatedLines > COLLAPSED_LINES;
+                
+                if (needsExpandButton && holder.expandHint != null) {
+                    holder.expandHint.setVisibility(View.VISIBLE);
+                    holder.expandHint.setText(isExpanded ? "收起 ▲" : "展开 ▼");
+                    safeSetHeight(holder.contentScrollV, isExpanded ? expandedHeightPx : collapsedHeightPx);
                 } else {
-                    holder.contentText.setVisibility(View.GONE);
-                    if (holder.expandHint != null) {
-                        holder.expandHint.setVisibility(View.GONE);
+                    ViewGroup.LayoutParams params = holder.contentScrollV.getLayoutParams();
+                    if (params != null) {
+                        params.height = ViewGroup.LayoutParams.WRAP_CONTENT;
+                        holder.contentScrollV.requestLayout();
                     }
                 }
             }
@@ -497,19 +536,16 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
                 holder.timeText.setText(time);
             }
             
-            // 点击展开/折叠
+            // 点击展开/折叠 - 使用 created 时间戳
             if (holder.expandHint != null) {
                 holder.expandHint.setOnClickListener(v -> {
-                    int currentPos = holder.getAdapterPosition();
-                    if (currentPos == RecyclerView.NO_POSITION) return;
-                    
-                    boolean isExpanded = expandedToolResults.contains(currentPos);
-                    if (isExpanded) {
-                        expandedToolResults.remove(currentPos);
+                    boolean nowExpanded = expandedToolResultCreateds.contains(created);
+                    if (nowExpanded) {
+                        expandedToolResultCreateds.remove(created);
                         safeSetHeight(holder.contentScrollV, calculateHeightPx(COLLAPSED_LINES));
                         holder.expandHint.setText("展开 ▼");
                     } else {
-                        expandedToolResults.add(currentPos);
+                        expandedToolResultCreateds.add(created);
                         safeSetHeight(holder.contentScrollV, calculateHeightPx(EXPANDED_LINES));
                         holder.expandHint.setText("收起 ▲");
                     }
