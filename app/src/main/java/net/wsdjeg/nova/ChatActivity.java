@@ -581,7 +581,8 @@ public class ChatActivity extends AppCompatActivity {
         } else if (id == R.id.action_settings) {
             openSessionSettings();
             return true;
-        } else if (id == R.id.action_view_logs) {
+        } else if (id == R.id.action_view_log) {
+
             startActivity(new Intent(this, LogViewerActivity.class));
             return true;
         }
@@ -759,14 +760,16 @@ public class ChatActivity extends AppCompatActivity {
                         // 详细日志
                         boolean hasToolCalls = msg.toolCalls != null && !msg.toolCalls.isEmpty();
                         boolean isTool = "tool".equals(msg.role);
+
                         StringBuilder tcInfo = new StringBuilder();
                         if (hasToolCalls) {
                             tcInfo.append("tool_calls[").append(msg.toolCalls.size()).append("]:");
                             for (ApiClient.ToolCall tc : msg.toolCalls) {
-                                tcInfo.append(tc.name).append(",");
+                                tcInfo.append(tc.function.name).append(",");
                             }
                         }
                         Log.d(TAG, "  MSG[" + i + "] role=" + msg.role + 
+
                               ", hasToolCalls=" + hasToolCalls + 
                               ", isTool=" + isTool + 
                               ", toolCallState=" + (msg.toolCallState != null ? msg.toolCallState.name : "null") +

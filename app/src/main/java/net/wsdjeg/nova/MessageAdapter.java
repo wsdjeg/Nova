@@ -142,7 +142,8 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
                 List<ApiClient.ToolCall> toolCalls = msg.getToolCalls();
                 for (int i = 0; i < toolCalls.size(); i++) {
                     ToolCallItem item = new ToolCallItem(msg, toolCalls.get(i), i);
-                    Log.d(TAG, "    → ADD ToolCallItem: " + toolCalls.get(i).name);
+                    Log.d(TAG, "    → ADD ToolCallItem: " + toolCalls.get(i).function.name);
+
                     visibleItems.add(item);
                 }
                 continue;
