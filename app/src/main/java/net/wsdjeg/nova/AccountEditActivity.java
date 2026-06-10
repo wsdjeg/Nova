@@ -302,13 +302,10 @@ public class AccountEditActivity extends AppCompatActivity {
         if (!url.startsWith("http://") && !url.startsWith("https://")) {
             url = "http://" + url;
         }
-        if (port != 80 && port != 443 && !url.contains(":")) {
+        if (port != 80 && port != 443 && !host.contains(":")) {
             url = url + ":" + port;
         }
-        
-        btnTest.setEnabled(false);
-        btnTest.setText("测试中...");
-        
+
         // 使用 ApiCallback 而不是 TestConnectionCallback
         ApiClient.testConnection(url, apiKey, new ApiClient.ApiCallback() {
             @Override
