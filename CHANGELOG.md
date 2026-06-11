@@ -2,6 +2,107 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v2.0.0] - 2025-04
+
+### feat (新功能)
+- 93205c5 feat: add log viewer for debugging tool call display issue
+- 8e58ce8 feat: add detailed logging for message processing
+- bf556f0 feat: add session title setting in SessionSettingsActivity
+- 26adf7c feat: 统一 tool 消息卡片样式
+- 98eebfa feat: 添加 JSON 参数和工具结果折叠功能
+- ed77bc3 feat: add tool call display support in chat messages
+- 2e04ade feat: 滚动位置记忆 - 只要滚屏就记录位置，刷新后恢复
+- 722733a feat: 设置消息中超链接颜色与发送按钮背景一致（#2196F3）
+- 74abaa7 feat: add account import/export feature with JSON support
+- 82e7ca6 feat: redesign error message with modern card style
+- 7afb653 feat: add modern error message background drawable
+- ab28258 feat: add error message display support
+- 6bf0f04 feat: add pinned icon for sessions in list
+- 154ab1c feat: complete session pin feature with sorting and menu
+- f0874e1 feat: add session pin (置顶) feature
+- f54f685 feat: use new GET /sessions/:id API for fetching single session
+
+### fix (问题修复)
+- 5471ddf fix: 测试连接 URL 构建中端口被错误忽略的 bug
+- cfac6ad fix: resolve 3 compilation errors - ToolCall.name -> ToolCall.function.name, action_view_logs -> action_view_log
+- 131fe2b fix: 修复 ChatActivity 问题，更新 AGENTS.md 推送规范
+- b8f3a75 fix: add missing closing brace in MessageAdapter constructor
+- aefee28 fix: missing closing parenthesis in stopSession method
+- e9e1a76 fix: 恢复 ChatActivity.java 到正确版本并修复 getMessageIdentifier 方法
+- a5bd1af fix: 修复没有 content 的 assistant tool_calls 消息不显示的问题
+- 7c96d9d fix: 修复 ChatActivity 编译错误
+- d15af29 fix: 添加缺失的 tool_result_bg.xml drawable 资源
+- 301e15c fix: 修复 item_tool_result.xml 多余的闭合标签
+- 420f58a fix: 修复 item_tool_call.xml 多余的闭合标签
+- 0766414 fix: 移除 MessageAdapter 中不存在的 TableTheme 类
+- d770069 fix: 修复 stopSession() 方法中 StopCallback 匿名类语法错误
+- d3cce1f fix: 添加缺失的 tool_call_bg.xml 资源文件
+- f5662e2 fix: 修复缺失的 Android 资源文件
+- 377773f fix: 优化表格显示
+- 9d05473 fix: 修复 CorePlugin API 兼容性，使用 TextView.setLinkTextColor 设置链接颜色
+- 97a77dd fix: 修复 Markwon API 兼容性问题
+- 65bb80a fix: 减小输入区域外边距 padding 12dp -> 8dp
+- 8f43b38 fix: 修复发送按钮位置，始终与输入框底部对齐
+- e0d0947 fix: 发送按钮区域背景色与输入框外部一致
+- b7fd3c7 fix: 按钮独立固定右下角，输入框无边框12dp圆角
+- 721eca2 fix: 恢复输入框样式为无边框12dp圆角
+- 1c91cac fix: 调整发送按钮与输入框间距和边框样式
+- 868a8b6 fix: 修复发送按钮一直显示红色停止的问题
+- f740130 fix: 发送按钮固定在屏幕底部，不随输入框上移
+- 3110d2e fix: 发送按钮保持在输入框底部对齐，不随换行上移
+- 46a7496 fix: 修复账号管理默认账号逻辑和编辑时数据为空的问题
+- c9f4b62 fix: importFromJson 自动设置默认账号
+- 5fea8d6 fix: correct entry.getKey to entry.getKey() method call
+- 502503c fix: set toolbar back arrow color to white in ChatActivity
+- 7be0c3d fix: 调整输入区域布局，使输入框和发送按钮顶部对齐
+- 125c74c fix: input EditText supports up to 4 lines
+- d8869cc fix: restore fab_new_session in activity_session_list.xml
+- cb3478a fix: unify Toolbar configuration across all layouts
+- 2a68222 fix: add navigationIconTint for white arrow and titleTextColor for settings
+- e51b41e fix: add back button handling in ChatActivity
+- 68f3322 fix: restore ChatActivity toolbar with back button and menu
+- cd6a75e fix: 修复 Chat 页面标题居中和 FAB 按钮颜色问题
+- e700a44 fix: 统一输入框与发送按钮高度为42dp
+- 5b01116 fix: 移除 Chat 页面多余的菜单按钮
+- f31831c fix: adjust send button height to match single-line input height
+- d059531 fix: add missing Toolbar to activity_chat.xml
+- 6363268 fix: add missing view IDs to activity_chat.xml
+- 6647c5d fix: add missing ic_arrow_back drawable resource
+- 6d86f7c fix: 调整发送按钮上下padding为6dp与inputLayout一致
+- ee82b94 fix: 修复发送按钮高度与输入框不一致的问题
+- fc95fa8 fix: 为所有 Toolbar 添加 popupTheme 属性修复菜单文字颜色
+- d854d56 fix: 修复 Toolbar 弹出菜单文字颜色问题
+- 39162bf fix: 恢复账号列表点击设为默认账号的功能
+- 00569a7 fix: 修复账号列表点击效果消失的问题
+- c5badf1 fix: remove unused errorTitle and errorIcon from MessageAdapter
+- 3561ccf fix: add missing error_message_bg.xml drawable
+- 7496ea2 fix: correct pin field name from "pinned" to "pin"
+- 66a0773 fix: correct ApiClient.java syntax error in setSessionPinned method
+- eb42865 fix: correct session pin API endpoint and parameter
+- e6aaa82 fix: correct preview URL format to /session?id={session_id}
+- 082581f fix: restore preview button visibility and use account URL
+- 075c4ca fix: add onOptionsItemSelected to handle back button in AccountManagerActivity
+- 427142d fix: remove duplicated method signature in ChatActivity
+- e82b703 fix: remove duplicated code block in fetchSessionFromServer()
+
+### style (样式调整)
+- 97d1a77 refactor: 统一工具标签和消息卡片的宽度与时间位置
+- 3cffa9a style: 统一 tool_call 和 tool_result 布局样式
+- c7072bc style: 优化输入框样式，减少间距并添加圆角背景
+
+### refactor (代码重构)
+- 02260a6 refactor: simplify tool result display to show only status and name
+- 9f738de refactor: 简化错误消息样式，参考正常消息布局
+
+### docs (文档更新)
+- c8b13c5 docs: update README with latest features and project structure
+- 9720db4 docs: 精简 AGENTS.md 使用 AI 友好格式
+- 9e0d1b4 docs: enforce verification step in development workflow
+- 473b8d7 docs: update README to reflect current project structure and features
+
+### chore (构建/工具)
+- 7064b15 chore: bump version to 2.0-dev
+
 ## [v1.0.0] - 2025-01-11
 
 ### feat (新功能)
@@ -217,7 +318,7 @@ All notable changes to this project will be documented in this file.
 - 1f89bdd fix: 添加调试日志并改进停止生成错误处理
 - b28954c fix: 根据 session 所属账号获取正确的 ApiClient
 - d7e7392 fix: improve CI workflow reliability
-- 06c34cd revert: restore AGP to 8.1.0 for Gradle 8.0 compatibility
+- 06c34dd revert: restore AGP to 8.1.0 for Gradle 8.0 compatibility
 - 030d697 revert: change Java version back to 1.8
 - 98d4438 fix: update Java version to 17 for AGP 8.8.0
 - 89ea86f fix: upgrade AGP to 8.8.0 for Gradle 9.x compatibility
@@ -372,3 +473,4 @@ All notable changes to this project will be documented in this file.
 - 7cc4da2 feat: add please-release workflow for official releases
 - 2828496 fix: update CI workflow with fixed debug keystore generation
 - 9097cb1 ci: fix gradle setup with explicit version
+
