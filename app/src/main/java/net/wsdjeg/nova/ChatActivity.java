@@ -581,10 +581,6 @@ public class ChatActivity extends AppCompatActivity {
         } else if (id == R.id.action_settings) {
             openSessionSettings();
             return true;
-        } else if (id == R.id.action_view_log) {
-
-            startActivity(new Intent(this, LogViewerActivity.class));
-            return true;
         }
         return super.onOptionsItemSelected(item);
     }
