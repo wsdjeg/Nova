@@ -566,7 +566,10 @@ public class ChatActivity extends AppCompatActivity {
             return true;
         }
 
-        if (id == R.id.action_refresh) {
+        if (id == R.id.action_retry) {
+            retrySession();
+            return true;
+        } else if (id == R.id.action_refresh) {
             reloadMessages();
             return true;
         } else if (id == R.id.action_clear_session) {
@@ -1399,6 +1402,37 @@ public class ChatActivity extends AppCompatActivity {
         });
     }
     
+    /**
+     * 重试当前会话的最后一次 AI 回复
+     * 调用 POST /session/:id/retry API
+     */
+    private void retrySession() {
+        if (isInProgress) {
+            Toast.makeText(this, "会话正在进行中，请先停止", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        Toast.makeText(this, "正在重试...", Toast.LENGTH_SHORT).show();
+        
+        apiClient.retrySession(currentSessionId, new ApiClient.RetryCallback() {
+            @Override
+            public void onSuccess() {
+                runOnUiThread(() -> {
+                    setButtonStateSending();
+                    isInProgress = true;
+                    Toast.makeText(ChatActivity.this, "已发起重试", Toast.LENGTH_SHORT).show();
+                });
+            }
+            
+            @Override
+            public void onError(String error) {
+                runOnUiThread(() -> {
+                    Toast.makeText(ChatActivity.this, "重试失败: " + error, Toast.LENGTH_SHORT).show();
+                });
+            }
+        });
+    }
+    
     private void setButtonStateSending() {
         buttonState = STATE_SENDING;
         btnSend.setText("停止");
@@ -1494,3 +1528,4 @@ public class ChatActivity extends AppCompatActivity {
         }
     }
 }
+
