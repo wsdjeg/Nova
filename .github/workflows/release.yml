@@ -93,7 +93,7 @@ jobs:
         env:
           VERSION_NAME: ${{ needs.build.outputs.version_name }}
           SHORT_SHA: ${{ needs.build.outputs.short_sha }}
-        run: mv ./apk/app-debug.apk ./apk/Nova-v${VERSION_NAME}-dev-${SHORT_SHA}.apk
+        run: mv ./apk/app-debug.apk ./apk/Nova-v${VERSION_NAME}-${SHORT_SHA}.apk
 
       - name: Delete old prerelease
         env:
@@ -114,7 +114,7 @@ jobs:
 
             > 开发版，可能包含未完成功能
           prerelease: true
-          files: ./apk/Nova-v${{ needs.build.outputs.version_name }}-dev-${{ needs.build.outputs.short_sha }}.apk
+          files: ./apk/Nova-v${{ needs.build.outputs.version_name }}-${{ needs.build.outputs.short_sha }}.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -167,3 +167,4 @@ jobs:
           files: ./apk/Nova-v${{ needs.build.outputs.version_name }}.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
