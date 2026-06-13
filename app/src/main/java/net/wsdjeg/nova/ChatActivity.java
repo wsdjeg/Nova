@@ -1193,6 +1193,11 @@ public class ChatActivity extends AppCompatActivity {
     
     /**
      * 平滑滚动到底部
+     * 
+     * 实现策略：
+     * 1. 先用 scrollToPosition 让最后一项可见
+     * 2. 通过 post 在下一帧测量实际高度，使用 scrollToPositionWithOffset 精确贴底
+     * 3. 再次 post 兜底处理（针对 Markdown 富文本异步测量导致的高度变化）
      */
     private void scrollToBottomSmooth() {
         if (rvMessages == null || adapter == null) return;
@@ -1204,25 +1209,43 @@ public class ChatActivity extends AppCompatActivity {
         
         int lastPosition = itemCount - 1;
         
-        lm.scrollToPosition(lastPosition);
+        // 第一步：立即跳转到最后一项
+        lm.scrollToPositionWithOffset(lastPosition, 0);
         
-        rvMessages.post(() -> {
-            if (adapter.getItemCount() == 0) return;
-            
-            int pos = adapter.getItemCount() - 1;
-            View lastChild = lm.findViewByPosition(pos);
-            
-            if (lastChild != null) {
-                int recyclerHeight = rvMessages.getHeight();
-                int itemHeight = lastChild.getHeight();
-                int offset = recyclerHeight - itemHeight;
-                
-                lm.scrollToPositionWithOffset(pos, offset);
-            } else {
-                lm.scrollToPosition(pos);
-            }
-        });
+        // 第二步：等待第一次布局完成后，根据实测高度精确贴底
+        rvMessages.post(() -> alignLastItemToBottom());
+        
+        // 第三步：再次延迟兜底（处理富文本异步测量、键盘弹起等场景）
+        rvMessages.postDelayed(() -> alignLastItemToBottom(), 100);
     }
+    
+    /**
+     * 让最后一项的底部与 RecyclerView 的底部对齐
+     */
+    private void alignLastItemToBottom() {
+        if (rvMessages == null || adapter == null) return;
+        int itemCount = adapter.getItemCount();
+        if (itemCount == 0) return;
+        
+        LinearLayoutManager lm = (LinearLayoutManager) rvMessages.getLayoutManager();
+        if (lm == null) return;
+        
+        int pos = itemCount - 1;
+        View lastChild = lm.findViewByPosition(pos);
+        
+        if (lastChild != null) {
+            int recyclerHeight = rvMessages.getHeight() - rvMessages.getPaddingTop() - rvMessages.getPaddingBottom();
+            int itemHeight = lastChild.getHeight();
+            int offset = recyclerHeight - itemHeight;
+            // offset 为负表示最后一项太长（超出屏幕），此时让其底部贴合
+            lm.scrollToPositionWithOffset(pos, offset);
+        } else {
+            // 子 View 还未创建，先跳转到位置，下一帧再校正
+            lm.scrollToPositionWithOffset(pos, 0);
+            rvMessages.post(() -> alignLastItemToBottom());
+        }
+    }
+
     
     private void refreshSessionStatus() {
         refreshSessionStatus(null);
