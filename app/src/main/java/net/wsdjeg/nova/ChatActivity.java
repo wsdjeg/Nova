@@ -131,6 +131,8 @@ public class ChatActivity extends AppCompatActivity {
     // 原因：messages 列表包含不可见消息（tool 类型），索引不等于可见位置
     private long anchorMessageCreated = -1;  // 锚点消息的服务端时间戳
     private int offsetToRestore = 0;          // 锚点消息的视觉偏移
+    // 程序化滚动期间禁止 onScrolled 更新 anchor，避免锚点漂移
+    private boolean isRestoringPosition = false;
     
     // 加载更早消息的状态标志
     private boolean isLoadingOlder = false;
@@ -362,17 +364,25 @@ public class ChatActivity extends AppCompatActivity {
                 fabScrollBottom.setVisibility(isAtBottom ? View.GONE : View.VISIBLE);
                 
                 // 更新位置记录（用于刷新后恢复）
-                // 只要滚屏就记录位置，确保刷新后能恢复
-                if (firstVisible >= 0) {
-                    Object item = adapter.getVisibleItemAt(firstVisible);
-                    if (item instanceof Message) {
-                        anchorMessageCreated = ((Message) item).getCreated();
-                    } else if (item instanceof MessageAdapter.ToolCallItem) {
-                        anchorMessageCreated = ((MessageAdapter.ToolCallItem) item).getCreated();
-                    }
-                    View firstChild = lm.findViewByPosition(firstVisible);
-                    if (firstChild != null) {
-                        offsetToRestore = firstChild.getTop();
+                // 关键：只在用户主动滚动时更新 anchor，
+                // 程序化滚动（scrollToPositionWithOffset / smoothScrollToPosition）
+                // 或 notifyDataSetChanged 引起的布局抖动期间不更新，
+                // 避免锚点被覆盖导致刷新后跳到错误位置。
+                if (firstVisible >= 0 && !isRestoringPosition) {
+                    int scrollState = recyclerView.getScrollState();
+                    boolean userDriven = (scrollState == RecyclerView.SCROLL_STATE_DRAGGING
+                            || scrollState == RecyclerView.SCROLL_STATE_SETTLING);
+                    if (userDriven) {
+                        Object item = adapter.getVisibleItemAt(firstVisible);
+                        if (item instanceof Message) {
+                            anchorMessageCreated = ((Message) item).getCreated();
+                        } else if (item instanceof MessageAdapter.ToolCallItem) {
+                            anchorMessageCreated = ((MessageAdapter.ToolCallItem) item).getCreated();
+                        }
+                        View firstChild = lm.findViewByPosition(firstVisible);
+                        if (firstChild != null) {
+                            offsetToRestore = firstChild.getTop();
+                        }
                     }
                 }
                 
@@ -910,6 +920,12 @@ public class ChatActivity extends AppCompatActivity {
     
     /**
      * 恢复滚动位置
+     * 
+     * 关键修复：
+     * 1. 快照 anchorMessageCreated 和 offsetToRestore，防止 post 期间被
+     *    onScrolled（notifyDataSetChanged 引起的布局抖动）覆盖。
+     * 2. 设置 isRestoringPosition 标志，恢复期间忽略 onScrolled 回调，
+     *    避免 scrollToPositionWithOffset 自身触发的 onScrolled 反向修改 anchor。
      */
     private void restoreScrollPosition() {
         if (anchorMessageCreated < 0) return;
@@ -917,15 +933,25 @@ public class ChatActivity extends AppCompatActivity {
         LinearLayoutManager lm = (LinearLayoutManager) rvMessages.getLayoutManager();
         if (lm == null) return;
         
-        int newPosition = adapter.findVisiblePositionByCreated(anchorMessageCreated);
+        // 快照（防止异步执行期间被覆盖）
+        final long savedAnchor = anchorMessageCreated;
+        final int savedOffset = offsetToRestore;
         
-        Log.d(TAG, "Restore position: anchorCreated=" + anchorMessageCreated + ", newPosition=" + newPosition);
+        Log.d(TAG, "Restore position: anchorCreated=" + savedAnchor + ", offset=" + savedOffset);
         
+        isRestoringPosition = true;
         rvMessages.post(() -> {
-            int pos = adapter.findVisiblePositionByCreated(anchorMessageCreated);
-            if (pos >= 0 && pos < adapter.getItemCount()) {
-                lm.scrollToPositionWithOffset(pos, offsetToRestore);
-                Log.d(TAG, "Restored to position " + pos + " with offset " + offsetToRestore);
+            try {
+                int pos = adapter.findVisiblePositionByCreated(savedAnchor);
+                if (pos >= 0 && pos < adapter.getItemCount()) {
+                    lm.scrollToPositionWithOffset(pos, savedOffset);
+                    Log.d(TAG, "Restored to position " + pos + " with offset " + savedOffset);
+                } else {
+                    Log.d(TAG, "Restore skipped: anchor not found in visible items");
+                }
+            } finally {
+                // 等下一帧让 layout 完成，再解除保护
+                rvMessages.post(() -> isRestoringPosition = false);
             }
         });
     }
