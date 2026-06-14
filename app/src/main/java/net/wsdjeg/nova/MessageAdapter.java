@@ -359,23 +359,48 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
             bindToolResultViewHolder((ToolResultViewHolder) holder, msg, key);
         } else if (holder instanceof MessageViewHolder) {
             Message message = (Message) item;
-            bindMessageViewHolder((MessageViewHolder) holder, message);
+            bindMessageViewHolder((MessageViewHolder) holder, message, key);
         }
     }
     
-    private void bindMessageViewHolder(MessageViewHolder holder, Message message) {
-        if (message.isError()) {
-            holder.messageText.setText(message.getError());
-        } else {
-            markwon.setMarkdown(holder.messageText, message.getContent());
-            holder.messageText.setMovementMethod(LinkMovementMethod.getInstance());
-            holder.messageText.setLinkTextColor(linkColor);
+    /**
+     * 绑定普通消息 ViewHolder
+     *
+     * 防御性指纹去重:
+     *   即使 DiffUtil 已经在 areContentsTheSame 层面跳过了不变的内容，
+     *   仍然有少量场景会重新走 onBindViewHolder（如 ViewHolder 复用、
+     *   notifyItemChanged 携带 payload=null 的情况）。
+     *   这里再做一次"key + 内容"指纹比对，相同则完全跳过 setMarkdown，
+     *   避免触发 Markwon 的异步测量重新跑一遍，从根上抑制流式刷新时
+     *   的画面闪烁与高度抖动。
+     */
+    private void bindMessageViewHolder(MessageViewHolder holder, Message message, String stableKey) {
+        final String content = message.isError() ? message.getError() : message.getContent();
+        final String contentSafe = content == null ? "" : content;
+        
+        boolean keyMatch = stableKey != null && stableKey.equals(holder.lastKey);
+        boolean contentMatch = contentSafe.equals(holder.lastContent);
+        boolean errorMatch = message.isError() == holder.lastWasError;
+        boolean shouldSkipText = keyMatch && contentMatch && errorMatch && holder.hasBound;
+        
+        if (!shouldSkipText) {
+            if (message.isError()) {
+                holder.messageText.setText(content);
+            } else {
+                markwon.setMarkdown(holder.messageText, contentSafe);
+                holder.messageText.setMovementMethod(LinkMovementMethod.getInstance());
+                holder.messageText.setLinkTextColor(linkColor);
+            }
+            holder.lastKey = stableKey;
+            holder.lastContent = contentSafe;
+            holder.lastWasError = message.isError();
+            holder.hasBound = true;
         }
         
         String time = TimeUtils.formatTime(message.getTimestamp());
         holder.timeText.setText(time);
         
-        final String copyText = message.isError() ? message.getError() : message.getContent();
+        final String copyText = contentSafe;
         holder.messageText.setOnLongClickListener(v -> {
             copyToClipboard(copyText);
             return true;
@@ -386,7 +411,6 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
             return true;
         });
     }
-    
     /**
      * 计算内容区域的高度（dp）
      */
@@ -731,10 +755,23 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
 
     /**
      * 普通消息 ViewHolder
+     *
+     * 缓存字段用于防御性指纹去重:
+     *   - lastKey: 上次绑定的 stableKey
+     *   - lastContent: 上次设置的文本内容（已规范化为非 null）
+     *   - lastWasError: 上次是错误消息还是普通 Markdown
+     *   - hasBound: 是否完成过至少一次绑定
+     * 当本次 bind 这四项与上次完全一致时，跳过 setMarkdown / setText，
+     * 避免 Markwon 异步测量重复触发，从根上抑制画面闪烁。
      */
     static class MessageViewHolder extends RecyclerView.ViewHolder {
         TextView messageText;
         TextView timeText;
+        // 内容指纹（仅在 onBind 中读写，UI 线程，无需同步）
+        String lastKey;
+        String lastContent;
+        boolean lastWasError;
+        boolean hasBound;
 
         MessageViewHolder(View itemView) {
             super(itemView);
