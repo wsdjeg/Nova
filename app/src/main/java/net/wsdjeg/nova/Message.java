@@ -26,6 +26,7 @@ public class Message {
     private long created;         // 服务器时间戳（秒）
     private boolean isPending;    // 是否是待确认的消息
     private String error;         // 错误信息
+    private int serverIndex = -1; // 服务端 1-indexed 索引（来自 /messages 数组的位置）
     
     // Tool calls 支持
     private List<ApiClient.ToolCall> toolCalls;  // assistant 消息中的工具调用请求
@@ -134,6 +135,14 @@ public class Message {
 
     public boolean isError() {
         return error != null && !error.isEmpty();
+    }
+    
+    public int getServerIndex() {
+        return serverIndex;
+    }
+    
+    public void setServerIndex(int serverIndex) {
+        this.serverIndex = serverIndex;
     }
     
     /**
@@ -247,3 +256,4 @@ public class Message {
         return content != null && !content.isEmpty();
     }
 }
+

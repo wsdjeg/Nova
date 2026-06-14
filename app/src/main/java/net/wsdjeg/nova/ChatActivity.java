@@ -53,11 +53,14 @@ import java.util.Set;
  * - processedServerMessageCount: 已处理的服务端消息数（基于服务端计数）
  * - adapter.getItemCount(): 显示的消息数（过滤后的，与服务端计数无关）
  * 
- * 下拉加载更多 - 位置恢复机制：
- * - 使用消息 created 时间戳作为锚点（而非索引）
- * - 保存：记录第一条可见消息的 created 时间戳和视觉偏移
- * - 恢复：在新数据中找到该消息的可见位置，精确恢复
- * - 原因：messages 列表包含不可见消息（tool 类型），索引不等于可见位置
+ * 下拉加载更多 - 位置恢复机制（StableKey 版本）：
+ * - 使用 MessageAdapter.computeStableKey 生成的全局唯一键作为锚点
+ * - Key 来源：
+ *   - tool_call: tc:<tool_call.id>     (LLM 生成的全局唯一 ID)
+ *   - tool_msg:  tr:<tool_call_id>     (引用对应 toolCall)
+ *   - 普通消息:   msg:<serverIndex>     (服务端 1-indexed 索引)
+ * - 不再使用 created 时间戳，因为同一 assistant 消息拆分为多个 visibleItem
+ *   时共享同一 created，会导致定位错误。
  * 
  * Pending 消息机制：
  * - 发送消息时添加 pending 消息（临时显示）
@@ -127,10 +130,13 @@ public class ChatActivity extends AppCompatActivity {
     private boolean isInProgress = false;
     private Menu chatMenu;
     
-    // 位置恢复：使用消息时间戳作为锚点（而非索引）
-    // 原因：messages 列表包含不可见消息（tool 类型），索引不等于可见位置
-    private long anchorMessageCreated = -1;  // 锚点消息的服务端时间戳
-    private int offsetToRestore = 0;          // 锚点消息的视觉偏移
+    // 位置恢复：使用 StableKey 作为锚点
+    // 原因：
+    //   1. messages 列表包含不可见消息（tool 类型），索引不等于可见位置
+    //   2. created 不唯一（assistant 消息拆分为多个 visibleItem 时共享 created）
+    //   3. StableKey 基于 tool_call.id / serverIndex，全局唯一稳定
+    private String anchorStableKey = null;    // 锚点 visibleItem 的 stableKey
+    private int offsetToRestore = 0;          // 锚点的视觉偏移
     // 程序化滚动期间禁止 onScrolled 更新 anchor，避免锚点漂移
     private boolean isRestoringPosition = false;
     
@@ -294,30 +300,52 @@ public class ChatActivity extends AppCompatActivity {
     
     /**
      * 从 ChatMessage 创建 Message 对象
-     * 正确处理 error 字段、tool_calls 和 tool_call_state
+     * 正确处理 error 字段、tool_calls、tool_call_state 和 serverIndex
+     *
+     * @param msg API 返回的消息对象
+     * @param serverIndex 该消息在服务端的 1-indexed 索引（用于稳定 key）
      */
-    private Message createMessageFromChatMessage(ApiClient.ChatMessage msg) {
+    private Message createMessageFromChatMessage(ApiClient.ChatMessage msg, int serverIndex) {
+        Message message;
+        
         // 如果有 error 字段，创建错误消息
         if (msg.error != null && !msg.error.isEmpty()) {
-            return new Message(msg.error, msg.created);
+            message = new Message(msg.error, msg.created);
+        } else {
+            // 创建基础消息
+            message = new Message(msg.content, msg.role, msg.created);
+            
+            // 设置 tool_calls（assistant 消息中的工具调用请求）
+            if (msg.toolCalls != null && !msg.toolCalls.isEmpty()) {
+                message.setToolCalls(msg.toolCalls);
+                Log.d(TAG, "createMessageFromChatMessage: set toolCalls=" + msg.toolCalls.size() + " for role=" + msg.role);
+            }
+            
+            // 设置 tool_call_state（tool 消息中的工具状态）
+            if (msg.toolCallState != null) {
+                message.setToolName(msg.toolCallState.name);
+                message.setToolError(msg.toolCallState.error);
+            }
+            
+            // 设置 tool_call_id（tool 消息引用 ToolCall 的 ID）
+            if (msg.toolCallId != null && !msg.toolCallId.isEmpty()) {
+                message.setToolCallId(msg.toolCallId);
+            }
         }
         
-        // 创建基础消息
-        Message message = new Message(msg.content, msg.role, msg.created);
-        
-        // 设置 tool_calls（assistant 消息中的工具调用请求）
-        if (msg.toolCalls != null && !msg.toolCalls.isEmpty()) {
-            message.setToolCalls(msg.toolCalls);
-            Log.d(TAG, "createMessageFromChatMessage: set toolCalls=" + msg.toolCalls.size() + " for role=" + msg.role);
-        }
-        
-        // 设置 tool_call_state（tool 消息中的工具状态）
-        if (msg.toolCallState != null) {
-            message.setToolName(msg.toolCallState.name);
-            message.setToolError(msg.toolCallState.error);
+        // 设置服务端索引（用于 stableKey 计算）
+        if (serverIndex > 0) {
+            message.setServerIndex(serverIndex);
         }
         
         return message;
+    }
+    
+    /**
+     * 兼容旧调用：不传 serverIndex 时设为 -1（仅用于 pending 等本地消息）
+     */
+    private Message createMessageFromChatMessage(ApiClient.ChatMessage msg) {
+        return createMessageFromChatMessage(msg, -1);
     }
     
     /**
@@ -373,15 +401,13 @@ public class ChatActivity extends AppCompatActivity {
                     boolean userDriven = (scrollState == RecyclerView.SCROLL_STATE_DRAGGING
                             || scrollState == RecyclerView.SCROLL_STATE_SETTLING);
                     if (userDriven) {
-                        Object item = adapter.getVisibleItemAt(firstVisible);
-                        if (item instanceof Message) {
-                            anchorMessageCreated = ((Message) item).getCreated();
-                        } else if (item instanceof MessageAdapter.ToolCallItem) {
-                            anchorMessageCreated = ((MessageAdapter.ToolCallItem) item).getCreated();
-                        }
-                        View firstChild = lm.findViewByPosition(firstVisible);
-                        if (firstChild != null) {
-                            offsetToRestore = firstChild.getTop();
+                        String key = adapter.getStableKeyAt(firstVisible);
+                        if (key != null) {
+                            anchorStableKey = key;
+                            View firstChild = lm.findViewByPosition(firstVisible);
+                            if (firstChild != null) {
+                                offsetToRestore = firstChild.getTop();
+                            }
                         }
                     }
                 }
@@ -750,7 +776,7 @@ public class ChatActivity extends AppCompatActivity {
      * 获取新消息并保持位置
      */
     private void fetchNewMessagesAndRestorePosition() {
-        int sinceIndex = processedServerMessageCount + 1;
+        final int sinceIndex = processedServerMessageCount + 1;
         
         Log.d(TAG, "Fetching messages from server index: since=" + sinceIndex);
         
@@ -765,6 +791,8 @@ public class ChatActivity extends AppCompatActivity {
                     boolean addedNew = false;
                     for (int i = 0; i < chatMessages.size(); i++) {
                         ApiClient.ChatMessage msg = chatMessages.get(i);
+                        // 该消息在服务端的 1-indexed 索引
+                        int serverIndex = sinceIndex + i;
                         
                         // 详细日志
                         boolean hasToolCalls = msg.toolCalls != null && !msg.toolCalls.isEmpty();
@@ -777,11 +805,11 @@ public class ChatActivity extends AppCompatActivity {
                                 tcInfo.append(tc.function.name).append(",");
                             }
                         }
-                        Log.d(TAG, "  MSG[" + i + "] role=" + msg.role + 
-
+                        Log.d(TAG, "  MSG[" + i + "] svrIdx=" + serverIndex + ", role=" + msg.role + 
                               ", hasToolCalls=" + hasToolCalls + 
                               ", isTool=" + isTool + 
                               ", toolCallState=" + (msg.toolCallState != null ? msg.toolCallState.name : "null") +
+                              ", toolCallId=" + (msg.toolCallId != null ? msg.toolCallId : "null") +
                               ", contentLen=" + (msg.content == null ? "null" : msg.content.length()) +
                               (tcInfo.length() > 0 ? ", " + tcInfo.toString() : ""));
                         
@@ -795,14 +823,14 @@ public class ChatActivity extends AppCompatActivity {
                             int pendingIndex = findPendingMessageIndex(msg.content);
                             if (pendingIndex >= 0) {
                                 Log.d(TAG, "  → REPLACE pending at " + pendingIndex);
-                                messages.set(pendingIndex, createMessageFromChatMessage(msg));
+                                messages.set(pendingIndex, createMessageFromChatMessage(msg, serverIndex));
                                 pendingMessages.remove(msg.content);
                                 messageFingerprints.put(msg.created, msg.content);
                                 continue;
                             }
                         }
                         
-                        messages.add(createMessageFromChatMessage(msg));
+                        messages.add(createMessageFromChatMessage(msg, serverIndex));
                         String fingerprint = getMessageIdentifier(msg);
                         messageFingerprints.put(msg.created, fingerprint);
                         Log.d(TAG, "  → ADD: fingerprint=" + fingerprint);
@@ -896,7 +924,7 @@ public class ChatActivity extends AppCompatActivity {
     }
     
     /**
-     * 保存当前滚动位置
+     * 保存当前滚动位置（使用 stableKey 作为锚点）
      */
     private void saveScrollPosition() {
         LinearLayoutManager lm = (LinearLayoutManager) rvMessages.getLayoutManager();
@@ -904,17 +932,15 @@ public class ChatActivity extends AppCompatActivity {
         
         int firstVisiblePosition = lm.findFirstVisibleItemPosition();
         if (firstVisiblePosition >= 0) {
-            Object item = adapter.getVisibleItemAt(firstVisiblePosition);
-            if (item instanceof Message) {
-                anchorMessageCreated = ((Message) item).getCreated();
-            } else if (item instanceof MessageAdapter.ToolCallItem) {
-                anchorMessageCreated = ((MessageAdapter.ToolCallItem) item).getCreated();
+            String key = adapter.getStableKeyAt(firstVisiblePosition);
+            if (key != null) {
+                anchorStableKey = key;
             }
             View firstChild = lm.findViewByPosition(firstVisiblePosition);
             if (firstChild != null) {
                 offsetToRestore = firstChild.getTop();
             }
-            Log.d(TAG, "Saved position: anchorCreated=" + anchorMessageCreated + ", offset=" + offsetToRestore);
+            Log.d(TAG, "Saved position: anchorKey=" + anchorStableKey + ", offset=" + offsetToRestore);
         }
     }
     
@@ -922,27 +948,31 @@ public class ChatActivity extends AppCompatActivity {
      * 恢复滚动位置
      * 
      * 关键修复：
-     * 1. 快照 anchorMessageCreated 和 offsetToRestore，防止 post 期间被
+     * 1. 快照 anchorStableKey 和 offsetToRestore，防止 post 期间被
      *    onScrolled（notifyDataSetChanged 引起的布局抖动）覆盖。
      * 2. 设置 isRestoringPosition 标志，恢复期间忽略 onScrolled 回调，
      *    避免 scrollToPositionWithOffset 自身触发的 onScrolled 反向修改 anchor。
+     * 3. 使用 stableKey 而非 created：
+     *    - tool_call.id 全局唯一稳定
+     *    - serverIndex 索引稳定
+     *    - 避免同一 created 多个 visibleItem 时定位错误
      */
     private void restoreScrollPosition() {
-        if (anchorMessageCreated < 0) return;
+        if (anchorStableKey == null) return;
         
         LinearLayoutManager lm = (LinearLayoutManager) rvMessages.getLayoutManager();
         if (lm == null) return;
         
         // 快照（防止异步执行期间被覆盖）
-        final long savedAnchor = anchorMessageCreated;
+        final String savedAnchor = anchorStableKey;
         final int savedOffset = offsetToRestore;
         
-        Log.d(TAG, "Restore position: anchorCreated=" + savedAnchor + ", offset=" + savedOffset);
+        Log.d(TAG, "Restore position: anchorKey=" + savedAnchor + ", offset=" + savedOffset);
         
         isRestoringPosition = true;
         rvMessages.post(() -> {
             try {
-                int pos = adapter.findVisiblePositionByCreated(savedAnchor);
+                int pos = adapter.findVisiblePositionByKey(savedAnchor);
                 if (pos >= 0 && pos < adapter.getItemCount()) {
                     lm.scrollToPositionWithOffset(pos, savedOffset);
                     Log.d(TAG, "Restored to position " + pos + " with offset " + savedOffset);
@@ -973,7 +1003,7 @@ public class ChatActivity extends AppCompatActivity {
             return;
         }
         
-        int since = Math.max(1, totalMessageCount - PAGE_SIZE + 1);
+        final int since = Math.max(1, totalMessageCount - PAGE_SIZE + 1);
         currentSince = since;
         apiClient.getNewMessages(currentSessionId, since, new ApiClient.MessagesCallback() {
             @Override
@@ -994,8 +1024,10 @@ public class ChatActivity extends AppCompatActivity {
                         return;
                     }
                     
-                    for (ApiClient.ChatMessage msg : chatMessages) {
-                        messages.add(createMessageFromChatMessage(msg));
+                    for (int i = 0; i < chatMessages.size(); i++) {
+                        ApiClient.ChatMessage msg = chatMessages.get(i);
+                        int serverIndex = since + i;
+                        messages.add(createMessageFromChatMessage(msg, serverIndex));
                         messageFingerprints.put(msg.created, getMessageIdentifier(msg));
                     }
                     
@@ -1039,7 +1071,7 @@ public class ChatActivity extends AppCompatActivity {
             return;
         }
         
-        int newSince = Math.max(1, currentSince - PAGE_SIZE);
+        final int newSince = Math.max(1, currentSince - PAGE_SIZE);
         
         apiClient.getNewMessages(currentSessionId, newSince, new ApiClient.MessagesCallback() {
             @Override
@@ -1057,10 +1089,13 @@ public class ChatActivity extends AppCompatActivity {
                     int newTotalCount = 0;
                     int newVisibleCount = 0;
                     
+                    // 倒序遍历但保留正确的 serverIndex 计算
+                    // chatMessages[i] 的 serverIndex = newSince + i
                     for (int i = chatMessages.size() - 1; i >= 0; i--) {
                         ApiClient.ChatMessage msg = chatMessages.get(i);
+                        int serverIndex = newSince + i;
                         if (!messageFingerprints.containsKey(msg.created)) {
-                            Message message = createMessageFromChatMessage(msg);
+                            Message message = createMessageFromChatMessage(msg, serverIndex);
                             messages.add(0, message);
                             messageFingerprints.put(msg.created, getMessageIdentifier(msg));
                             newTotalCount++;
@@ -1092,16 +1127,18 @@ public class ChatActivity extends AppCompatActivity {
                     
                     adapter.notifyDataSetChangedWithUpdate();
                     
-                    final long savedAnchor = anchorMessageCreated;
+                    final String savedAnchor = anchorStableKey;
                     final int savedOffset = offsetToRestore;
                     final int loadedVisible = newVisibleCount;
                     
                     rvMessages.post(() -> {
                         LinearLayoutManager lm = (LinearLayoutManager) rvMessages.getLayoutManager();
                         if (lm != null) {
-                            int newPosition = adapter.findVisiblePositionByCreated(savedAnchor);
+                            int newPosition = (savedAnchor != null)
+                                    ? adapter.findVisiblePositionByKey(savedAnchor)
+                                    : -1;
                             
-                            Log.d(TAG, "Position restore: anchor=" + savedAnchor + 
+                            Log.d(TAG, "Position restore: anchorKey=" + savedAnchor + 
                                   ", oldVisiblePos=" + newPosition + 
                                   ", newVisibleAdded=" + loadedVisible);
                             
@@ -1150,7 +1187,7 @@ public class ChatActivity extends AppCompatActivity {
     private void checkLastMessageUpdate() {
         if (!userAtBottom) return;
         
-        int sinceIndex = processedServerMessageCount + 1;
+        final int sinceIndex = processedServerMessageCount + 1;
         
         apiClient.getNewMessages(currentSessionId, sinceIndex, new ApiClient.MessagesCallback() {
             @Override
@@ -1160,16 +1197,19 @@ public class ChatActivity extends AppCompatActivity {
                     
                     // 找到最新的可显示消息（非 tool，有 content 或 error）
                     ApiClient.ChatMessage latestFiltered = null;
+                    int latestSvrIdx = -1;
                     for (int i = chatMessages.size() - 1; i >= 0; i--) {
                         ApiClient.ChatMessage msg = chatMessages.get(i);
                         // 错误消息也可以是最新消息
                         if (msg.error != null && !msg.error.isEmpty()) {
                             latestFiltered = msg;
+                            latestSvrIdx = sinceIndex + i;
                             break;
                         }
                         // 或者有 content 且不是 tool
                         if (msg.content != null && !msg.content.isEmpty() && !"tool".equals(msg.role)) {
                             latestFiltered = msg;
+                            latestSvrIdx = sinceIndex + i;
                             break;
                         }
                     }
@@ -1185,7 +1225,7 @@ public class ChatActivity extends AppCompatActivity {
                         String oldContent = lastMsg.isError() ? lastMsg.getError() : lastMsg.getContent();
                         
                         if (newContent != null && !newContent.equals(oldContent)) {
-                            messages.set(lastIdx, createMessageFromChatMessage(latestFiltered));
+                            messages.set(lastIdx, createMessageFromChatMessage(latestFiltered, latestSvrIdx));
                             messageFingerprints.put(latestFiltered.created, getMessageIdentifier(latestFiltered));
                             adapter.notifyDataSetChangedWithUpdate();
                             scrollToBottomSmooth();

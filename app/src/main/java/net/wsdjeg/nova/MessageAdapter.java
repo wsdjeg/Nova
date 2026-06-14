@@ -24,8 +24,10 @@ import io.noties.markwon.ext.strikethrough.StrikethroughPlugin;
 import io.noties.markwon.html.HtmlPlugin;
 import io.noties.markwon.core.MarkwonTheme;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -37,6 +39,18 @@ import java.util.Set;
  * - TYPE_ERROR: 错误消息（浅红色背景，居中，红色文字）
  * - TYPE_TOOL_CALL: 工具调用请求（assistant 消息中的 tool_calls）
  * - TYPE_TOOL_RESULT: 工具执行结果（role=tool 的消息，简洁显示）
+ *
+ * 稳定标识 (StableKey):
+ * 每个 visibleItem 有一个全局唯一稳定的字符串 key，用于：
+ * 1. 在刷新后定位同一项（保持滚动位置）
+ * 2. 配合 setHasStableIds(true) 让 RecyclerView 识别同一 ViewHolder
+ *
+ * Key 设计:
+ * - tool_call:  "tc:" + toolCall.id
+ * - tool 消息:  "tr:" + toolCallId（首选）或 "tr_idx:" + serverIndex
+ * - pending:    "pending:" + created + ":" + contentHash
+ * - error:      "err:" + serverIndex + ":" + created
+ * - 普通消息:    "msg:" + serverIndex + (":content" 如果是 assistant 且有 tool_calls 拆分)
  */
 public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     private static final String TAG = "MessageAdapter";
@@ -46,13 +60,15 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
     
     private List<Message> messages;
     private List<Object> visibleItems;  // 可以是 Message 或 ToolCallItem
+    private List<String> visibleKeys;   // 与 visibleItems 一一对应的 stableKey
+    private Map<String, Integer> keyToPosition;  // O(1) 查找位置
     private Markwon markwon;
     private Context context;
     private int linkColor;
     
-    // 记录展开状态的项
-    private Set<Integer> expandedToolCalls = new HashSet<>();
-    private Set<Integer> expandedToolResults = new HashSet<>();
+    // 记录展开状态的项 - 改用 stableKey 避免 position 变化时状态错乱
+    private Set<String> expandedToolCalls = new HashSet<>();
+    private Set<String> expandedToolResults = new HashSet<>();
     
     private static final int TYPE_USER = 1;
     private static final int TYPE_BOT = 2;
@@ -91,11 +107,15 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
     public MessageAdapter(List<Message> messages, Context context) {
         this.messages = messages;
         this.visibleItems = new ArrayList<>();
+        this.visibleKeys = new ArrayList<>();
+        this.keyToPosition = new HashMap<>();
         this.context = context;
         this.linkColor = ContextCompat.getColor(context, R.color.primary);
         
+        // 启用 stableIds，配合 getItemId() 减少不必要的 ViewHolder 重建
+        setHasStableIds(true);
+        
         // 配置 Markdown 标题大小：通过 AbstractMarkwonPlugin 配置主题
-        // Markwon 使用 headingTextSizeMultipliers 来控制 H1-H6 的相对字体倍率
         this.markwon = Markwon.builder(context)
             .usePlugin(new AbstractMarkwonPlugin() {
                 @Override
@@ -119,6 +139,52 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
     }
 
     /**
+     * 计算 visibleItem 的稳定唯一 key
+     *
+     * @param item visibleItem (Message 或 ToolCallItem)
+     * @param hasContentBeforeToolCalls 当 assistant 消息既有 content 又有 tool_calls 时，
+     *                                   content 部分加 ":content" 后缀以与 toolCall 区分
+     */
+    private String computeStableKey(Object item) {
+        if (item instanceof ToolCallItem) {
+            ToolCallItem tc = (ToolCallItem) item;
+            String tcId = tc.toolCall != null ? tc.toolCall.id : null;
+            if (tcId != null && !tcId.isEmpty()) {
+                return "tc:" + tcId;
+            }
+            // 兜底：用父消息的 serverIndex + 子序号
+            int parentIdx = tc.parentMessage.getServerIndex();
+            return "tc_idx:" + parentIdx + ":" + tc.index;
+        }
+        
+        Message msg = (Message) item;
+        
+        if (msg.isPending()) {
+            int hash = msg.getContent() != null ? msg.getContent().hashCode() : 0;
+            return "pending:" + msg.getCreated() + ":" + hash;
+        }
+        
+        if (msg.isError()) {
+            return "err:" + msg.getServerIndex() + ":" + msg.getCreated();
+        }
+        
+        if (msg.isToolMessage()) {
+            String tcId = msg.getToolCallId();
+            if (tcId != null && !tcId.isEmpty()) {
+                return "tr:" + tcId;
+            }
+            return "tr_idx:" + msg.getServerIndex();
+        }
+        
+        // 普通消息（user / assistant content / system）
+        // 如果是 assistant 且有 tool_calls，content 部分加 :content 后缀区分
+        if (msg.isAssistant() && msg.hasToolCalls()) {
+            return "msg:" + msg.getServerIndex() + ":content";
+        }
+        return "msg:" + msg.getServerIndex();
+    }
+
+    /**
      * 更新可见项列表
      * 将消息拆分为多个显示项：
      * - 普通消息直接添加
@@ -128,6 +194,8 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
      */
     private void updateVisibleItems() {
         visibleItems.clear();
+        visibleKeys.clear();
+        keyToPosition.clear();
         Log.d(TAG, "=== updateVisibleItems: " + messages.size() + " messages ===");
         
         for (int msgIdx = 0; msgIdx < messages.size(); msgIdx++) {
@@ -140,7 +208,7 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
             // tool 消息：直接添加
             if (msg.isToolMessage()) {
                 Log.d(TAG, "  MSG[" + msgIdx + "]: ADD tool message, toolName=" + msg.getToolName());
-                visibleItems.add(msg);
+                addVisibleItem(msg);
                 continue;
             }
             
@@ -150,7 +218,7 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
                 // 先显示 content（如果有且不为空）
                 if (msg.getContent() != null && !msg.getContent().trim().isEmpty()) {
                     Log.d(TAG, "    → ADD content item");
-                    visibleItems.add(msg);
+                    addVisibleItem(msg);
                 }
                 
                 // 拆分 tool_calls 为单独的显示项
@@ -158,20 +226,31 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
                 for (int i = 0; i < toolCalls.size(); i++) {
                     ToolCallItem item = new ToolCallItem(msg, toolCalls.get(i), i);
                     Log.d(TAG, "    → ADD ToolCallItem: " + toolCalls.get(i).function.name);
-
-                    visibleItems.add(item);
+                    addVisibleItem(item);
                 }
                 continue;
             }
             
             // 其他消息：直接添加
             Log.d(TAG, "  MSG[" + msgIdx + "]: ADD " + (msg.isUser() ? "user" : "bot") + " message");
-            visibleItems.add(msg);
+            addVisibleItem(msg);
         }
         
         Log.d(TAG, "=== updateVisibleItems result: " + visibleItems.size() + " visible items ===");
     }
-        
+    
+    private void addVisibleItem(Object item) {
+        int pos = visibleItems.size();
+        String key = computeStableKey(item);
+        // 处理极端情况：key 重复（理论上不应发生），追加 :pos 保唯一
+        if (keyToPosition.containsKey(key)) {
+            Log.w(TAG, "Duplicate stableKey detected: " + key + ", appending position");
+            key = key + ":dup" + pos;
+        }
+        visibleItems.add(item);
+        visibleKeys.add(key);
+        keyToPosition.put(key, pos);
+    }
         
     @Override
     public int getItemViewType(int position) {
@@ -194,6 +273,15 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
         }
         
         return TYPE_BOT;
+    }
+
+    @Override
+    public long getItemId(int position) {
+        if (position < 0 || position >= visibleKeys.size()) {
+            return RecyclerView.NO_ID;
+        }
+        // 用 stableKey 的 hashCode 作为稳定 ID（hashCode 对 String 是确定性的）
+        return visibleKeys.get(position).hashCode();
     }
 
     @NonNull
@@ -232,13 +320,14 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
     @Override
     public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
         Object item = visibleItems.get(position);
+        String key = visibleKeys.get(position);
         
         if (holder instanceof ToolCallViewHolder) {
             ToolCallItem toolCallItem = (ToolCallItem) item;
-            bindToolCallViewHolder((ToolCallViewHolder) holder, toolCallItem, position);
+            bindToolCallViewHolder((ToolCallViewHolder) holder, toolCallItem, key);
         } else if (holder instanceof ToolResultViewHolder) {
             Message msg = (Message) item;
-            bindToolResultViewHolder((ToolResultViewHolder) holder, msg, position);
+            bindToolResultViewHolder((ToolResultViewHolder) holder, msg, key);
         } else if (holder instanceof MessageViewHolder) {
             Message message = (Message) item;
             bindMessageViewHolder((MessageViewHolder) holder, message);
@@ -279,7 +368,7 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
         return (int) (lineSp * lines * density);
     }
     
-    private void bindToolCallViewHolder(ToolCallViewHolder holder, ToolCallItem item, int position) {
+    private void bindToolCallViewHolder(ToolCallViewHolder holder, ToolCallItem item, String stableKey) {
         // 状态图标
         holder.statusIcon.setText("🔧");
         
@@ -306,7 +395,7 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
                 if (lineCount > COLLAPSED_LINES) {
                     holder.expandHint.setVisibility(View.VISIBLE);
                     // 检查展开状态
-                    boolean isExpanded = expandedToolCalls.contains(position);
+                    boolean isExpanded = expandedToolCalls.contains(stableKey);
                     updateContentHeight(holder, isExpanded);
                     holder.expandHint.setText(isExpanded ? "收起 ▲" : "展开 ▼");
                 } else {
@@ -326,13 +415,13 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
         
         // 点击展开/折叠
         View.OnClickListener toggleListener = v -> {
-            boolean isExpanded = expandedToolCalls.contains(position);
+            boolean isExpanded = expandedToolCalls.contains(stableKey);
             if (isExpanded) {
-                expandedToolCalls.remove(position);
+                expandedToolCalls.remove(stableKey);
                 updateContentHeight(holder, false);
                 holder.expandHint.setText("展开 ▼");
             } else {
-                expandedToolCalls.add(position);
+                expandedToolCalls.add(stableKey);
                 updateContentHeight(holder, true);
                 holder.expandHint.setText("收起 ▲");
             }
@@ -367,7 +456,7 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
     /**
      * 工具结果：简洁显示，默认只显示3行
      */
-    private void bindToolResultViewHolder(ToolResultViewHolder holder, Message message, int position) {
+    private void bindToolResultViewHolder(ToolResultViewHolder holder, Message message, String stableKey) {
         String toolName = message.getToolName();
         
         // 检查是否有错误
@@ -392,7 +481,7 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
                 int lineCount = holder.contentText.getLineCount();
                 if (lineCount > COLLAPSED_LINES) {
                     holder.expandHint.setVisibility(View.VISIBLE);
-                    boolean isExpanded = expandedToolResults.contains(position);
+                    boolean isExpanded = expandedToolResults.contains(stableKey);
                     updateResultContentHeight(holder, isExpanded);
                     holder.expandHint.setText(isExpanded ? "收起 ▲" : "展开 ▼");
                 } else {
@@ -412,13 +501,13 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
         
         // 点击展开/折叠
         View.OnClickListener toggleListener = v -> {
-            boolean isExpanded = expandedToolResults.contains(position);
+            boolean isExpanded = expandedToolResults.contains(stableKey);
             if (isExpanded) {
-                expandedToolResults.remove(position);
+                expandedToolResults.remove(stableKey);
                 updateResultContentHeight(holder, false);
                 holder.expandHint.setText("展开 ▼");
             } else {
-                expandedToolResults.add(position);
+                expandedToolResults.add(stableKey);
                 updateResultContentHeight(holder, true);
                 holder.expandHint.setText("收起 ▲");
             }
@@ -542,6 +631,31 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
         return null;
     }
     
+    /**
+     * 获取指定位置的 stableKey
+     */
+    public String getStableKeyAt(int position) {
+        if (position >= 0 && position < visibleKeys.size()) {
+            return visibleKeys.get(position);
+        }
+        return null;
+    }
+    
+    /**
+     * 通过 stableKey 查找位置（O(1)）
+     * @return position 或 -1 如果未找到
+     */
+    public int findVisiblePositionByKey(String stableKey) {
+        if (stableKey == null) return -1;
+        Integer pos = keyToPosition.get(stableKey);
+        return pos != null ? pos : -1;
+    }
+    
+    /**
+     * @deprecated 使用 findVisiblePositionByKey 代替。
+     *             created 不唯一（同一 assistant 消息拆分为多个 visibleItem 共享一个 created）。
+     */
+    @Deprecated
     public int findVisiblePositionByCreated(long created) {
         for (int i = 0; i < visibleItems.size(); i++) {
             Object item = visibleItems.get(i);

@@ -160,6 +160,7 @@ public class ApiClient {
         public long created;
         public List<ToolCall> toolCalls;  // 工具调用（AI 调用工具时）
         public ToolCallState toolCallState;  // 工具状态（工具结果消息）
+        public String toolCallId;  // tool 消息引用的 tool_call.id（顶层 tool_call_id）
         
         public ChatMessage(String role, String content, long created) {
             this.role = role;
@@ -168,6 +169,7 @@ public class ApiClient {
             this.created = created;
             this.toolCalls = null;
             this.toolCallState = null;
+            this.toolCallId = null;
         }
         
         /**
@@ -180,6 +182,7 @@ public class ApiClient {
             this.created = created;
             this.toolCalls = null;
             this.toolCallState = null;
+            this.toolCallId = null;
         }
         
         /**
@@ -192,6 +195,7 @@ public class ApiClient {
             this.created = created;
             this.toolCalls = toolCalls;
             this.toolCallState = null;
+            this.toolCallId = null;
         }
         
         /**
@@ -200,6 +204,16 @@ public class ApiClient {
         public static ChatMessage createToolResult(String content, long created, ToolCallState state) {
             ChatMessage msg = new ChatMessage("tool", content, created);
             msg.toolCallState = state;
+            return msg;
+        }
+        
+        /**
+         * 创建工具结果消息（带 tool_call_id）
+         */
+        public static ChatMessage createToolResult(String content, long created, ToolCallState state, String toolCallId) {
+            ChatMessage msg = new ChatMessage("tool", content, created);
+            msg.toolCallState = state;
+            msg.toolCallId = toolCallId;
             return msg;
         }
         
@@ -239,7 +253,7 @@ public class ApiClient {
             return (content != null && !content.isEmpty()) || isError();
         }
     }
-    
+
     public ApiClient(SettingsManager settingsManager) {
         this.settingsManager = settingsManager;
         this.overrideBaseUrl = null;
@@ -1215,6 +1229,7 @@ public class ApiClient {
         String content = msg.optString("content", "");
         String error = msg.optString("error", "");
         long created = msg.optLong("created", System.currentTimeMillis() / 1000);
+        String toolCallId = msg.optString("tool_call_id", "");
         
         // 解析 tool_calls
         List<ToolCall> toolCalls = null;
@@ -1257,7 +1272,8 @@ public class ApiClient {
         
         // 如果是工具结果消息
         if ("tool".equals(role) && toolCallState != null) {
-            return ChatMessage.createToolResult(content, created, toolCallState);
+            return ChatMessage.createToolResult(content, created, toolCallState,
+                    toolCallId.isEmpty() ? null : toolCallId);
         }
         
         // 如果有工具调用
@@ -1268,13 +1284,18 @@ public class ApiClient {
         
         // 否则创建正常消息
         if (!content.isEmpty()) {
-            return new ChatMessage(role, content, created);
+            ChatMessage cm = new ChatMessage(role, content, created);
+            if (!toolCallId.isEmpty()) {
+                cm.toolCallId = toolCallId;
+            }
+            return cm;
         }
         
         // 无可显示内容，返回 null
         Log.d(TAG, "parseMessage: returning null for role=" + role + ", content empty=" + content.isEmpty() + ", toolCalls=" + (toolCalls == null ? "null" : toolCalls.size()));
         return null;
     }
+
     
     public void getMessages(String sessionId, MessagesCallback callback) {
         String baseUrl = getBaseUrl();
