@@ -144,8 +144,9 @@ public class ChatActivity extends AppCompatActivity {
     private boolean isLoadingOlder = false;
     private long lastLoadTriggerTime = 0;
     
-    // 消息指纹缓存（使用服务端时间戳 created 作为 key）
-    private Map<Long, String> messageFingerprints = new HashMap<>();
+    // 消息指纹缓存（格式：created:role:toolcallid:content）
+    private Set<String> messageFingerprints = new HashSet<>();
+
     
     // Pending 消息：存储正在发送的消息内容，等待服务端确认（用于UI显示）
     private Map<String, Long> pendingMessages = new HashMap<>();
@@ -356,25 +357,24 @@ public class ChatActivity extends AppCompatActivity {
     
     /**
      * 获取消息的唯一标识（用于指纹缓存）
-     * 错误消息使用 error 内容
-     * 有 tool_calls 的消息使用 tool_calls 的第一个 ID
-     * 普通消息使用 content
+    /**
+     * 生成消息指纹（格式：created:role:toolcallid:content）
+     * 用于消息去重，避免仅靠 created 时间戳导致误判
      */
-    private String getMessageIdentifier(ApiClient.ChatMessage msg) {
-        // 错误消息使用 error 内容
-        if (msg.error != null && !msg.error.isEmpty()) {
-            return "error:" + msg.error;
-        }
-        
-        // 有 tool_calls 的消息使用第一个 tool_call 的 ID
+    private String getMessageFingerprint(ApiClient.ChatMessage msg) {
+        String toolCallId = "";
         if (msg.toolCalls != null && !msg.toolCalls.isEmpty()) {
-            return "tool_call:" + msg.toolCalls.get(0).id;
+            toolCallId = msg.toolCalls.get(0).id != null ? msg.toolCalls.get(0).id : "";
         }
-        
-        // 普通消息使用 content
-        return msg.content != null ? "content:" + msg.content : "empty";
+        String content = "";
+        if (msg.error != null && !msg.error.isEmpty()) {
+            content = "error:" + msg.error;
+        } else if (msg.content != null) {
+            content = msg.content;
+        }
+        return msg.created + ":" + (msg.role != null ? msg.role : "") + ":" + toolCallId + ":" + content;
     }
-    
+
     /**
      * 设置滚动监听器 - 优化的下拉加载
      */
@@ -833,10 +833,11 @@ public class ChatActivity extends AppCompatActivity {
                               ", contentLen=" + (msg.content == null ? "null" : msg.content.length()) +
                               (tcInfo.length() > 0 ? ", " + tcInfo.toString() : ""));
                         
-                        if (messageFingerprints.containsKey(msg.created)) {
+                        if (messageFingerprints.contains(getMessageFingerprint(msg))) {
                             Log.d(TAG, "  → SKIP: already exists");
                             continue;
                         }
+
                         
                         // 只对普通用户消息检查 pending 替换（错误消息不需要）
                         if (msg.error == null && "user".equals(msg.role) && msg.content != null) {
@@ -845,14 +846,16 @@ public class ChatActivity extends AppCompatActivity {
                                 Log.d(TAG, "  → REPLACE pending at " + pendingIndex);
                                 messages.set(pendingIndex, createMessageFromChatMessage(msg, serverIndex));
                                 pendingMessages.remove(msg.content);
-                                messageFingerprints.put(msg.created, msg.content);
+                                messageFingerprints.add(getMessageFingerprint(msg));
+
                                 continue;
                             }
                         }
                         
                         messages.add(createMessageFromChatMessage(msg, serverIndex));
-                        String fingerprint = getMessageIdentifier(msg);
-                        messageFingerprints.put(msg.created, fingerprint);
+                        String fingerprint = getMessageFingerprint(msg);
+                        messageFingerprints.add(fingerprint);
+
                         Log.d(TAG, "  → ADD: fingerprint=" + fingerprint);
                         addedNew = true;
                     }
@@ -1048,7 +1051,8 @@ public class ChatActivity extends AppCompatActivity {
                         ApiClient.ChatMessage msg = chatMessages.get(i);
                         int serverIndex = since + i;
                         messages.add(createMessageFromChatMessage(msg, serverIndex));
-                        messageFingerprints.put(msg.created, getMessageIdentifier(msg));
+                        messageFingerprints.add(getMessageFingerprint(msg));
+
                     }
                     
                     processedServerMessageCount = totalMessageCount;
@@ -1114,10 +1118,11 @@ public class ChatActivity extends AppCompatActivity {
                     for (int i = chatMessages.size() - 1; i >= 0; i--) {
                         ApiClient.ChatMessage msg = chatMessages.get(i);
                         int serverIndex = newSince + i;
-                        if (!messageFingerprints.containsKey(msg.created)) {
+                        if (!messageFingerprints.contains(getMessageFingerprint(msg))) {
                             Message message = createMessageFromChatMessage(msg, serverIndex);
                             messages.add(0, message);
-                            messageFingerprints.put(msg.created, getMessageIdentifier(msg));
+                            messageFingerprints.add(getMessageFingerprint(msg));
+
                             newTotalCount++;
                             
                             if (message.shouldDisplay()) {
@@ -1246,7 +1251,8 @@ public class ChatActivity extends AppCompatActivity {
                         
                         if (newContent != null && !newContent.equals(oldContent)) {
                             messages.set(lastIdx, createMessageFromChatMessage(latestFiltered, latestSvrIdx));
-                            messageFingerprints.put(latestFiltered.created, getMessageIdentifier(latestFiltered));
+                            messageFingerprints.add(getMessageFingerprint(latestFiltered));
+
                             adapter.notifyDataSetChangedWithUpdate();
                             scrollToBottomSmooth();
                         }
