@@ -12,7 +12,7 @@
         android:layout_height="wrap_content"
         android:maxWidth="280dp"
         android:padding="12dp"
-        android:textSize="16sp"
+        android:textSize="14sp"
         android:background="@drawable/error_message_bg"
         android:textColor="#D32F2F" />
 
@@ -25,3 +25,4 @@
         android:textColor="#999999" />
 
 </LinearLayout>
+

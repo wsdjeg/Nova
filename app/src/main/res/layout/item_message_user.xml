@@ -12,7 +12,7 @@
         android:layout_height="wrap_content"
         android:maxWidth="320dp"
         android:padding="14dp"
-        android:textSize="16sp"
+        android:textSize="14sp"
         android:lineSpacingExtra="4dp"
         android:background="@drawable/user_message_bg"
         android:textColor="#FFFFFF" />
@@ -26,3 +26,4 @@
         android:textColor="#999999" />
 
 </LinearLayout>
+
