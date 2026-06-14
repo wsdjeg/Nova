@@ -156,6 +156,12 @@ public class ChatActivity extends AppCompatActivity {
     private Set<String> messagesInPool = new HashSet<>();
     
     private boolean userAtBottom = true;
+    // 用户是否正在主动滚动（DRAGGING 或 SETTLING）
+    // 在此期间应跳过定时刷新，避免破坏滚动惯性 / 闪烁
+    private boolean isUserScrolling = false;
+    // 贴底校正监听器（在最后一项布局尺寸变化时触发，配合 Markdown 异步测量）
+    private View.OnLayoutChangeListener bottomAlignWatcher = null;
+    private long bottomAlignDeadline = 0L;
     // 键盘状态追踪
     private int lastKeyboardHeight = 0;
     private boolean isKeyboardVisible = false;
@@ -426,6 +432,10 @@ public class ChatActivity extends AppCompatActivity {
             @Override
             public void onScrollStateChanged(RecyclerView recyclerView, int newState) {
                 super.onScrollStateChanged(recyclerView, newState);
+                
+                // 维护 isUserScrolling 状态：仅 DRAGGING/SETTLING 视为用户正在滚动
+                isUserScrolling = (newState == RecyclerView.SCROLL_STATE_DRAGGING
+                        || newState == RecyclerView.SCROLL_STATE_SETTLING);
                 
                 // 只在滚动停止时检查是否需要加载更多
                 if (newState == RecyclerView.SCROLL_STATE_IDLE) {
@@ -708,10 +718,20 @@ public class ChatActivity extends AppCompatActivity {
         refreshRunnable = new Runnable() {
             @Override
             public void run() {
-                if (isAutoRefreshEnabled && !isLoadingOlder) {
-                    refreshMessages();
+                if (!isAutoRefreshEnabled || isLoadingOlder) {
+                    // 仍然继续排队下一次刷新
                     refreshHandler.postDelayed(this, REFRESH_INTERVAL_MS);
+                    return;
                 }
+                // 用户正在主动滚动且不在底部时，跳过本次刷新
+                // 避免拖动惯性中途被 dispatchUpdates 打断、或刷新触发的高度变化造成画面抖动
+                if (isUserScrolling && !userAtBottom) {
+                    Log.d(TAG, "skip refresh: user is scrolling (not at bottom)");
+                    refreshHandler.postDelayed(this, REFRESH_INTERVAL_MS);
+                    return;
+                }
+                refreshMessages();
+                refreshHandler.postDelayed(this, REFRESH_INTERVAL_MS);
             }
         };
         refreshHandler.postDelayed(refreshRunnable, REFRESH_INTERVAL_MS);
@@ -1258,33 +1278,115 @@ public class ChatActivity extends AppCompatActivity {
     }
     
     /**
-     * 平滑滚动到底部
-     * 
-     * 实现策略：
-     * 1. 先用 scrollToPosition 让最后一项可见
-     * 2. 通过 post 在下一帧测量实际高度，使用 scrollToPositionWithOffset 精确贴底
-     * 3. 再次 post 兜底处理（针对 Markdown 富文本异步测量导致的高度变化）
+     * 平滑滚动到底部 —— 贴底稳定算法
+     *
+     * 痛点:
+     *   Markdown 富文本（Markwon）在 setText 后会异步测量布局，导致最后一项的高度
+     *   在 onBindViewHolder 之后还会发生变化。固定 100ms 兜底常常追不上变化，
+     *   出现"贴不到底"或"反复跳"的现象。
+     *
+     * 算法:
+     *   1. 立即让最后一项底部贴 RecyclerView 底部 (alignLastItemToBottom)
+     *   2. 在 RecyclerView 上注册 OnLayoutChangeListener，监听 600ms 内任何布局变化:
+     *      - 子 View 高度由于 Markdown 异步测量发生改变 → 触发布局
+     *      - RecyclerView 自身因键盘 / 父容器变化触发布局
+     *      只要不在底部就重新校正一次，直到 deadline 自动注销
+     *   3. 用户在此期间任何主动滚动会撤销监听，避免与用户操作冲突
+     *
+     * 这种"事件驱动 + 时间窗口"的策略，比单点 postDelayed(100ms) 稳得多。
      */
     private void scrollToBottomSmooth() {
         if (rvMessages == null || adapter == null) return;
         int itemCount = adapter.getItemCount();
         if (itemCount == 0) return;
-        
+
         LinearLayoutManager lm = (LinearLayoutManager) rvMessages.getLayoutManager();
         if (lm == null) return;
-        
+
         int lastPosition = itemCount - 1;
-        
-        // 第一步：立即跳转到最后一项
+
+        // 第一步：立即跳到最后一项顶部（视图占位）
         lm.scrollToPositionWithOffset(lastPosition, 0);
-        
-        // 第二步：等待第一次布局完成后，根据实测高度精确贴底
+
+        // 第二步：下一帧根据实测高度精确贴底
         rvMessages.post(() -> alignLastItemToBottom());
-        
-        // 第三步：再次延迟兜底（处理富文本异步测量、键盘弹起等场景）
-        rvMessages.postDelayed(() -> alignLastItemToBottom(), 100);
+
+        // 第三步：注册持续校正监听器，覆盖 Markdown 异步测量窗口（600ms）
+        installBottomAlignWatcher(600L);
     }
-    
+
+    /**
+     * 安装贴底校正监听器，在指定时间窗口内持续校正
+     * 重复调用会自动延长 deadline 并复用同一监听器
+     */
+    private void installBottomAlignWatcher(long durationMs) {
+        if (rvMessages == null) return;
+
+        long now = System.currentTimeMillis();
+        bottomAlignDeadline = Math.max(bottomAlignDeadline, now + durationMs);
+
+        if (bottomAlignWatcher != null) {
+            // 已经安装，仅延长 deadline
+            return;
+        }
+
+        bottomAlignWatcher = new View.OnLayoutChangeListener() {
+            @Override
+            public void onLayoutChange(View v, int l, int t, int r, int b,
+                                       int ol, int ot, int or_, int ob) {
+                // 超时自动注销
+                if (System.currentTimeMillis() > bottomAlignDeadline) {
+                    uninstallBottomAlignWatcher();
+                    return;
+                }
+                // 用户在主动滚动，立即让位
+                if (isUserScrolling) {
+                    uninstallBottomAlignWatcher();
+                    return;
+                }
+                // 用户已离开底部（说明用户上滑了），不再强制贴底
+                if (!userAtBottom) {
+                    uninstallBottomAlignWatcher();
+                    return;
+                }
+                // 高度真的变了再校正，避免无意义工作
+                int newH = b - t;
+                int oldH = ob - ot;
+                if (newH != oldH || !isLastItemFullyAtBottom()) {
+                    alignLastItemToBottom();
+                }
+            }
+        };
+        rvMessages.addOnLayoutChangeListener(bottomAlignWatcher);
+
+        // 兜底：到达 deadline 一定要注销，避免内存泄漏
+        rvMessages.postDelayed(this::uninstallBottomAlignWatcher, durationMs + 50);
+    }
+
+    private void uninstallBottomAlignWatcher() {
+        if (bottomAlignWatcher != null && rvMessages != null) {
+            rvMessages.removeOnLayoutChangeListener(bottomAlignWatcher);
+        }
+        bottomAlignWatcher = null;
+    }
+
+    /**
+     * 检查最后一项是否已经"完全贴底"（用于决定是否需要再次校正）
+     */
+    private boolean isLastItemFullyAtBottom() {
+        if (rvMessages == null || adapter == null) return true;
+        int itemCount = adapter.getItemCount();
+        if (itemCount == 0) return true;
+        LinearLayoutManager lm = (LinearLayoutManager) rvMessages.getLayoutManager();
+        if (lm == null) return true;
+        int pos = itemCount - 1;
+        View lastChild = lm.findViewByPosition(pos);
+        if (lastChild == null) return false;
+        int recyclerBottom = rvMessages.getHeight() - rvMessages.getPaddingBottom();
+        // 允许 1px 误差
+        return Math.abs(lastChild.getBottom() - recyclerBottom) <= 1;
+    }
+
     /**
      * 让最后一项的底部与 RecyclerView 的底部对齐
      */
@@ -1292,13 +1394,13 @@ public class ChatActivity extends AppCompatActivity {
         if (rvMessages == null || adapter == null) return;
         int itemCount = adapter.getItemCount();
         if (itemCount == 0) return;
-        
+
         LinearLayoutManager lm = (LinearLayoutManager) rvMessages.getLayoutManager();
         if (lm == null) return;
-        
+
         int pos = itemCount - 1;
         View lastChild = lm.findViewByPosition(pos);
-        
+
         if (lastChild != null) {
             int recyclerHeight = rvMessages.getHeight() - rvMessages.getPaddingTop() - rvMessages.getPaddingBottom();
             int itemHeight = lastChild.getHeight();
@@ -1311,6 +1413,7 @@ public class ChatActivity extends AppCompatActivity {
             rvMessages.post(() -> alignLastItemToBottom());
         }
     }
+
 
     
     private void refreshSessionStatus() {
