@@ -16,13 +16,13 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.RecyclerView;
+import io.noties.markwon.AbstractMarkwonPlugin;
 import io.noties.markwon.Markwon;
 import io.noties.markwon.ext.tables.TablePlugin;
 import io.noties.markwon.ext.tasklist.TaskListPlugin;
 import io.noties.markwon.ext.strikethrough.StrikethroughPlugin;
 import io.noties.markwon.html.HtmlPlugin;
 import io.noties.markwon.core.MarkwonTheme;
-import io.noties.markwon.core.MarkwonCorePlugin;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -94,18 +94,22 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
         this.context = context;
         this.linkColor = ContextCompat.getColor(context, R.color.primary);
         
-        // 配置 Markdown 标题大小
-        MarkwonTheme theme = MarkwonTheme.builder()
-            .setHeadingTextSize(1, 22) // H1
-            .setHeadingTextSize(2, 20) // H2
-            .setHeadingTextSize(3, 18) // H3
-            .setHeadingTextSize(4, 16) // H4
-            .setHeadingTextSize(5, 14) // H5
-            .setHeadingTextSize(6, 12) // H6
-            .build();
-        
+        // 配置 Markdown 标题大小：通过 AbstractMarkwonPlugin 配置主题
+        // Markwon 使用 headingTextSizeMultipliers 来控制 H1-H6 的相对字体倍率
         this.markwon = Markwon.builder(context)
-            .usePlugin(MarkwonCorePlugin.create(theme))
+            .usePlugin(new AbstractMarkwonPlugin() {
+                @Override
+                public void configureTheme(@NonNull MarkwonTheme.Builder builder) {
+                    builder.headingTextSizeMultipliers(new float[]{
+                        1.6f,  // H1
+                        1.4f,  // H2
+                        1.25f, // H3
+                        1.1f,  // H4
+                        1.0f,  // H5
+                        0.9f   // H6
+                    });
+                }
+            })
             .usePlugin(TablePlugin.create(context))
             .usePlugin(TaskListPlugin.create(context))
             .usePlugin(StrikethroughPlugin.create())
