@@ -14,7 +14,9 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.core.content.ContextCompat;
+import androidx.recyclerview.widget.DiffUtil;
 import androidx.recyclerview.widget.RecyclerView;
 import io.noties.markwon.AbstractMarkwonPlugin;
 import io.noties.markwon.Markwon;
@@ -44,13 +46,12 @@ import java.util.Set;
  * 每个 visibleItem 有一个全局唯一稳定的字符串 key，用于：
  * 1. 在刷新后定位同一项（保持滚动位置）
  * 2. 配合 setHasStableIds(true) 让 RecyclerView 识别同一 ViewHolder
+ * 3. 作为 DiffUtil.areItemsTheSame 的依据
  *
- * Key 设计:
- * - tool_call:  "tc:" + toolCall.id
- * - tool 消息:  "tr:" + toolCallId（首选）或 "tr_idx:" + serverIndex
- * - pending:    "pending:" + created + ":" + contentHash
- * - error:      "err:" + serverIndex + ":" + created
- * - 普通消息:    "msg:" + serverIndex + (":content" 如果是 assistant 且有 tool_calls 拆分)
+ * 增量更新（DiffUtil）:
+ * - 调用 notifyDataSetChangedWithUpdate() 时不再 notifyDataSetChanged()，
+ *   而是计算新旧 visibleItems 的差异，只对变化的位置发出更新事件，
+ *   屏幕中部不动的 item 完全不会重新 bind，杜绝闪烁。
  */
 public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     private static final String TAG = "MessageAdapter";
@@ -135,15 +136,11 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
             .usePlugin(StrikethroughPlugin.create())
             .usePlugin(HtmlPlugin.create())
             .build();
-        updateVisibleItems();
+        rebuildVisible();
     }
 
     /**
      * 计算 visibleItem 的稳定唯一 key
-     *
-     * @param item visibleItem (Message 或 ToolCallItem)
-     * @param hasContentBeforeToolCalls 当 assistant 消息既有 content 又有 tool_calls 时，
-     *                                   content 部分加 ":content" 后缀以与 toolCall 区分
      */
     private String computeStableKey(Object item) {
         if (item instanceof ToolCallItem) {
@@ -185,78 +182,110 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
     }
 
     /**
-     * 更新可见项列表
-     * 将消息拆分为多个显示项：
-     * - 普通消息直接添加
-     * - tool 消息直接添加（简洁显示）
-     * - assistant 消息如果有 tool_calls，拆分为多个 ToolCallItem
-     * - assistant 消息如果有 content，单独显示 content
+     * 构建 visibleItems 列表（不含 keyToPosition，由调用方决定是否填充）
      */
-    private void updateVisibleItems() {
-        visibleItems.clear();
-        visibleKeys.clear();
-        keyToPosition.clear();
-        Log.d(TAG, "=== updateVisibleItems: " + messages.size() + " messages ===");
+    private void buildVisibleItemsInto(List<Object> outItems, List<String> outKeys) {
+        outItems.clear();
+        outKeys.clear();
+        Set<String> usedKeys = new HashSet<>();
         
         for (int msgIdx = 0; msgIdx < messages.size(); msgIdx++) {
             Message msg = messages.get(msgIdx);
-            if (!msg.shouldDisplay()) {
-                Log.d(TAG, "  MSG[" + msgIdx + "]: SKIP shouldDisplay=false, role=" + msg.getRole());
-                continue;
-            }
+            if (!msg.shouldDisplay()) continue;
             
             // tool 消息：直接添加
             if (msg.isToolMessage()) {
-                Log.d(TAG, "  MSG[" + msgIdx + "]: ADD tool message, toolName=" + msg.getToolName());
-                addVisibleItem(msg);
+                addItemWithKey(outItems, outKeys, usedKeys, msg);
                 continue;
             }
             
             // assistant 消息：检查是否有 tool_calls
             if (msg.isAssistant() && msg.hasToolCalls()) {
-                Log.d(TAG, "  MSG[" + msgIdx + "]: assistant with tool_calls[" + msg.getToolCalls().size() + "]");
-                // 先显示 content（如果有且不为空）
                 if (msg.getContent() != null && !msg.getContent().trim().isEmpty()) {
-                    Log.d(TAG, "    → ADD content item");
-                    addVisibleItem(msg);
+                    addItemWithKey(outItems, outKeys, usedKeys, msg);
                 }
-                
-                // 拆分 tool_calls 为单独的显示项
                 List<ApiClient.ToolCall> toolCalls = msg.getToolCalls();
                 for (int i = 0; i < toolCalls.size(); i++) {
                     ToolCallItem item = new ToolCallItem(msg, toolCalls.get(i), i);
-                    Log.d(TAG, "    → ADD ToolCallItem: " + toolCalls.get(i).function.name);
-                    addVisibleItem(item);
+                    addItemWithKey(outItems, outKeys, usedKeys, item);
                 }
                 continue;
             }
             
-            // 其他消息：直接添加
-            Log.d(TAG, "  MSG[" + msgIdx + "]: ADD " + (msg.isUser() ? "user" : "bot") + " message");
-            addVisibleItem(msg);
+            addItemWithKey(outItems, outKeys, usedKeys, msg);
         }
-        
-        Log.d(TAG, "=== updateVisibleItems result: " + visibleItems.size() + " visible items ===");
     }
     
-    private void addVisibleItem(Object item) {
-        int pos = visibleItems.size();
+    private void addItemWithKey(List<Object> outItems, List<String> outKeys,
+                                Set<String> usedKeys, Object item) {
         String key = computeStableKey(item);
-        // 处理极端情况：key 重复（理论上不应发生），追加 :pos 保唯一
-        if (keyToPosition.containsKey(key)) {
+        if (usedKeys.contains(key)) {
             Log.w(TAG, "Duplicate stableKey detected: " + key + ", appending position");
-            key = key + ":dup" + pos;
+            key = key + ":dup" + outItems.size();
         }
-        visibleItems.add(item);
-        visibleKeys.add(key);
-        keyToPosition.put(key, pos);
+        outItems.add(item);
+        outKeys.add(key);
+        usedKeys.add(key);
     }
+    
+    /**
+     * 全量重建（仅初始化和 reload 时使用）
+     */
+    private void rebuildVisible() {
+        buildVisibleItemsInto(visibleItems, visibleKeys);
+        keyToPosition.clear();
+        for (int i = 0; i < visibleKeys.size(); i++) {
+            keyToPosition.put(visibleKeys.get(i), i);
+        }
+        Log.d(TAG, "rebuildVisible: " + visibleItems.size() + " visible items");
+    }
+    
+    /**
+     * DiffUtil 的内容比较辅助：判断两个 visibleItem 内容是否相同
+     */
+    private boolean contentsEqual(Object a, Object b) {
+        if (a == b) return true;
+        if (a == null || b == null) return false;
+        if (a.getClass() != b.getClass()) return false;
         
+        if (a instanceof ToolCallItem) {
+            ToolCallItem ta = (ToolCallItem) a;
+            ToolCallItem tb = (ToolCallItem) b;
+            return safeEq(ta.toolCall.function.name, tb.toolCall.function.name)
+                && safeEq(ta.toolCall.function.arguments, tb.toolCall.function.arguments);
+        }
+        
+        if (a instanceof Message) {
+            Message ma = (Message) a;
+            Message mb = (Message) b;
+            // 错误消息：比较 error 内容
+            if (ma.isError() || mb.isError()) {
+                return safeEq(ma.getError(), mb.getError());
+            }
+            // tool 消息：比较 content + toolError
+            if (ma.isToolMessage() || mb.isToolMessage()) {
+                return safeEq(ma.getContent(), mb.getContent())
+                    && safeEq(ma.getToolError(), mb.getToolError())
+                    && safeEq(ma.getToolName(), mb.getToolName());
+            }
+            // pending 状态变化也算内容变化
+            if (ma.isPending() != mb.isPending()) return false;
+            // 普通消息：比较 content
+            return safeEq(ma.getContent(), mb.getContent());
+        }
+        
+        return false;
+    }
+    
+    private static boolean safeEq(String a, String b) {
+        if (a == null) return b == null;
+        return a.equals(b);
+    }
+
     @Override
     public int getItemViewType(int position) {
         Object item = visibleItems.get(position);
         
-
         if (item instanceof ToolCallItem) {
             return TYPE_TOOL_CALL;
         }
@@ -379,28 +408,23 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
         String args = item.getArguments();
         if (args != null && !args.isEmpty()) {
             try {
-                // 尝试格式化 JSON
                 org.json.JSONObject json = new org.json.JSONObject(args);
                 String formatted = formatJson(json);
                 holder.contentText.setText(formatted);
             } catch (Exception e) {
-                // 不是有效 JSON，直接显示原始文本
                 holder.contentText.setText(args);
             }
             holder.contentText.setVisibility(View.VISIBLE);
             
-            // 检查内容是否超过折叠行数
             holder.contentText.post(() -> {
                 int lineCount = holder.contentText.getLineCount();
                 if (lineCount > COLLAPSED_LINES) {
                     holder.expandHint.setVisibility(View.VISIBLE);
-                    // 检查展开状态
                     boolean isExpanded = expandedToolCalls.contains(stableKey);
                     updateContentHeight(holder, isExpanded);
                     holder.expandHint.setText(isExpanded ? "收起 ▲" : "展开 ▼");
                 } else {
                     holder.expandHint.setVisibility(View.GONE);
-                    // 内容不足折叠行数，设置实际高度
                     holder.contentScrollV.getLayoutParams().height = ViewGroup.LayoutParams.WRAP_CONTENT;
                 }
             });
@@ -409,11 +433,9 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
             holder.expandHint.setVisibility(View.GONE);
         }
         
-        // 时间戳
         String time = TimeUtils.formatTime(item.getCreated() * 1000);
         holder.timeText.setText(time);
         
-        // 点击展开/折叠
         View.OnClickListener toggleListener = v -> {
             boolean isExpanded = expandedToolCalls.contains(stableKey);
             if (isExpanded) {
@@ -428,38 +450,27 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
         };
         holder.expandHint.setOnClickListener(toggleListener);
         
-        // 长按复制参数
         holder.itemView.setOnLongClickListener(v -> {
             copyToClipboard(item.getToolName() + "\n" + args);
             return true;
         });
     }
     
-    /**
-     * 更新内容区域高度
-     */
     private void updateContentHeight(ToolCallViewHolder holder, boolean isExpanded) {
         int heightPx = calculateHeightPx(isExpanded ? EXPANDED_LINES : COLLAPSED_LINES);
         holder.contentScrollV.getLayoutParams().height = heightPx;
         holder.contentScrollV.requestLayout();
     }
     
-    /**
-     * 更新内容区域高度 (ToolResult)
-     */
     private void updateResultContentHeight(ToolResultViewHolder holder, boolean isExpanded) {
         int heightPx = calculateHeightPx(isExpanded ? EXPANDED_LINES : COLLAPSED_LINES);
         holder.contentScrollV.getLayoutParams().height = heightPx;
         holder.contentScrollV.requestLayout();
     }
     
-    /**
-     * 工具结果：简洁显示，默认只显示3行
-     */
     private void bindToolResultViewHolder(ToolResultViewHolder holder, Message message, String stableKey) {
         String toolName = message.getToolName();
         
-        // 检查是否有错误
         if (message.hasToolError()) {
             holder.statusIcon.setText("❌");
             holder.toolNameText.setText(toolName + " (error)");
@@ -467,16 +478,14 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
         } else {
             holder.statusIcon.setText("✅");
             holder.toolNameText.setText(toolName);
-            holder.toolNameText.setTextColor(0xFF2196F3); // 蓝色
+            holder.toolNameText.setTextColor(0xFF2196F3);
         }
         
-        // 显示内容，默认3行
         String content = message.getContent();
         if (content != null && !content.isEmpty()) {
             holder.contentText.setText(content);
             holder.contentText.setVisibility(View.VISIBLE);
             
-            // 检查内容是否超过折叠行数
             holder.contentText.post(() -> {
                 int lineCount = holder.contentText.getLineCount();
                 if (lineCount > COLLAPSED_LINES) {
@@ -486,7 +495,6 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
                     holder.expandHint.setText(isExpanded ? "收起 ▲" : "展开 ▼");
                 } else {
                     holder.expandHint.setVisibility(View.GONE);
-                    // 内容不足折叠行数，设置实际高度
                     holder.contentScrollV.getLayoutParams().height = ViewGroup.LayoutParams.WRAP_CONTENT;
                 }
             });
@@ -495,11 +503,9 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
             holder.expandHint.setVisibility(View.GONE);
         }
         
-        // 时间戳
         String time = TimeUtils.formatTime(message.getTimestamp());
         holder.timeText.setText(time);
         
-        // 点击展开/折叠
         View.OnClickListener toggleListener = v -> {
             boolean isExpanded = expandedToolResults.contains(stableKey);
             if (isExpanded) {
@@ -514,7 +520,6 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
         };
         holder.expandHint.setOnClickListener(toggleListener);
         
-        // 长按复制结果内容
         holder.itemView.setOnLongClickListener(v -> {
             if (content != null && !content.isEmpty()) {
                 copyToClipboard(content);
@@ -523,18 +528,12 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
         });
     }
     
-    /**
-     * 格式化 JSON 对象为可读字符串
-     */
     private String formatJson(org.json.JSONObject json) {
         StringBuilder sb = new StringBuilder();
         formatJsonRecursive(json, sb, 0);
         return sb.toString();
     }
     
-    /**
-     * 递归格式化 JSON
-     */
     private void formatJsonRecursive(org.json.JSONObject json, StringBuilder sb, int indent) {
         String prefix = "";
         for (int i = 0; i < indent; i++) {
@@ -568,9 +567,6 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
         sb.append(prefix).append("}");
     }
     
-    /**
-     * 格式化 JSON 数组为可读字符串
-     */
     private String formatJsonArray(org.json.JSONArray array) {
         StringBuilder sb = new StringBuilder();
         sb.append("[\n");
@@ -605,17 +601,69 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
     public void updateMessages(List<Message> newMessages) {
         this.messages.clear();
         this.messages.addAll(newMessages);
-        updateVisibleItems();
-        super.notifyDataSetChanged();
+        applyDiff();
     }
     
+    /**
+     * 增量更新视图（基于 DiffUtil）
+     * 替代以前的 notifyDataSetChanged，只对真正变化的位置发出更新事件，
+     * 屏幕中部不动的 item 不会重新 bind，避免闪烁。
+     */
     public void notifyDataSetChangedWithUpdate() {
-        updateVisibleItems();
-        super.notifyDataSetChanged();
+        applyDiff();
+    }
+    
+    /**
+     * 应用 DiffUtil 计算结果到 RecyclerView
+     */
+    private void applyDiff() {
+        // 1. 快照旧数据
+        final List<Object> oldItems = new ArrayList<>(visibleItems);
+        final List<String> oldKeys = new ArrayList<>(visibleKeys);
+        
+        // 2. 构建新数据
+        final List<Object> newItems = new ArrayList<>();
+        final List<String> newKeys = new ArrayList<>();
+        buildVisibleItemsInto(newItems, newKeys);
+        
+        // 3. 计算 diff（detectMoves=false 提速：消息列表很少有"移动"）
+        DiffUtil.DiffResult result = DiffUtil.calculateDiff(new DiffUtil.Callback() {
+            @Override
+            public int getOldListSize() {
+                return oldItems.size();
+            }
+            
+            @Override
+            public int getNewListSize() {
+                return newItems.size();
+            }
+            
+            @Override
+            public boolean areItemsTheSame(int oldPos, int newPos) {
+                return oldKeys.get(oldPos).equals(newKeys.get(newPos));
+            }
+            
+            @Override
+            public boolean areContentsTheSame(int oldPos, int newPos) {
+                return contentsEqual(oldItems.get(oldPos), newItems.get(newPos));
+            }
+        }, false);
+        
+        // 4. 替换内部数据并应用差异
+        visibleItems.clear();
+        visibleItems.addAll(newItems);
+        visibleKeys.clear();
+        visibleKeys.addAll(newKeys);
+        keyToPosition.clear();
+        for (int i = 0; i < visibleKeys.size(); i++) {
+            keyToPosition.put(visibleKeys.get(i), i);
+        }
+        
+        result.dispatchUpdatesTo(this);
+        Log.d(TAG, "applyDiff: old=" + oldItems.size() + ", new=" + newItems.size());
     }
     
     public Message getLastVisibleMessage() {
-        // 从 messages 列表获取最后一条消息
         for (int i = messages.size() - 1; i >= 0; i--) {
             if (messages.get(i).shouldDisplay()) {
                 return messages.get(i);
