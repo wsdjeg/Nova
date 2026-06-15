@@ -390,35 +390,37 @@ public class ChatActivity extends AppCompatActivity {
                 int total = adapter.getItemCount();
                 
                 boolean isAtBottom = (total == 0) || (lastVisible >= total - BOTTOM_THRESHOLD);
-                
-                // 更新用户是否在底部的状态
-                userAtBottom = isAtBottom;
-                
-                // 更新 FAB 可见性
+
+                // FAB 可见性始终基于视觉状态更新（用户需要知道当前位置）
                 fabScrollBottom.setVisibility(isAtBottom ? View.GONE : View.VISIBLE);
                 
+                int scrollState = recyclerView.getScrollState();
+                boolean userDriven = (scrollState == RecyclerView.SCROLL_STATE_DRAGGING
+                        || scrollState == RecyclerView.SCROLL_STATE_SETTLING);
+                
+                // 【关键修复】只在用户主动滚动时更新 userAtBottom
+                // 程序化滚动（scrollToBottomSmooth / restoreScrollPosition / DiffUtil 布局）
+                // 不应改变此状态，否则会导致：
+                // 1. DiffUtil 分发更新触发 onScrolled → userAtBottom 被错误改变
+                // 2. 恢复位置时若恰好在底部附近 → userAtBottom 被错误设为 true
+                // 3. 下次刷新时无条件 scrollToBottomSmooth → 把用户拉回底部
+                if (userDriven && !isRestoringPosition) {
+                    userAtBottom = isAtBottom;
+                }
+                
                 // 更新位置记录（用于刷新后恢复）
-                // 关键：只在用户主动滚动时更新 anchor，
-                // 程序化滚动（scrollToPositionWithOffset / smoothScrollToPosition）
-                // 或 notifyDataSetChanged 引起的布局抖动期间不更新，
-                // 避免锚点被覆盖导致刷新后跳到错误位置。
-                if (firstVisible >= 0 && !isRestoringPosition) {
-                    int scrollState = recyclerView.getScrollState();
-                    boolean userDriven = (scrollState == RecyclerView.SCROLL_STATE_DRAGGING
-                            || scrollState == RecyclerView.SCROLL_STATE_SETTLING);
-                    if (userDriven) {
-                        String key = adapter.getStableKeyAt(firstVisible);
-                        if (key != null) {
-                            anchorStableKey = key;
-                            View firstChild = lm.findViewByPosition(firstVisible);
-                            if (firstChild != null) {
-                                offsetToRestore = firstChild.getTop();
-                            }
+                // 同样只在用户主动滚动时更新 anchor
+                if (firstVisible >= 0 && !isRestoringPosition && userDriven) {
+                    String key = adapter.getStableKeyAt(firstVisible);
+                    if (key != null) {
+                        anchorStableKey = key;
+                        View firstChild = lm.findViewByPosition(firstVisible);
+                        if (firstChild != null) {
+                            offsetToRestore = firstChild.getTop();
                         }
                     }
                 }
-                
-                // 显示/隐藏加载提示
+
                 boolean isAtTop = (firstVisible == 0 && total > 0);
                 if (!isLoadingOlder) {
                     if (isAtTop && canLoadMore()) {
@@ -864,10 +866,17 @@ public class ChatActivity extends AppCompatActivity {
                     
                     cleanupPendingMessages();
                     
+                    // 【关键修复】在 notifyDataSetChangedWithUpdate 之前快照 userAtBottom
+                    // 因为 DiffUtil dispatch 可能触发 onScrolled 回调，
+                    // 虽然已修复 onScrolled 不再被程序化滚动改变 userAtBottom，
+                    // 但快照作为防御性编程确保逻辑清晰
+                    final boolean wasAtBottom = userAtBottom;
+
+                    
                     adapter.notifyDataSetChangedWithUpdate();
                     
                     if (addedNew) {
-                        if (userAtBottom) {
+                        if (wasAtBottom) {
                             scrollToBottomSmooth();
                         } else {
                             // 用户不在底部时，恢复之前保存的位置
@@ -875,15 +884,13 @@ public class ChatActivity extends AppCompatActivity {
                         }
                     }
                 });
-            }
-            
             @Override
             public void onError(String error) {
                 Log.d(TAG, "Incremental fetch failed: " + error);
             }
         });
     }
-    
+
     /**
      * 查找 pending 消息的位置
      */
@@ -1218,8 +1225,11 @@ public class ChatActivity extends AppCompatActivity {
             @Override
             public void onSuccess(List<ApiClient.ChatMessage> chatMessages) {
                 runOnUiThread(() -> {
+                    // 【关键修复】异步回调后重新检查 userAtBottom
+                    // 用户可能在 API 请求期间滚离了底部，此时不应 scrollToBottomSmooth
+                    if (!userAtBottom) return;
                     if (chatMessages.isEmpty()) return;
-                    
+
                     // 找到最新的可显示消息（非 tool，有 content 或 error）
                     ApiClient.ChatMessage latestFiltered = null;
                     int latestSvrIdx = -1;
