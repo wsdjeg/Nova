@@ -869,7 +869,6 @@ public class ChatActivity extends AppCompatActivity {
                     // 【关键修复】在 notifyDataSetChangedWithUpdate 之前快照 userAtBottom
                     // 因为 DiffUtil dispatch 可能触发 onScrolled 回调，
                     // 虽然已修复 onScrolled 不再被程序化滚动改变 userAtBottom，
-                    // 但快照作为防御性编程确保逻辑清晰
                     final boolean wasAtBottom = userAtBottom;
 
                     
@@ -884,6 +883,8 @@ public class ChatActivity extends AppCompatActivity {
                         }
                     }
                 });
+            }
+            
             @Override
             public void onError(String error) {
                 Log.d(TAG, "Incremental fetch failed: " + error);
