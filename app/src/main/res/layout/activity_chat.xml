@@ -104,6 +104,7 @@
         app:backgroundTint="#FFFFFF"
         app:fabSize="mini" />
 
+
     <!-- Input Area Container with #F5F5F5 background -->
     <RelativeLayout
         android:id="@+id/inputArea"
@@ -118,7 +119,7 @@
             android:id="@+id/et_message"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_toStartOf="@id/btn_send"
+            android:layout_toStartOf="@id/btn_mic"
             android:layout_marginEnd="8dp"
             android:minHeight="44dp"
             android:maxHeight="100dp"
@@ -133,6 +134,20 @@
             android:gravity="center_vertical"
             android:scrollbars="vertical"
             android:importantForAutofill="no" />
+
+        <!-- Mic Button (Voice Input) -->
+        <ImageButton
+            android:id="@+id/btn_mic"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:layout_toStartOf="@id/btn_send"
+            android:layout_alignBottom="@id/et_message"
+            android:layout_marginEnd="8dp"
+            android:src="@drawable/ic_mic"
+            android:background="@drawable/mic_button_bg"
+            android:contentDescription="语音输入"
+            android:scaleType="centerInside"
+            app:backgroundTint="@null" />
 
         <!-- Send Button - always aligned to bottom of input area -->
         <Button
@@ -153,3 +168,4 @@
             app:backgroundTint="@null" />
     </RelativeLayout>
 </RelativeLayout>
+
