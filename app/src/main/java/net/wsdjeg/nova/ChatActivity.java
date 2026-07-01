@@ -1,6 +1,8 @@
 package net.wsdjeg.nova;
 
+import android.Manifest;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.graphics.PorterDuff;
 import android.graphics.Rect;
@@ -23,6 +25,7 @@ import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
+import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
@@ -85,6 +88,7 @@ public class ChatActivity extends AppCompatActivity {
     private static final int BOTTOM_THRESHOLD = 3;
     private static final int REQUEST_SESSION_SETTINGS = 1001;
     private static final int REQUEST_VOICE_INPUT = 1002;
+    private static final int REQUEST_RECORD_AUDIO_PERMISSION = 1003;
     
     // 加载更多防抖：最小触发间隔
     private static final long MIN_LOAD_INTERVAL_MS = 300;
@@ -1789,16 +1793,43 @@ public class ChatActivity extends AppCompatActivity {
     /**
      * 启动语音输入
      * 使用 Android 系统的语音识别 Intent
+     * 需要先检查 RECORD_AUDIO 权限和语音识别 Intent 可用性
      */
     private void startVoiceInput() {
+        // 1. 检查 RECORD_AUDIO 运行时权限
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
+                != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this,
+                    new String[]{Manifest.permission.RECORD_AUDIO},
+                    REQUEST_RECORD_AUDIO_PERMISSION);
+            return;
+        }
+        // 2. 检查是否有应用能处理语音识别 Intent
         Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
         intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
         intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault());
         intent.putExtra(RecognizerIntent.EXTRA_PROMPT, "说话...");
-        try {
-            startActivityForResult(intent, REQUEST_VOICE_INPUT);
-        } catch (Exception e) {
-            Toast.makeText(this, "语音识别不可用，请安装语音输入法", Toast.LENGTH_SHORT).show();
+        if (intent.resolveActivity(getPackageManager()) != null) {
+            try {
+                startActivityForResult(intent, REQUEST_VOICE_INPUT);
+            } catch (Exception e) {
+                Toast.makeText(this, "语音识别启动失败: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+            }
+        } else {
+            Toast.makeText(this, "设备未安装语音识别引擎，请安装 Google 应用或其他语音输入法", Toast.LENGTH_LONG).show();
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == REQUEST_RECORD_AUDIO_PERMISSION) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                // 权限已授予，重新启动语音输入
+                startVoiceInput();
+            } else {
+                Toast.makeText(this, "需要麦克风权限才能使用语音输入", Toast.LENGTH_SHORT).show();
+            }
         }
     }
 }
