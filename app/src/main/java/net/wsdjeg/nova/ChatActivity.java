@@ -9,6 +9,7 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.speech.RecognizerIntent;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -34,6 +35,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
@@ -82,6 +84,7 @@ public class ChatActivity extends AppCompatActivity {
     private static final int STATE_SENDING = 1;
     private static final int BOTTOM_THRESHOLD = 3;
     private static final int REQUEST_SESSION_SETTINGS = 1001;
+    private static final int REQUEST_VOICE_INPUT = 1002;
     
     // 加载更多防抖：最小触发间隔
     private static final long MIN_LOAD_INTERVAL_MS = 300;
@@ -295,7 +298,7 @@ public class ChatActivity extends AppCompatActivity {
             } else {
                 String content = etMessage.getText().toString().trim();
                 if (content.isEmpty()) {
-                    Toast.makeText(this, "语音输入功能开发中", Toast.LENGTH_SHORT).show();
+                    startVoiceInput();
                 } else {
                     sendMessage();
                 }
@@ -1771,7 +1774,31 @@ public class ChatActivity extends AppCompatActivity {
             String newTitle = data.getStringExtra(SessionSettingsActivity.RESULT_TITLE);
             
             updateSessionInfoFromResult(newProvider, newModel, newCwd, newTitle);
+        } else if (requestCode == REQUEST_VOICE_INPUT && resultCode == RESULT_OK && data != null) {
+            // 语音识别结果
+            ArrayList<String> results = data.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS);
+            if (results != null && !results.isEmpty()) {
+                String text = results.get(0);
+                etMessage.setText(text);
+                etMessage.setSelection(text.length());
+                etMessage.requestFocus();
+            }
+        }
+    }
+    
+    /**
+     * 启动语音输入
+     * 使用 Android 系统的语音识别 Intent
+     */
+    private void startVoiceInput() {
+        Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
+        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault());
+        intent.putExtra(RecognizerIntent.EXTRA_PROMPT, "说话...");
+        try {
+            startActivityForResult(intent, REQUEST_VOICE_INPUT);
+        } catch (Exception e) {
+            Toast.makeText(this, "语音识别不可用，请安装语音输入法", Toast.LENGTH_SHORT).show();
         }
     }
 }
-
