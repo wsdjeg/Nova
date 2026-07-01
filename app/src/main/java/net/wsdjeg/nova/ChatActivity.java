@@ -16,6 +16,7 @@ import android.view.View;
 import android.view.ViewTreeObserver;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ImageButton;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -98,7 +99,7 @@ public class ChatActivity extends AppCompatActivity {
     private TextView tvLoadMore;
     private RecyclerView rvMessages;
     private EditText etMessage;
-    private Button btnSend;
+    private ImageButton btnSend;
     private FloatingActionButton fabScrollBottom;
     private MessageAdapter adapter;
     private List<Message> messages;
@@ -292,7 +293,26 @@ public class ChatActivity extends AppCompatActivity {
             if (buttonState == STATE_SENDING) {
                 stopSession();
             } else {
-                sendMessage();
+                String content = etMessage.getText().toString().trim();
+                if (content.isEmpty()) {
+                    Toast.makeText(this, "语音输入功能开发中", Toast.LENGTH_SHORT).show();
+                } else {
+                    sendMessage();
+                }
+            }
+        });
+        
+        // 文本变化监听：有文字时显示发送图标，无文字时显示话筒/停止图标
+        etMessage.addTextChangedListener(new android.text.TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {}
+            
+            @Override
+            public void afterTextChanged(android.text.Editable s) {
+                updateButtonAppearance();
             }
         });
         
@@ -1644,18 +1664,35 @@ public class ChatActivity extends AppCompatActivity {
     
     private void setButtonStateSending() {
         buttonState = STATE_SENDING;
-        btnSend.setText("停止");
-        btnSend.setBackgroundResource(R.drawable.btn_stop_bg);
-        btnSend.setBackgroundTintList(null);
+        updateButtonAppearance();
     }
     
     private void setButtonStateNormal() {
         buttonState = STATE_NORMAL;
-        btnSend.setText("发送");
-        btnSend.setBackgroundResource(R.drawable.send_button_bg);
-        btnSend.setBackgroundTintList(null);
+        updateButtonAppearance();
     }
     
+    /**
+     * 统一更新按钮外观：
+     * - 进行中 → 停止图标（小方块），红色背景
+     * - 空闲 + 有文字 → 发送图标（小飞机），蓝色背景
+     * - 空闲 + 无文字 → 话筒图标，蓝色背景
+     */
+    private void updateButtonAppearance() {
+        String content = etMessage.getText().toString().trim();
+        if (buttonState == STATE_SENDING) {
+            btnSend.setImageResource(R.drawable.ic_stop);
+            btnSend.setBackgroundResource(R.drawable.btn_stop_bg);
+        } else if (!content.isEmpty()) {
+            btnSend.setImageResource(R.drawable.ic_send);
+            btnSend.setBackgroundResource(R.drawable.send_button_bg);
+        } else {
+            btnSend.setImageResource(R.drawable.ic_mic);
+            btnSend.setBackgroundResource(R.drawable.mic_button_bg);
+        }
+        btnSend.setBackgroundTintList(null);
+    }
+
     private void clearSession() {
         new android.app.AlertDialog.Builder(this)
             .setTitle("清空会话")
