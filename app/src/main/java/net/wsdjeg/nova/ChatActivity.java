@@ -1,6 +1,7 @@
 package net.wsdjeg.nova;
 
 import android.Manifest;
+import android.content.ActivityNotFoundException;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
@@ -1804,19 +1805,18 @@ public class ChatActivity extends AppCompatActivity {
                     REQUEST_RECORD_AUDIO_PERMISSION);
             return;
         }
-        // 2. 检查是否有应用能处理语音识别 Intent
+        // 2. 直接启动语音识别 Intent（不使用 resolveActivity 预检查，
+        //    某些设备上 resolveActivity 会误返回 null）
         Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
         intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
         intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault());
         intent.putExtra(RecognizerIntent.EXTRA_PROMPT, "说话...");
-        if (intent.resolveActivity(getPackageManager()) != null) {
-            try {
-                startActivityForResult(intent, REQUEST_VOICE_INPUT);
-            } catch (Exception e) {
-                Toast.makeText(this, "语音识别启动失败: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-            }
-        } else {
+        try {
+            startActivityForResult(intent, REQUEST_VOICE_INPUT);
+        } catch (ActivityNotFoundException e) {
             Toast.makeText(this, "设备未安装语音识别引擎，请安装 Google 应用或其他语音输入法", Toast.LENGTH_LONG).show();
+        } catch (Exception e) {
+            Toast.makeText(this, "语音识别启动失败: " + e.getMessage(), Toast.LENGTH_SHORT).show();
         }
     }
 
