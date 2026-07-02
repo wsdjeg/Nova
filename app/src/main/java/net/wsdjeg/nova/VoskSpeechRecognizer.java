@@ -312,9 +312,6 @@ public class VoskSpeechRecognizer {
             // 创建 SpeechService，使用麦克风采集
             speechService = new SpeechService(recognizer, SAMPLE_RATE);
 
-            // 设置超时回调（5秒无语音自动停止）
-            speechService.setTimeout(5000);
-
             // 开始识别，结果通过回调返回
             speechService.startListening(new org.vosk.android.RecognitionListener() {
                 @Override
@@ -327,6 +324,19 @@ public class VoskSpeechRecognizer {
                         }
                     } catch (Exception e) {
                         Log.e(TAG, "Error parsing partial result", e);
+                    }
+                }
+
+                @Override
+                public void onFinalResult(String s) {
+                    try {
+                        JSONObject json = new JSONObject(s);
+                        String text = json.optString("text", "");
+                        if (!text.isEmpty() && listener != null) {
+                            listener.onFinalResult(text);
+                        }
+                    } catch (Exception e) {
+                        Log.e(TAG, "Error parsing final result", e);
                     }
                 }
 
