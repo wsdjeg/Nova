@@ -1502,14 +1502,14 @@ public class ChatActivity extends AppCompatActivity {
                 });
             }
         });
-    }
-    
     private void setButtonStateSending() {
+        if (isVoskListening) return;
         buttonState = STATE_SENDING;
         updateButtonAppearance();
     }
     
     private void setButtonStateNormal() {
+        if (isVoskListening) return;
         buttonState = STATE_NORMAL;
         updateButtonAppearance();
     }
@@ -1780,7 +1780,6 @@ public class ChatActivity extends AppCompatActivity {
             Toast.makeText(this, "启动失败: " + e.getMessage(), Toast.LENGTH_SHORT).show();
         }
     }
-
     private void stopVoskListening() {
         if (voskRecognizer == null || !isVoskListening) return;
         try {
@@ -1790,7 +1789,11 @@ public class ChatActivity extends AppCompatActivity {
         } finally {
             isVoskListening = false;
             voskBaseText = "";
-            buttonState = STATE_NORMAL;
+            if (isInProgress) {
+                buttonState = STATE_SENDING;
+            } else {
+                buttonState = STATE_NORMAL;
+            }
             updateButtonAppearance();
             stopListeningPulse();
         }
