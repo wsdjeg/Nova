@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="24dp"
+    android:gravity="center_horizontal">
+
+    <ImageView
+        android:layout_width="56dp"
+        android:layout_height="56dp"
+        android:src="@drawable/ic_mic"
+        android:layout_marginBottom="12dp"
+        android:contentDescription="麦克风" />
+
+    <TextView
+        android:id="@+id/tv_voice_status"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="正在聆听..."
+        android:textSize="14sp"
+        android:textColor="#888888"
+        android:layout_marginBottom="16dp" />
+
+    <TextView
+        android:id="@+id/tv_voice_result"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:minHeight="48dp"
+        android:textSize="18sp"
+        android:textColor="#333333"
+        android:gravity="center"
+        android:padding="8dp" />
+
+</LinearLayout>
+
