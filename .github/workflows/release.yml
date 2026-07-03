@@ -34,6 +34,30 @@ jobs:
         with:
           gradle-version: "8.0"
 
+      # ── Vosk 语音模型 ──────────────────────────────────────────────
+      # 模型不纳入仓库，在 CI 构建时动态下载到 assets 目录
+      # 代码中期望路径: assets/vosk-model-small-cn/
+      # 官方下载: https://alphacephei.com/vosk/models
+      - name: Cache Vosk model
+        id: cache-vosk-model
+        uses: actions/cache@v4
+        with:
+          path: app/src/main/assets/vosk-model-small-cn
+          key: vosk-model-small-cn-0.22
+
+      - name: Download Vosk Chinese small model
+        if: steps.cache-vosk-model.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p app/src/main/assets
+          cd /tmp
+          curl -fSL -o vosk-model-small-cn-0.22.zip \
+            https://alphacephei.com/vosk/models/vosk-model-small-cn-0.22.zip
+          unzip -q vosk-model-small-cn-0.22.zip
+          mv vosk-model-small-cn-0.22 "${{ github.workspace }}/app/src/main/assets/vosk-model-small-cn"
+          rm -f vosk-model-small-cn-0.22.zip
+          echo "✅ Vosk model downloaded to assets/vosk-model-small-cn/"
+          ls -lh "${{ github.workspace }}/app/src/main/assets/vosk-model-small-cn/"
+
       - name: Generate debug keystore
         run: |
           mkdir -p ~/.android
