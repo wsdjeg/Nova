@@ -180,6 +180,11 @@ public class ChatActivity extends AppCompatActivity {
     private int lastRecyclerViewHeight = -1;  // 记录 RecyclerView 高度变化
     private long lastKeyboardScrollTime = 0;  // 键盘滚动防抖时间戳
     private int accumulatedHeightDelta = 0;   // 累积的高度变化（用于防抖）
+
+    // Vosk 离线语音识别
+    private VoskSpeechRecognizer voskRecognizer;
+    private boolean isVoskListening = false;
+
     
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -293,6 +298,10 @@ public class ChatActivity extends AppCompatActivity {
         setupKeyboardListener();
         
         fabScrollBottom.setOnClickListener(v -> {
+
+        // 初始化 Vosk 离线语音识别
+        initVoskRecognizer();
+
             userAtBottom = true;
             scrollToBottomSmooth();
         });
@@ -1792,9 +1801,7 @@ public class ChatActivity extends AppCompatActivity {
     }
     
     /**
-     * 启动语音输入
-     * 使用 Android 系统的语音识别 Intent
-     * 需要先检查 RECORD_AUDIO 权限和语音识别 Intent 可用性
+     * 优先使用 Vosk 离线识别，不可用时回退到 Android 系统语音识别
      */
     private void startVoiceInput() {
         // 1. 检查 RECORD_AUDIO 运行时权限
@@ -1805,8 +1812,14 @@ public class ChatActivity extends AppCompatActivity {
                     REQUEST_RECORD_AUDIO_PERMISSION);
             return;
         }
-        // 2. 直接启动语音识别 Intent（不使用 resolveActivity 预检查，
-        //    某些设备上 resolveActivity 会误返回 null）
+
+        // 2. 优先尝试 Vosk 离线识别
+        if (voskRecognizer != null && voskRecognizer.isModelReady()) {
+            startVoskListening();
+            return;
+        }
+
+        // 3. 回退到 Android 系统语音识别
         Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
         intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
         intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault());
@@ -1830,6 +1843,103 @@ public class ChatActivity extends AppCompatActivity {
             } else {
                 Toast.makeText(this, "需要麦克风权限才能使用语音输入", Toast.LENGTH_SHORT).show();
             }
+        }
+    }
+    private void initVoskRecognizer() {
+        try {
+            voskRecognizer = new VoskSpeechRecognizer(this);
+            voskRecognizer.setListener(new VoskSpeechRecognizer.RecognitionListener() {
+                @Override
+                public void onModelReady() {
+                    // 模型就绪，无需额外操作
+                }
+
+                @Override
+                public void onModelError(String error) {
+                    // 模型不可用，Vosk 将不可用，回退到系统识别
+                }
+
+                @Override
+                public void onFinalResult(String text) {
+                    if (text != null && !text.trim().isEmpty()) {
+                        runOnUiThread(() -> {
+                            etInput.setText(text.trim());
+                            etInput.setSelection(etInput.length());
+                            Toast.makeText(ChatActivity.this, "✓ 识别完成", Toast.LENGTH_SHORT).show();
+                        });
+                    }
+                }
+
+                @Override
+                public void onPartialResult(String text) {
+                    if (text != null && !text.trim().isEmpty()) {
+                        runOnUiThread(() -> {
+                            etInput.setText(text.trim());
+                            etInput.setSelection(etInput.length());
+                        });
+                    }
+                }
+
+                @Override
+                public void onError(String error) {
+                    runOnUiThread(() -> {
+                        isVoskListening = false;
+                        Toast.makeText(ChatActivity.this, "识别失败: " + error, Toast.LENGTH_LONG).show();
+                    });
+                }
+
+                @Override
+                public void onTimeout() {
+                    runOnUiThread(() -> {
+                        isVoskListening = false;
+                        String currentText = etInput.getText().toString().trim();
+                        if (!currentText.isEmpty()) {
+                            Toast.makeText(ChatActivity.this, "语音识别结束", Toast.LENGTH_SHORT).show();
+                        }
+                    });
+                }
+            });
+            // 异步加载模型
+            voskRecognizer.initModel();
+        } catch (Exception e) {
+            voskRecognizer = null;
+        }
+    }
+
+    private void startVoskListening() {
+        if (voskRecognizer == null || isVoskListening) return;
+        if (!voskRecognizer.isModelReady()) {
+            Toast.makeText(this, "语音模型正在加载中...", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        try {
+            voskRecognizer.startListening();
+            isVoskListening = true;
+            Toast.makeText(this, "🎤 正在聆听...", Toast.LENGTH_SHORT).show();
+        } catch (Exception e) {
+            isVoskListening = false;
+            Toast.makeText(this, "启动失败: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void stopVoskListening() {
+        if (voskRecognizer == null || !isVoskListening) return;
+        try {
+            voskRecognizer.stopListening();
+        } catch (Exception e) {
+            // ignore
+        } finally {
+            isVoskListening = false;
+        }
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        stopVoskListening();
+        if (voskRecognizer != null) {
+            voskRecognizer.destroy();
+            voskRecognizer = null;
         }
     }
 }
