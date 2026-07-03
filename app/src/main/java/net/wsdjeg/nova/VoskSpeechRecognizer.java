@@ -172,7 +172,6 @@ public class VoskSpeechRecognizer {
      *
      * 首先检查外部存储是否已有模型，如果没有则从 assets 复制。
      * 模型加载在后台线程执行，完成后通过回调通知。
-     */
     public void initModel() {
         new Thread(() -> {
             try {
@@ -182,20 +181,53 @@ public class VoskSpeechRecognizer {
                 File modelDir = new File(modelPath);
                 if (!modelDir.exists() || modelDir.list() == null || modelDir.list().length == 0) {
                     Log.i(TAG, "Model not found in external storage, copying from assets...");
+
+                    // 诊断：列出 assets 根目录所有内容
+                    try {
+                        String[] rootAssets = context.getAssets().list("");
+                        Log.i(TAG, "Assets root has " + (rootAssets != null ? rootAssets.length : 0) + " entries");
+                        if (rootAssets != null) {
+                            for (String name : rootAssets) {
+                                String[] sub = context.getAssets().list(name);
+                                int count = (sub != null) ? sub.length : -1;
+                                Log.i(TAG, "  assets/" + name + (count >= 0 ? " (" + count + " items)" : " (file)"));
+                            }
+                        }
                     boolean copied = copyModelFromAssets(ASSET_MODEL_NAME, modelPath);
                     if (!copied) {
-                        Log.w(TAG, "No model in assets either. Asset name: " + ASSET_MODEL_NAME);
+                        // 列出实际存在的目录名帮助诊断
+                        StringBuilder found = new StringBuilder();
+                        try {
+                            String[] root = context.getAssets().list("");
+                            if (root != null) {
+                                for (String n : root) {
+                                    String[] sub = context.getAssets().list(n);
+                                    if (sub != null && sub.length > 0 && n.contains("vosk")) {
+                                        found.append(n).append("(").append(sub.length).append(") ");
+                                    }
+                                }
+                            }
+                        } catch (IOException ignored) {}
+                        
+                        String detail = "语音模型未找到: assets/" + ASSET_MODEL_NAME;
+                        if (found.length() > 0) {
+                            detail += "\n实际找到: " + found.toString().trim();
+                        } else {
+                            detail += "\nassets 中没有 vosk 相关目录";
+                        }
+                        Log.w(TAG, detail);
+                        modelError = detail;
+                        if (listener != null) {
+                            listener.onModelError(modelError);
+                        }
+                        return;
+                    }
                         modelError = "语音模型未找到，请确保 assets/" + ASSET_MODEL_NAME + " 目录存在";
                         if (listener != null) {
                             listener.onModelError(modelError);
                         }
                         return;
                     }
-                    Log.i(TAG, "Model copied from assets successfully");
-                }
-
-                Log.i(TAG, "Loading Vosk model from: " + modelPath);
-                model = new Model(modelPath);
                 recognizer = new Recognizer(model, SAMPLE_RATE);
                 modelInitialized = true;
                 modelError = null;
