@@ -86,6 +86,7 @@ public class ChatActivity extends AppCompatActivity {
     private static final int PAGE_SIZE = 50;
     private static final int STATE_NORMAL = 0;
     private static final int STATE_SENDING = 1;
+    private static final int STATE_LISTENING = 2;
     private static final int BOTTOM_THRESHOLD = 3;
     private static final int REQUEST_SESSION_SETTINGS = 1001;
     private static final int REQUEST_VOICE_INPUT = 1002;
@@ -173,6 +174,8 @@ public class ChatActivity extends AppCompatActivity {
     // Vosk 离线语音识别
     private VoskSpeechRecognizer voskRecognizer;
     private boolean isVoskListening = false;
+    private String voskBaseText = "";
+    private android.animation.ObjectAnimator pulseAnimator;
 
     
     @Override
@@ -290,6 +293,8 @@ public class ChatActivity extends AppCompatActivity {
         btnSend.setOnClickListener(v -> {
             if (buttonState == STATE_SENDING) {
                 stopSession();
+            } else if (buttonState == STATE_LISTENING) {
+                stopVoskListening();
             } else {
                 String content = etMessage.getText().toString().trim();
                 if (content.isEmpty()) {
@@ -1510,16 +1515,21 @@ public class ChatActivity extends AppCompatActivity {
     }
     
     private void updateButtonAppearance() {
-        String content = etMessage.getText().toString().trim();
         if (buttonState == STATE_SENDING) {
             btnSend.setImageResource(R.drawable.ic_stop);
             btnSend.setBackgroundResource(R.drawable.btn_stop_bg);
-        } else if (!content.isEmpty()) {
-            btnSend.setImageResource(R.drawable.ic_send);
-            btnSend.setBackgroundResource(R.drawable.send_button_bg);
+        } else if (buttonState == STATE_LISTENING) {
+            btnSend.setImageResource(R.drawable.ic_stop);
+            btnSend.setBackgroundResource(R.drawable.listening_button_bg);
         } else {
-            btnSend.setImageResource(R.drawable.ic_mic);
-            btnSend.setBackgroundResource(R.drawable.mic_button_bg);
+            String content = etMessage.getText().toString().trim();
+            if (!content.isEmpty()) {
+                btnSend.setImageResource(R.drawable.ic_send);
+                btnSend.setBackgroundResource(R.drawable.send_button_bg);
+            } else {
+                btnSend.setImageResource(R.drawable.ic_mic);
+                btnSend.setBackgroundResource(R.drawable.mic_button_bg);
+            }
         }
         btnSend.setBackgroundTintList(null);
     }
@@ -1605,13 +1615,17 @@ public class ChatActivity extends AppCompatActivity {
             ArrayList<String> results = data.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS);
             if (results != null && !results.isEmpty()) {
                 String text = results.get(0);
-                etMessage.setText(text);
-                etMessage.setSelection(text.length());
+                String current = etMessage.getText().toString().trim();
+                if (!current.isEmpty()) {
+                    etMessage.setText(current + " " + text);
+                } else {
+                    etMessage.setText(text);
+                }
+                etMessage.setSelection(etMessage.length());
                 etMessage.requestFocus();
             }
         }
     }
-    
     /**
      * 优先使用 Vosk 离线识别，不可用时回退到 Android 系统语音识别
      */
@@ -1693,9 +1707,9 @@ public class ChatActivity extends AppCompatActivity {
                 public void onFinalResult(String text) {
                     if (text != null && !text.trim().isEmpty()) {
                         runOnUiThread(() -> {
-                            etMessage.setText(text.trim());
+                            voskBaseText += text.trim();
+                            etMessage.setText(voskBaseText);
                             etMessage.setSelection(etMessage.length());
-                            Toast.makeText(ChatActivity.this, "✓ 识别完成", Toast.LENGTH_SHORT).show();
                         });
                     }
                 }
@@ -1704,7 +1718,7 @@ public class ChatActivity extends AppCompatActivity {
                 public void onPartialResult(String text) {
                     if (text != null && !text.trim().isEmpty()) {
                         runOnUiThread(() -> {
-                            etMessage.setText(text.trim());
+                            etMessage.setText(voskBaseText + text.trim());
                             etMessage.setSelection(etMessage.length());
                         });
                     }
@@ -1714,6 +1728,10 @@ public class ChatActivity extends AppCompatActivity {
                 public void onError(String error) {
                     runOnUiThread(() -> {
                         isVoskListening = false;
+                        voskBaseText = "";
+                        buttonState = STATE_NORMAL;
+                        updateButtonAppearance();
+                        stopListeningPulse();
                         Toast.makeText(ChatActivity.this, "识别失败: " + error, Toast.LENGTH_LONG).show();
                     });
                 }
@@ -1722,6 +1740,10 @@ public class ChatActivity extends AppCompatActivity {
                 public void onTimeout() {
                     runOnUiThread(() -> {
                         isVoskListening = false;
+                        voskBaseText = "";
+                        buttonState = STATE_NORMAL;
+                        updateButtonAppearance();
+                        stopListeningPulse();
                         String currentText = etMessage.getText().toString().trim();
                         if (!currentText.isEmpty()) {
                             Toast.makeText(ChatActivity.this, "语音识别结束", Toast.LENGTH_SHORT).show();
@@ -1744,9 +1766,15 @@ public class ChatActivity extends AppCompatActivity {
             return;
         }
         try {
+            voskBaseText = etMessage.getText().toString().trim();
+            if (!voskBaseText.isEmpty()) {
+                voskBaseText += " ";
+            }
             voskRecognizer.startListening();
             isVoskListening = true;
-            Toast.makeText(this, "🎤 正在聆听...", Toast.LENGTH_SHORT).show();
+            buttonState = STATE_LISTENING;
+            updateButtonAppearance();
+            startListeningPulse();
         } catch (Exception e) {
             isVoskListening = false;
             Toast.makeText(this, "启动失败: " + e.getMessage(), Toast.LENGTH_SHORT).show();
@@ -1761,12 +1789,36 @@ public class ChatActivity extends AppCompatActivity {
             // ignore
         } finally {
             isVoskListening = false;
+            voskBaseText = "";
+            buttonState = STATE_NORMAL;
+            updateButtonAppearance();
+            stopListeningPulse();
+        }
+    }
+
+    private void startListeningPulse() {
+        stopListeningPulse();
+        pulseAnimator = android.animation.ObjectAnimator.ofFloat(btnSend, "alpha", 1f, 0.4f);
+        pulseAnimator.setDuration(600);
+        pulseAnimator.setRepeatCount(android.animation.ValueAnimator.INFINITE);
+        pulseAnimator.setRepeatMode(android.animation.ValueAnimator.REVERSE);
+        pulseAnimator.start();
+    }
+
+    private void stopListeningPulse() {
+        if (pulseAnimator != null) {
+            pulseAnimator.cancel();
+            pulseAnimator = null;
+        }
+        if (btnSend != null) {
+            btnSend.setAlpha(1f);
         }
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        stopListeningPulse();
         stopVoskListening();
         if (voskRecognizer != null) {
             voskRecognizer.destroy();
@@ -1774,4 +1826,3 @@ public class ChatActivity extends AppCompatActivity {
         }
     }
 }
-
