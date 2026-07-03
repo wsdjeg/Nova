@@ -1502,6 +1502,8 @@ public class ChatActivity extends AppCompatActivity {
                 });
             }
         });
+    }
+    
     private void setButtonStateSending() {
         if (isVoskListening) return;
         buttonState = STATE_SENDING;
