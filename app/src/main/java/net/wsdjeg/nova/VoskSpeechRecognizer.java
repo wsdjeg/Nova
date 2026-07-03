@@ -1,6 +1,5 @@
 package net.wsdjeg.nova;
 
-
 import android.content.Context;
 import android.os.Environment;
 import android.util.Log;
@@ -107,6 +106,9 @@ public class VoskSpeechRecognizer {
     private boolean modelInitialized = false;
     private boolean isListening = false;
 
+    /** 模型加载错误信息（供 UI 层查询） */
+    private String modelError = null;
+
     /** 采样率，Vosk 默认 16000Hz */
     private static final float SAMPLE_RATE = 16000.0f;
 
@@ -132,6 +134,34 @@ public class VoskSpeechRecognizer {
         this.listener = listener;
     }
 
+    /**
+     * 设置模型错误信息（由外部在 onModelError 回调中调用）
+     */
+    public void setModelError(String error) {
+        this.modelError = error;
+    }
+
+    /**
+     * 是否有模型错误
+     */
+    public boolean hasModelError() {
+        return modelError != null;
+    }
+
+    /**
+     * 获取模型错误信息
+     */
+    public String getModelError() {
+        return modelError;
+    }
+
+    /**
+     * 清除模型错误信息（显示给用户后清除）
+     */
+    public void clearModelError() {
+        this.modelError = null;
+    }
+
 
     // ========================================================================
     // 模型加载
@@ -154,19 +184,21 @@ public class VoskSpeechRecognizer {
                     Log.i(TAG, "Model not found in external storage, copying from assets...");
                     boolean copied = copyModelFromAssets(ASSET_MODEL_NAME, modelPath);
                     if (!copied) {
-                        // assets 中也没有模型，可能是用户需要手动下载
-                        Log.w(TAG, "No model in assets either. User needs to download model manually.");
+                        Log.w(TAG, "No model in assets either. Asset name: " + ASSET_MODEL_NAME);
+                        modelError = "语音模型未找到，请确保 assets/" + ASSET_MODEL_NAME + " 目录存在";
                         if (listener != null) {
-                            listener.onModelError("语音模型未找到，请先下载模型");
+                            listener.onModelError(modelError);
                         }
                         return;
                     }
+                    Log.i(TAG, "Model copied from assets successfully");
                 }
 
                 Log.i(TAG, "Loading Vosk model from: " + modelPath);
                 model = new Model(modelPath);
                 recognizer = new Recognizer(model, SAMPLE_RATE);
                 modelInitialized = true;
+                modelError = null;
                 Log.i(TAG, "Vosk model loaded successfully");
 
                 if (listener != null) {
@@ -175,8 +207,9 @@ public class VoskSpeechRecognizer {
 
             } catch (IOException e) {
                 Log.e(TAG, "Failed to load Vosk model", e);
+                modelError = "模型加载失败: " + e.getMessage();
                 if (listener != null) {
-                    listener.onModelError("模型加载失败: " + e.getMessage());
+                    listener.onModelError(modelError);
                 }
             }
         }).start();

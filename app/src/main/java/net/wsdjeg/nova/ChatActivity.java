@@ -140,13 +140,8 @@ public class ChatActivity extends AppCompatActivity {
     private Menu chatMenu;
     
     // 位置恢复：使用 StableKey 作为锚点
-    // 原因：
-    //   1. messages 列表包含不可见消息（tool 类型），索引不等于可见位置
-    //   2. created 不唯一（assistant 消息拆分为多个 visibleItem 时共享 created）
-    //   3. StableKey 基于 tool_call.id / serverIndex，全局唯一稳定
-    private String anchorStableKey = null;    // 锚点 visibleItem 的 stableKey
-    private int offsetToRestore = 0;          // 锚点的视觉偏移
-    // 程序化滚动期间禁止 onScrolled 更新 anchor，避免锚点漂移
+    private String anchorStableKey = null;
+    private int offsetToRestore = 0;
     private boolean isRestoringPosition = false;
     
     // 加载更早消息的状态标志
@@ -156,20 +151,14 @@ public class ChatActivity extends AppCompatActivity {
     // 消息指纹缓存（格式：created:role:toolcallid:content）
     private Set<String> messageFingerprints = new HashSet<>();
 
-    
     // Pending 消息：存储正在发送的消息内容，等待服务端确认（用于UI显示）
     private Map<String, Long> pendingMessages = new HashMap<>();
     
     // Bug 2 修复：消息池等待集合
-    // 存储已成功推送到服务端消息池但还没被AI处理的消息
-    // 因为消息池最多5秒才处理，期间需要保持"停止"按钮状态
     private Set<String> messagesInPool = new HashSet<>();
     
     private boolean userAtBottom = true;
-    // 用户是否正在主动滚动（DRAGGING 或 SETTLING）
-    // 在此期间应跳过定时刷新，避免破坏滚动惯性 / 闪烁
     private boolean isUserScrolling = false;
-    // 贴底校正监听器（在最后一项布局尺寸变化时触发，配合 Markdown 异步测量）
     private View.OnLayoutChangeListener bottomAlignWatcher = null;
     private long bottomAlignDeadline = 0L;
     // 键盘状态追踪
@@ -177,9 +166,9 @@ public class ChatActivity extends AppCompatActivity {
     private boolean isKeyboardVisible = false;
     private Handler keyboardHandler = new Handler(Looper.getMainLooper());
     private Runnable keyboardScrollRunnable = null;
-    private int lastRecyclerViewHeight = -1;  // 记录 RecyclerView 高度变化
-    private long lastKeyboardScrollTime = 0;  // 键盘滚动防抖时间戳
-    private int accumulatedHeightDelta = 0;   // 累积的高度变化（用于防抖）
+    private int lastRecyclerViewHeight = -1;
+    private long lastKeyboardScrollTime = 0;
+    private int accumulatedHeightDelta = 0;
 
     // Vosk 离线语音识别
     private VoskSpeechRecognizer voskRecognizer;
@@ -214,7 +203,6 @@ public class ChatActivity extends AppCompatActivity {
         String intentProvider = getIntent().getStringExtra("provider");
         String intentModel = getIntent().getStringExtra("model");
         String intentCwd = getIntent().getStringExtra("cwd");
-        // 从 intent 获取 in_progress 状态（会话列表传递的最新状态）
         boolean intentInProgress = getIntent().getBooleanExtra("in_progress", false);
         
         if (currentSessionId == null || currentSessionId.isEmpty()) {
@@ -232,7 +220,6 @@ public class ChatActivity extends AppCompatActivity {
         Account sessionAccount = null;
         
         Log.d(TAG, "Initializing with sessionId: " + currentSessionId);
-        // 优先使用 intent 传递的 in_progress 状态
         if (intentInProgress) {
             isInProgress = true;
             Log.d(TAG, "Using intent in_progress: true");
@@ -277,7 +264,6 @@ public class ChatActivity extends AppCompatActivity {
         btnSend = findViewById(R.id.btn_send);
         fabScrollBottom = findViewById(R.id.fab_scroll_bottom);
         
-        // 根据会话状态初始化按钮
         if (isInProgress) {
             setButtonStateSending();
         } else {
@@ -290,7 +276,6 @@ public class ChatActivity extends AppCompatActivity {
         adapter = new MessageAdapter(messages, this);
         LinearLayoutManager layoutManager = new LinearLayoutManager(this);
         rvMessages.setLayoutManager(layoutManager);
-        // 关闭 ItemAnimator 避免加载更多时的闪烁
         rvMessages.setItemAnimator(null);
         rvMessages.setAdapter(adapter);
         
@@ -298,10 +283,6 @@ public class ChatActivity extends AppCompatActivity {
         setupKeyboardListener();
         
         fabScrollBottom.setOnClickListener(v -> {
-
-        // 初始化 Vosk 离线语音识别
-        initVoskRecognizer();
-
             userAtBottom = true;
             scrollToBottomSmooth();
         });
@@ -319,7 +300,6 @@ public class ChatActivity extends AppCompatActivity {
             }
         });
         
-        // 文本变化监听：有文字时显示发送图标，无文字时显示话筒/停止图标
         etMessage.addTextChangedListener(new android.text.TextWatcher() {
             @Override
             public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
@@ -336,6 +316,9 @@ public class ChatActivity extends AppCompatActivity {
         tvSessionTitle.setText(currentSessionTitle != null ? currentSessionTitle : currentSessionId);
         updateSessionInfo(intentProvider, intentModel, intentCwd);
         
+        // 初始化 Vosk 离线语音识别
+        initVoskRecognizer();
+        
         messages.add(new Message("正在加载消息...", false));
         adapter.notifyDataSetChangedWithUpdate();
         refreshSessionStatus(() -> loadMessagesPage());
@@ -344,40 +327,30 @@ public class ChatActivity extends AppCompatActivity {
     
     /**
      * 从 ChatMessage 创建 Message 对象
-     * 正确处理 error 字段、tool_calls、tool_call_state 和 serverIndex
-     *
-     * @param msg API 返回的消息对象
-     * @param serverIndex 该消息在服务端的 1-indexed 索引（用于稳定 key）
      */
     private Message createMessageFromChatMessage(ApiClient.ChatMessage msg, int serverIndex) {
         Message message;
         
-        // 如果有 error 字段，创建错误消息
         if (msg.error != null && !msg.error.isEmpty()) {
             message = new Message(msg.error, msg.created);
         } else {
-            // 创建基础消息
             message = new Message(msg.content, msg.role, msg.created);
             
-            // 设置 tool_calls（assistant 消息中的工具调用请求）
             if (msg.toolCalls != null && !msg.toolCalls.isEmpty()) {
                 message.setToolCalls(msg.toolCalls);
                 Log.d(TAG, "createMessageFromChatMessage: set toolCalls=" + msg.toolCalls.size() + " for role=" + msg.role);
             }
             
-            // 设置 tool_call_state（tool 消息中的工具状态）
             if (msg.toolCallState != null) {
                 message.setToolName(msg.toolCallState.name);
                 message.setToolError(msg.toolCallState.error);
             }
             
-            // 设置 tool_call_id（tool 消息引用 ToolCall 的 ID）
             if (msg.toolCallId != null && !msg.toolCallId.isEmpty()) {
                 message.setToolCallId(msg.toolCallId);
             }
         }
         
-        // 设置服务端索引（用于 stableKey 计算）
         if (serverIndex > 0) {
             message.setServerIndex(serverIndex);
         }
@@ -385,19 +358,10 @@ public class ChatActivity extends AppCompatActivity {
         return message;
     }
     
-    /**
-     * 兼容旧调用：不传 serverIndex 时设为 -1（仅用于 pending 等本地消息）
-     */
     private Message createMessageFromChatMessage(ApiClient.ChatMessage msg) {
         return createMessageFromChatMessage(msg, -1);
     }
     
-    /**
-     * 获取消息的唯一标识（用于指纹缓存）
-    /**
-     * 生成消息指纹（格式：created:role:toolcallid:content）
-     * 用于消息去重，避免仅靠 created 时间戳导致误判
-     */
     private String getMessageFingerprint(ApiClient.ChatMessage msg) {
         String toolCallId = "";
         if (msg.toolCalls != null && !msg.toolCalls.isEmpty()) {
@@ -412,9 +376,6 @@ public class ChatActivity extends AppCompatActivity {
         return msg.created + ":" + (msg.role != null ? msg.role : "") + ":" + toolCallId + ":" + content;
     }
 
-    /**
-     * 设置滚动监听器 - 优化的下拉加载
-     */
     private void setupScrollListener() {
         rvMessages.addOnScrollListener(new RecyclerView.OnScrollListener() {
             @Override
@@ -428,25 +389,16 @@ public class ChatActivity extends AppCompatActivity {
                 
                 boolean isAtBottom = (total == 0) || (lastVisible >= total - BOTTOM_THRESHOLD);
 
-                // FAB 可见性始终基于视觉状态更新（用户需要知道当前位置）
                 fabScrollBottom.setVisibility(isAtBottom ? View.GONE : View.VISIBLE);
                 
                 int scrollState = recyclerView.getScrollState();
                 boolean userDriven = (scrollState == RecyclerView.SCROLL_STATE_DRAGGING
                         || scrollState == RecyclerView.SCROLL_STATE_SETTLING);
                 
-                // 【关键修复】只在用户主动滚动时更新 userAtBottom
-                // 程序化滚动（scrollToBottomSmooth / restoreScrollPosition / DiffUtil 布局）
-                // 不应改变此状态，否则会导致：
-                // 1. DiffUtil 分发更新触发 onScrolled → userAtBottom 被错误改变
-                // 2. 恢复位置时若恰好在底部附近 → userAtBottom 被错误设为 true
-                // 3. 下次刷新时无条件 scrollToBottomSmooth → 把用户拉回底部
                 if (userDriven && !isRestoringPosition) {
                     userAtBottom = isAtBottom;
                 }
                 
-                // 更新位置记录（用于刷新后恢复）
-                // 同样只在用户主动滚动时更新 anchor
                 if (firstVisible >= 0 && !isRestoringPosition && userDriven) {
                     String key = adapter.getStableKeyAt(firstVisible);
                     if (key != null) {
@@ -472,11 +424,9 @@ public class ChatActivity extends AppCompatActivity {
             public void onScrollStateChanged(RecyclerView recyclerView, int newState) {
                 super.onScrollStateChanged(recyclerView, newState);
                 
-                // 维护 isUserScrolling 状态：仅 DRAGGING/SETTLING 视为用户正在滚动
                 isUserScrolling = (newState == RecyclerView.SCROLL_STATE_DRAGGING
                         || newState == RecyclerView.SCROLL_STATE_SETTLING);
                 
-                // 只在滚动停止时检查是否需要加载更多
                 if (newState == RecyclerView.SCROLL_STATE_IDLE) {
                     LinearLayoutManager lm = (LinearLayoutManager) recyclerView.getLayoutManager();
                     if (lm == null) return;
@@ -485,9 +435,7 @@ public class ChatActivity extends AppCompatActivity {
                     int total = adapter.getItemCount();
                     boolean isAtTop = (firstVisible == 0 && total > 0);
                     
-                    // 到达顶部且可以加载更多时触发
                     if (isAtTop && canLoadMore() && !isLoadingOlder) {
-                        // 防抖：避免快速滑动时多次触发
                         long now = System.currentTimeMillis();
                         if (now - lastLoadTriggerTime >= MIN_LOAD_INTERVAL_MS) {
                             lastLoadTriggerTime = now;
@@ -499,13 +447,9 @@ public class ChatActivity extends AppCompatActivity {
         });
     }
     
-    /**
-     * 设置键盘监听器 - 优化的键盘响应
-     */
     private void setupKeyboardListener() {
         View rootView = findViewById(android.R.id.content);
         
-        // 监听 RecyclerView 高度变化，使用防抖机制
         rvMessages.getViewTreeObserver().addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener() {
             @Override
             public void onGlobalLayout() {
@@ -534,7 +478,6 @@ public class ChatActivity extends AppCompatActivity {
             }
         });
         
-        // WindowInsets 监听器用于检测键盘状态变化
         ViewCompat.setOnApplyWindowInsetsListener(rootView, (v, insets) -> {
             Insets imeInsets = insets.getInsets(WindowInsetsCompat.Type.ime());
             int keyboardHeight = imeInsets.bottom;
@@ -563,9 +506,6 @@ public class ChatActivity extends AppCompatActivity {
         });
     }
     
-    /**
-     * 调度键盘滚动任务 - 防抖机制
-     */
     private void scheduleKeyboardScroll() {
         if (keyboardScrollRunnable != null) {
             keyboardHandler.removeCallbacks(keyboardScrollRunnable);
@@ -645,7 +585,6 @@ public class ChatActivity extends AppCompatActivity {
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         int id = item.getItemId();
-        // 处理返回按钮点击
         if (id == android.R.id.home) {
             finish();
             return true;
@@ -674,7 +613,6 @@ public class ChatActivity extends AppCompatActivity {
     }
 
     private void updateSessionInfo(String intentProvider, String intentModel, String intentCwd) {
-
         if (intentProvider != null && !intentProvider.isEmpty() && 
             intentModel != null && !intentModel.isEmpty()) {
             currentProvider = intentProvider;
@@ -707,9 +645,6 @@ public class ChatActivity extends AppCompatActivity {
         }
     }
     
-    /**
-     * 从 SessionSettingsActivity 返回的结果更新会话信息
-     */
     private void updateSessionInfoFromResult(String provider, String model, String cwd, String title) {
         if (provider != null && !provider.isEmpty()) {
             currentProvider = provider;
@@ -722,7 +657,6 @@ public class ChatActivity extends AppCompatActivity {
             tvSessionTitle.setText(title);
         }
         
-        // 更新显示
         if (currentProvider != null && currentModel != null) {
             tvSessionInfo.setText(currentProvider + " | " + currentModel);
         }
@@ -730,7 +664,6 @@ public class ChatActivity extends AppCompatActivity {
             tvSessionPath.setText("cwd: " + cwd);
         }
         
-        // 更新本地 SessionManager
         Session session = sessionManager.getSession(currentSessionId);
         if (session != null) {
             if (provider != null && !provider.isEmpty()) {
@@ -758,12 +691,9 @@ public class ChatActivity extends AppCompatActivity {
             @Override
             public void run() {
                 if (!isAutoRefreshEnabled || isLoadingOlder) {
-                    // 仍然继续排队下一次刷新
                     refreshHandler.postDelayed(this, REFRESH_INTERVAL_MS);
                     return;
                 }
-                // 用户正在主动滚动且不在底部时，跳过本次刷新
-                // 避免拖动惯性中途被 dispatchUpdates 打断、或刷新触发的高度变化造成画面抖动
                 if (isUserScrolling && !userAtBottom) {
                     Log.d(TAG, "skip refresh: user is scrolling (not at bottom)");
                     refreshHandler.postDelayed(this, REFRESH_INTERVAL_MS);
@@ -797,13 +727,9 @@ public class ChatActivity extends AppCompatActivity {
                     
                     int serverCount = session.getMessageCount();
                     
-                    // 按钮状态逻辑：
-                    // 1. 服务端 in_progress=true → 显示停止按钮
-                    // 2. 服务端 in_progress=false → 清除 messagesInPool，显示发送按钮
                     if (isInProgress) {
                         setButtonStateSending();
                     } else {
-                        // 服务端已完成处理，清除消息池并恢复按钮
                         if (wasInProgress || messagesInPool.size() > 0) {
                             messagesInPool.clear();
                             setButtonStateNormal();
@@ -831,9 +757,7 @@ public class ChatActivity extends AppCompatActivity {
             }
         });
     }
-    /**
-     * 获取新消息并保持位置
-     */
+    
     private void fetchNewMessagesAndRestorePosition() {
         final int sinceIndex = processedServerMessageCount + 1;
         
@@ -850,10 +774,8 @@ public class ChatActivity extends AppCompatActivity {
                     boolean addedNew = false;
                     for (int i = 0; i < chatMessages.size(); i++) {
                         ApiClient.ChatMessage msg = chatMessages.get(i);
-                        // 该消息在服务端的 1-indexed 索引
                         int serverIndex = sinceIndex + i;
                         
-                        // 详细日志
                         boolean hasToolCalls = msg.toolCalls != null && !msg.toolCalls.isEmpty();
                         boolean isTool = "tool".equals(msg.role);
 
@@ -877,8 +799,6 @@ public class ChatActivity extends AppCompatActivity {
                             continue;
                         }
 
-                        
-                        // 只对普通用户消息检查 pending 替换（错误消息不需要）
                         if (msg.error == null && "user".equals(msg.role) && msg.content != null) {
                             int pendingIndex = findPendingMessageIndex(msg.content);
                             if (pendingIndex >= 0) {
@@ -886,7 +806,6 @@ public class ChatActivity extends AppCompatActivity {
                                 messages.set(pendingIndex, createMessageFromChatMessage(msg, serverIndex));
                                 pendingMessages.remove(msg.content);
                                 messageFingerprints.add(getMessageFingerprint(msg));
-
                                 continue;
                             }
                         }
@@ -894,7 +813,6 @@ public class ChatActivity extends AppCompatActivity {
                         messages.add(createMessageFromChatMessage(msg, serverIndex));
                         String fingerprint = getMessageFingerprint(msg);
                         messageFingerprints.add(fingerprint);
-
                         Log.d(TAG, "  → ADD: fingerprint=" + fingerprint);
                         addedNew = true;
                     }
@@ -903,11 +821,7 @@ public class ChatActivity extends AppCompatActivity {
                     
                     cleanupPendingMessages();
                     
-                    // 【关键修复】在 notifyDataSetChangedWithUpdate 之前快照 userAtBottom
-                    // 因为 DiffUtil dispatch 可能触发 onScrolled 回调，
-                    // 虽然已修复 onScrolled 不再被程序化滚动改变 userAtBottom，
                     final boolean wasAtBottom = userAtBottom;
-
                     
                     adapter.notifyDataSetChangedWithUpdate();
                     
@@ -915,7 +829,6 @@ public class ChatActivity extends AppCompatActivity {
                         if (wasAtBottom) {
                             scrollToBottomSmooth();
                         } else {
-                            // 用户不在底部时，恢复之前保存的位置
                             restoreScrollPosition();
                         }
                     }
@@ -929,13 +842,8 @@ public class ChatActivity extends AppCompatActivity {
         });
     }
 
-    /**
-     * 查找 pending 消息的位置
-     */
     private int findPendingMessageIndex(String content) {
-        if (content == null) {
-            return -1;
-        }
+        if (content == null) return -1;
         
         for (int i = messages.size() - 1; i >= 0; i--) {
             Message msg = messages.get(i);
@@ -952,7 +860,7 @@ public class ChatActivity extends AppCompatActivity {
         
         for (Map.Entry<String, Long> entry : pendingMessages.entrySet()) {
             if (now - entry.getValue() > 30000) {
-                toRemove.add(entry.getKey());  // 使用 getKey() 方法
+                toRemove.add(entry.getKey());
                 for (int i = messages.size() - 1; i >= 0; i--) {
                     Message msg = messages.get(i);
                     if (msg.isPending() && entry.getKey().equals(msg.getContent())) {
@@ -969,16 +877,10 @@ public class ChatActivity extends AppCompatActivity {
         }
     }
     
-    /**
-     * 是否可以加载更多消息
-     */
     private boolean canLoadMore() {
         return isInitialLoadComplete && currentSince > 1 && totalMessageCount > 0;
     }
     
-    /**
-     * 触发加载更早的消息
-     */
     private void triggerLoadOlder() {
         if (isLoadingOlder || !canLoadMore()) return;
         
@@ -991,9 +893,6 @@ public class ChatActivity extends AppCompatActivity {
         loadOlderMessages();
     }
     
-    /**
-     * 保存当前滚动位置（使用 stableKey 作为锚点）
-     */
     private void saveScrollPosition() {
         LinearLayoutManager lm = (LinearLayoutManager) rvMessages.getLayoutManager();
         if (lm == null) return;
@@ -1012,26 +911,12 @@ public class ChatActivity extends AppCompatActivity {
         }
     }
     
-    /**
-     * 恢复滚动位置
-     * 
-     * 关键修复：
-     * 1. 快照 anchorStableKey 和 offsetToRestore，防止 post 期间被
-     *    onScrolled（notifyDataSetChanged 引起的布局抖动）覆盖。
-     * 2. 设置 isRestoringPosition 标志，恢复期间忽略 onScrolled 回调，
-     *    避免 scrollToPositionWithOffset 自身触发的 onScrolled 反向修改 anchor。
-     * 3. 使用 stableKey 而非 created：
-     *    - tool_call.id 全局唯一稳定
-     *    - serverIndex 索引稳定
-     *    - 避免同一 created 多个 visibleItem 时定位错误
-     */
     private void restoreScrollPosition() {
         if (anchorStableKey == null) return;
         
         LinearLayoutManager lm = (LinearLayoutManager) rvMessages.getLayoutManager();
         if (lm == null) return;
         
-        // 快照（防止异步执行期间被覆盖）
         final String savedAnchor = anchorStableKey;
         final int savedOffset = offsetToRestore;
         
@@ -1048,7 +933,6 @@ public class ChatActivity extends AppCompatActivity {
                     Log.d(TAG, "Restore skipped: anchor not found in visible items");
                 }
             } finally {
-                // 等下一帧让 layout 完成，再解除保护
                 rvMessages.post(() -> isRestoringPosition = false);
             }
         });
@@ -1097,7 +981,6 @@ public class ChatActivity extends AppCompatActivity {
                         int serverIndex = since + i;
                         messages.add(createMessageFromChatMessage(msg, serverIndex));
                         messageFingerprints.add(getMessageFingerprint(msg));
-
                     }
                     
                     processedServerMessageCount = totalMessageCount;
@@ -1129,9 +1012,6 @@ public class ChatActivity extends AppCompatActivity {
         });
     }
     
-    /**
-     * 加载更早的消息
-     */
     private void loadOlderMessages() {
         if (!canLoadMore()) {
             isLoadingOlder = false;
@@ -1158,8 +1038,6 @@ public class ChatActivity extends AppCompatActivity {
                     int newTotalCount = 0;
                     int newVisibleCount = 0;
                     
-                    // 倒序遍历但保留正确的 serverIndex 计算
-                    // chatMessages[i] 的 serverIndex = newSince + i
                     for (int i = chatMessages.size() - 1; i >= 0; i--) {
                         ApiClient.ChatMessage msg = chatMessages.get(i);
                         int serverIndex = newSince + i;
@@ -1167,7 +1045,6 @@ public class ChatActivity extends AppCompatActivity {
                             Message message = createMessageFromChatMessage(msg, serverIndex);
                             messages.add(0, message);
                             messageFingerprints.add(getMessageFingerprint(msg));
-
                             newTotalCount++;
                             
                             if (message.shouldDisplay()) {
@@ -1263,23 +1140,18 @@ public class ChatActivity extends AppCompatActivity {
             @Override
             public void onSuccess(List<ApiClient.ChatMessage> chatMessages) {
                 runOnUiThread(() -> {
-                    // 【关键修复】异步回调后重新检查 userAtBottom
-                    // 用户可能在 API 请求期间滚离了底部，此时不应 scrollToBottomSmooth
                     if (!userAtBottom) return;
                     if (chatMessages.isEmpty()) return;
 
-                    // 找到最新的可显示消息（非 tool，有 content 或 error）
                     ApiClient.ChatMessage latestFiltered = null;
                     int latestSvrIdx = -1;
                     for (int i = chatMessages.size() - 1; i >= 0; i--) {
                         ApiClient.ChatMessage msg = chatMessages.get(i);
-                        // 错误消息也可以是最新消息
                         if (msg.error != null && !msg.error.isEmpty()) {
                             latestFiltered = msg;
                             latestSvrIdx = sinceIndex + i;
                             break;
                         }
-                        // 或者有 content 且不是 tool
                         if (msg.content != null && !msg.content.isEmpty() && !"tool".equals(msg.role)) {
                             latestFiltered = msg;
                             latestSvrIdx = sinceIndex + i;
@@ -1293,14 +1165,12 @@ public class ChatActivity extends AppCompatActivity {
                         int lastIdx = messages.size() - 1;
                         Message lastMsg = messages.get(lastIdx);
                         
-                        // 检查内容是否变化
                         String newContent = latestFiltered.error != null ? latestFiltered.error : latestFiltered.content;
                         String oldContent = lastMsg.isError() ? lastMsg.getError() : lastMsg.getContent();
                         
                         if (newContent != null && !newContent.equals(oldContent)) {
                             messages.set(lastIdx, createMessageFromChatMessage(latestFiltered, latestSvrIdx));
                             messageFingerprints.add(getMessageFingerprint(latestFiltered));
-
                             adapter.notifyDataSetChangedWithUpdate();
                             scrollToBottomSmooth();
                         }
@@ -1331,24 +1201,6 @@ public class ChatActivity extends AppCompatActivity {
         loadMessagesPage();
     }
     
-    /**
-     * 平滑滚动到底部 —— 贴底稳定算法
-     *
-     * 痛点:
-     *   Markdown 富文本（Markwon）在 setText 后会异步测量布局，导致最后一项的高度
-     *   在 onBindViewHolder 之后还会发生变化。固定 100ms 兜底常常追不上变化，
-     *   出现"贴不到底"或"反复跳"的现象。
-     *
-     * 算法:
-     *   1. 立即让最后一项底部贴 RecyclerView 底部 (alignLastItemToBottom)
-     *   2. 在 RecyclerView 上注册 OnLayoutChangeListener，监听 600ms 内任何布局变化:
-     *      - 子 View 高度由于 Markdown 异步测量发生改变 → 触发布局
-     *      - RecyclerView 自身因键盘 / 父容器变化触发布局
-     *      只要不在底部就重新校正一次，直到 deadline 自动注销
-     *   3. 用户在此期间任何主动滚动会撤销监听，避免与用户操作冲突
-     *
-     * 这种"事件驱动 + 时间窗口"的策略，比单点 postDelayed(100ms) 稳得多。
-     */
     private void scrollToBottomSmooth() {
         if (rvMessages == null || adapter == null) return;
         int itemCount = adapter.getItemCount();
@@ -1359,20 +1211,13 @@ public class ChatActivity extends AppCompatActivity {
 
         int lastPosition = itemCount - 1;
 
-        // 第一步：立即跳到最后一项顶部（视图占位）
         lm.scrollToPositionWithOffset(lastPosition, 0);
 
-        // 第二步：下一帧根据实测高度精确贴底
         rvMessages.post(() -> alignLastItemToBottom());
 
-        // 第三步：注册持续校正监听器，覆盖 Markdown 异步测量窗口（600ms）
         installBottomAlignWatcher(600L);
     }
 
-    /**
-     * 安装贴底校正监听器，在指定时间窗口内持续校正
-     * 重复调用会自动延长 deadline 并复用同一监听器
-     */
     private void installBottomAlignWatcher(long durationMs) {
         if (rvMessages == null) return;
 
@@ -1380,7 +1225,6 @@ public class ChatActivity extends AppCompatActivity {
         bottomAlignDeadline = Math.max(bottomAlignDeadline, now + durationMs);
 
         if (bottomAlignWatcher != null) {
-            // 已经安装，仅延长 deadline
             return;
         }
 
@@ -1388,22 +1232,18 @@ public class ChatActivity extends AppCompatActivity {
             @Override
             public void onLayoutChange(View v, int l, int t, int r, int b,
                                        int ol, int ot, int or_, int ob) {
-                // 超时自动注销
                 if (System.currentTimeMillis() > bottomAlignDeadline) {
                     uninstallBottomAlignWatcher();
                     return;
                 }
-                // 用户在主动滚动，立即让位
                 if (isUserScrolling) {
                     uninstallBottomAlignWatcher();
                     return;
                 }
-                // 用户已离开底部（说明用户上滑了），不再强制贴底
                 if (!userAtBottom) {
                     uninstallBottomAlignWatcher();
                     return;
                 }
-                // 高度真的变了再校正，避免无意义工作
                 int newH = b - t;
                 int oldH = ob - ot;
                 if (newH != oldH || !isLastItemFullyAtBottom()) {
@@ -1413,7 +1253,6 @@ public class ChatActivity extends AppCompatActivity {
         };
         rvMessages.addOnLayoutChangeListener(bottomAlignWatcher);
 
-        // 兜底：到达 deadline 一定要注销，避免内存泄漏
         rvMessages.postDelayed(this::uninstallBottomAlignWatcher, durationMs + 50);
     }
 
@@ -1424,9 +1263,6 @@ public class ChatActivity extends AppCompatActivity {
         bottomAlignWatcher = null;
     }
 
-    /**
-     * 检查最后一项是否已经"完全贴底"（用于决定是否需要再次校正）
-     */
     private boolean isLastItemFullyAtBottom() {
         if (rvMessages == null || adapter == null) return true;
         int itemCount = adapter.getItemCount();
@@ -1437,13 +1273,9 @@ public class ChatActivity extends AppCompatActivity {
         View lastChild = lm.findViewByPosition(pos);
         if (lastChild == null) return false;
         int recyclerBottom = rvMessages.getHeight() - rvMessages.getPaddingBottom();
-        // 允许 1px 误差
         return Math.abs(lastChild.getBottom() - recyclerBottom) <= 1;
     }
 
-    /**
-     * 让最后一项的底部与 RecyclerView 的底部对齐
-     */
     private void alignLastItemToBottom() {
         if (rvMessages == null || adapter == null) return;
         int itemCount = adapter.getItemCount();
@@ -1459,17 +1291,13 @@ public class ChatActivity extends AppCompatActivity {
             int recyclerHeight = rvMessages.getHeight() - rvMessages.getPaddingTop() - rvMessages.getPaddingBottom();
             int itemHeight = lastChild.getHeight();
             int offset = recyclerHeight - itemHeight;
-            // offset 为负表示最后一项太长（超出屏幕），此时让其底部贴合
             lm.scrollToPositionWithOffset(pos, offset);
         } else {
-            // 子 View 还未创建，先跳转到位置，下一帧再校正
             lm.scrollToPositionWithOffset(pos, 0);
             rvMessages.post(() -> alignLastItemToBottom());
         }
     }
 
-
-    
     private void refreshSessionStatus() {
         refreshSessionStatus(null);
     }
@@ -1540,7 +1368,6 @@ public class ChatActivity extends AppCompatActivity {
     
     private void updateMenuVisibility(Menu menu) {
         if (menu == null) return;
-        // 预览按钮现在可用，保持可见
         MenuItem previewItem = menu.findItem(R.id.action_preview);
         if (previewItem != null) {
             previewItem.setVisible(true);
@@ -1549,7 +1376,6 @@ public class ChatActivity extends AppCompatActivity {
     
     private void openPreviewUrl() {
         if (currentSessionId == null) return;
-        // 使用当前账号的 URL
         if (currentAccount == null) {
             Toast.makeText(this, "账号信息无效", Toast.LENGTH_SHORT).show();
             return;
@@ -1559,7 +1385,6 @@ public class ChatActivity extends AppCompatActivity {
             Toast.makeText(this, "请先配置服务器地址", Toast.LENGTH_SHORT).show();
             return;
         }
-        // API: GET /session?id={session_id} - HTML preview
         String previewUrl = url + "/session?id=" + currentSessionId;
         Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(previewUrl));
         startActivity(intent);
@@ -1569,7 +1394,6 @@ public class ChatActivity extends AppCompatActivity {
         Intent intent = new Intent(this, SessionSettingsActivity.class);
         intent.putExtra(SessionSettingsActivity.EXTRA_SESSION_ID, currentSessionId);
         intent.putExtra(SessionSettingsActivity.EXTRA_ACCOUNT_ID, accountId);
-        // 传递当前的 provider/model/cwd/title 作为初始值
         intent.putExtra(SessionSettingsActivity.EXTRA_PROVIDER, currentProvider);
         intent.putExtra(SessionSettingsActivity.EXTRA_MODEL, currentModel);
         Session session = sessionManager.getSession(currentSessionId);
@@ -1648,10 +1472,6 @@ public class ChatActivity extends AppCompatActivity {
         });
     }
     
-    /**
-     * 重试当前会话的最后一次 AI 回复
-     * 调用 POST /session/:id/retry API
-     */
     private void retrySession() {
         if (isInProgress) {
             Toast.makeText(this, "会话正在进行中，请先停止", Toast.LENGTH_SHORT).show();
@@ -1689,12 +1509,6 @@ public class ChatActivity extends AppCompatActivity {
         updateButtonAppearance();
     }
     
-    /**
-     * 统一更新按钮外观：
-     * - 进行中 → 停止图标（小方块），红色背景
-     * - 空闲 + 有文字 → 发送图标（小飞机），蓝色背景
-     * - 空闲 + 无文字 → 话筒图标，蓝色背景
-     */
     private void updateButtonAppearance() {
         String content = etMessage.getText().toString().trim();
         if (buttonState == STATE_SENDING) {
@@ -1781,7 +1595,6 @@ public class ChatActivity extends AppCompatActivity {
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == REQUEST_SESSION_SETTINGS && resultCode == RESULT_OK && data != null) {
-            // 从 SessionSettingsActivity 返回的结果更新显示
             String newProvider = data.getStringExtra(SessionSettingsActivity.RESULT_PROVIDER);
             String newModel = data.getStringExtra(SessionSettingsActivity.RESULT_MODEL);
             String newCwd = data.getStringExtra(SessionSettingsActivity.RESULT_CWD);
@@ -1789,7 +1602,6 @@ public class ChatActivity extends AppCompatActivity {
             
             updateSessionInfoFromResult(newProvider, newModel, newCwd, newTitle);
         } else if (requestCode == REQUEST_VOICE_INPUT && resultCode == RESULT_OK && data != null) {
-            // 语音识别结果
             ArrayList<String> results = data.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS);
             if (results != null && !results.isEmpty()) {
                 String text = results.get(0);
@@ -1819,6 +1631,21 @@ public class ChatActivity extends AppCompatActivity {
             return;
         }
 
+        // 2.5 Vosk 模型状态检查
+        if (voskRecognizer != null && !voskRecognizer.isModelReady()) {
+            if (voskRecognizer.hasModelError()) {
+                // 模型加载已失败，显示具体原因
+                String errMsg = voskRecognizer.getModelError();
+                Toast.makeText(this, errMsg, Toast.LENGTH_LONG).show();
+                voskRecognizer.clearModelError();
+                Log.w(TAG, "Vosk model error shown to user: " + errMsg);
+            } else {
+                // 模型还在后台加载中
+                Toast.makeText(this, "语音模型加载中，请稍候...", Toast.LENGTH_SHORT).show();
+            }
+            return;
+        }
+
         // 3. 回退到 Android 系统语音识别
         Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
         intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
@@ -1827,7 +1654,7 @@ public class ChatActivity extends AppCompatActivity {
         try {
             startActivityForResult(intent, REQUEST_VOICE_INPUT);
         } catch (ActivityNotFoundException e) {
-            Toast.makeText(this, "设备未安装语音识别引擎，请安装 Google 应用或其他语音输入法", Toast.LENGTH_LONG).show();
+            Toast.makeText(this, "未安装语音识别引擎，且离线模型未就绪", Toast.LENGTH_LONG).show();
         } catch (Exception e) {
             Toast.makeText(this, "语音识别启动失败: " + e.getMessage(), Toast.LENGTH_SHORT).show();
         }
@@ -1838,25 +1665,28 @@ public class ChatActivity extends AppCompatActivity {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if (requestCode == REQUEST_RECORD_AUDIO_PERMISSION) {
             if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                // 权限已授予，重新启动语音输入
                 startVoiceInput();
             } else {
                 Toast.makeText(this, "需要麦克风权限才能使用语音输入", Toast.LENGTH_SHORT).show();
             }
         }
     }
+
     private void initVoskRecognizer() {
         try {
             voskRecognizer = new VoskSpeechRecognizer(this);
             voskRecognizer.setListener(new VoskSpeechRecognizer.RecognitionListener() {
                 @Override
                 public void onModelReady() {
-                    // 模型就绪，无需额外操作
+                    Log.i(TAG, "Vosk model ready");
                 }
 
                 @Override
                 public void onModelError(String error) {
-                    // 模型不可用，Vosk 将不可用，回退到系统识别
+                    Log.w(TAG, "Vosk model error: " + error);
+                    if (voskRecognizer != null) {
+                        voskRecognizer.setModelError(error);
+                    }
                 }
 
                 @Override
@@ -1902,6 +1732,7 @@ public class ChatActivity extends AppCompatActivity {
             // 异步加载模型
             voskRecognizer.initModel();
         } catch (Exception e) {
+            Log.e(TAG, "Failed to create VoskSpeechRecognizer", e);
             voskRecognizer = null;
         }
     }
@@ -1943,3 +1774,4 @@ public class ChatActivity extends AppCompatActivity {
         }
     }
 }
+
