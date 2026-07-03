@@ -167,11 +167,13 @@ public class VoskSpeechRecognizer {
     // 模型加载
     // ========================================================================
 
+
     /**
      * 初始化 Vosk 模型（异步执行）
      *
      * 首先检查外部存储是否已有模型，如果没有则从 assets 复制。
      * 模型加载在后台线程执行，完成后通过回调通知。
+     */
     public void initModel() {
         new Thread(() -> {
             try {
@@ -193,6 +195,10 @@ public class VoskSpeechRecognizer {
                                 Log.i(TAG, "  assets/" + name + (count >= 0 ? " (" + count + " items)" : " (file)"));
                             }
                         }
+                    } catch (IOException e) {
+                        Log.w(TAG, "Failed to list assets for diagnostics", e);
+                    }
+
                     boolean copied = copyModelFromAssets(ASSET_MODEL_NAME, modelPath);
                     if (!copied) {
                         // 列出实际存在的目录名帮助诊断
@@ -208,7 +214,7 @@ public class VoskSpeechRecognizer {
                                 }
                             }
                         } catch (IOException ignored) {}
-                        
+
                         String detail = "语音模型未找到: assets/" + ASSET_MODEL_NAME;
                         if (found.length() > 0) {
                             detail += "\n实际找到: " + found.toString().trim();
@@ -222,12 +228,10 @@ public class VoskSpeechRecognizer {
                         }
                         return;
                     }
-                        modelError = "语音模型未找到，请确保 assets/" + ASSET_MODEL_NAME + " 目录存在";
-                        if (listener != null) {
-                            listener.onModelError(modelError);
-                        }
-                        return;
-                    }
+                }
+
+                // 加载模型
+                model = new Model(modelPath);
                 recognizer = new Recognizer(model, SAMPLE_RATE);
                 modelInitialized = true;
                 modelError = null;
@@ -246,6 +250,7 @@ public class VoskSpeechRecognizer {
             }
         }).start();
     }
+
 
     /**
      * 获取模型存储路径
