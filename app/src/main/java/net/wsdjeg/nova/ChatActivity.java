@@ -1519,7 +1519,7 @@ public class ChatActivity extends AppCompatActivity {
             btnSend.setImageResource(R.drawable.ic_stop);
             btnSend.setBackgroundResource(R.drawable.btn_stop_bg);
         } else if (buttonState == STATE_LISTENING) {
-            btnSend.setImageResource(R.drawable.ic_stop);
+            btnSend.setImageResource(R.drawable.ic_voice_wave);
             btnSend.setBackgroundResource(R.drawable.listening_button_bg);
         } else {
             String content = etMessage.getText().toString().trim();
