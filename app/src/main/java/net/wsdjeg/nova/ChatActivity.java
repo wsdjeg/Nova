@@ -1863,8 +1863,8 @@ public class ChatActivity extends AppCompatActivity {
                 public void onFinalResult(String text) {
                     if (text != null && !text.trim().isEmpty()) {
                         runOnUiThread(() -> {
-                            etInput.setText(text.trim());
-                            etInput.setSelection(etInput.length());
+                            etMessage.setText(text.trim());
+                            etMessage.setSelection(etMessage.length());
                             Toast.makeText(ChatActivity.this, "✓ 识别完成", Toast.LENGTH_SHORT).show();
                         });
                     }
@@ -1874,8 +1874,8 @@ public class ChatActivity extends AppCompatActivity {
                 public void onPartialResult(String text) {
                     if (text != null && !text.trim().isEmpty()) {
                         runOnUiThread(() -> {
-                            etInput.setText(text.trim());
-                            etInput.setSelection(etInput.length());
+                            etMessage.setText(text.trim());
+                            etMessage.setSelection(etMessage.length());
                         });
                     }
                 }
@@ -1892,7 +1892,7 @@ public class ChatActivity extends AppCompatActivity {
                 public void onTimeout() {
                     runOnUiThread(() -> {
                         isVoskListening = false;
-                        String currentText = etInput.getText().toString().trim();
+                        String currentText = etMessage.getText().toString().trim();
                         if (!currentText.isEmpty()) {
                             Toast.makeText(ChatActivity.this, "语音识别结束", Toast.LENGTH_SHORT).show();
                         }
