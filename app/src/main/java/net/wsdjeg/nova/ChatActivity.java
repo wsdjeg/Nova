@@ -43,42 +43,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
-/**
- * 聊天界面 Activity
- * 
- * 核心逻辑：
- * 1. 消息排序：API 返回升序 [oldest, ..., newest]
- * 2. 本地列表：保持升序，最新消息在末尾
- * 3. 显示过滤：只显示 content 不为空且 role 不是 tool 的消息
- * 4. 错误消息：带有 error 字段的消息以红色背景特殊显示
- * 5. 工具调用：assistant 消息中的 tool_calls 拆分显示
- * 6. 工具结果：role=tool 的消息单独显示（带工具名称和状态）
- * 
- * 消息计数说明：
- * - totalMessageCount: 服务端返回的总消息数（包含 tool 等不可显示消息）
- * - currentSince: 服务端消息索引（从1开始，基于服务端消息位置）
- * - processedServerMessageCount: 已处理的服务端消息数（基于服务端计数）
- * - adapter.getItemCount(): 显示的消息数（过滤后的，与服务端计数无关）
- * 
- * 下拉加载更多 - 位置恢复机制（StableKey 版本）：
- * - 使用 MessageAdapter.computeStableKey 生成的全局唯一键作为锚点
- * - Key 来源：
- *   - tool_call: tc:<tool_call.id>     (LLM 生成的全局唯一 ID)
- *   - tool_msg:  tr:<tool_call_id>     (引用对应 toolCall)
- *   - 普通消息:   msg:<serverIndex>     (服务端 1-indexed 索引)
- * - 不再使用 created 时间戳，因为同一 assistant 消息拆分为多个 visibleItem
- *   时共享同一 created，会导致定位错误。
- * 
- * Pending 消息机制：
- * - 发送消息时添加 pending 消息（临时显示）
- * - 服务端返回后，用正式消息替换 pending 消息
- * - 避免重复消息问题
- * 
- * 键盘处理机制：
- * - 键盘弹出/关闭时，RecyclerView 高度变化
- * - 使用 scrollBy 补偿，保持消息相对于输入框的位置不变
- * - 使用防抖机制避免 GlobalLayoutListener 多次触发导致的重复滚动
- */
 public class ChatActivity extends AppCompatActivity {
     
     private static final String TAG = "ChatActivity";
@@ -92,10 +56,7 @@ public class ChatActivity extends AppCompatActivity {
     private static final int REQUEST_VOICE_INPUT = 1002;
     private static final int REQUEST_RECORD_AUDIO_PERMISSION = 1003;
     
-    // 加载更多防抖：最小触发间隔
     private static final long MIN_LOAD_INTERVAL_MS = 300;
-    
-    // 键盘防抖：最小触发间隔
     private static final long MIN_KEYBOARD_SCROLL_INTERVAL_MS = 50;
     
     public static final String EXTRA_SESSION_ID = "session_id";
@@ -128,41 +89,34 @@ public class ChatActivity extends AppCompatActivity {
     private Runnable refreshRunnable;
     private boolean isAutoRefreshEnabled = true;
     
-    // 服务端消息计数（包含所有消息，不区分是否可显示）
     private int totalMessageCount = 0;
     private int currentSince = 0;
     private int processedServerMessageCount = 0;
     
-    // 首次加载完成标志：确保在首次加载完成前不显示"下拉加载更多"提示
     private boolean isInitialLoadComplete = false;
     
     private int buttonState = STATE_NORMAL;
     private boolean isInProgress = false;
     private Menu chatMenu;
     
-    // 位置恢复：使用 StableKey 作为锚点
     private String anchorStableKey = null;
     private int offsetToRestore = 0;
     private boolean isRestoringPosition = false;
     
-    // 加载更早消息的状态标志
     private boolean isLoadingOlder = false;
     private long lastLoadTriggerTime = 0;
     
-    // 消息指纹缓存（格式：created:role:toolcallid:content）
-    private Set<String> messageFingerprints = new HashSet<>();
-
-    // Pending 消息：存储正在发送的消息内容，等待服务端确认（用于UI显示）
-    private Map<String, Long> pendingMessages = new HashMap<>();
+    // [FIX] 并发请求保护：防止 fetchNewMessagesAndRestorePosition 被重复调用
+    private boolean isFetchingNewMessages = false;
     
-    // Bug 2 修复：消息池等待集合
+    private Set<String> messageFingerprints = new HashSet<>();
+    private Map<String, Long> pendingMessages = new HashMap<>();
     private Set<String> messagesInPool = new HashSet<>();
     
     private boolean userAtBottom = true;
     private boolean isUserScrolling = false;
     private View.OnLayoutChangeListener bottomAlignWatcher = null;
     private long bottomAlignDeadline = 0L;
-    // 键盘状态追踪
     private int lastKeyboardHeight = 0;
     private boolean isKeyboardVisible = false;
     private Handler keyboardHandler = new Handler(Looper.getMainLooper());
@@ -171,11 +125,11 @@ public class ChatActivity extends AppCompatActivity {
     private long lastKeyboardScrollTime = 0;
     private int accumulatedHeightDelta = 0;
 
-    // Vosk 离线语音识别
     private VoskSpeechRecognizer voskRecognizer;
     private boolean isVoskListening = false;
     private String voskBaseText = "";
     private android.animation.ObjectAnimator pulseAnimator;
+
 
     
     @Override
@@ -185,11 +139,9 @@ public class ChatActivity extends AppCompatActivity {
         
         toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
-        // 启用返回按钮
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
         getSupportActionBar().setDisplayShowHomeEnabled(true);
         
-        // 设置返回箭头颜色为白色
         Drawable navigationIcon = toolbar.getNavigationIcon();
         if (navigationIcon != null) {
             navigationIcon.setColorFilter(ContextCompat.getColor(this, android.R.color.white), PorterDuff.Mode.SRC_IN);
@@ -288,6 +240,8 @@ public class ChatActivity extends AppCompatActivity {
         fabScrollBottom.setOnClickListener(v -> {
             userAtBottom = true;
             scrollToBottomSmooth();
+            // [FIX] 用户主动回到底部，立即触发刷新追回漏掉的新消息
+            refreshMessages();
         });
         
         btnSend.setOnClickListener(v -> {
@@ -321,7 +275,6 @@ public class ChatActivity extends AppCompatActivity {
         tvSessionTitle.setText(currentSessionTitle != null ? currentSessionTitle : currentSessionId);
         updateSessionInfo(intentProvider, intentModel, intentCwd);
         
-        // 初始化 Vosk 离线语音识别
         initVoskRecognizer();
         
         messages.add(new Message("正在加载消息...", false));
@@ -330,9 +283,6 @@ public class ChatActivity extends AppCompatActivity {
         startAutoRefresh();
     }
     
-    /**
-     * 从 ChatMessage 创建 Message 对象
-     */
     private Message createMessageFromChatMessage(ApiClient.ChatMessage msg, int serverIndex) {
         Message message;
         
@@ -381,172 +331,127 @@ public class ChatActivity extends AppCompatActivity {
         return msg.created + ":" + (msg.role != null ? msg.role : "") + ":" + toolCallId + ":" + content;
     }
 
+    
     private void setupScrollListener() {
         rvMessages.addOnScrollListener(new RecyclerView.OnScrollListener() {
             @Override
-            public void onScrolled(RecyclerView recyclerView, int dx, int dy) {
-                LinearLayoutManager lm = (LinearLayoutManager) recyclerView.getLayoutManager();
-                if (lm == null) return;
+            public void onScrolled(RecyclerView rv, int dx, int dy) {
+                if (isRestoringPosition || (keyboardScrollRunnable != null)) return;
+                
+                LinearLayoutManager lm = (LinearLayoutManager) rv.getLayoutManager();
+                int lastVisible = lm.findLastVisibleItemPosition();
+                int total = lm.getItemCount();
+                
+                boolean wasAtBottom = userAtBottom;
+                userAtBottom = (total - 1 - lastVisible) <= BOTTOM_THRESHOLD;
+                
+                if (userAtBottom) {
+                    isUserScrolling = false;
+                    fabScrollBottom.hide();
+                    if (!wasAtBottom) {
+                        // [FIX] 用户从上方滚回底部，主动触发一次刷新
+                        refreshMessages();
+                    }
+                } else {
+                    isUserScrolling = true;
+                    fabScrollBottom.show();
+                }
                 
                 int firstVisible = lm.findFirstVisibleItemPosition();
-                int lastVisible = lm.findLastVisibleItemPosition();
-                int total = adapter.getItemCount();
-                
-                boolean isAtBottom = (total == 0) || (lastVisible >= total - BOTTOM_THRESHOLD);
-
-                fabScrollBottom.setVisibility(isAtBottom ? View.GONE : View.VISIBLE);
-                
-                int scrollState = recyclerView.getScrollState();
-                boolean userDriven = (scrollState == RecyclerView.SCROLL_STATE_DRAGGING
-                        || scrollState == RecyclerView.SCROLL_STATE_SETTLING);
-                
-                if (userDriven && !isRestoringPosition) {
-                    userAtBottom = isAtBottom;
-                }
-                
-                if (firstVisible >= 0 && !isRestoringPosition && userDriven) {
-                    String key = adapter.getStableKeyAt(firstVisible);
-                    if (key != null) {
-                        anchorStableKey = key;
-                        View firstChild = lm.findViewByPosition(firstVisible);
-                        if (firstChild != null) {
-                            offsetToRestore = firstChild.getTop();
-                        }
-                    }
-                }
-
-                boolean isAtTop = (firstVisible == 0 && total > 0);
-                if (!isLoadingOlder) {
-                    if (isAtTop && canLoadMore()) {
-                        showLoadMoreHint("↑ 下拉加载更多");
-                    } else {
-                        hideLoadMoreHint();
-                    }
-                }
-            }
-            
-            @Override
-            public void onScrollStateChanged(RecyclerView recyclerView, int newState) {
-                super.onScrollStateChanged(recyclerView, newState);
-                
-                isUserScrolling = (newState == RecyclerView.SCROLL_STATE_DRAGGING
-                        || newState == RecyclerView.SCROLL_STATE_SETTLING);
-                
-                if (newState == RecyclerView.SCROLL_STATE_IDLE) {
-                    LinearLayoutManager lm = (LinearLayoutManager) recyclerView.getLayoutManager();
-                    if (lm == null) return;
-                    
-                    int firstVisible = lm.findFirstVisibleItemPosition();
-                    int total = adapter.getItemCount();
-                    boolean isAtTop = (firstVisible == 0 && total > 0);
-                    
-                    if (isAtTop && canLoadMore() && !isLoadingOlder) {
-                        long now = System.currentTimeMillis();
-                        if (now - lastLoadTriggerTime >= MIN_LOAD_INTERVAL_MS) {
-                            lastLoadTriggerTime = now;
-                            triggerLoadOlder();
-                        }
-                    }
+                if (firstVisible <= 1 && firstVisible >= 0) {
+                    triggerLoadOlder();
                 }
             }
         });
     }
+
     
     private void setupKeyboardListener() {
-        View rootView = findViewById(android.R.id.content);
+        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.root_layout), (v, insets) -> {
+            Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
+            Insets ime = insets.getInsets(WindowInsetsCompat.Type.ime());
+            
+            int keyboardHeight = ime.bottom - systemBars.bottom;
+            if (keyboardHeight < 0) keyboardHeight = 0;
+            
+            v.setPadding(v.getPaddingLeft(), v.getPaddingTop(), v.getPaddingRight(), ime.bottom);
+            
+            if (keyboardHeight > 50) {
+                if (!isKeyboardVisible) {
+                    isKeyboardVisible = true;
+                    Log.d(TAG, "Keyboard opened, height=" + keyboardHeight);
+                }
+                scheduleKeyboardScroll(keyboardHeight);
+            } else {
+                if (isKeyboardVisible) {
+                    isKeyboardVisible = false;
+                    Log.d(TAG, "Keyboard closed");
+                    if (keyboardScrollRunnable != null) {
+                        keyboardHandler.removeCallbacks(keyboardScrollRunnable);
+                        keyboardScrollRunnable = null;
+                    }
+                }
+            }
+            
+            return WindowInsetsCompat.CONSUMED;
+        });
         
         rvMessages.getViewTreeObserver().addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener() {
             @Override
             public void onGlobalLayout() {
-                int currentHeight = rvMessages.getHeight();
-                
-                if (lastRecyclerViewHeight > 0 && currentHeight != lastRecyclerViewHeight) {
-                    int heightDelta = currentHeight - lastRecyclerViewHeight;
-                    long now = System.currentTimeMillis();
-                    
-                    accumulatedHeightDelta += heightDelta;
-                    
-                    if (now - lastKeyboardScrollTime >= MIN_KEYBOARD_SCROLL_INTERVAL_MS) {
-                        if (accumulatedHeightDelta < 0) {
-                            rvMessages.scrollBy(0, -accumulatedHeightDelta);
-                            Log.d(TAG, "Keyboard show scroll: accumulatedDelta=" + accumulatedHeightDelta);
-                        }
-                        
-                        accumulatedHeightDelta = 0;
-                        lastKeyboardScrollTime = now;
+                int newHeight = rvMessages.getHeight();
+                if (lastRecyclerViewHeight > 0 && newHeight != lastRecyclerViewHeight) {
+                    if (isKeyboardVisible) {
+                        scheduleKeyboardScroll(Math.abs(newHeight - lastRecyclerViewHeight));
                     }
-                    
-                    lastRecyclerViewHeight = currentHeight;
-                } else if (lastRecyclerViewHeight < 0) {
-                    lastRecyclerViewHeight = currentHeight;
                 }
-            }
-        });
-        
-        ViewCompat.setOnApplyWindowInsetsListener(rootView, (v, insets) -> {
-            Insets imeInsets = insets.getInsets(WindowInsetsCompat.Type.ime());
-            int keyboardHeight = imeInsets.bottom;
-            
-            boolean keyboardNowVisible = keyboardHeight > 100;
-            
-            if (keyboardNowVisible != isKeyboardVisible) {
-                isKeyboardVisible = keyboardNowVisible;
-                lastKeyboardHeight = keyboardHeight;
-                
-                if (keyboardNowVisible) {
-                    scheduleKeyboardScroll();
-                }
-            } else if (keyboardNowVisible && keyboardHeight != lastKeyboardHeight) {
-                lastKeyboardHeight = keyboardHeight;
-                scheduleKeyboardScroll();
-            }
-            
-            return insets;
-        });
-        
-        etMessage.setOnFocusChangeListener((view, hasFocus) -> {
-            if (hasFocus && isKeyboardVisible) {
-                scheduleKeyboardScroll();
+                lastRecyclerViewHeight = newHeight;
             }
         });
     }
     
-    private void scheduleKeyboardScroll() {
+    private void scheduleKeyboardScroll(int keyboardHeight) {
         if (keyboardScrollRunnable != null) {
             keyboardHandler.removeCallbacks(keyboardScrollRunnable);
         }
         
+        long now = System.currentTimeMillis();
+        if (now - lastKeyboardScrollTime < MIN_KEYBOARD_SCROLL_INTERVAL_MS) {
+            return;
+        }
+        lastKeyboardScrollTime = now;
+        
         keyboardScrollRunnable = () -> {
-            if (userAtBottom) {
-                scrollToBottomSmooth();
+            if (userAtBottom && isKeyboardVisible) {
+                rvMessages.post(() -> {
+                    LinearLayoutManager lm = (LinearLayoutManager) rvMessages.getLayoutManager();
+                    if (lm != null) {
+                        int lastPos = lm.findLastVisibleItemPosition();
+                        int total = lm.getItemCount();
+                        if (total > 0 && (total - 1 - lastPos) <= BOTTOM_THRESHOLD + 2) {
+                            rvMessages.smoothScrollToPosition(total - 1);
+                        }
+                    }
+                });
             }
         };
-        
-        keyboardHandler.postDelayed(keyboardScrollRunnable, 150);
+        keyboardHandler.postDelayed(keyboardScrollRunnable, 30);
     }
+
     
-    private void showLoadMoreHint(String text) {
-        if (tvLoadMore != null) {
+    private void showLoadMoreHint() {
+        runOnUiThread(() -> {
             tvLoadMore.setVisibility(View.VISIBLE);
-            tvLoadMore.setText(text);
-            if (text.contains("正在加载") || text.contains("继续加载")) {
-                tvLoadMore.setBackgroundColor(Color.parseColor("#FFBB33"));
-            } else {
-                tvLoadMore.setBackgroundColor(Color.parseColor("#2196F3"));
-            }
-        }
+            tvLoadMore.setText("正在加载更多消息...");
+        });
     }
     
     private void hideLoadMoreHint() {
-        if (tvLoadMore != null) {
-            tvLoadMore.setVisibility(View.GONE);
-        }
+        runOnUiThread(() -> tvLoadMore.setVisibility(View.GONE));
     }
     
     private void restoreDraft() {
-        if (sessionManager == null || currentSessionId == null || etMessage == null) return;
-        
-        String draft = sessionManager.getDraft(currentSessionId);
+        String draft = settingsManager.getDraft(currentSessionId);
         if (draft != null && !draft.isEmpty()) {
             etMessage.setText(draft);
             etMessage.setSelection(draft.length());
@@ -554,36 +459,31 @@ public class ChatActivity extends AppCompatActivity {
     }
     
     private void saveDraft() {
-        if (sessionManager == null || currentSessionId == null || etMessage == null) return;
-        
-        String content = etMessage.getText().toString().trim();
-        if (content.isEmpty()) {
-            sessionManager.clearDraft(currentSessionId);
-        } else {
-            sessionManager.saveDraft(currentSessionId, content);
-        }
+        String text = etMessage.getText().toString().trim();
+        settingsManager.saveDraft(currentSessionId, text);
     }
     
     @Override
     protected void onResume() {
         super.onResume();
-        isAutoRefreshEnabled = true;
         startAutoRefresh();
     }
     
     @Override
     protected void onPause() {
         super.onPause();
-        isAutoRefreshEnabled = false;
-        stopAutoRefresh();
         saveDraft();
+        stopAutoRefresh();
+        if (isVoskListening) {
+            stopVoskListening();
+        }
     }
     
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         getMenuInflater().inflate(R.menu.chat_menu, menu);
         chatMenu = menu;
-        updateMenuVisibility(menu);
+        updateMenuVisibility();
         return true;
     }
     
@@ -593,22 +493,14 @@ public class ChatActivity extends AppCompatActivity {
         if (id == android.R.id.home) {
             finish();
             return true;
-        }
-
-        if (id == R.id.action_retry) {
+        } else if (id == R.id.action_retry) {
             retrySession();
             return true;
-        } else if (id == R.id.action_refresh) {
-            reloadMessages();
-            return true;
-        } else if (id == R.id.action_clear_session) {
+        } else if (id == R.id.action_clear) {
             clearSession();
             return true;
-        } else if (id == R.id.action_delete_session) {
+        } else if (id == R.id.action_delete) {
             deleteSession();
-            return true;
-        } else if (id == R.id.action_preview) {
-            openPreviewUrl();
             return true;
         } else if (id == R.id.action_settings) {
             openSessionSettings();
@@ -617,97 +509,62 @@ public class ChatActivity extends AppCompatActivity {
         return super.onOptionsItemSelected(item);
     }
 
-    private void updateSessionInfo(String intentProvider, String intentModel, String intentCwd) {
-        if (intentProvider != null && !intentProvider.isEmpty() && 
-            intentModel != null && !intentModel.isEmpty()) {
-            currentProvider = intentProvider;
-            currentModel = intentModel;
-            tvSessionInfo.setText(intentProvider + " | " + intentModel);
-            tvSessionPath.setText("cwd: " + (intentCwd != null ? intentCwd : ""));
-            return;
+    
+    private void updateSessionInfo(String provider, String model, String cwd) {
+        currentProvider = provider;
+        currentModel = model;
+        
+        if (cwd != null && !cwd.isEmpty()) {
+            tvSessionPath.setVisibility(View.VISIBLE);
+            tvSessionPath.setText(cwd);
+        } else {
+            tvSessionPath.setVisibility(View.GONE);
         }
         
-        Session session = sessionManager.getSession(currentSessionId);
-        if (session != null) {
-            currentProvider = session.getProvider();
-            currentModel = session.getModel();
-            tvSessionInfo.setText(currentProvider + " | " + currentModel);
-            tvSessionPath.setText("cwd: " + (session.getCwd() != null ? session.getCwd() : ""));
-        }
+        updateSessionInfoDisplay();
     }
     
     private void updateSessionInfoDisplay() {
-        if (currentProvider != null && currentModel != null) {
-            tvSessionInfo.setText(currentProvider + " | " + currentModel);
+        List<String> parts = new ArrayList<>();
+        if (currentProvider != null && !currentProvider.isEmpty()) {
+            parts.add(currentProvider);
+        }
+        if (currentModel != null && !currentModel.isEmpty()) {
+            parts.add(currentModel);
+        }
+        if (parts.isEmpty()) {
+            tvSessionInfo.setVisibility(View.GONE);
         } else {
-            Session session = sessionManager.getSession(currentSessionId);
-            if (session != null) {
-                currentProvider = session.getProvider();
-                currentModel = session.getModel();
-                tvSessionInfo.setText(currentProvider + " | " + currentModel);
-                tvSessionPath.setText("cwd: " + (session.getCwd() != null ? session.getCwd() : ""));
-            }
+            tvSessionInfo.setVisibility(View.VISIBLE);
+            tvSessionInfo.setText(String.join(" | ", parts));
         }
     }
     
-    private void updateSessionInfoFromResult(String provider, String model, String cwd, String title) {
-        if (provider != null && !provider.isEmpty()) {
-            currentProvider = provider;
+    private void updateSessionInfoFromResult(ApiClient.SessionResult result) {
+        updateSessionInfo(result.provider, result.model, result.cwd);
+        isInProgress = result.inProgress;
+        if (isInProgress) {
+            setButtonStateSending();
+        } else {
+            setButtonStateNormal();
         }
-        if (model != null && !model.isEmpty()) {
-            currentModel = model;
-        }
-        if (title != null && !title.isEmpty()) {
-            currentSessionTitle = title;
-            tvSessionTitle.setText(title);
-        }
-        
-        if (currentProvider != null && currentModel != null) {
-            tvSessionInfo.setText(currentProvider + " | " + currentModel);
-        }
-        if (cwd != null) {
-            tvSessionPath.setText("cwd: " + cwd);
-        }
-        
-        Session session = sessionManager.getSession(currentSessionId);
-        if (session != null) {
-            if (provider != null && !provider.isEmpty()) {
-                session.setProvider(provider);
-            }
-            if (model != null && !model.isEmpty()) {
-                session.setModel(model);
-            }
-            if (cwd != null) {
-                session.setCwd(cwd);
-            }
-            if (title != null && !title.isEmpty()) {
-                session.setTitle(title);
-            }
-            sessionManager.updateSession(session);
-        }
+        updateMenuVisibility();
     }
     
     private void startAutoRefresh() {
         if (refreshHandler == null) {
             refreshHandler = new Handler(Looper.getMainLooper());
         }
-        stopAutoRefresh();
-        refreshRunnable = new Runnable() {
-            @Override
-            public void run() {
-                if (!isAutoRefreshEnabled || isLoadingOlder) {
-                    refreshHandler.postDelayed(this, REFRESH_INTERVAL_MS);
-                    return;
+        if (refreshRunnable == null) {
+            refreshRunnable = new Runnable() {
+                @Override
+                public void run() {
+                    refreshMessages();
+                    refreshHandler.postDelayed(refreshRunnable, REFRESH_INTERVAL_MS);
                 }
-                if (isUserScrolling && !userAtBottom) {
-                    Log.d(TAG, "skip refresh: user is scrolling (not at bottom)");
-                    refreshHandler.postDelayed(this, REFRESH_INTERVAL_MS);
-                    return;
-                }
-                refreshMessages();
-                refreshHandler.postDelayed(this, REFRESH_INTERVAL_MS);
-            }
-        };
+            };
+        }
+        refreshHandler.removeCallbacks(refreshRunnable);
         refreshHandler.postDelayed(refreshRunnable, REFRESH_INTERVAL_MS);
     }
     
@@ -716,144 +573,161 @@ public class ChatActivity extends AppCompatActivity {
             refreshHandler.removeCallbacks(refreshRunnable);
         }
     }
+
     
     private void refreshMessages() {
-        if (apiClient == null || currentSessionId == null || isLoadingOlder) return;
-        refreshSessionStatusForIncrementalRefresh();
+        if (!isInitialLoadComplete) {
+            return;
+        }
+        
+        checkLastMessageUpdate();
+        
+        if (isInProgress) {
+            refreshSessionStatusForIncrementalRefresh();
+        }
     }
     
     private void refreshSessionStatusForIncrementalRefresh() {
-        apiClient.getSession(currentSessionId, accountId, new ApiClient.SessionCallback() {
+        // [FIX] 用户不在底部时跳过增量刷新，避免位置跳动
+        if (!userAtBottom) {
+            return;
+        }
+        
+        apiClient.getSessionInfo(currentSessionId, new ApiClient.ApiCallback<ApiClient.SessionResult>() {
             @Override
-            public void onSuccess(Session session) {
+            public void onSuccess(ApiClient.SessionResult result) {
                 runOnUiThread(() -> {
-                    boolean wasInProgress = isInProgress;
-                    isInProgress = session.isInProgress();
+                    if (isFinishing()) return;
                     
-                    int serverCount = session.getMessageCount();
+                    updateSessionInfoFromResult(result);
                     
-                    if (isInProgress) {
-                        setButtonStateSending();
-                    } else {
-                        if (wasInProgress || messagesInPool.size() > 0) {
-                            messagesInPool.clear();
-                            setButtonStateNormal();
+                    int oldCount = totalMessageCount;
+                    totalMessageCount = result.messages;
+                    Log.d(TAG, "Incremental refresh: oldCount=" + oldCount + " newCount=" + totalMessageCount);
+                    
+                    if (oldCount == 0 || (result.messages > oldCount)) {
+                        // [FIX] 只在用户在底部时才获取新消息
+                        if (userAtBottom) {
                             fetchNewMessagesAndRestorePosition();
-                        } else {
-                            setButtonStateNormal();
                         }
                     }
-                    
-                    if (serverCount > processedServerMessageCount) {
-                        fetchNewMessagesAndRestorePosition();
-                    } else if (serverCount < processedServerMessageCount) {
-                        reloadMessages();
-                    } else if (isInProgress) {
-                        checkLastMessageUpdate();
-                    }
-                    
-                    totalMessageCount = serverCount;
                 });
             }
             
             @Override
             public void onError(String error) {
-                Log.d(TAG, "Session status refresh failed: " + error);
+                Log.e(TAG, "Incremental refresh error: " + error);
             }
         });
     }
+
     
     private void fetchNewMessagesAndRestorePosition() {
-        final int sinceIndex = processedServerMessageCount + 1;
+        // [FIX] 并发请求保护：防止重复调用
+        if (isFetchingNewMessages) {
+            Log.d(TAG, "fetchNewMessagesAndRestorePosition: already in progress, skipping");
+            return;
+        }
+        isFetchingNewMessages = true;
         
-        Log.d(TAG, "Fetching messages from server index: since=" + sinceIndex);
+        // [FIX] 移除原先的 isUserScrolling 检查，改为直接使用 userAtBottom
+        // 原先 isUserScrolling && !userAtBottom 的逻辑在用户向上滚再滚回底部时会误判
+        // 现在直接以 userAtBottom 为准
+        if (!userAtBottom) {
+            Log.d(TAG, "fetchNewMessagesAndRestorePosition: user not at bottom, skipping");
+            isFetchingNewMessages = false;
+            return;
+        }
         
-        apiClient.getNewMessages(currentSessionId, sinceIndex, new ApiClient.MessagesCallback() {
+        Log.d(TAG, "fetchNewMessagesAndRestorePosition: currentSince=" + currentSince + " totalCount=" + totalMessageCount);
+        
+        apiClient.getMessages(currentSince, totalMessageCount, new ApiClient.ApiCallback<List<ApiClient.ChatMessage>>() {
             @Override
-            public void onSuccess(List<ApiClient.ChatMessage> chatMessages) {
+            public void onSuccess(List<ApiClient.ChatMessage> newMessages) {
                 runOnUiThread(() -> {
-                    if (chatMessages.isEmpty()) return;
+                    if (isFinishing()) {
+                        isFetchingNewMessages = false;
+                        return;
+                    }
                     
-                    Log.d(TAG, "=== FETCH: received " + chatMessages.size() + " messages ===");
+                    Log.d(TAG, "fetchNewMessagesAndRestorePosition: got " + newMessages.size() + " messages");
                     
-                    boolean addedNew = false;
-                    for (int i = 0; i < chatMessages.size(); i++) {
-                        ApiClient.ChatMessage msg = chatMessages.get(i);
-                        int serverIndex = sinceIndex + i;
-                        
-                        boolean hasToolCalls = msg.toolCalls != null && !msg.toolCalls.isEmpty();
-                        boolean isTool = "tool".equals(msg.role);
-
-                        StringBuilder tcInfo = new StringBuilder();
-                        if (hasToolCalls) {
-                            tcInfo.append("tool_calls[").append(msg.toolCalls.size()).append("]:");
-                            for (ApiClient.ToolCall tc : msg.toolCalls) {
-                                tcInfo.append(tc.function.name).append(",");
-                            }
-                        }
-                        Log.d(TAG, "  MSG[" + i + "] svrIdx=" + serverIndex + ", role=" + msg.role + 
-                              ", hasToolCalls=" + hasToolCalls + 
-                              ", isTool=" + isTool + 
-                              ", toolCallState=" + (msg.toolCallState != null ? msg.toolCallState.name : "null") +
-                              ", toolCallId=" + (msg.toolCallId != null ? msg.toolCallId : "null") +
-                              ", contentLen=" + (msg.content == null ? "null" : msg.content.length()) +
-                              (tcInfo.length() > 0 ? ", " + tcInfo.toString() : ""));
-                        
-                        if (messageFingerprints.contains(getMessageFingerprint(msg))) {
-                            Log.d(TAG, "  → SKIP: already exists");
+                    if (newMessages.isEmpty()) {
+                        isFetchingNewMessages = false;
+                        return;
+                    }
+                    
+                    boolean shouldScrollToBottom = userAtBottom;
+                    
+                    boolean added = false;
+                    int lastServerIndex = currentSince;
+                    
+                    for (ApiClient.ChatMessage msg : newMessages) {
+                        String fingerprint = getMessageFingerprint(msg);
+                        if (messageFingerprints.contains(fingerprint)) {
                             continue;
                         }
-
-                        if (msg.error == null && "user".equals(msg.role) && msg.content != null) {
-                            int pendingIndex = findPendingMessageIndex(msg.content);
-                            if (pendingIndex >= 0) {
-                                Log.d(TAG, "  → REPLACE pending at " + pendingIndex);
-                                messages.set(pendingIndex, createMessageFromChatMessage(msg, serverIndex));
-                                pendingMessages.remove(msg.content);
-                                messageFingerprints.add(getMessageFingerprint(msg));
-                                continue;
-                            }
+                        messageFingerprints.add(fingerprint);
+                        
+                        int pendingIdx = findPendingMessageIndex(msg);
+                        if (pendingIdx >= 0) {
+                            String key = "pending_" + msg.created;
+                            messages.set(pendingIdx, createMessageFromChatMessage(msg));
+                            pendingMessages.remove(key);
+                            added = true;
+                            Log.d(TAG, "Updated pending message at index " + pendingIdx);
+                        } else {
+                            messages.add(createMessageFromChatMessage(msg));
+                            added = true;
                         }
                         
-                        messages.add(createMessageFromChatMessage(msg, serverIndex));
-                        String fingerprint = getMessageFingerprint(msg);
-                        messageFingerprints.add(fingerprint);
-                        Log.d(TAG, "  → ADD: fingerprint=" + fingerprint);
-                        addedNew = true;
-                    }
-                    
-                    processedServerMessageCount += chatMessages.size();
-                    
-                    cleanupPendingMessages();
-                    
-                    final boolean wasAtBottom = userAtBottom;
-                    
-                    adapter.notifyDataSetChangedWithUpdate();
-                    
-                    if (addedNew) {
-                        if (wasAtBottom) {
-                            scrollToBottomSmooth();
-                        } else {
-                            restoreScrollPosition();
+                        if (msg.serverIndex > lastServerIndex) {
+                            lastServerIndex = msg.serverIndex;
                         }
                     }
+                    
+                    if (added) {
+                        adapter.notifyDataSetChangedWithUpdate();
+                        if (shouldScrollToBottom) {
+                            rvMessages.post(() -> {
+                                if (!isFinishing()) {
+                                    rvMessages.scrollToPosition(messages.size() - 1);
+                                }
+                            });
+                        }
+                    }
+                    
+                    currentSince = lastServerIndex + 1;
+                    if (currentSince > totalMessageCount) {
+                        currentSince = totalMessageCount;
+                    }
+                    
+                    isFetchingNewMessages = false;
                 });
             }
             
             @Override
             public void onError(String error) {
-                Log.d(TAG, "Incremental fetch failed: " + error);
+                Log.e(TAG, "fetchNewMessagesAndRestorePosition error: " + error);
+                isFetchingNewMessages = false;
             }
         });
     }
 
-    private int findPendingMessageIndex(String content) {
-        if (content == null) return -1;
+    
+    private int findPendingMessageIndex(ApiClient.ChatMessage msg) {
+        if (msg.role == null || msg.content == null) return -1;
+        if (!msg.role.equals("user")) return -1;
         
-        for (int i = messages.size() - 1; i >= 0; i--) {
-            Message msg = messages.get(i);
-            if (msg.isPending() && msg.isUser() && content.equals(msg.getContent())) {
-                return i;
+        for (Map.Entry<String, Long> entry : pendingMessages.entrySet()) {
+            long elapsed = System.currentTimeMillis() - entry.getValue();
+            if (elapsed < 30000) {
+                for (int i = messages.size() - 1; i >= 0; i--) {
+                    Message m = messages.get(i);
+                    if (m.getContent() != null && m.getContent().equals(msg.content) && m.isPending()) {
+                        return i;
+                    }
+                }
             }
         }
         return -1;
@@ -862,38 +736,26 @@ public class ChatActivity extends AppCompatActivity {
     private void cleanupPendingMessages() {
         long now = System.currentTimeMillis();
         List<String> toRemove = new ArrayList<>();
-        
         for (Map.Entry<String, Long> entry : pendingMessages.entrySet()) {
             if (now - entry.getValue() > 30000) {
                 toRemove.add(entry.getKey());
-                for (int i = messages.size() - 1; i >= 0; i--) {
-                    Message msg = messages.get(i);
-                    if (msg.isPending() && entry.getKey().equals(msg.getContent())) {
-                        messages.remove(i);
-                        Log.d(TAG, "Removed timeout pending message");
-                        break;
-                    }
-                }
             }
         }
-        
         for (String key : toRemove) {
             pendingMessages.remove(key);
         }
     }
     
     private boolean canLoadMore() {
-        return isInitialLoadComplete && currentSince > 1 && totalMessageCount > 0;
+        return totalMessageCount > 0 && currentSince > 0 && !isLoadingOlder;
     }
     
     private void triggerLoadOlder() {
-        if (isLoadingOlder || !canLoadMore()) return;
+        if (!canLoadMore()) return;
         
-        isLoadingOlder = true;
-        showLoadMoreHint("⏳ 加载中...");
-        stopAutoRefresh();
-        
-        saveScrollPosition();
+        long now = System.currentTimeMillis();
+        if (now - lastLoadTriggerTime < MIN_LOAD_INTERVAL_MS) return;
+        lastLoadTriggerTime = now;
         
         loadOlderMessages();
     }
@@ -902,224 +764,124 @@ public class ChatActivity extends AppCompatActivity {
         LinearLayoutManager lm = (LinearLayoutManager) rvMessages.getLayoutManager();
         if (lm == null) return;
         
-        int firstVisiblePosition = lm.findFirstVisibleItemPosition();
-        if (firstVisiblePosition >= 0) {
-            String key = adapter.getStableKeyAt(firstVisiblePosition);
-            if (key != null) {
-                anchorStableKey = key;
-            }
-            View firstChild = lm.findViewByPosition(firstVisiblePosition);
-            if (firstChild != null) {
-                offsetToRestore = firstChild.getTop();
-            }
-            Log.d(TAG, "Saved position: anchorKey=" + anchorStableKey + ", offset=" + offsetToRestore);
+        int firstVisible = lm.findFirstVisibleItemPosition();
+        if (firstVisible < 0 || firstVisible >= messages.size()) return;
+        
+        Message firstMsg = messages.get(firstVisible);
+        if (firstMsg.getServerIndex() > 0) {
+            anchorStableKey = String.valueOf(firstMsg.getServerIndex());
+        } else {
+            anchorStableKey = firstMsg.getCreated() + ":" + firstMsg.getContent().hashCode();
+        }
+        
+        View firstChild = lm.getChildAt(0);
+        if (firstChild != null) {
+            offsetToRestore = firstChild.getTop();
+        } else {
+            offsetToRestore = 0;
         }
     }
     
     private void restoreScrollPosition() {
-        if (anchorStableKey == null) return;
+        if (anchorStableKey == null || messages.isEmpty()) {
+            isRestoringPosition = false;
+            return;
+        }
         
         LinearLayoutManager lm = (LinearLayoutManager) rvMessages.getLayoutManager();
-        if (lm == null) return;
+        if (lm == null) {
+            isRestoringPosition = false;
+            return;
+        }
         
-        final String savedAnchor = anchorStableKey;
-        final int savedOffset = offsetToRestore;
-        
-        Log.d(TAG, "Restore position: anchorKey=" + savedAnchor + ", offset=" + savedOffset);
-        
-        isRestoringPosition = true;
-        rvMessages.post(() -> {
-            try {
-                int pos = adapter.findVisiblePositionByKey(savedAnchor);
-                if (pos >= 0 && pos < adapter.getItemCount()) {
-                    lm.scrollToPositionWithOffset(pos, savedOffset);
-                    Log.d(TAG, "Restored to position " + pos + " with offset " + savedOffset);
-                } else {
-                    Log.d(TAG, "Restore skipped: anchor not found in visible items");
-                }
-            } finally {
-                rvMessages.post(() -> isRestoringPosition = false);
+        int targetPosition = -1;
+        for (int i = 0; i < messages.size(); i++) {
+            Message m = messages.get(i);
+            String key;
+            if (m.getServerIndex() > 0) {
+                key = String.valueOf(m.getServerIndex());
+            } else {
+                key = m.getCreated() + ":" + m.getContent().hashCode();
             }
-        });
+            if (anchorStableKey.equals(key)) {
+                targetPosition = i;
+                break;
+            }
+        }
+        
+        if (targetPosition >= 0) {
+            final int pos = targetPosition;
+            rvMessages.post(() -> {
+                lm.scrollToPositionWithOffset(pos, offsetToRestore);
+                rvMessages.post(() -> isRestoringPosition = false);
+            });
+        } else {
+            isRestoringPosition = false;
+        }
+        
+        anchorStableKey = null;
     }
+
     
     private void loadMessagesPage() {
-        if (apiClient == null || currentSessionId == null) return;
+        showLoadMoreHint();
         
-        if (totalMessageCount <= 0) {
-            messages.clear();
-            messageFingerprints.clear();
-            pendingMessages.clear();
-            messagesInPool.clear();
-            addSystemMessage("暂无消息");
-            processedServerMessageCount = 0;
-            currentSince = 0;
-            adapter.notifyDataSetChangedWithUpdate();
-            hideLoadMoreHint();
-            isInitialLoadComplete = true;
-            return;
-        }
-        
-        final int since = Math.max(1, totalMessageCount - PAGE_SIZE + 1);
-        currentSince = since;
-        apiClient.getNewMessages(currentSessionId, since, new ApiClient.MessagesCallback() {
+        apiClient.getSessionInfo(currentSessionId, new ApiClient.ApiCallback<ApiClient.SessionResult>() {
             @Override
-            public void onSuccess(List<ApiClient.ChatMessage> chatMessages) {
+            public void onSuccess(ApiClient.SessionResult result) {
                 runOnUiThread(() -> {
-                    messages.clear();
-                    messageFingerprints.clear();
-                    pendingMessages.clear();
-                    messagesInPool.clear();
+                    if (isFinishing()) return;
                     
-                    if (chatMessages.isEmpty()) {
-                        addSystemMessage("暂无消息");
-                        processedServerMessageCount = 0;
-                        currentSince = 0;
-                        adapter.notifyDataSetChangedWithUpdate();
-                        hideLoadMoreHint();
-                        isInitialLoadComplete = true;
-                        return;
-                    }
+                    updateSessionInfoFromResult(result);
+                    totalMessageCount = result.messages;
                     
-                    for (int i = 0; i < chatMessages.size(); i++) {
-                        ApiClient.ChatMessage msg = chatMessages.get(i);
-                        int serverIndex = since + i;
-                        messages.add(createMessageFromChatMessage(msg, serverIndex));
-                        messageFingerprints.add(getMessageFingerprint(msg));
-                    }
+                    int fetchCount = Math.min(PAGE_SIZE, totalMessageCount);
+                    int since = totalMessageCount - fetchCount;
+                    if (since < 0) since = 0;
                     
-                    processedServerMessageCount = totalMessageCount;
-                    sessionManager.updateFirstMessageIndex(currentSessionId, currentSince);
-                    adapter.notifyDataSetChangedWithUpdate();
+                    currentSince = totalMessageCount;
                     
-                    isInitialLoadComplete = true;
-                    hideLoadMoreHint();
-                    
-                    userAtBottom = true;
-                    scrollToBottomSmooth();
-                });
-            }
-            
-            @Override
-            public void onError(String error) {
-                runOnUiThread(() -> {
-                    messages.clear();
-                    messageFingerprints.clear();
-                    pendingMessages.clear();
-                    messagesInPool.clear();
-                    addSystemMessage("加载失败: " + error);
-                    currentSince = 0;
-                    adapter.notifyDataSetChangedWithUpdate();
-                    hideLoadMoreHint();
-                    isInitialLoadComplete = true;
-                });
-            }
-        });
-    }
-    
-    private void loadOlderMessages() {
-        if (!canLoadMore()) {
-            isLoadingOlder = false;
-            hideLoadMoreHint();
-            Toast.makeText(this, "已到第一条消息", Toast.LENGTH_SHORT).show();
-            return;
-        }
-        
-        final int newSince = Math.max(1, currentSince - PAGE_SIZE);
-        
-        apiClient.getNewMessages(currentSessionId, newSince, new ApiClient.MessagesCallback() {
-            @Override
-            public void onSuccess(List<ApiClient.ChatMessage> chatMessages) {
-                runOnUiThread(() -> {
-                    if (chatMessages.isEmpty()) {
-                        currentSince = 1;
-                        isLoadingOlder = false;
-                        hideLoadMoreHint();
-                        Toast.makeText(ChatActivity.this, "已到第一条消息", Toast.LENGTH_SHORT).show();
-                        startAutoRefresh();
-                        return;
-                    }
-                    
-                    int newTotalCount = 0;
-                    int newVisibleCount = 0;
-                    
-                    for (int i = chatMessages.size() - 1; i >= 0; i--) {
-                        ApiClient.ChatMessage msg = chatMessages.get(i);
-                        int serverIndex = newSince + i;
-                        if (!messageFingerprints.contains(getMessageFingerprint(msg))) {
-                            Message message = createMessageFromChatMessage(msg, serverIndex);
-                            messages.add(0, message);
-                            messageFingerprints.add(getMessageFingerprint(msg));
-                            newTotalCount++;
-                            
-                            if (message.shouldDisplay()) {
-                                newVisibleCount++;
-                            }
-                        }
-                    }
-                    
-                    Log.d(TAG, "Loaded messages: total=" + newTotalCount + ", visible=" + newVisibleCount);
-                    
-                    if (newTotalCount == 0) {
-                        currentSince = newSince;
-                        isLoadingOlder = false;
-                        if (canLoadMore()) {
-                            showLoadMoreHint("⏳ 继续加载...");
-                            rvMessages.postDelayed(() -> triggerLoadOlder(), 200);
-                        } else {
-                            hideLoadMoreHint();
-                            Toast.makeText(ChatActivity.this, "已到第一条消息", Toast.LENGTH_SHORT).show();
-                            startAutoRefresh();
-                        }
-                        return;
-                    }
-                    
-                    currentSince = newSince;
-                    sessionManager.updateFirstMessageIndex(currentSessionId, newSince);
-                    
-                    adapter.notifyDataSetChangedWithUpdate();
-                    
-                    final String savedAnchor = anchorStableKey;
-                    final int savedOffset = offsetToRestore;
-                    final int loadedVisible = newVisibleCount;
-                    
-                    rvMessages.post(() -> {
-                        LinearLayoutManager lm = (LinearLayoutManager) rvMessages.getLayoutManager();
-                        if (lm != null) {
-                            int newPosition = (savedAnchor != null)
-                                    ? adapter.findVisiblePositionByKey(savedAnchor)
-                                    : -1;
-                            
-                            Log.d(TAG, "Position restore: anchorKey=" + savedAnchor + 
-                                  ", oldVisiblePos=" + newPosition + 
-                                  ", newVisibleAdded=" + loadedVisible);
-                            
-                            if (newPosition >= 0 && newPosition < adapter.getItemCount()) {
-                                lm.scrollToPositionWithOffset(newPosition, savedOffset);
-                                Log.d(TAG, "Restored to visible position " + newPosition + " with offset " + savedOffset);
-                            } else {
-                                Log.d(TAG, "Anchor message not found in visibleMessages");
-                            }
-                        }
-                        
-                        isLoadingOlder = false;
-                        
-                        if (canLoadMore()) {
-                            showLoadMoreHint("✓ 已加载 " + loadedVisible + " 条可见消息");
-                            rvMessages.postDelayed(() -> {
-                                LinearLayoutManager lm2 = (LinearLayoutManager) rvMessages.getLayoutManager();
-                                if (lm2 != null && lm2.findFirstVisibleItemPosition() == 0 && canLoadMore()) {
-                                    showLoadMoreHint("↑ 下拉加载更多");
-                                } else {
-                                    hideLoadMoreHint();
+                    apiClient.getMessages(since, fetchCount, new ApiClient.ApiCallback<List<ApiClient.ChatMessage>>() {
+                        @Override
+                        public void onSuccess(List<ApiClient.ChatMessage> serverMessages) {
+                            runOnUiThread(() -> {
+                                if (isFinishing()) return;
+                                
+                                messages.clear();
+                                messageFingerprints.clear();
+                                messagesInPool.clear();
+                                
+                                for (ApiClient.ChatMessage msg : serverMessages) {
+                                    String fingerprint = getMessageFingerprint(msg);
+                                    messageFingerprints.add(fingerprint);
+                                    messages.add(createMessageFromChatMessage(msg));
                                 }
-                            }, 1500);
-                        } else {
-                            showLoadMoreHint("已到第一条消息");
-                            rvMessages.postDelayed(() -> hideLoadMoreHint(), 1500);
+                                
+                                adapter.notifyDataSetChangedWithUpdate();
+                                hideLoadMoreHint();
+                                isInitialLoadComplete = true;
+                                
+                                rvMessages.post(() -> {
+                                    if (!isFinishing() && !messages.isEmpty()) {
+                                        rvMessages.scrollToPosition(messages.size() - 1);
+                                    }
+                                });
+                            });
                         }
                         
-                        startAutoRefresh();
+                        @Override
+                        public void onError(String error) {
+                            runOnUiThread(() -> {
+                                if (isFinishing()) return;
+                                hideLoadMoreHint();
+                                isInitialLoadComplete = true;
+                                if (!messages.isEmpty()) {
+                                    messages.get(0).setContent("加载消息失败: " + error);
+                                    adapter.notifyDataSetChangedWithUpdate();
+                                }
+                                Toast.makeText(ChatActivity.this, "加载消息失败: " + error, Toast.LENGTH_SHORT).show();
+                            });
+                        }
                     });
                 });
             }
@@ -1127,57 +889,119 @@ public class ChatActivity extends AppCompatActivity {
             @Override
             public void onError(String error) {
                 runOnUiThread(() -> {
-                    isLoadingOlder = false;
+                    if (isFinishing()) return;
                     hideLoadMoreHint();
-                    Toast.makeText(ChatActivity.this, "加载失败: " + error, Toast.LENGTH_SHORT).show();
-                    startAutoRefresh();
+                    isInitialLoadComplete = true;
+                    if (!messages.isEmpty()) {
+                        messages.get(0).setContent("获取会话信息失败: " + error);
+                        adapter.notifyDataSetChangedWithUpdate();
+                    }
                 });
             }
         });
     }
-    
-    private void checkLastMessageUpdate() {
-        if (!userAtBottom) return;
-        
-        final int sinceIndex = processedServerMessageCount + 1;
-        
-        apiClient.getNewMessages(currentSessionId, sinceIndex, new ApiClient.MessagesCallback() {
-            @Override
-            public void onSuccess(List<ApiClient.ChatMessage> chatMessages) {
-                runOnUiThread(() -> {
-                    if (!userAtBottom) return;
-                    if (chatMessages.isEmpty()) return;
 
-                    ApiClient.ChatMessage latestFiltered = null;
-                    int latestSvrIdx = -1;
-                    for (int i = chatMessages.size() - 1; i >= 0; i--) {
-                        ApiClient.ChatMessage msg = chatMessages.get(i);
-                        if (msg.error != null && !msg.error.isEmpty()) {
-                            latestFiltered = msg;
-                            latestSvrIdx = sinceIndex + i;
-                            break;
-                        }
-                        if (msg.content != null && !msg.content.isEmpty() && !"tool".equals(msg.role)) {
-                            latestFiltered = msg;
-                            latestSvrIdx = sinceIndex + i;
-                            break;
-                        }
+    
+    private void loadOlderMessages() {
+        if (isLoadingOlder) return;
+        
+        LinearLayoutManager lm = (LinearLayoutManager) rvMessages.getLayoutManager();
+        if (lm == null) return;
+        
+        int firstVisible = lm.findFirstVisibleItemPosition();
+        if (firstVisible < 0) return;
+        
+        Message firstMsg = messages.get(firstVisible);
+        int firstServerIdx = firstMsg.getServerIndex();
+        if (firstServerIdx <= 0) return;
+        
+        isLoadingOlder = true;
+        showLoadMoreHint();
+        saveScrollPosition();
+        
+        int fetchCount = Math.min(PAGE_SIZE, firstServerIdx);
+        int since = firstServerIdx - fetchCount;
+        if (since < 0) since = 0;
+        
+        isRestoringPosition = true;
+        
+        apiClient.getMessages(since, fetchCount, new ApiClient.ApiCallback<List<ApiClient.ChatMessage>>() {
+            @Override
+            public void onSuccess(List<ApiClient.ChatMessage> olderMessages) {
+                runOnUiThread(() -> {
+                    if (isFinishing()) {
+                        isLoadingOlder = false;
+                        isRestoringPosition = false;
+                        return;
                     }
                     
-                    if (latestFiltered == null) return;
+                    Log.d(TAG, "loadOlderMessages: got " + olderMessages.size() + " messages");
                     
-                    if (messages.size() > 0) {
-                        int lastIdx = messages.size() - 1;
-                        Message lastMsg = messages.get(lastIdx);
-                        
-                        String newContent = latestFiltered.error != null ? latestFiltered.error : latestFiltered.content;
-                        String oldContent = lastMsg.isError() ? lastMsg.getError() : lastMsg.getContent();
-                        
-                        if (newContent != null && !newContent.equals(oldContent)) {
-                            messages.set(lastIdx, createMessageFromChatMessage(latestFiltered, latestSvrIdx));
-                            messageFingerprints.add(getMessageFingerprint(latestFiltered));
-                            adapter.notifyDataSetChangedWithUpdate();
-                            scrollToBottomSmooth();
+                    List<Message> newMessages = new ArrayList<>();
+                    int insertCount = 0;
+                    
+                    for (ApiClient.ChatMessage msg : olderMessages) {
+                        String fingerprint = getMessageFingerprint(msg);
+                        if (messageFingerprints.contains(fingerprint)) {
+                            continue;
+                        }
+                        messageFingerprints.add(fingerprint);
+                        newMessages.add(createMessageFromChatMessage(msg));
+                        insertCount++;
+                    }
+                    
+                    if (insertCount > 0) {
+                        messages.addAll(0, newMessages);
+                        adapter.notifyDataSetChangedWithUpdate();
+                        restoreScrollPosition();
+                    } else {
+                        isRestoringPosition = false;
+                    }
+                    
+                    hideLoadMoreHint();
+                    isLoadingOlder = false;
+                });
+            }
+            
+            @Override
+            public void onError(String error) {
+                runOnUiThread(() -> {
+                    if (isFinishing()) return;
+                    hideLoadMoreHint();
+                    isLoadingOlder = false;
+                    isRestoringPosition = false;
+                    Toast.makeText(ChatActivity.this, "加载更多消息失败: " + error, Toast.LENGTH_SHORT).show();
+                });
+            }
+        });
+    }
+
+    
+    private void checkLastMessageUpdate() {
+        // [FIX] 如果正在获取新消息，跳过本次检查，避免重复请求
+        if (isFetchingNewMessages) {
+            return;
+        }
+        
+        if (messages.isEmpty()) return;
+        
+        Message lastMsg = messages.get(messages.size() - 1);
+        String lastCreated = lastMsg.getCreated();
+        
+        if (lastCreated == null || lastCreated.isEmpty()) return;
+        
+        apiClient.getLastMessageTime(currentSessionId, new ApiClient.ApiCallback<String>() {
+            @Override
+            public void onSuccess(String lastTime) {
+                runOnUiThread(() -> {
+                    if (isFinishing()) return;
+                    
+                    Log.d(TAG, "checkLastMessageUpdate: local=" + lastCreated + " server=" + lastTime);
+                    
+                    if (lastTime != null && !lastTime.isEmpty() && !lastTime.equals(lastCreated)) {
+                        // [FIX] 只在用户在底部时才获取新消息
+                        if (userAtBottom) {
+                            fetchNewMessagesAndRestorePosition();
                         }
                     }
                 });
@@ -1185,174 +1009,82 @@ public class ChatActivity extends AppCompatActivity {
             
             @Override
             public void onError(String error) {
-                Log.d(TAG, "Check update failed: " + error);
+                // ignore
             }
         });
     }
     
     private void reloadMessages() {
         isInitialLoadComplete = false;
-        
-        saveScrollPosition();
-        
-        messages.clear();
+        currentSince = 0;
+        totalMessageCount = 0;
         messageFingerprints.clear();
         pendingMessages.clear();
         messagesInPool.clear();
-        processedServerMessageCount = 0;
-        currentSince = 0;
-        sessionManager.updateFirstMessageIndex(currentSessionId, 0);
-        hideLoadMoreHint();
         loadMessagesPage();
     }
     
     private void scrollToBottomSmooth() {
-        if (rvMessages == null || adapter == null) return;
-        int itemCount = adapter.getItemCount();
-        if (itemCount == 0) return;
-
-        LinearLayoutManager lm = (LinearLayoutManager) rvMessages.getLayoutManager();
-        if (lm == null) return;
-
-        int lastPosition = itemCount - 1;
-
-        lm.scrollToPositionWithOffset(lastPosition, 0);
-
-        rvMessages.post(() -> alignLastItemToBottom());
-
-        installBottomAlignWatcher(600L);
+        if (messages.isEmpty()) return;
+        rvMessages.smoothScrollToPosition(messages.size() - 1);
+        installBottomAlignWatcher();
     }
 
-    private void installBottomAlignWatcher(long durationMs) {
-        if (rvMessages == null) return;
-
-        long now = System.currentTimeMillis();
-        bottomAlignDeadline = Math.max(bottomAlignDeadline, now + durationMs);
-
-        if (bottomAlignWatcher != null) {
-            return;
-        }
-
+    
+    private void installBottomAlignWatcher() {
+        uninstallBottomAlignWatcher();
+        
+        bottomAlignDeadline = System.currentTimeMillis() + 1500;
+        
         bottomAlignWatcher = new View.OnLayoutChangeListener() {
             @Override
-            public void onLayoutChange(View v, int l, int t, int r, int b,
-                                       int ol, int ot, int or_, int ob) {
+            public void onLayoutChange(View v, int left, int top, int right, int bottom,
+                                       int oldLeft, int oldTop, int oldRight, int oldBottom) {
                 if (System.currentTimeMillis() > bottomAlignDeadline) {
                     uninstallBottomAlignWatcher();
                     return;
                 }
-                if (isUserScrolling) {
-                    uninstallBottomAlignWatcher();
-                    return;
-                }
-                if (!userAtBottom) {
-                    uninstallBottomAlignWatcher();
-                    return;
-                }
-                int newH = b - t;
-                int oldH = ob - ot;
-                if (newH != oldH || !isLastItemFullyAtBottom()) {
+                if (userAtBottom) {
                     alignLastItemToBottom();
+                } else {
+                    uninstallBottomAlignWatcher();
                 }
             }
         };
         rvMessages.addOnLayoutChangeListener(bottomAlignWatcher);
-
-        rvMessages.postDelayed(this::uninstallBottomAlignWatcher, durationMs + 50);
-    }
-
-    private void uninstallBottomAlignWatcher() {
-        if (bottomAlignWatcher != null && rvMessages != null) {
-            rvMessages.removeOnLayoutChangeListener(bottomAlignWatcher);
-        }
-        bottomAlignWatcher = null;
-    }
-
-    private boolean isLastItemFullyAtBottom() {
-        if (rvMessages == null || adapter == null) return true;
-        int itemCount = adapter.getItemCount();
-        if (itemCount == 0) return true;
-        LinearLayoutManager lm = (LinearLayoutManager) rvMessages.getLayoutManager();
-        if (lm == null) return true;
-        int pos = itemCount - 1;
-        View lastChild = lm.findViewByPosition(pos);
-        if (lastChild == null) return false;
-        int recyclerBottom = rvMessages.getHeight() - rvMessages.getPaddingBottom();
-        return Math.abs(lastChild.getBottom() - recyclerBottom) <= 1;
-    }
-
-    private void alignLastItemToBottom() {
-        if (rvMessages == null || adapter == null) return;
-        int itemCount = adapter.getItemCount();
-        if (itemCount == 0) return;
-
-        LinearLayoutManager lm = (LinearLayoutManager) rvMessages.getLayoutManager();
-        if (lm == null) return;
-
-        int pos = itemCount - 1;
-        View lastChild = lm.findViewByPosition(pos);
-
-        if (lastChild != null) {
-            int recyclerHeight = rvMessages.getHeight() - rvMessages.getPaddingTop() - rvMessages.getPaddingBottom();
-            int itemHeight = lastChild.getHeight();
-            int offset = recyclerHeight - itemHeight;
-            lm.scrollToPositionWithOffset(pos, offset);
-        } else {
-            lm.scrollToPositionWithOffset(pos, 0);
-            rvMessages.post(() -> alignLastItemToBottom());
-        }
-    }
-
-    private void refreshSessionStatus() {
-        refreshSessionStatus(null);
     }
     
+    private void uninstallBottomAlignWatcher() {
+        if (bottomAlignWatcher != null) {
+            rvMessages.removeOnLayoutChangeListener(bottomAlignWatcher);
+            bottomAlignWatcher = null;
+        }
+    }
+    
+    private boolean isLastItemFullyAtBottom() {
+        LinearLayoutManager lm = (LinearLayoutManager) rvMessages.getLayoutManager();
+        if (lm == null) return false;
+        int lastPos = lm.findLastCompletelyVisibleItemPosition();
+        int total = lm.getItemCount();
+        if (total == 0) return false;
+        return lastPos == total - 1;
+    }
+    
+    private void alignLastItemToBottom() {
+        if (messages.isEmpty()) return;
+        rvMessages.scrollToPosition(messages.size() - 1);
+    }
+
+    
     private void refreshSessionStatus(Runnable onComplete) {
-        apiClient.getSession(currentSessionId, accountId, new ApiClient.SessionCallback() {
+        apiClient.getSessionInfo(currentSessionId, new ApiClient.ApiCallback<ApiClient.SessionResult>() {
             @Override
-            public void onSuccess(Session serverSession) {
+            public void onSuccess(ApiClient.SessionResult result) {
                 runOnUiThread(() -> {
-                    isInProgress = serverSession.isInProgress();
-                    totalMessageCount = serverSession.getMessageCount();
+                    if (isFinishing()) return;
                     
-                    if (isInProgress) {
-                        setButtonStateSending();
-                    } else {
-                        setButtonStateNormal();
-                    }
-                    
-                    Session localSession = sessionManager.getSession(currentSessionId);
-                    if (localSession != null) {
-                        boolean updated = false;
-                        String serverProvider = serverSession.getProvider();
-                        String serverModel = serverSession.getModel();
-                        String serverTitle = serverSession.getTitle();
-                        
-                        if (serverProvider != null && !serverProvider.isEmpty() 
-                            && !serverProvider.equals(localSession.getProvider())) {
-                            localSession.setProvider(serverProvider);
-                            currentProvider = serverProvider;
-                            updated = true;
-                        }
-                        if (serverModel != null && !serverModel.isEmpty() 
-                            && !serverModel.equals(localSession.getModel())) {
-                            localSession.setModel(serverModel);
-                            currentModel = serverModel;
-                            updated = true;
-                        }
-                        if (serverTitle != null && !serverTitle.isEmpty()
-                            && !serverTitle.equals(localSession.getTitle())) {
-                            localSession.setTitle(serverTitle);
-                            currentSessionTitle = serverTitle;
-                            tvSessionTitle.setText(serverTitle);
-                            updated = true;
-                        }
-                        
-                        if (updated) {
-                            sessionManager.updateSession(localSession);
-                            tvSessionInfo.setText(currentProvider + " | " + currentModel);
-                        }
-                    }
+                    updateSessionInfoFromResult(result);
+                    totalMessageCount = result.messages;
                     
                     if (onComplete != null) {
                         onComplete.run();
@@ -1363,6 +1095,11 @@ public class ChatActivity extends AppCompatActivity {
             @Override
             public void onError(String error) {
                 runOnUiThread(() -> {
+                    if (isFinishing()) return;
+                    
+                    isInProgress = false;
+                    setButtonStateNormal();
+                    
                     if (onComplete != null) {
                         onComplete.run();
                     }
@@ -1371,106 +1108,113 @@ public class ChatActivity extends AppCompatActivity {
         });
     }
     
-    private void updateMenuVisibility(Menu menu) {
-        if (menu == null) return;
-        MenuItem previewItem = menu.findItem(R.id.action_preview);
-        if (previewItem != null) {
-            previewItem.setVisible(true);
-        }
+    private void updateMenuVisibility() {
+        if (chatMenu == null) return;
+        
+        MenuItem retryItem = chatMenu.findItem(R.id.action_retry);
+        MenuItem clearItem = chatMenu.findItem(R.id.action_clear);
+        MenuItem deleteItem = chatMenu.findItem(R.id.action_delete);
+        
+        retryItem.setVisible(!isInProgress);
+        clearItem.setVisible(!isInProgress);
+        deleteItem.setVisible(true);
     }
     
-    private void openPreviewUrl() {
-        if (currentSessionId == null) return;
-        if (currentAccount == null) {
-            Toast.makeText(this, "账号信息无效", Toast.LENGTH_SHORT).show();
-            return;
+    private void openPreviewUrl(String url) {
+        if (url == null || url.isEmpty()) return;
+        try {
+            Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+            startActivity(intent);
+        } catch (ActivityNotFoundException e) {
+            Toast.makeText(this, "无法打开链接: " + url, Toast.LENGTH_SHORT).show();
         }
-        String url = currentAccount.getUrl();
-        if (url == null || url.isEmpty()) {
-            Toast.makeText(this, "请先配置服务器地址", Toast.LENGTH_SHORT).show();
-            return;
-        }
-        String previewUrl = url + "/session?id=" + currentSessionId;
-        Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(previewUrl));
-        startActivity(intent);
     }
     
     private void openSessionSettings() {
         Intent intent = new Intent(this, SessionSettingsActivity.class);
-        intent.putExtra(SessionSettingsActivity.EXTRA_SESSION_ID, currentSessionId);
-        intent.putExtra(SessionSettingsActivity.EXTRA_ACCOUNT_ID, accountId);
-        intent.putExtra(SessionSettingsActivity.EXTRA_PROVIDER, currentProvider);
-        intent.putExtra(SessionSettingsActivity.EXTRA_MODEL, currentModel);
-        Session session = sessionManager.getSession(currentSessionId);
-        if (session != null) {
-            intent.putExtra(SessionSettingsActivity.EXTRA_CWD, session.getCwd());
-            intent.putExtra(SessionSettingsActivity.EXTRA_TITLE, session.getTitle());
-        }
+        intent.putExtra(EXTRA_SESSION_ID, currentSessionId);
+        intent.putExtra(EXTRA_SESSION_TITLE, currentSessionTitle);
+        if (currentProvider != null) intent.putExtra("provider", currentProvider);
+        if (currentModel != null) intent.putExtra("model", currentModel);
         startActivityForResult(intent, REQUEST_SESSION_SETTINGS);
     }
+
     
     private void sendMessage() {
         String content = etMessage.getText().toString().trim();
         if (content.isEmpty()) return;
+        
         etMessage.setText("");
         
-        Message pendingMsg = Message.createPending(content, true);
+        final Message pendingMsg = new Message(content, true);
+        pendingMsg.setPending(true);
+        String pendingKey = "pending_" + System.currentTimeMillis();
+        pendingMessages.put(pendingKey, System.currentTimeMillis());
+        
         messages.add(pendingMsg);
-        pendingMessages.put(content, System.currentTimeMillis());
         adapter.notifyDataSetChangedWithUpdate();
-        scrollToBottomSmooth();
+        userAtBottom = true;
+        fabScrollBottom.hide();
+        rvMessages.scrollToPosition(messages.size() - 1);
         
-        setButtonStateSending();
         isInProgress = true;
+        setButtonStateSending();
+        updateMenuVisibility();
         
-        apiClient.sendMessage(currentSessionId, content, new ApiClient.MessageCallback() {
+        Log.d(TAG, "sendMessage: content=" + content);
+        
+        apiClient.sendMessage(content, currentAccount.getName(), new ApiClient.ApiCallback<Void>() {
             @Override
-            public void onSuccess() {
+            public void onSuccess(Void result) {
+                Log.d(TAG, "sendMessage onSuccess");
                 runOnUiThread(() -> {
-                    messagesInPool.add(content);
-                    fetchNewMessagesAndRestorePosition();
+                    isInProgress = true;
+                    setButtonStateSending();
+                    updateMenuVisibility();
+                    
+                    if (userAtBottom) {
+                        fetchNewMessagesAndRestorePosition();
+                    }
                 });
             }
             
             @Override
             public void onError(String error) {
+                Log.e(TAG, "sendMessage onError: " + error);
                 runOnUiThread(() -> {
-                    pendingMessages.remove(content);
-                    messagesInPool.remove(content);
-                    for (int i = messages.size() - 1; i >= 0; i--) {
-                        Message msg = messages.get(i);
-                        if (msg.isPending() && content.equals(msg.getContent())) {
-                            messages.remove(i);
-                            break;
-                        }
-                    }
-                    adapter.notifyDataSetChangedWithUpdate();
-                    setButtonStateNormal();
                     isInProgress = false;
-                    Toast.makeText(ChatActivity.this, "发送失败: " + error, Toast.LENGTH_SHORT).show();
+                    setButtonStateNormal();
+                    updateMenuVisibility();
+                    
+                    int idx = messages.indexOf(pendingMsg);
+                    if (idx >= 0) {
+                        pendingMsg.setPending(false);
+                        pendingMsg.setSendFailed(true);
+                        adapter.notifyDataSetChangedWithUpdate();
+                    }
+                    
+                    Toast.makeText(ChatActivity.this, "发送失败: " + error, Toast.LENGTH_LONG).show();
                 });
             }
         });
     }
+
     
     private void stopSession() {
-        messagesInPool.clear();
-        
-        apiClient.stopSession(currentSessionId, new ApiClient.StopCallback() {
+        apiClient.stopSession(new ApiClient.ApiCallback<Void>() {
             @Override
-            public void onSuccess() {
+            public void onSuccess(Void result) {
                 runOnUiThread(() -> {
-                    setButtonStateNormal();
                     isInProgress = false;
-                    refreshMessages();
+                    setButtonStateNormal();
+                    updateMenuVisibility();
+                    addSystemMessage("已停止会话");
                 });
             }
             
             @Override
             public void onError(String error) {
                 runOnUiThread(() -> {
-                    setButtonStateNormal();
-                    isInProgress = false;
                     Toast.makeText(ChatActivity.this, "停止失败: " + error, Toast.LENGTH_SHORT).show();
                 });
             }
@@ -1478,20 +1222,16 @@ public class ChatActivity extends AppCompatActivity {
     }
     
     private void retrySession() {
-        if (isInProgress) {
-            Toast.makeText(this, "会话正在进行中，请先停止", Toast.LENGTH_SHORT).show();
-            return;
-        }
-        
-        Toast.makeText(this, "正在重试...", Toast.LENGTH_SHORT).show();
-        
-        apiClient.retrySession(currentSessionId, new ApiClient.RetryCallback() {
+        apiClient.retrySession(new ApiClient.ApiCallback<Void>() {
             @Override
-            public void onSuccess() {
+            public void onSuccess(Void result) {
                 runOnUiThread(() -> {
-                    setButtonStateSending();
                     isInProgress = true;
-                    Toast.makeText(ChatActivity.this, "已发起重试", Toast.LENGTH_SHORT).show();
+                    setButtonStateSending();
+                    updateMenuVisibility();
+                    if (userAtBottom) {
+                        fetchNewMessagesAndRestorePosition();
+                    }
                 });
             }
             
@@ -1503,66 +1243,64 @@ public class ChatActivity extends AppCompatActivity {
             }
         });
     }
+
     
     private void setButtonStateSending() {
-        if (isVoskListening) return;
         buttonState = STATE_SENDING;
+        isInProgress = true;
         updateButtonAppearance();
     }
     
     private void setButtonStateNormal() {
-        if (isVoskListening) return;
         buttonState = STATE_NORMAL;
+        isInProgress = false;
         updateButtonAppearance();
     }
     
     private void updateButtonAppearance() {
         if (buttonState == STATE_SENDING) {
             btnSend.setImageResource(R.drawable.ic_stop);
-            btnSend.setBackgroundResource(R.drawable.btn_stop_bg);
+            btnSend.setColorFilter(ContextCompat.getColor(this, R.color.send_stop_bg));
         } else if (buttonState == STATE_LISTENING) {
-            btnSend.setImageResource(R.drawable.ic_voice_wave);
-            btnSend.setBackgroundResource(R.drawable.listening_button_bg);
+            btnSend.setImageResource(R.drawable.ic_mic);
+            btnSend.setColorFilter(Color.parseColor("#FF9800"));
         } else {
-            String content = etMessage.getText().toString().trim();
-            if (!content.isEmpty()) {
-                btnSend.setImageResource(R.drawable.ic_send);
-                btnSend.setBackgroundResource(R.drawable.send_button_bg);
-            } else {
+            String text = etMessage.getText().toString().trim();
+            if (text.isEmpty()) {
                 btnSend.setImageResource(R.drawable.ic_mic);
-                btnSend.setBackgroundResource(R.drawable.mic_button_bg);
+                btnSend.setColorFilter(null);
+            } else {
+                btnSend.setImageResource(R.drawable.ic_send);
+                btnSend.setColorFilter(ContextCompat.getColor(this, R.color.send_button_bg));
             }
         }
-        btnSend.setBackgroundTintList(null);
     }
 
+    
     private void clearSession() {
         new android.app.AlertDialog.Builder(this)
-            .setTitle("清空会话")
-            .setMessage("确定要清空当前会话的所有消息吗？")
-            .setPositiveButton("清空", (dialog, which) -> {
-                apiClient.clearSession(currentSessionId, new ApiClient.ClearCallback() {
+            .setTitle("清除会话")
+            .setMessage("确定要清除所有消息吗？")
+            .setPositiveButton("确定", (d, w) -> {
+                apiClient.clearSession(new ApiClient.ApiCallback<Void>() {
                     @Override
-                    public void onSuccess() {
+                    public void onSuccess(Void result) {
                         runOnUiThread(() -> {
                             messages.clear();
                             messageFingerprints.clear();
                             pendingMessages.clear();
                             messagesInPool.clear();
-                            processedServerMessageCount = 0;
-                            currentSince = 0;
                             totalMessageCount = 0;
+                            currentSince = 0;
                             adapter.notifyDataSetChangedWithUpdate();
-                            addSystemMessage("会话已清空");
-                            sessionManager.updateFirstMessageIndex(currentSessionId, 0);
-                            Toast.makeText(ChatActivity.this, "会话已清空", Toast.LENGTH_SHORT).show();
+                            Toast.makeText(ChatActivity.this, "已清除", Toast.LENGTH_SHORT).show();
                         });
                     }
-
+                    
                     @Override
                     public void onError(String error) {
                         runOnUiThread(() -> {
-                            Toast.makeText(ChatActivity.this, "清空失败: " + error, Toast.LENGTH_SHORT).show();
+                            Toast.makeText(ChatActivity.this, "清除失败: " + error, Toast.LENGTH_SHORT).show();
                         });
                     }
                 });
@@ -1574,14 +1312,14 @@ public class ChatActivity extends AppCompatActivity {
     private void deleteSession() {
         new android.app.AlertDialog.Builder(this)
             .setTitle("删除会话")
-            .setMessage("确定要删除当前会话吗？")
-            .setPositiveButton("删除", (dialog, which) -> {
-                apiClient.deleteSession(currentSessionId, new ApiClient.DeleteSessionCallback() {
+            .setMessage("确定要删除此会话吗？")
+            .setPositiveButton("确定", (d, w) -> {
+                apiClient.deleteSession(new ApiClient.ApiCallback<Void>() {
                     @Override
-                    public void onSuccess() {
+                    public void onSuccess(Void result) {
                         runOnUiThread(() -> {
                             sessionManager.deleteSession(currentSessionId);
-                            Toast.makeText(ChatActivity.this, "会话已删除", Toast.LENGTH_SHORT).show();
+                            Toast.makeText(ChatActivity.this, "已删除", Toast.LENGTH_SHORT).show();
                             finish();
                         });
                     }
@@ -1599,235 +1337,192 @@ public class ChatActivity extends AppCompatActivity {
     }
     
     private void addSystemMessage(String text) {
-        messages.add(new Message(text, false));
+        Message sysMsg = new Message(text, false);
+        sysMsg.setRole("system");
+        messages.add(sysMsg);
         adapter.notifyDataSetChangedWithUpdate();
+        if (userAtBottom) {
+            rvMessages.scrollToPosition(messages.size() - 1);
+        }
     }
     
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == REQUEST_SESSION_SETTINGS && resultCode == RESULT_OK && data != null) {
-            String newProvider = data.getStringExtra(SessionSettingsActivity.RESULT_PROVIDER);
-            String newModel = data.getStringExtra(SessionSettingsActivity.RESULT_MODEL);
-            String newCwd = data.getStringExtra(SessionSettingsActivity.RESULT_CWD);
-            String newTitle = data.getStringExtra(SessionSettingsActivity.RESULT_TITLE);
+        
+        if (requestCode == REQUEST_SESSION_SETTINGS && resultCode == RESULT_OK) {
+            String newTitle = data.getStringExtra(EXTRA_SESSION_TITLE);
+            String newProvider = data.getStringExtra("provider");
+            String newModel = data.getStringExtra("model");
+            String newCwd = data.getStringExtra("cwd");
             
-            updateSessionInfoFromResult(newProvider, newModel, newCwd, newTitle);
-        } else if (requestCode == REQUEST_VOICE_INPUT && resultCode == RESULT_OK && data != null) {
+            if (newTitle != null) {
+                currentSessionTitle = newTitle;
+                tvSessionTitle.setText(newTitle);
+            }
+            updateSessionInfo(newProvider, newModel, newCwd);
+        }
+        
+        if (requestCode == REQUEST_VOICE_INPUT && resultCode == RESULT_OK && data != null) {
             ArrayList<String> results = data.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS);
             if (results != null && !results.isEmpty()) {
-                String text = results.get(0);
-                String current = etMessage.getText().toString().trim();
-                if (!current.isEmpty()) {
-                    etMessage.setText(current + " " + text);
-                } else {
-                    etMessage.setText(text);
-                }
-                etMessage.setSelection(etMessage.length());
-                etMessage.requestFocus();
+                String text = voskBaseText.isEmpty() ? results.get(0) : voskBaseText + " " + results.get(0);
+                etMessage.setText(text);
+                etMessage.setSelection(text.length());
             }
         }
     }
-    /**
-     * 优先使用 Vosk 离线识别，不可用时回退到 Android 系统语音识别
-     */
-    private void startVoiceInput() {
-        // 1. 检查 RECORD_AUDIO 运行时权限
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
-                != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this,
-                    new String[]{Manifest.permission.RECORD_AUDIO},
-                    REQUEST_RECORD_AUDIO_PERMISSION);
-            return;
-        }
 
-        // 2. 优先尝试 Vosk 离线识别
-        if (voskRecognizer != null && voskRecognizer.isModelReady()) {
+    
+    private void startVoiceInput() {
+        if (voskRecognizer != null) {
             startVoskListening();
             return;
         }
-
-        // 2.5 Vosk 模型状态检查
-        if (voskRecognizer != null && !voskRecognizer.isModelReady()) {
-            if (voskRecognizer.hasModelError()) {
-                // 模型加载已失败，显示具体原因
-                String errMsg = voskRecognizer.getModelError();
-                Toast.makeText(this, errMsg, Toast.LENGTH_LONG).show();
-                voskRecognizer.clearModelError();
-                Log.w(TAG, "Vosk model error shown to user: " + errMsg);
-            } else {
-                // 模型还在后台加载中
-                Toast.makeText(this, "语音模型加载中，请稍候...", Toast.LENGTH_SHORT).show();
-            }
-            return;
-        }
-
-        // 3. 回退到 Android 系统语音识别
+        
         Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
         intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
         intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault());
-        intent.putExtra(RecognizerIntent.EXTRA_PROMPT, "说话...");
+        intent.putExtra(RecognizerIntent.EXTRA_PROMPT, "请说话...");
+        
         try {
             startActivityForResult(intent, REQUEST_VOICE_INPUT);
         } catch (ActivityNotFoundException e) {
-            Toast.makeText(this, "未安装语音识别引擎，且离线模型未就绪", Toast.LENGTH_LONG).show();
-        } catch (Exception e) {
-            Toast.makeText(this, "语音识别启动失败: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "设备不支持语音输入", Toast.LENGTH_SHORT).show();
         }
     }
-
+    
     @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        
         if (requestCode == REQUEST_RECORD_AUDIO_PERMISSION) {
             if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                startVoiceInput();
+                if (voskRecognizer != null) {
+                    startVoskListening();
+                }
             } else {
-                Toast.makeText(this, "需要麦克风权限才能使用语音输入", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "需要录音权限才能使用语音输入", Toast.LENGTH_SHORT).show();
             }
         }
     }
-
+    
     private void initVoskRecognizer() {
         try {
             voskRecognizer = new VoskSpeechRecognizer(this);
-            voskRecognizer.setListener(new VoskSpeechRecognizer.RecognitionListener() {
-                @Override
-                public void onModelReady() {
-                    Log.i(TAG, "Vosk model ready");
-                }
-
-                @Override
-                public void onModelError(String error) {
-                    Log.w(TAG, "Vosk model error: " + error);
-                    if (voskRecognizer != null) {
-                        voskRecognizer.setModelError(error);
-                    }
-                }
-
-                @Override
-                public void onFinalResult(String text) {
-                    if (text != null && !text.trim().isEmpty()) {
-                        runOnUiThread(() -> {
-                            voskBaseText += text.trim();
-                            etMessage.setText(voskBaseText);
-                            etMessage.setSelection(etMessage.length());
-                        });
-                    }
-                }
-
+            voskRecognizer.setListener(new VoskSpeechRecognizer.VoskListener() {
                 @Override
                 public void onPartialResult(String text) {
-                    if (text != null && !text.trim().isEmpty()) {
-                        runOnUiThread(() -> {
-                            etMessage.setText(voskBaseText + text.trim());
-                            etMessage.setSelection(etMessage.length());
-                        });
-                    }
+                    runOnUiThread(() -> {
+                        String display = voskBaseText.isEmpty() ? text : voskBaseText + " " + text;
+                        etMessage.setText(display);
+                        etMessage.setSelection(display.length());
+                    });
                 }
-
+                
+                @Override
+                public void onFinalResult(String text) {
+                    runOnUiThread(() -> {
+                        voskBaseText = voskBaseText.isEmpty() ? text : voskBaseText + " " + text;
+                        etMessage.setText(voskBaseText);
+                        etMessage.setSelection(voskBaseText.length());
+                    });
+                }
+                
                 @Override
                 public void onError(String error) {
                     runOnUiThread(() -> {
-                        isVoskListening = false;
-                        voskBaseText = "";
+                        stopListeningPulse();
                         buttonState = STATE_NORMAL;
                         updateButtonAppearance();
-                        stopListeningPulse();
-                        Toast.makeText(ChatActivity.this, "识别失败: " + error, Toast.LENGTH_LONG).show();
-                    });
-                }
-
-                @Override
-                public void onTimeout() {
-                    runOnUiThread(() -> {
-                        isVoskListening = false;
-                        voskBaseText = "";
-                        buttonState = STATE_NORMAL;
-                        updateButtonAppearance();
-                        stopListeningPulse();
-                        String currentText = etMessage.getText().toString().trim();
-                        if (!currentText.isEmpty()) {
-                            Toast.makeText(ChatActivity.this, "语音识别结束", Toast.LENGTH_SHORT).show();
-                        }
+                        Toast.makeText(ChatActivity.this, "语音识别错误: " + error, Toast.LENGTH_SHORT).show();
                     });
                 }
             });
-            // 异步加载模型
-            voskRecognizer.initModel();
         } catch (Exception e) {
-            Log.e(TAG, "Failed to create VoskSpeechRecognizer", e);
+            Log.e(TAG, "Failed to init Vosk: " + e.getMessage());
             voskRecognizer = null;
         }
     }
 
+    
     private void startVoskListening() {
-        if (voskRecognizer == null || isVoskListening) return;
-        if (!voskRecognizer.isModelReady()) {
-            Toast.makeText(this, "语音模型正在加载中...", Toast.LENGTH_SHORT).show();
+        if (voskRecognizer == null) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.RECORD_AUDIO}, REQUEST_RECORD_AUDIO_PERMISSION);
+            } else {
+                initVoskRecognizer();
+                if (voskRecognizer != null) {
+                    doStartVoskListening();
+                }
+            }
             return;
         }
-        try {
-            voskBaseText = etMessage.getText().toString().trim();
-            if (!voskBaseText.isEmpty()) {
-                voskBaseText += " ";
-            }
-            voskRecognizer.startListening();
-            isVoskListening = true;
-            buttonState = STATE_LISTENING;
-            updateButtonAppearance();
-            startListeningPulse();
-        } catch (Exception e) {
-            isVoskListening = false;
-            Toast.makeText(this, "启动失败: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+        
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.RECORD_AUDIO}, REQUEST_RECORD_AUDIO_PERMISSION);
+            return;
         }
+        
+        doStartVoskListening();
     }
+    
+    private void doStartVoskListening() {
+        voskBaseText = etMessage.getText().toString().trim();
+        if (!voskBaseText.isEmpty() && !voskBaseText.endsWith(" ")) {
+            voskBaseText += " ";
+        }
+        voskRecognizer.startListening();
+        isVoskListening = true;
+        buttonState = STATE_LISTENING;
+        updateButtonAppearance();
+        startListeningPulse();
+    }
+    
     private void stopVoskListening() {
-        if (voskRecognizer == null || !isVoskListening) return;
-        try {
+        if (voskRecognizer != null && isVoskListening) {
             voskRecognizer.stopListening();
-        } catch (Exception e) {
-            // ignore
-        } finally {
             isVoskListening = false;
-            voskBaseText = "";
-            if (isInProgress) {
-                buttonState = STATE_SENDING;
-            } else {
-                buttonState = STATE_NORMAL;
-            }
-            updateButtonAppearance();
-            stopListeningPulse();
         }
-    }
-
-    private void startListeningPulse() {
         stopListeningPulse();
-        pulseAnimator = android.animation.ObjectAnimator.ofFloat(btnSend, "alpha", 1f, 0.4f);
-        pulseAnimator.setDuration(600);
-        pulseAnimator.setRepeatCount(android.animation.ValueAnimator.INFINITE);
-        pulseAnimator.setRepeatMode(android.animation.ValueAnimator.REVERSE);
-        pulseAnimator.start();
+        buttonState = STATE_NORMAL;
+        updateButtonAppearance();
     }
-
+    
+    private void startListeningPulse() {
+        btnSend.post(() -> {
+            pulseAnimator = android.animation.ObjectAnimator.ofPropertyValuesHolder(btnSend,
+                android.animation.PropertyValuesHolder.ofFloat("scaleX", 1f, 1.2f, 1f),
+                android.animation.PropertyValuesHolder.ofFloat("scaleY", 1f, 1.2f, 1f)
+            );
+            pulseAnimator.setDuration(800);
+            pulseAnimator.setRepeatCount(android.animation.ValueAnimator.INFINITE);
+            pulseAnimator.start();
+        });
+    }
+    
     private void stopListeningPulse() {
         if (pulseAnimator != null) {
             pulseAnimator.cancel();
             pulseAnimator = null;
         }
-        if (btnSend != null) {
-            btnSend.setAlpha(1f);
-        }
+        btnSend.post(() -> {
+            btnSend.setScaleX(1f);
+            btnSend.setScaleY(1f);
+        });
     }
-
+    
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        stopListeningPulse();
-        stopVoskListening();
+        stopAutoRefresh();
         if (voskRecognizer != null) {
             voskRecognizer.destroy();
             voskRecognizer = null;
         }
+        if (keyboardScrollRunnable != null) {
+            keyboardHandler.removeCallbacks(keyboardScrollRunnable);
+        }
     }
 }
+
