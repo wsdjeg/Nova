@@ -702,7 +702,7 @@ public class ChatActivity extends AppCompatActivity {
         refreshRunnable = new Runnable() {
             @Override
             public void run() {
-                if (!isAutoRefreshEnabled || isLoadingOlder) {
+                if (!isAutoRefreshEnabled || isLoadingOlder || !isInitialLoadComplete) {
                     refreshHandler.postDelayed(this, REFRESH_INTERVAL_MS);
                     return;
                 }
@@ -725,7 +725,7 @@ public class ChatActivity extends AppCompatActivity {
     }
     
     private void refreshMessages() {
-        if (apiClient == null || currentSessionId == null || isLoadingOlder) return;
+        if (apiClient == null || currentSessionId == null || isLoadingOlder || !isInitialLoadComplete) return;
         refreshSessionStatusForIncrementalRefresh();
     }
     
@@ -781,8 +781,14 @@ public class ChatActivity extends AppCompatActivity {
                 runOnUiThread(() -> {
                     if (chatMessages.isEmpty()) return;
                     
-                    Log.d(TAG, "=== FETCH: received " + chatMessages.size() + " messages ===");
+                    // 移除"正在加载消息..."占位消息（初始加载期间自动刷新可能触发此方法）
+                    if (!messages.isEmpty() && messages.get(0).getServerIndex() == -1
+                            && !messages.get(0).isPending()
+                            && "正在加载消息...".equals(messages.get(0).getContent())) {
+                        messages.remove(0);
+                    }
                     
+                    Log.d(TAG, "=== FETCH: received " + chatMessages.size() + " messages ===");
                     boolean addedNew = false;
                     for (int i = 0; i < chatMessages.size(); i++) {
                         ApiClient.ChatMessage msg = chatMessages.get(i);
