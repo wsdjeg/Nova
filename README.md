@@ -22,9 +22,9 @@ Nova 是 [chat.nvim](https://nvim.chat) 的 Android 移动端客户端，让你�
 
 <div align="center">
 
-| 会话列表 | 聊天界面 | 设置界面 |
-|:--------:|:--------:|:--------:|
-| <img src="https://github.com/user-attachments/assets/e6c4910b-28f6-4493-b16b-1b099decc983" width="250"/> | <img src="https://github.com/user-attachments/assets/016ebdda-13ae-4468-b865-b8aaed9a3abb" width="250"/> | <img src="https://github.com/user-attachments/assets/fc3d35da-f85c-436c-9c66-6f35a7243661" width="250"/> |
+| 会话列表 | 消息界面 | 账号列表 | 账号设置 |
+|:--------:|:--------:|:--------:|:--------:|
+| <img width="1264" height="2780" alt="会话列表" src="https://github.com/user-attachments/assets/ff3b7e43-b390-467c-a24d-7a0f891980e8" /> | <img width="1264" height="2780" alt="消息界面" src="https://github.com/user-attachments/assets/2f6fbc19-fb3b-4bed-852b-c74b98dbcb4a" /> | <img width="1264" height="2780" alt="账号列表" src="https://github.com/user-attachments/assets/6348834c-0b07-4e1d-a854-937b330fe0f0" /> | <img width="1264" height="2780" alt="账号设置" src="https://github.com/user-attachments/assets/71f2df69-70f1-414a-86ac-5e4596351c24" /> |
 
 </div>
 
