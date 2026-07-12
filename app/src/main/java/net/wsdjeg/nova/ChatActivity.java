@@ -126,6 +126,8 @@ public class ChatActivity extends AppCompatActivity {
     
     private Handler refreshHandler;
     private Runnable refreshRunnable;
+    private Handler initialLoadTimeoutHandler;
+    private Runnable initialLoadTimeoutRunnable;
     private boolean isAutoRefreshEnabled = true;
     
     // 服务端消息计数（包含所有消息，不区分是否可显示）
@@ -330,6 +332,28 @@ public class ChatActivity extends AppCompatActivity {
         adapter.notifyDataSetChangedWithUpdate();
         refreshSessionStatus(() -> loadMessagesPage());
         startAutoRefresh();
+        
+        // 初始加载超时保护：20秒后如果仍未完成，清除占位消息并显示错误
+        initialLoadTimeoutHandler = new Handler(Looper.getMainLooper());
+        initialLoadTimeoutRunnable = () -> {
+            if (!isInitialLoadComplete && !messages.isEmpty()) {
+                boolean hasPlaceholder = "正在加载消息...".equals(messages.get(0).getContent())
+                        && messages.get(0).getServerIndex() == -1
+                        && !messages.get(0).isPending();
+                if (hasPlaceholder) {
+                    Log.e(TAG, "Initial load timeout! Clearing placeholder.");
+                    messages.clear();
+                    messageFingerprints.clear();
+                    pendingMessages.clear();
+                    messagesInPool.clear();
+                    addSystemMessage("加载超时，请检查网络连接后下拉刷新");
+                    adapter.notifyDataSetChangedWithUpdate();
+                    hideLoadMoreHint();
+                    isInitialLoadComplete = true;
+                }
+            }
+        };
+        initialLoadTimeoutHandler.postDelayed(initialLoadTimeoutRunnable, 20000);
     }
     
     /**
@@ -957,7 +981,18 @@ public class ChatActivity extends AppCompatActivity {
     }
     
     private void loadMessagesPage() {
-        if (apiClient == null || currentSessionId == null) return;
+        if (apiClient == null || currentSessionId == null) {
+            // 即使 apiClient 或 sessionId 为空，也要清除占位消息并标记加载完成
+            messages.clear();
+            messageFingerprints.clear();
+            pendingMessages.clear();
+            messagesInPool.clear();
+            addSystemMessage("初始化失败，请重试");
+            adapter.notifyDataSetChangedWithUpdate();
+            hideLoadMoreHint();
+            isInitialLoadComplete = true;
+            return;
+        }
         
         if (totalMessageCount <= 0) {
             messages.clear();
@@ -979,52 +1014,67 @@ public class ChatActivity extends AppCompatActivity {
             @Override
             public void onSuccess(List<ApiClient.ChatMessage> chatMessages) {
                 runOnUiThread(() -> {
-                    messages.clear();
-                    messageFingerprints.clear();
-                    pendingMessages.clear();
-                    messagesInPool.clear();
-                    
-                    if (chatMessages.isEmpty()) {
-                        addSystemMessage("暂无消息");
-                        processedServerMessageCount = 0;
-                        currentSince = 0;
+                    try {
+                        messages.clear();
+                        messageFingerprints.clear();
+                        pendingMessages.clear();
+                        messagesInPool.clear();
+                        
+                        if (chatMessages.isEmpty()) {
+                            addSystemMessage("暂无消息");
+                            processedServerMessageCount = 0;
+                            currentSince = 0;
+                            adapter.notifyDataSetChangedWithUpdate();
+                            hideLoadMoreHint();
+                            return;
+                        }
+                        
+                        for (int i = 0; i < chatMessages.size(); i++) {
+                            ApiClient.ChatMessage msg = chatMessages.get(i);
+                            int serverIndex = since + i;
+                            messages.add(createMessageFromChatMessage(msg, serverIndex));
+                            messageFingerprints.add(getMessageFingerprint(msg));
+                        }
+                        
+                        processedServerMessageCount = totalMessageCount;
+                        sessionManager.updateFirstMessageIndex(currentSessionId, currentSince);
+                        adapter.notifyDataSetChangedWithUpdate();
+                        
+                        hideLoadMoreHint();
+                        
+                        userAtBottom = true;
+                        scrollToBottomSmooth();
+                    } catch (Exception e) {
+                        Log.e(TAG, "loadMessagesPage onSuccess error", e);
+                        messages.clear();
+                        addSystemMessage("消息解析失败: " + e.getMessage());
                         adapter.notifyDataSetChangedWithUpdate();
                         hideLoadMoreHint();
+                    } finally {
+                        // 确保无论如何都标记初始加载完成
                         isInitialLoadComplete = true;
-                        return;
                     }
-                    
-                    for (int i = 0; i < chatMessages.size(); i++) {
-                        ApiClient.ChatMessage msg = chatMessages.get(i);
-                        int serverIndex = since + i;
-                        messages.add(createMessageFromChatMessage(msg, serverIndex));
-                        messageFingerprints.add(getMessageFingerprint(msg));
-                    }
-                    
-                    processedServerMessageCount = totalMessageCount;
-                    sessionManager.updateFirstMessageIndex(currentSessionId, currentSince);
-                    adapter.notifyDataSetChangedWithUpdate();
-                    
-                    isInitialLoadComplete = true;
-                    hideLoadMoreHint();
-                    
-                    userAtBottom = true;
-                    scrollToBottomSmooth();
                 });
             }
             
             @Override
             public void onError(String error) {
                 runOnUiThread(() -> {
-                    messages.clear();
-                    messageFingerprints.clear();
-                    pendingMessages.clear();
-                    messagesInPool.clear();
-                    addSystemMessage("加载失败: " + error);
-                    currentSince = 0;
-                    adapter.notifyDataSetChangedWithUpdate();
-                    hideLoadMoreHint();
-                    isInitialLoadComplete = true;
+                    try {
+                        messages.clear();
+                        messageFingerprints.clear();
+                        pendingMessages.clear();
+                        messagesInPool.clear();
+                        addSystemMessage("加载失败: " + error);
+                        currentSince = 0;
+                        adapter.notifyDataSetChangedWithUpdate();
+                        hideLoadMoreHint();
+                    } catch (Exception e) {
+                        Log.e(TAG, "loadMessagesPage onError error", e);
+                    } finally {
+                        // 确保无论如何都标记初始加载完成
+                        isInitialLoadComplete = true;
+                    }
                 });
             }
         });
@@ -1325,50 +1375,55 @@ public class ChatActivity extends AppCompatActivity {
             @Override
             public void onSuccess(Session serverSession) {
                 runOnUiThread(() -> {
-                    isInProgress = serverSession.isInProgress();
-                    totalMessageCount = serverSession.getMessageCount();
-                    
-                    if (isInProgress) {
-                        setButtonStateSending();
-                    } else {
-                        setButtonStateNormal();
-                    }
-                    
-                    Session localSession = sessionManager.getSession(currentSessionId);
-                    if (localSession != null) {
-                        boolean updated = false;
-                        String serverProvider = serverSession.getProvider();
-                        String serverModel = serverSession.getModel();
-                        String serverTitle = serverSession.getTitle();
+                    try {
+                        isInProgress = serverSession.isInProgress();
+                        totalMessageCount = serverSession.getMessageCount();
                         
-                        if (serverProvider != null && !serverProvider.isEmpty() 
-                            && !serverProvider.equals(localSession.getProvider())) {
-                            localSession.setProvider(serverProvider);
-                            currentProvider = serverProvider;
-                            updated = true;
-                        }
-                        if (serverModel != null && !serverModel.isEmpty() 
-                            && !serverModel.equals(localSession.getModel())) {
-                            localSession.setModel(serverModel);
-                            currentModel = serverModel;
-                            updated = true;
-                        }
-                        if (serverTitle != null && !serverTitle.isEmpty()
-                            && !serverTitle.equals(localSession.getTitle())) {
-                            localSession.setTitle(serverTitle);
-                            currentSessionTitle = serverTitle;
-                            tvSessionTitle.setText(serverTitle);
-                            updated = true;
+                        if (isInProgress) {
+                            setButtonStateSending();
+                        } else {
+                            setButtonStateNormal();
                         }
                         
-                        if (updated) {
-                            sessionManager.updateSession(localSession);
-                            tvSessionInfo.setText(currentProvider + " | " + currentModel);
+                        Session localSession = sessionManager.getSession(currentSessionId);
+                        if (localSession != null) {
+                            boolean updated = false;
+                            String serverProvider = serverSession.getProvider();
+                            String serverModel = serverSession.getModel();
+                            String serverTitle = serverSession.getTitle();
+                            
+                            if (serverProvider != null && !serverProvider.isEmpty() 
+                                && !serverProvider.equals(localSession.getProvider())) {
+                                localSession.setProvider(serverProvider);
+                                currentProvider = serverProvider;
+                                updated = true;
+                            }
+                            if (serverModel != null && !serverModel.isEmpty() 
+                                && !serverModel.equals(localSession.getModel())) {
+                                localSession.setModel(serverModel);
+                                currentModel = serverModel;
+                                updated = true;
+                            }
+                            if (serverTitle != null && !serverTitle.isEmpty()
+                                && !serverTitle.equals(localSession.getTitle())) {
+                                localSession.setTitle(serverTitle);
+                                currentSessionTitle = serverTitle;
+                                tvSessionTitle.setText(serverTitle);
+                                updated = true;
+                            }
+                            
+                            if (updated) {
+                                sessionManager.updateSession(localSession);
+                                tvSessionInfo.setText(currentProvider + " | " + currentModel);
+                            }
                         }
-                    }
-                    
-                    if (onComplete != null) {
-                        onComplete.run();
+                    } catch (Exception e) {
+                        Log.e(TAG, "refreshSessionStatus onSuccess processing error", e);
+                    } finally {
+                        // 确保 onComplete 一定会被调用，避免占位消息卡住
+                        if (onComplete != null) {
+                            onComplete.run();
+                        }
                     }
                 });
             }
@@ -1376,6 +1431,8 @@ public class ChatActivity extends AppCompatActivity {
             @Override
             public void onError(String error) {
                 runOnUiThread(() -> {
+                    Log.e(TAG, "refreshSessionStatus onError: " + error);
+                    // 确保 onComplete 一定会被调用
                     if (onComplete != null) {
                         onComplete.run();
                     }
@@ -1838,6 +1895,10 @@ public class ChatActivity extends AppCompatActivity {
         super.onDestroy();
         stopListeningPulse();
         stopVoskListening();
+        // 取消初始加载超时定时器
+        if (initialLoadTimeoutHandler != null && initialLoadTimeoutRunnable != null) {
+            initialLoadTimeoutHandler.removeCallbacks(initialLoadTimeoutRunnable);
+        }
         if (voskRecognizer != null) {
             voskRecognizer.destroy();
             voskRecognizer = null;
