@@ -122,12 +122,12 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
                 @Override
                 public void configureTheme(@NonNull MarkwonTheme.Builder builder) {
                     builder.headingTextSizeMultipliers(new float[]{
-                        1.6f,  // H1
-                        1.4f,  // H2
-                        1.25f, // H3
-                        1.1f,  // H4
-                        1.0f,  // H5
-                        0.9f   // H6
+                        1.14f, // H1 -> 16sp (不超过会话标题)
+                        1.07f, // H2 -> 15sp
+                        1.00f, // H3 -> 14sp
+                        0.93f, // H4 -> 13sp
+                        0.86f, // H5 -> 12sp
+                        0.79f  // H6 -> 11sp
                     });
                 }
             })
