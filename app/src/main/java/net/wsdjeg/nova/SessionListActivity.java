@@ -185,7 +185,7 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
     
     /**
      * 从本地加载所有账号的会话列表（聚合视图）
-     * 排序规则：置顶会话优先显示，其余按会话 ID 降序排序
+     * 排序规则：置顶会话优先显示，其余按最后消息时间降序排序
      */
     private void loadSessions() {
         sessions.clear();
@@ -214,8 +214,8 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
         
         // 排序规则：
         // 1. 置顶会话优先显示（pinned = true 的排在前面）
-        // 2. 置顶会话之间按会话 ID 降序排序
-        // 3. 未置顶会话之间按会话 ID 降序排序
+        // 2. 置顶会话之间按最后消息时间降序排序
+        // 3. 未置顶会话之间按最后消息时间降序排序
         Collections.sort(sessions, new Comparator<Session>() {
             @Override
             public int compare(Session s1, Session s2) {
@@ -225,8 +225,8 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
                 } else if (!s1.isPinned() && s2.isPinned()) {
                     return 1;  // s2 置顶，排在前面
                 }
-                // 同为置顶或同为非置顶，按会话 ID 降序排序
-                return s2.getSessionId().compareTo(s1.getSessionId());
+                // 同为置顶或同为非置顶，按最后消息时间降序排序
+                return Long.compare(s2.getLastMessageTime(), s1.getLastMessageTime());
             }
         });
         adapter.notifyDataSetChanged();
@@ -594,3 +594,4 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
         });
     }
 }
+
