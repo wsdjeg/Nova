@@ -57,6 +57,7 @@ public class SessionManager {
                 json.put("in_progress", session.isInProgress());
                 json.put("firstMessageIndex", session.getFirstMessageIndex());
                 json.put("pinned", session.isPinned());
+                json.put("clearedAt", session.getClearedAt());
                 jsonArray.put(json);
             } catch (JSONException e) {
                 e.printStackTrace();
@@ -96,6 +97,7 @@ public class SessionManager {
                 session.setInProgress(json.optBoolean("in_progress", false));
                 session.setFirstMessageIndex(json.optInt("firstMessageIndex", 0));
                 session.setPinned(json.optBoolean("pinned", false));
+                session.setClearedAt(json.optLong("clearedAt", 0));
                 // 加载草稿
                 session.setDraft(getDraft(json.getString("sessionId")));
                 sessions.add(session);

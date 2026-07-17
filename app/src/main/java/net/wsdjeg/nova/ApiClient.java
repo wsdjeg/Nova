@@ -465,7 +465,9 @@ public class ApiClient {
                         // 服务器返回的字段名是 "pin"，不是 "pinned"
                         boolean pinned = sessionObj.optBoolean("pin", false);
                         int messageCount = sessionObj.optInt("message_count", 0);
-                        // 空会话兜底：从 session ID 解析创建时间，避免旧空会话排在列表顶部
+                        // 解析 cleared_at（Unix 时间戳，秒）
+                        long clearedAt = sessionObj.optLong("cleared_at", 0);
+                        // 排序时间优先级：last_message.created > cleared_at > session ID 解析时间
                         long lastMessageTime = TimeUtils.parseSessionIdToTimestamp(id);
                         if (lastMessageTime < 0) {
                             lastMessageTime = System.currentTimeMillis();
@@ -479,6 +481,9 @@ public class ApiClient {
                             lastMessageRole = lastMsgObj.optString("role", "");
                             lastMessageTime = lastMsgObj.optLong("created", System.currentTimeMillis()) * 1000;
                             Log.d(TAG, "Session " + id + " last_message: content=" + lastMessageContent + ", role=" + lastMessageRole);
+                        } else if (clearedAt > 0) {
+                            lastMessageTime = clearedAt * 1000;
+                            Log.w(TAG, "Session " + id + " last_message is NULL, using cleared_at: " + lastMessageTime);
                         } else {
                             Log.w(TAG, "Session " + id + " last_message is NULL! Using session ID time: " + lastMessageTime);
                         }
@@ -492,6 +497,7 @@ public class ApiClient {
                             session.setModel(model);
                             session.setInProgress(inProgress);
                             session.setPinned(pinned);
+                            session.setClearedAt(clearedAt);
                             session.setLastMessage(lastMessageContent);
                             session.setLastMessageRole(lastMessageRole);
                             session.setMessageCount(messageCount);
@@ -576,7 +582,9 @@ public class ApiClient {
                     // 服务器返回的字段名是 "pin"，不是 "pinned"
                     boolean pinned = sessionObj.optBoolean("pin", false);
                     int messageCount = sessionObj.optInt("message_count", 0);
-                    // 空会话兜底：从 session ID 解析创建时间，避免旧空会话排在列表顶部
+                    // 解析 cleared_at（Unix 时间戳，秒）
+                    long clearedAt = sessionObj.optLong("cleared_at", 0);
+                    // 排序时间优先级：last_message.created > cleared_at > session ID 解析时间
                     long lastMessageTime = TimeUtils.parseSessionIdToTimestamp(id);
                     if (lastMessageTime < 0) {
                         lastMessageTime = System.currentTimeMillis();
@@ -589,6 +597,8 @@ public class ApiClient {
                         lastMessageContent = lastMsgObj.optString("content", "");
                         lastMessageRole = lastMsgObj.optString("role", "");
                         lastMessageTime = lastMsgObj.optLong("created", System.currentTimeMillis()) * 1000;
+                    } else if (clearedAt > 0) {
+                        lastMessageTime = clearedAt * 1000;
                     }
                     
                     if (!id.isEmpty()) {
@@ -600,6 +610,7 @@ public class ApiClient {
                         session.setModel(model);
                         session.setInProgress(inProgress);
                         session.setPinned(pinned);
+                        session.setClearedAt(clearedAt);
                         session.setLastMessage(lastMessageContent);
                         session.setLastMessageRole(lastMessageRole);
                         session.setMessageCount(messageCount);

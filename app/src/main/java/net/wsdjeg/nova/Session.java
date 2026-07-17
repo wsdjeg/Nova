@@ -25,6 +25,7 @@ public class Session {
     private String cwd;          // Working directory
     private boolean inProgress;  // 会话是否正在进行中
     private boolean pinned;      // 是否置顶
+    private long clearedAt;      // 清除消息的时间戳（Unix 秒，0 表示未清除）
     
     // 分页加载相关：当前已加载的最旧消息索引（索引从 1 开始）
     // firstMessageIndex = 1 表示已加载到第一条消息
@@ -396,6 +397,22 @@ public class Session {
      */
     public void setPinned(boolean pinned) {
         this.pinned = pinned;
+    }
+    
+    /**
+     * 获取清除消息时间戳（Unix 秒）
+     * @return 时间戳，0 表示未清除
+     */
+    public long getClearedAt() {
+        return clearedAt;
+    }
+    
+    /**
+     * 设置清除消息时间戳
+     * @param clearedAt Unix 时间戳（秒），0 表示未清除
+     */
+    public void setClearedAt(long clearedAt) {
+        this.clearedAt = clearedAt;
     }
     
     public int getFirstMessageIndex() {
