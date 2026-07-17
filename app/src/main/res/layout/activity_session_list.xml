@@ -14,7 +14,8 @@
         android:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar"
         app:popupTheme="@style/ThemeOverlay.AppCompat.Light"
         app:title="Nova"
-        app:titleTextColor="@android:color/white" />
+        app:titleTextColor="@android:color/white"
+        app:subtitleTextColor="#CCCCCC" />
 
     <!-- 会话列表 -->
     <androidx.recyclerview.widget.RecyclerView
