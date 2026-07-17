@@ -8,6 +8,7 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.SearchView;
 import androidx.appcompat.widget.Toolbar;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -16,6 +17,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import java.util.Map;
 import java.util.HashMap;
@@ -26,6 +28,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * 显示所有账号的会话（聚合视图）
  * 点击进入聊天界面
  * 支持会话置顶功能
+ * 支持按标题搜索会话
  */
 public class SessionListActivity extends AppCompatActivity implements SessionAdapter.OnSessionClickListener {
     
@@ -35,7 +38,9 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
     private RecyclerView rvSessions;
     private FloatingActionButton fabNewSession;
     private SessionAdapter adapter;
-    private List<Session> sessions;
+    private List<Session> sessions;       // 当前显示的会话（可能经过搜索过滤）
+    private List<Session> allSessions;    // 全量会话列表（未过滤）
+    private String searchQuery = "";      // 当前搜索关键词
     private SessionManager sessionManager;
     private SettingsManager settingsManager;
     private AccountManager accountManager;
@@ -95,6 +100,42 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         getMenuInflater().inflate(R.menu.session_list_menu, menu);
+        
+        // 配置搜索框
+        MenuItem searchItem = menu.findItem(R.id.action_search);
+        SearchView searchView = (SearchView) searchItem.getActionView();
+        if (searchView != null) {
+            searchView.setQueryHint("搜索会话标题");
+            searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
+                @Override
+                public boolean onQueryTextSubmit(String query) {
+                    return false;
+                }
+                
+                @Override
+                public boolean onQueryTextChange(String newText) {
+                    searchQuery = newText != null ? newText.trim() : "";
+                    applyFilter();
+                    return true;
+                }
+            });
+            
+            // 收起搜索框时清空搜索词
+            searchItem.setOnActionExpandListener(new MenuItem.OnActionExpandListener() {
+                @Override
+                public boolean onMenuItemActionExpand(MenuItem item) {
+                    return true;
+                }
+                
+                @Override
+                public boolean onMenuItemActionCollapse(MenuItem item) {
+                    searchQuery = "";
+                    applyFilter();
+                    return true;
+                }
+            });
+        }
+        
         return true;
     }
     
@@ -140,6 +181,7 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
     
     private void setupRecyclerView() {
         sessions = new ArrayList<>();
+        allSessions = new ArrayList<>();
         adapter = new SessionAdapter(sessions, this);
         adapter.setAccountManager(accountManager);
         adapter.setSettingsManager(settingsManager);
@@ -185,22 +227,24 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
     
     /**
      * 从本地加载所有账号的会话列表（聚合视图）
-     * 排序规则：置顶会话优先显示，其余按最后消息时间降序排序
+     * 加载全量数据到 allSessions，再通过 applyFilter() 过滤显示
      */
     private void loadSessions() {
-        sessions.clear();
+        allSessions.clear();
         
         if (!accountManager.hasAccounts()) {
+            sessions.clear();
             adapter.notifyDataSetChanged();
+            updateSubtitle();
             Toast.makeText(this, "请先添加账号", Toast.LENGTH_SHORT).show();
             return;
         }
         
         // 加载所有账号的会话
-        List<Session> allSessions = sessionManager.loadAllSessions();
+        List<Session> loadedSessions = sessionManager.loadAllSessions();
         
         // 确保 accountId 正确设置
-        for (Session session : allSessions) {
+        for (Session session : loadedSessions) {
             if (session.getAccountId() == null || session.getAccountId().isEmpty()) {
                 // 尝试从当前账号获取
                 Account currentAccount = accountManager.getCurrentAccount();
@@ -210,7 +254,33 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
             }
         }
         
-        sessions.addAll(allSessions);
+        allSessions.addAll(loadedSessions);
+        applyFilter();
+        
+        if (allSessions.isEmpty()) {
+            Toast.makeText(this, "暂无会话，点击 + 创建新会话", Toast.LENGTH_SHORT).show();
+        }
+    }
+    
+    /**
+     * 根据搜索关键词过滤会话列表
+     * 搜索匹配标题（不区分大小写）
+     * 排序规则：置顶会话优先，然后按最后消息时间降序
+     */
+    private void applyFilter() {
+        sessions.clear();
+        
+        if (searchQuery.isEmpty()) {
+            sessions.addAll(allSessions);
+        } else {
+            String queryLower = searchQuery.toLowerCase(Locale.getDefault());
+            for (Session session : allSessions) {
+                String title = session.getTitle();
+                if (title != null && title.toLowerCase(Locale.getDefault()).contains(queryLower)) {
+                    sessions.add(session);
+                }
+            }
+        }
         
         // 排序规则：
         // 1. 置顶会话优先显示（pinned = true 的排在前面）
@@ -229,11 +299,26 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
                 return Long.compare(s2.getLastMessageTime(), s1.getLastMessageTime());
             }
         });
-        adapter.notifyDataSetChanged();
         
-        if (sessions.isEmpty()) {
-            Toast.makeText(this, "暂无会话，点击 + 创建新会话", Toast.LENGTH_SHORT).show();
+        adapter.notifyDataSetChanged();
+        updateSubtitle();
+    }
+    
+    /**
+     * 更新 Toolbar 副标题，显示会话数量
+     * 搜索时显示 "找到 M/N 个会话"，正常显示 "共 N 个会话"
+     */
+    private void updateSubtitle() {
+        int total = allSessions.size();
+        int shown = sessions.size();
+        
+        String subtitle;
+        if (searchQuery.isEmpty()) {
+            subtitle = "共 " + total + " 个会话";
+        } else {
+            subtitle = "找到 " + shown + "/" + total + " 个会话";
         }
+        getSupportActionBar().setSubtitle(subtitle);
     }
     
     /**
