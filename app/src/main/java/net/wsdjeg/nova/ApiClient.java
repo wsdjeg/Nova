@@ -465,7 +465,11 @@ public class ApiClient {
                         // 服务器返回的字段名是 "pin"，不是 "pinned"
                         boolean pinned = sessionObj.optBoolean("pin", false);
                         int messageCount = sessionObj.optInt("message_count", 0);
-                        long lastMessageTime = System.currentTimeMillis();
+                        // 空会话兜底：从 session ID 解析创建时间，避免旧空会话排在列表顶部
+                        long lastMessageTime = TimeUtils.parseSessionIdToTimestamp(id);
+                        if (lastMessageTime < 0) {
+                            lastMessageTime = System.currentTimeMillis();
+                        }
                         String lastMessageContent = "";
                         String lastMessageRole = "";
                         
@@ -476,7 +480,7 @@ public class ApiClient {
                             lastMessageTime = lastMsgObj.optLong("created", System.currentTimeMillis()) * 1000;
                             Log.d(TAG, "Session " + id + " last_message: content=" + lastMessageContent + ", role=" + lastMessageRole);
                         } else {
-                            Log.w(TAG, "Session " + id + " last_message is NULL!");
+                            Log.w(TAG, "Session " + id + " last_message is NULL! Using session ID time: " + lastMessageTime);
                         }
                         
                         if (!id.isEmpty()) {
@@ -572,7 +576,11 @@ public class ApiClient {
                     // 服务器返回的字段名是 "pin"，不是 "pinned"
                     boolean pinned = sessionObj.optBoolean("pin", false);
                     int messageCount = sessionObj.optInt("message_count", 0);
-                    long lastMessageTime = System.currentTimeMillis();
+                    // 空会话兜底：从 session ID 解析创建时间，避免旧空会话排在列表顶部
+                    long lastMessageTime = TimeUtils.parseSessionIdToTimestamp(id);
+                    if (lastMessageTime < 0) {
+                        lastMessageTime = System.currentTimeMillis();
+                    }
                     String lastMessageContent = "";
                     String lastMessageRole = "";
                     
