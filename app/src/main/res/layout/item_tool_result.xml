@@ -62,7 +62,7 @@
             android:scrollbars="horizontal"
             android:fillViewport="false">
 
-            <ScrollView
+            <net.wsdjeg.nova.ToolContentScrollView
                 android:id="@+id/contentScrollV"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -81,7 +81,7 @@
                     android:fontFamily="monospace"
                     android:visibility="gone" />
 
-            </ScrollView>
+            </net.wsdjeg.nova.ToolContentScrollView>
 
         </HorizontalScrollView>
 

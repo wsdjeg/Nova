@@ -10,7 +10,6 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.HorizontalScrollView;
-import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 import androidx.annotation.NonNull;
@@ -790,7 +789,7 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
         TextView timeText;
         TextView expandHint;
         HorizontalScrollView contentScrollH;
-        ScrollView contentScrollV;
+        ToolContentScrollView contentScrollV;
 
         ToolCallViewHolder(View itemView) {
             super(itemView);
@@ -814,7 +813,7 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
         TextView contentText;
         TextView expandHint;
         HorizontalScrollView contentScrollH;
-        ScrollView contentScrollV;
+        ToolContentScrollView contentScrollV;
 
         ToolResultViewHolder(View itemView) {
             super(itemView);
