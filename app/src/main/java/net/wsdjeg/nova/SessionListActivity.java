@@ -1,17 +1,23 @@
 package net.wsdjeg.nova;
 
 import android.content.Intent;
+import android.graphics.Canvas;
+import android.graphics.Color;
+import android.graphics.Paint;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.View;
 import android.widget.Toast;
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.SearchView;
 import androidx.appcompat.widget.Toolbar;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+import androidx.recyclerview.widget.ItemTouchHelper;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -27,7 +33,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * 会话列表界面
  * 显示所有账号的会话（聚合视图）
  * 点击进入聊天界面
- * 支持会话置顶功能
+ * 支持会话置顶功能（左滑取消置顶，右滑置顶）
  * 支持按标题搜索会话
  */
 public class SessionListActivity extends AppCompatActivity implements SessionAdapter.OnSessionClickListener {
@@ -196,6 +202,119 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
                 androidx.recyclerview.widget.DividerItemDecoration.VERTICAL
             );
         rvSessions.addItemDecoration(divider);
+        
+        // 滑动置顶/取消置顶
+        setupSwipeToPin();
+    }
+    
+    /**
+     * 设置滑动置顶/取消置顶
+     * 右滑 -> 置顶（未置顶时可用）
+     * 左滑 -> 取消置顶（已置顶时可用）
+     */
+    private void setupSwipeToPin() {
+        ItemTouchHelper.SimpleCallback swipeCallback = new ItemTouchHelper.SimpleCallback(0,
+                ItemTouchHelper.LEFT | ItemTouchHelper.RIGHT) {
+            
+            @Override
+            public int getMovementFlags(@NonNull RecyclerView recyclerView,
+                                        @NonNull RecyclerView.ViewHolder viewHolder) {
+                int position = viewHolder.getAdapterPosition();
+                if (position < 0 || position >= sessions.size()) {
+                    return 0;
+                }
+                Session session = sessions.get(position);
+                int swipeFlags;
+                if (session.isPinned()) {
+                    // 已置顶：只允许左滑取消置顶
+                    swipeFlags = ItemTouchHelper.LEFT;
+                } else {
+                    // 未置顶：只允许右滑置顶
+                    swipeFlags = ItemTouchHelper.RIGHT;
+                }
+                return makeMovementFlags(0, swipeFlags);
+            }
+            
+            @Override
+            public boolean onMove(@NonNull RecyclerView recyclerView,
+                                  @NonNull RecyclerView.ViewHolder viewHolder,
+                                  @NonNull RecyclerView.ViewHolder target) {
+                return false;
+            }
+            
+            @Override
+            public void onSwiped(@NonNull RecyclerView.ViewHolder viewHolder, int direction) {
+                int position = viewHolder.getAdapterPosition();
+                if (position < 0 || position >= sessions.size()) {
+                    return;
+                }
+                Session session = sessions.get(position);
+                // 立即恢复 item 位置（不真正移除）
+                adapter.notifyItemChanged(position);
+                // 执行置顶/取消置顶
+                toggleSessionPin(session);
+            }
+            
+            @Override
+            public float getSwipeThreshold(@NonNull RecyclerView.ViewHolder viewHolder) {
+                return 0.35f;
+            }
+            
+            @Override
+            public void onChildDraw(@NonNull Canvas c, @NonNull RecyclerView recyclerView,
+                                    @NonNull RecyclerView.ViewHolder viewHolder,
+                                    float dX, float dY, int actionState,
+                                    boolean isCurrentlyActive) {
+                View itemView = viewHolder.itemView;
+                
+                if (actionState == ItemTouchHelper.ACTION_STATE_SWIPE) {
+                    Paint paint = new Paint();
+                    paint.setAntiAlias(true);
+                    
+                    if (dX > 0) {
+                        // 右滑 -> 置顶：蓝色背景
+                        paint.setColor(Color.parseColor("#2196F3"));
+                        c.drawRect(itemView.getLeft(), itemView.getTop(),
+                                itemView.getLeft() + dX, itemView.getBottom(), paint);
+                        
+                        // 绘制 "置顶" 文字
+                        paint.setColor(Color.WHITE);
+                        paint.setTextSize(40f);
+                        paint.setTextAlign(Paint.Align.LEFT);
+                        Paint.FontMetrics fm = paint.getFontMetrics();
+                        float textY = itemView.getTop()
+                                + (itemView.getHeight() - (fm.descent - fm.ascent)) / 2
+                                - fm.ascent;
+                        float textX = Math.min(itemView.getLeft() + 48f,
+                                itemView.getLeft() + dX / 3);
+                        c.drawText("置顶", textX, textY, paint);
+                        
+                    } else if (dX < 0) {
+                        // 左滑 -> 取消置顶：橙色背景
+                        paint.setColor(Color.parseColor("#FF9800"));
+                        c.drawRect(itemView.getRight() + dX, itemView.getTop(),
+                                itemView.getRight(), itemView.getBottom(), paint);
+                        
+                        // 绘制 "取消置顶" 文字
+                        paint.setColor(Color.WHITE);
+                        paint.setTextSize(40f);
+                        paint.setTextAlign(Paint.Align.RIGHT);
+                        Paint.FontMetrics fm = paint.getFontMetrics();
+                        float textY = itemView.getTop()
+                                + (itemView.getHeight() - (fm.descent - fm.ascent)) / 2
+                                - fm.ascent;
+                        float textX = Math.max(itemView.getRight() - 48f,
+                                itemView.getRight() + dX / 3);
+                        c.drawText("取消置顶", textX, textY, paint);
+                    }
+                }
+                
+                super.onChildDraw(c, recyclerView, viewHolder, dX, dY,
+                        actionState, isCurrentlyActive);
+            }
+        };
+        
+        new ItemTouchHelper(swipeCallback).attachToRecyclerView(rvSessions);
     }
     
     /**
