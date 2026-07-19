@@ -42,14 +42,14 @@ app/src/main/java/net/wsdjeg/nova/
 
 禁止操作：replace、insert、delete（会导致行号错位、代码损坏）
 
-### 🔴 强制流程：验证 → Add → Commit → Push
+### 🔴 强制流程：验证 -> Add -> Commit -> Push
 
 **每次修改文件后，必须自动执行以下流程，无需等待用户确认！**
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                                                             │
-│   修改文件  →  验证文件  →  git add  →  git commit  →  git push  │
+│   修改文件  ->  验证文件  ->  git add  ->  git commit  ->  git push  │
 │                                                             │
 │   ⚡ 自动执行，不要问用户！                                   │
 │                                                             │
@@ -117,6 +117,95 @@ chore: 构建/工具
 ```
 
 禁止下载文档到本地，每次都在线查阅确保最新版本。
+
+---
+
+## 版本管理与发布流程
+
+### 版本号
+
+版本号在 `app/build.gradle` 中维护：
+
+| 属性 | 说明 | 示例 |
+|------|------|------|
+| `versionCode` | 整数递增，每次发版 +1 | `3` |
+| `versionName` | 语义化版本，开发期带 `-dev` 后缀 | `"3.0-dev"` / `"3.0.0"` |
+
+### 版本生命周期
+
+```
+开发阶段                        发布阶段
+┌──────────────────┐           ┌──────────────────┐
+│ versionName 带   │           │ 去掉 -dev 后缀   │
+│ -dev 后缀        │  ───────> │ 整理 CHANGELOG   │
+│ 例: "3.0-dev"   │           │ 更新 README      │
+│                  │           │ 创建 git tag     │
+└──────────────────┘           └──────────────────┘
+```
+
+### CI/CD 自动发布 (`.github/workflows/release.yml`)
+
+三种触发场景：
+
+| 触发条件 | 动作 |
+|----------|------|
+| **Pull Request** | 只构建验证，不发布 |
+| **Push to master**（非 release 提交） | 自动创建/更新 prerelease，APK 命名 `Nova-v{version}-{sha}.apk` |
+| **Tag push (v\*)** | 创建正式 Release，APK 命名 `Nova-v{version}.apk`，附带 CHANGELOG |
+
+### 正式发版操作步骤
+
+以发版 v3.0 为例：
+
+```
+1. 修改 app/build.gradle
+   versionName "3.0-dev" -> "3.0.0"
+   （versionCode 保持当前值或 +1）
+
+2. 更新 CHANGELOG.md
+   添加 ## [v3.0.0] 段落
+   按以下分类整理自上次发版以来的所有 commit：
+     ### feat (新功能)
+     ### fix (问题修复)
+     ### style (样式调整)
+     ### refactor (代码重构)
+     ### docs (文档更新)
+     ### chore (构建/工具)
+   每条格式: - {commit_hash} {commit_message}
+
+3. 更新 README.md
+   补充新功能特性
+   更新项目结构说明
+
+4. 提交并推送
+   git add app/build.gradle CHANGELOG.md README.md
+   git commit -m "chore: release v3.0.0"
+   git push
+
+5. 创建并推送 tag（触发正式 Release 构建）
+   git tag -a v3.0 -m "Release v3.0.0"
+   git push origin v3.0
+```
+
+### 开发阶段版本提升
+
+开始新一轮开发时：
+
+```
+1. 修改 app/build.gradle
+   versionCode +1
+   versionName "X.0.0" -> "X+1.0-dev"
+
+2. 提交并推送
+   git add app/build.gradle
+   git commit -m "chore: bump version to X+1.0-dev"
+   git push
+```
+
+### Tag 命名规范
+
+- 正式版: `v1.0`、`v2.0`、`v3.0`（不带 patch 号）
+- 预发布: `prerelease`（固定名称，每次 push master 自动更新）
 
 ---
 
