@@ -10,7 +10,6 @@
     <LinearLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:maxWidth="320dp"
         android:orientation="vertical"
         android:background="@drawable/tool_call_bg"
         android:padding="12dp">
@@ -34,6 +33,9 @@
                 android:id="@+id/toolNameText"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:maxWidth="220dp"
+                android:ellipsize="end"
+                android:maxLines="1"
                 android:textColor="#2196F3"
                 android:textSize="13sp"
                 android:fontFamily="monospace"
@@ -72,6 +74,7 @@
                     android:id="@+id/argsText"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:maxWidth="296dp"
                     android:padding="8dp"
                     android:background="@color/ai_message_bg"
                     android:textColor="@color/text_secondary"
@@ -96,3 +99,4 @@
         android:textColor="#999999" />
 
 </LinearLayout>
+
