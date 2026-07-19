@@ -203,6 +203,13 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
             );
         rvSessions.addItemDecoration(divider);
         
+        // 禁用 change 动画，使滑动操作后 item 复位更流畅
+        RecyclerView.ItemAnimator animator = rvSessions.getItemAnimator();
+        if (animator instanceof androidx.recyclerview.widget.DefaultItemAnimator) {
+            ((androidx.recyclerview.widget.DefaultItemAnimator) animator)
+                .setSupportsChangeAnimations(false);
+        }
+        
         // 滑动置顶/取消置顶
         setupSwipeToPin();
     }
@@ -249,7 +256,9 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
                     return;
                 }
                 Session session = sessions.get(position);
-                // 立即恢复 item 位置（不真正移除）
+                // 立即复位 view 位置，避免残留背景色
+                viewHolder.itemView.setTranslationX(0);
+                // 通知 adapter 重新绑定（change 动画已禁用，无闪烁）
                 adapter.notifyItemChanged(position);
                 // 执行置顶/取消置顶
                 toggleSessionPin(session);
