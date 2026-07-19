@@ -54,7 +54,7 @@ import java.util.Set;
  */
 public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     private static final String TAG = "MessageAdapter";
-    private static final int COLLAPSED_LINES = 3;   // 折叠时显示行数
+    private static final int COLLAPSED_LINES = 2;   // 折叠时显示行数
     private static final int EXPANDED_LINES = 10;   // 展开时显示行数
     private static final float LINE_HEIGHT_SP = 14f; // 每行高度(sp)
     
