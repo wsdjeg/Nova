@@ -58,15 +58,37 @@ jobs:
           echo "✅ Vosk model downloaded to assets/vosk-model-small-cn/"
           ls -lh "${{ github.workspace }}/app/src/main/assets/vosk-model-small-cn/"
 
-      - name: Generate debug keystore
+      # ── Debug Keystore ────────────────────────────────────────────
+      # 首次构建时自动生成 keystore 并提交到仓库，确保每次构建签名一致
+      # debug keystore 密码公开 (android/android)，不存在安全风险
+      - name: Setup debug keystore
+        id: keystore
         run: |
           mkdir -p ~/.android
-          keytool -genkey -v -keystore ~/.android/debug.keystore \
-            -alias androiddebugkey \
-            -storepass android \
-            -keypass android \
-            -keyalg RSA -keysize 2048 -validity 10000 \
-            -dname "CN=Android Debug,O=Android,C=US"
+          if [ -f app/debug.keystore ]; then
+            cp app/debug.keystore ~/.android/debug.keystore
+            echo "✅ Using committed keystore from repo"
+            echo "new=false" >> $GITHUB_OUTPUT
+          else
+            keytool -genkey -v -keystore ~/.android/debug.keystore \
+              -alias androiddebugkey \
+              -storepass android \
+              -keypass android \
+              -keyalg RSA -keysize 2048 -validity 10000 \
+              -dname "CN=Android Debug,O=Android,C=US"
+            cp ~/.android/debug.keystore app/debug.keystore
+            echo "🆕 Generated new keystore, will commit to repo"
+            echo "new=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Commit keystore to repo
+        if: steps.keystore.outputs.new == 'true' && github.event_name == 'push' && github.ref == 'refs/heads/master'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add app/debug.keystore
+          git commit -m "chore: add debug keystore for consistent APK signing [skip ci]"
+          git push
 
       - name: Build Debug APK
         run: gradle assembleDebug --no-daemon --stacktrace
