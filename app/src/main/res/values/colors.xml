@@ -35,6 +35,9 @@
     <color name="ai_message_bg">#E0E0E0</color>
     <color name="user_message_text">#FFFFFF</color>
     <color name="ai_message_text">#000000</color>
+
+    <!-- Tool call/result border -->
+    <color name="tool_border">#BDBDBD</color>
     
     <!-- Diamond blue colors -->
     <color name="diamond_blue">#2196F3</color>
