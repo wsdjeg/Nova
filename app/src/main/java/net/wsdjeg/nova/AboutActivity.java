@@ -34,6 +34,8 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
 import java.util.TimeZone;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import io.noties.markwon.Markwon;
 import io.noties.markwon.AbstractMarkwonPlugin;
@@ -163,8 +165,14 @@ public class AboutActivity extends AppCompatActivity {
     }
 
     /**
-     * 从 GitHub API 获取最新 release 信息，展示更新对话框。
-     * releases 接口按时间倒序返回，第一个即最新版本（含 prerelease）。
+     * 从 GitHub API 获取 releases，通过版本号比较找到真正最新的版本。
+     *
+     * CI 每次 push 到 master 会删除并重建 prerelease，导致 prerelease 的
+     * created_at 总是最新的。如果仅取 releases[0]，可能拿到比当前稳定版
+     * 更旧的 prerelease（例如当前装了 3.0.0，prerelease 还是 3.0-dev）。
+     *
+     * 修复策略：遍历所有 release，分别找到最新稳定版和最新预发布版，
+     * 通过版本号比较选出真正最新的，再与当前版本比较决定是否提示更新。
      */
     private void checkForUpdates() {
         ProgressDialog loading = new ProgressDialog(this);
@@ -176,6 +184,7 @@ public class AboutActivity extends AppCompatActivity {
                 .url(GITHUB_API_RELEASES)
                 .header("Accept", "application/vnd.github.v3+json")
                 .header("User-Agent", "Nova-Android")
+                .header("Cache-Control", "no-cache")
                 .build();
 
         httpClient.newCall(request).enqueue(new Callback() {
@@ -211,8 +220,57 @@ public class AboutActivity extends AppCompatActivity {
                         return;
                     }
 
-                    // 第一个就是最新的 release
-                    JSONObject latest = releases.getJSONObject(0);
+                    String currentVersion = getCurrentVersion();
+
+                    // 遍历 releases，分别找到最新的稳定版和预发布版
+                    JSONObject latestStable = null;
+                    JSONObject latestPrerelease = null;
+
+                    for (int i = 0; i < releases.length(); i++) {
+                        JSONObject release = releases.getJSONObject(i);
+                        boolean isPre = release.optBoolean("prerelease", false);
+                        if (isPre) {
+                            if (latestPrerelease == null) {
+                                latestPrerelease = release;
+                            }
+                        } else {
+                            if (latestStable == null) {
+                                latestStable = release;
+                            }
+                        }
+                        // 两者都找到后提前退出
+                        if (latestStable != null && latestPrerelease != null) break;
+                    }
+
+                    // 选择要展示的 release：
+                    // 优先稳定版；仅当预发布版本号严格大于稳定版时才选预发布
+                    JSONObject latest;
+                    if (latestStable != null && latestPrerelease != null) {
+                        String stableVer = extractVersion(latestStable);
+                        String preVer = extractVersion(latestPrerelease);
+                        latest = (compareVersions(preVer, stableVer) > 0)
+                                ? latestPrerelease : latestStable;
+                    } else {
+                        latest = (latestStable != null) ? latestStable : latestPrerelease;
+                    }
+
+                    if (latest == null) {
+                        runOnUiThread(() -> Toast.makeText(AboutActivity.this,
+                                "暂无可用版本", Toast.LENGTH_SHORT).show());
+                        return;
+                    }
+
+                    // 版本比较：获取到的版本不比当前版本新时，提示已最新
+                    String latestVer = extractVersion(latest);
+                    if (compareVersions(latestVer, currentVersion) <= 0) {
+                        final String curVer = currentVersion;
+                        runOnUiThread(() -> Toast.makeText(AboutActivity.this,
+                                "当前已是最新版本 (v" + curVer + ")",
+                                Toast.LENGTH_SHORT).show());
+                        return;
+                    }
+
+                    // 提取 release 信息
                     String releaseName = latest.optString("name", "");
                     String releaseBody = latest.optString("body", "");
                     String publishedAt = latest.optString("published_at", "");
@@ -251,6 +309,67 @@ public class AboutActivity extends AppCompatActivity {
                 }
             }
         });
+    }
+
+    /**
+     * 从 release JSON 对象中提取版本号字符串。
+     * 稳定版 tag_name: "v3.0.0" -> "3.0.0"
+     * 预发布 tag_name: "prerelease"（无法提取版本号，改用 name）
+     * name: "Release v3.0.0" / "PreRelease v3.1-dev" -> "3.0.0" / "3.1-dev"
+     */
+    private String extractVersion(JSONObject release) {
+        // 稳定版优先从 tag_name 提取
+        String tagName = release.optString("tag_name", "");
+        if (tagName.startsWith("v") && !tagName.equals("prerelease")) {
+            return tagName.substring(1);
+        }
+        // 预发布从 name 中提取版本号
+        String name = release.optString("name", "");
+        Matcher m = Pattern.compile("v(\\d[\\d.]*[-\\w]*)").matcher(name);
+        if (m.find()) {
+            return m.group(1);
+        }
+        return "";
+    }
+
+    /**
+     * 比较两个版本号字符串。
+     * 支持 "3.0.0"、"3.1"、"3.1-dev" 等格式。
+     * -dev 后缀视为同版本的预发布（低于正式版）。
+     *
+     * @return >0 表示 v1 > v2，0 表示相等，<0 表示 v1 < v2
+     */
+    private int compareVersions(String v1, String v2) {
+        if (v1 == null || v1.isEmpty()) return -1;
+        if (v2 == null || v2.isEmpty()) return 1;
+
+        // 处理 -dev 后缀
+        boolean isDev1 = v1.contains("-dev");
+        boolean isDev2 = v2.contains("-dev");
+
+        // 去掉后缀得到基础版本号
+        String base1 = v1.replaceAll("-dev$", "").replaceAll("\\.$", "");
+        String base2 = v2.replaceAll("-dev$", "").replaceAll("\\.$", "");
+
+        String[] parts1 = base1.split("\\.");
+        String[] parts2 = base2.split("\\.");
+
+        int maxLen = Math.max(parts1.length, parts2.length);
+        for (int i = 0; i < maxLen; i++) {
+            int p1 = 0, p2 = 0;
+            try {
+                p1 = i < parts1.length ? Integer.parseInt(parts1[i]) : 0;
+            } catch (NumberFormatException ignored) {}
+            try {
+                p2 = i < parts2.length ? Integer.parseInt(parts2[i]) : 0;
+            } catch (NumberFormatException ignored) {}
+            if (p1 != p2) return p1 - p2;
+        }
+
+        // 基础版本号相同，-dev 版本低于正式版
+        if (isDev1 && !isDev2) return -1;
+        if (!isDev1 && isDev2) return 1;
+        return 0;
     }
 
     /**
