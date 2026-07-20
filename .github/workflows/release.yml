@@ -59,30 +59,29 @@ jobs:
           ls -lh "${{ github.workspace }}/app/src/main/assets/vosk-model-small-cn/"
 
       # ── Debug Keystore ────────────────────────────────────────────
-      # 使用 GitHub Secret 存储签名一致的 debug keystore
-      - name: Restore debug keystore
-        shell: bash
-        env:
-          DEBUG_KEYSTORE_B64: ${{ secrets.DEBUG_KEYSTORE }}
+      # 使用 cache 缓存自动生成的 debug keystore，保证每次构建签名一致
+      - name: Cache debug keystore
+        id: cache-keystore
+        uses: actions/cache@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: android-debug-keystore-v1
+
+      - name: Generate debug keystore
+        if: steps.cache-keystore.outputs.cache-hit != 'true'
         run: |
-          set -euo pipefail
           mkdir -p ~/.android
-
-          if [ -z "${DEBUG_KEYSTORE_B64:-}" ]; then
-            echo "DEBUG_KEYSTORE secret is empty or missing"
-            exit 1
-          fi
-
-          echo "$DEBUG_KEYSTORE_B64" | base64 --decode > ~/.android/debug.keystore || {
-            echo "DEBUG_KEYSTORE is not valid base64"
-            exit 1
-          }
-
-          # sanity check file looks non-empty
-          test -s ~/.android/debug.keystore || {
-            echo "Decoded keystore is empty"
-            exit 1
-          }
+          keytool -genkeypair \
+            -v \
+            -keystore ~/.android/debug.keystore \
+            -alias androiddebugkey \
+            -storepass android \
+            -keypass android \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -dname "CN=Android Debug,O=Android,C=US"
+          echo "✅ Generated new debug keystore"
 
       - name: Build Debug APK
         run: gradle assembleDebug --no-daemon --stacktrace
