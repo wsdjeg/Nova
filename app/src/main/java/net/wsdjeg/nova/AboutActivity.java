@@ -17,6 +17,7 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 import androidx.core.content.ContextCompat;
@@ -34,6 +35,13 @@ import java.util.Date;
 import java.util.Locale;
 import java.util.TimeZone;
 
+import io.noties.markwon.Markwon;
+import io.noties.markwon.AbstractMarkwonPlugin;
+import io.noties.markwon.core.MarkwonTheme;
+import io.noties.markwon.ext.tables.TablePlugin;
+import io.noties.markwon.ext.tasklist.TaskListPlugin;
+import io.noties.markwon.ext.strikethrough.StrikethroughPlugin;
+import io.noties.markwon.html.HtmlPlugin;
 import okhttp3.Call;
 import okhttp3.Callback;
 import okhttp3.OkHttpClient;
@@ -53,6 +61,7 @@ public class AboutActivity extends AppCompatActivity {
     private static final String CHAT_NVIM_URL = "https://nvim.chat";
 
     private OkHttpClient httpClient;
+    private Markwon markwon;
     private AlertDialog downloadDialog;
     private ProgressBar downloadProgressBar;
     private TextView downloadProgressText;
@@ -83,6 +92,27 @@ public class AboutActivity extends AppCompatActivity {
         setupCheckUpdate();
 
         httpClient = new OkHttpClient();
+
+        // 初始化 Markwon，用于渲染 Markdown 格式的更新日志
+        markwon = Markwon.builder(this)
+            .usePlugin(new AbstractMarkwonPlugin() {
+                @Override
+                public void configureTheme(@NonNull MarkwonTheme.Builder builder) {
+                    builder.headingTextSizeMultipliers(new float[]{
+                        1.28f, // H1 -> 18sp
+                        1.14f, // H2 -> 16sp
+                        1.07f, // H3 -> 15sp
+                        1.00f, // H4 -> 14sp
+                        0.93f, // H5 -> 13sp
+                        0.86f  // H6 -> 12sp
+                    });
+                }
+            })
+            .usePlugin(TablePlugin.create(this))
+            .usePlugin(TaskListPlugin.create(this))
+            .usePlugin(StrikethroughPlugin.create())
+            .usePlugin(HtmlPlugin.create())
+            .build();
     }
 
     // ── 版本信息 ──────────────────────────────────────────────────
@@ -225,6 +255,7 @@ public class AboutActivity extends AppCompatActivity {
 
     /**
      * 展示更新信息对话框，用户可选择下载安装或浏览器打开。
+     * 更新内容使用 Markwon 渲染 Markdown 格式。
      */
     private void showUpdateDialog(String releaseName, String releaseBody,
                                   String publishedAt, boolean isPrerelease,
@@ -246,22 +277,35 @@ public class AboutActivity extends AppCompatActivity {
             dateStr = publishedAt;
         }
 
-        // 构建消息
-        StringBuilder msg = new StringBuilder();
-        msg.append("当前版本: v").append(currentVersion).append("\n");
-        msg.append("最新版本: ").append(releaseName).append("\n");
+        // 构建信息部分（纯文本）
+        StringBuilder info = new StringBuilder();
+        info.append("当前版本: v").append(currentVersion).append("\n");
+        info.append("最新版本: ").append(releaseName).append("\n");
         if (isPrerelease) {
-            msg.append("类型: 开发版 (Prerelease)\n");
+            info.append("类型: 开发版 (Prerelease)\n");
         }
-        msg.append("发布时间: ").append(dateStr).append("\n");
+        info.append("发布时间: ").append(dateStr).append("\n");
         if (apkSize > 0) {
-            msg.append("安装包: ").append(formatFileSize(apkSize)).append("\n");
+            info.append("安装包: ").append(formatFileSize(apkSize));
         }
-        msg.append("\n更新内容:\n").append(releaseBody);
+
+        // 加载自定义布局
+        View dialogView = LayoutInflater.from(this)
+                .inflate(R.layout.dialog_update_info, null);
+        TextView tvInfo = dialogView.findViewById(R.id.tv_update_info);
+        TextView tvBody = dialogView.findViewById(R.id.tv_update_body);
+
+        tvInfo.setText(info.toString());
+
+        // 使用 Markwon 渲染 Markdown 更新内容
+        String bodyContent = (releaseBody != null && !releaseBody.isEmpty())
+                ? releaseBody
+                : "*暂无更新说明*";
+        markwon.setMarkdown(tvBody, bodyContent);
 
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle("发现新版本");
-        builder.setMessage(msg.toString());
+        builder.setView(dialogView);
 
         if (apkUrl != null) {
             builder.setPositiveButton("下载并安装", (dialog, which) ->
