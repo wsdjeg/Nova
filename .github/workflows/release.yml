@@ -62,9 +62,27 @@ jobs:
       # 使用 GitHub Secret 存储签名一致的 debug keystore
       - name: Restore debug keystore
         shell: bash
+        env:
+          DEBUG_KEYSTORE_B64: ${{ secrets.DEBUG_KEYSTORE }}
         run: |
+          set -euo pipefail
           mkdir -p ~/.android
-          printf '%s' "${{ secrets.DEBUG_KEYSTORE }}" | tr -d '\n\r ' | base64 -d > ~/.android/debug.keystore
+
+          if [ -z "${DEBUG_KEYSTORE_B64:-}" ]; then
+            echo "DEBUG_KEYSTORE secret is empty or missing"
+            exit 1
+          fi
+
+          echo "$DEBUG_KEYSTORE_B64" | base64 --decode > ~/.android/debug.keystore || {
+            echo "DEBUG_KEYSTORE is not valid base64"
+            exit 1
+          }
+
+          # sanity check file looks non-empty
+          test -s ~/.android/debug.keystore || {
+            echo "Decoded keystore is empty"
+            exit 1
+          }
 
       - name: Build Debug APK
         run: gradle assembleDebug --no-daemon --stacktrace
