@@ -153,6 +153,17 @@ chore: 构建/工具
 | **Push to master**（非 release 提交） | 自动创建/更新 prerelease，APK 命名 `Nova-v{version}-{sha}.apk` |
 | **Tag push (v\*)** | 创建正式 Release，APK 命名 `Nova-v{version}.apk`，附带 CHANGELOG |
 
+### 🔒 CI 签名规则（绝对禁止违反）
+
+**禁止使用 GitHub Secret 存储 debug keystore！**
+
+- debug keystore 必须使用 `actions/cache` 缓存，key 为 `android-debug-keystore-v1`
+- 禁止将 keystore base64 编码后存入 GitHub Secret（如 `DEBUG_KEYSTORE_BASE64`）
+- 禁止在 workflow 中引用任何与 keystore 相关的 Secret
+- 缓存未命中时使用 `keytool` 生成新 keystore
+
+原因：GitHub Secret 存在大小限制、管理复杂、且 Secret 轮换会导致签名不一致。cache 方式简单可靠，足以满足 debug 签名一致性需求。
+
 ### 正式发版操作步骤
 
 以发版 v3.0 为例：
