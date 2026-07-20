@@ -35,6 +35,9 @@ jobs:
           gradle-version: "8.0"
 
       # ── Vosk 语音模型 ──────────────────────────────────────────────
+      # 模型不纳入仓库，在 CI 构建时动态下载到 assets 目录
+      # 代码中期望路径: assets/vosk-model-small-cn/
+      # 官方下载: https://alphacephei.com/vosk/models
       - name: Cache Vosk model
         id: cache-vosk-model
         uses: actions/cache@v4
@@ -55,31 +58,30 @@ jobs:
           echo "✅ Vosk model downloaded to assets/vosk-model-small-cn/"
           ls -lh "${{ github.workspace }}/app/src/main/assets/vosk-model-small-cn/"
 
-      # ── Debug Keystore (from Secret) ──────────────────────────────
-      # 从 GitHub Secret 恢复固定的 debug keystore，保证每次构建签名一致
-      # Secret 名称: DEBUG_KEYSTORE_BASE64
-      # 生成方法: base64 -w 0 ~/.android/debug.keystore
-      - name: Restore debug keystore from Secret
-        env:
-          DEBUG_KEYSTORE_BASE64: ${{ secrets.DEBUG_KEYSTORE_BASE64 }}
+      # ── Debug Keystore ────────────────────────────────────────────
+      # 使用 cache 缓存自动生成的 debug keystore，保证每次构建签名一致
+      - name: Cache debug keystore
+        id: cache-keystore
+        uses: actions/cache@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: android-debug-keystore-v1
+
+      - name: Generate debug keystore
+        if: steps.cache-keystore.outputs.cache-hit != 'true'
         run: |
           mkdir -p ~/.android
-          if [ -n "$DEBUG_KEYSTORE_BASE64" ]; then
-            echo "$DEBUG_KEYSTORE_BASE64" | base64 -d > ~/.android/debug.keystore
-            echo "✅ Restored debug keystore from Secret"
-          else
-            echo "⚠️ No DEBUG_KEYSTORE_BASE64 secret found, generating new keystore"
-            keytool -genkeypair \
-              -v \
-              -keystore ~/.android/debug.keystore \
-              -alias androiddebugkey \
-              -storepass android \
-              -keypass android \
-              -keyalg RSA \
-              -keysize 2048 \
-              -validity 10000 \
-              -dname "CN=Android Debug,O=Android,C=US"
-          fi
+          keytool -genkeypair \
+            -v \
+            -keystore ~/.android/debug.keystore \
+            -alias androiddebugkey \
+            -storepass android \
+            -keypass android \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -dname "CN=Android Debug,O=Android,C=US"
+          echo "✅ Generated new debug keystore"
 
       - name: Build Debug APK
         run: gradle assembleDebug --no-daemon --stacktrace
@@ -137,6 +139,9 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh release delete prerelease --yes --cleanup-tag 2>/dev/null || true
 
+      # ── Create PreRelease (with retry) ────────────────────────────
+      # 使用 gh CLI + nick-fields/retry 替代 softprops/action-gh-release@v1
+      # 解决 GitHub asset upload 偶发 502 Bad Gateway 问题
       - name: Write prerelease notes
         env:
           VERSION_NAME: ${{ needs.build.outputs.version_name }}
@@ -165,7 +170,7 @@ jobs:
               --prerelease \
               --title "PreRelease v${{ needs.build.outputs.version_name }}" \
               --notes-file ./release_notes.md \
-              ./apk/Nova-v${VERSION_NAME}-${SHORT_SHA}.apk
+              ./apk/Nova-v${{ needs.build.outputs.version_name }}-${{ needs.build.outputs.short_sha }}.apk
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -190,7 +195,9 @@ jobs:
       - name: Read CHANGELOG
         id: changelog
         run: |
+          # Extract changelog for current version
           VERSION="${{ needs.build.outputs.version_name }}"
+          # Read CHANGELOG.md and extract version section
           CHANGELOG=$(sed -n "/## \[v${VERSION}\]/,/## \[/p" CHANGELOG.md | head -n -1)
           echo "CHANGELOG<<EOF" >> $GITHUB_OUTPUT
           echo "$CHANGELOG" >> $GITHUB_OUTPUT
@@ -201,10 +208,13 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh release delete v${{ needs.build.outputs.version_name }} --yes --cleanup-tag 2>/dev/null || true
 
+      # ── Create Release (with retry) ───────────────────────────────
+      # 使用 gh CLI + nick-fields/retry 替代 softprops/action-gh-release@v1
+      # 解决 GitHub asset upload 偶发 502 Bad Gateway 问题
       - name: Write release notes
         env:
           VERSION_NAME: ${{ needs.build.outputs.version_name }}
-          VERSION_CODE: ${{ needs.version.outputs.VERSION_CODE }}
+          VERSION_CODE: ${{ needs.build.outputs.version_code }}
           BUILD_TIME: ${{ needs.build.outputs.build_time }}
           CHANGELOG: ${{ steps.changelog.outputs.CHANGELOG }}
         run: |
@@ -225,7 +235,7 @@ jobs:
             gh release create v${{ needs.build.outputs.version_name }} \
               --title "Release v${{ needs.build.outputs.version_name }}" \
               --notes-file ./release_notes.md \
-              ./apk/Nova-v${VERSION_NAME}.apk
+              ./apk/Nova-v${{ needs.build.outputs.version_name }}.apk
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
