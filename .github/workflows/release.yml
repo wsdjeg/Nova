@@ -88,8 +88,43 @@ jobs:
             -dname "CN=Android Debug,O=Android,C=US"
           echo "✅ Generated new debug keystore"
 
+      # ── Debug: 打印 keystore 指纹用于诊断签名不一致问题 ──────────
+      - name: Debug keystore info
+        run: |
+          echo "=== Keystore Cache Hit: ${{ steps.cache-keystore.outputs.cache-hit }} ==="
+          echo "HOME=$HOME"
+          echo "user.home=$(java -XshowSettings:properties -version 2>&1 | grep 'user.home' || echo 'unknown')"
+          echo "=== ~/.android/ directory ==="
+          ls -la ~/.android/ 2>/dev/null || echo "~/.android/ does not exist"
+          echo "=== Keystore fingerprint (BEFORE build) ==="
+          keytool -list -v -keystore ~/.android/debug.keystore -storepass android -alias androiddebugkey 2>/dev/null \
+            | grep -iE "SHA1|SHA256|fingerprint|Valid" || echo "Failed to read keystore"
+
       - name: Build Debug APK
         run: gradle assembleDebug --no-daemon --stacktrace
+
+      # ── Debug: 打印 APK 签名用于诊断 ──────────────────────────────
+      - name: Debug APK signature
+        run: |
+          echo "=== APK signature info ==="
+          APKSIGNER=$(find /usr/local/lib/android/sdk/build-tools -name "apksigner" -type f 2>/dev/null | sort -V | tail -1)
+          echo "apksigner: $APKSIGNER"
+          if [ -n "$APKSIGNER" ]; then
+            $APKSIGNER verify --print-certs app/build/outputs/apk/debug/app-debug.apk 2>/dev/null \
+              | grep -E "SHA-1|SHA-256" || echo "Failed to verify APK with apksigner"
+          else
+            echo "apksigner not found, trying keytool"
+            # 提取 APK 中的签名证书
+            TMPDIR=$(mktemp -d)
+            unzip -q app/build/outputs/apk/debug/app-debug.apk "META-INF/*" -d "$TMPDIR" 2>/dev/null
+            CERT=$(find "$TMPDIR" -name "*.RSA" -o -name "*.DSA" -o -name "*.EC" | head -1)
+            if [ -n "$CERT" ]; then
+              keytool -printcert -file "$CERT" 2>/dev/null | grep -iE "SHA1|SHA256|fingerprint"
+            else
+              echo "No certificate found in APK"
+            fi
+            rm -rf "$TMPDIR"
+          fi
 
       - name: Get version info
         id: version
