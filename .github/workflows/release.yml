@@ -139,23 +139,40 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh release delete prerelease --yes --cleanup-tag 2>/dev/null || true
 
-      - name: Create PreRelease
-        uses: softprops/action-gh-release@v1
-        with:
-          tag_name: prerelease
-          name: PreRelease v${{ needs.build.outputs.version_name }}
-          body: |
-            **版本**: ${{ needs.build.outputs.version_name }}
-            **构建**: ${{ needs.build.outputs.short_sha }}
-            **时间**: ${{ needs.build.outputs.build_time }}
-
-            ${{ github.event.head_commit.message }}
-
-            > 开发版，可能包含未完成功能
-          prerelease: true
-          files: ./apk/Nova-v${{ needs.build.outputs.version_name }}-${{ needs.build.outputs.short_sha }}.apk
+      # ── Create PreRelease (with retry) ────────────────────────────
+      # 使用 gh CLI + nick-fields/retry 替代 softprops/action-gh-release@v1
+      # 解决 GitHub asset upload 偶发 502 Bad Gateway 问题
+      - name: Write prerelease notes
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION_NAME: ${{ needs.build.outputs.version_name }}
+          SHORT_SHA: ${{ needs.build.outputs.short_sha }}
+          BUILD_TIME: ${{ needs.build.outputs.build_time }}
+          COMMIT_MSG: ${{ github.event.head_commit.message }}
+        run: |
+          {
+            echo "**版本**: ${VERSION_NAME}"
+            echo "**构建**: ${SHORT_SHA}"
+            echo "**时间**: ${BUILD_TIME}"
+            echo ""
+            echo "${COMMIT_MSG}"
+            echo ""
+            echo "> 开发版，可能包含未完成功能"
+          } > ./release_notes.md
+
+      - name: Create PreRelease (retry on 5xx)
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 10
+          max_attempts: 3
+          retry_on: error
+          command: |
+            gh release create prerelease \
+              --prerelease \
+              --title "PreRelease v${{ needs.build.outputs.version_name }}" \
+              --notes-file ./release_notes.md \
+              ./apk/Nova-v${{ needs.build.outputs.version_name }}-${{ needs.build.outputs.short_sha }}.apk
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   release:
     needs: build
@@ -191,19 +208,34 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh release delete v${{ needs.build.outputs.version_name }} --yes --cleanup-tag 2>/dev/null || true
 
-      - name: Create Release
-        uses: softprops/action-gh-release@v1
-        with:
-          tag_name: v${{ needs.build.outputs.version_name }}
-          name: Release v${{ needs.build.outputs.version_name }}
-          body: |
-            **版本**: ${{ needs.build.outputs.version_name }} (Build ${{ needs.build.outputs.version_code }})
-            **构建时间**: ${{ needs.build.outputs.build_time }}
-
-            ${{ steps.changelog.outputs.CHANGELOG }}
-          draft: false
-          prerelease: false
-          files: ./apk/Nova-v${{ needs.build.outputs.version_name }}.apk
+      # ── Create Release (with retry) ───────────────────────────────
+      # 使用 gh CLI + nick-fields/retry 替代 softprops/action-gh-release@v1
+      # 解决 GitHub asset upload 偶发 502 Bad Gateway 问题
+      - name: Write release notes
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION_NAME: ${{ needs.build.outputs.version_name }}
+          VERSION_CODE: ${{ needs.build.outputs.version_code }}
+          BUILD_TIME: ${{ needs.build.outputs.build_time }}
+          CHANGELOG: ${{ steps.changelog.outputs.CHANGELOG }}
+        run: |
+          {
+            echo "**版本**: ${VERSION_NAME} (Build ${VERSION_CODE})"
+            echo "**构建时间**: ${BUILD_TIME}"
+            echo ""
+            echo "${CHANGELOG}"
+          } > ./release_notes.md
+
+      - name: Create Release (retry on 5xx)
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 10
+          max_attempts: 3
+          retry_on: error
+          command: |
+            gh release create v${{ needs.build.outputs.version_name }} \
+              --title "Release v${{ needs.build.outputs.version_name }}" \
+              --notes-file ./release_notes.md \
+              ./apk/Nova-v${{ needs.build.outputs.version_name }}.apk
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
