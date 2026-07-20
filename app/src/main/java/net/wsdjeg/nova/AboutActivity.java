@@ -165,14 +165,16 @@ public class AboutActivity extends AppCompatActivity {
     }
 
     /**
-     * 从 GitHub API 获取 releases，通过版本号比较找到真正最新的版本。
+     * 从 GitHub API 获取 releases，检查是否有新版本。
      *
-     * CI 每次 push 到 master 会删除并重建 prerelease，导致 prerelease 的
-     * created_at 总是最新的。如果仅取 releases[0]，可能拿到比当前稳定版
-     * 更旧的 prerelease（例如当前装了 3.0.0，prerelease 还是 3.0-dev）。
+     * 开发版（versionName 含 -dev）：
+     *   CI 构建时会在版本号中注入 commit hash（如 3.0-dev-abc1234）。
+     *   GitHub 上只有一个 prerelease 且总是最新的，只需比较 commit hash。
+     *   hash 相同 -> 已是最新；hash 不同 -> 有新开发版可更新。
      *
-     * 修复策略：遍历所有 release，分别找到最新稳定版和最新预发布版，
-     * 通过版本号比较选出真正最新的，再与当前版本比较决定是否提示更新。
+     * 稳定版（versionName 不含 -dev）：
+     *   遍历所有 release，分别找到最新稳定版和最新预发布版，
+     *   通过版本号比较选出真正最新的，再与当前版本比较决定是否提示更新。
      */
     private void checkForUpdates() {
         ProgressDialog loading = new ProgressDialog(this);
@@ -221,8 +223,43 @@ public class AboutActivity extends AppCompatActivity {
                     }
 
                     String currentVersion = getCurrentVersion();
+                    boolean isDev = currentVersion.contains("-dev");
 
-                    // 遍历 releases，分别找到最新的稳定版和预发布版
+                    if (isDev) {
+                        // 开发版：只需找到 prerelease，比较 commit hash
+                        JSONObject prerelease = null;
+                        for (int i = 0; i < releases.length(); i++) {
+                            JSONObject release = releases.getJSONObject(i);
+                            if (release.optBoolean("prerelease", false)) {
+                                prerelease = release;
+                                break;
+                            }
+                        }
+
+                        if (prerelease == null) {
+                            runOnUiThread(() -> Toast.makeText(AboutActivity.this,
+                                    "暂无开发版可用", Toast.LENGTH_SHORT).show());
+                            return;
+                        }
+
+                        String remoteHash = extractDevCommitHash(extractVersion(prerelease));
+                        String localHash = extractDevCommitHash(currentVersion);
+
+                        // commit hash 相同 -> 已是最新
+                        if (remoteHash != null && remoteHash.equals(localHash)) {
+                            final String curVer = currentVersion;
+                            runOnUiThread(() -> Toast.makeText(AboutActivity.this,
+                                    "当前已是最新开发版本 (v" + curVer + ")",
+                                    Toast.LENGTH_SHORT).show());
+                            return;
+                        }
+
+                        // 有新开发版，展示更新对话框
+                        showReleaseUpdate(prerelease, true);
+                        return;
+                    }
+
+                    // 稳定版：遍历 releases 找到最新版本进行比较
                     JSONObject latestStable = null;
                     JSONObject latestPrerelease = null;
 
@@ -270,37 +307,7 @@ public class AboutActivity extends AppCompatActivity {
                         return;
                     }
 
-                    // 提取 release 信息
-                    String releaseName = latest.optString("name", "");
-                    String releaseBody = latest.optString("body", "");
-                    String publishedAt = latest.optString("published_at", "");
-                    boolean isPrerelease = latest.optBoolean("prerelease", false);
-
-                    // 查找 APK 下载链接
-                    String apkUrl = null;
-                    String apkName = null;
-                    long apkSize = 0;
-                    JSONArray assets = latest.optJSONArray("assets");
-                    if (assets != null) {
-                        for (int i = 0; i < assets.length(); i++) {
-                            JSONObject asset = assets.getJSONObject(i);
-                            String name = asset.optString("name", "");
-                            if (name.endsWith(".apk")) {
-                                apkUrl = asset.optString("browser_download_url", "");
-                                apkName = name;
-                                apkSize = asset.optLong("size", 0);
-                                break;
-                            }
-                        }
-                    }
-
-                    final String finalApkUrl = apkUrl;
-                    final String finalApkName = apkName;
-                    final long finalApkSize = apkSize;
-
-                    runOnUiThread(() -> showUpdateDialog(
-                            releaseName, releaseBody, publishedAt,
-                            isPrerelease, finalApkUrl, finalApkName, finalApkSize));
+                    showReleaseUpdate(latest, latest.optBoolean("prerelease", false));
 
                 } catch (Exception e) {
                     Log.e(TAG, "解析 release JSON 失败", e);
@@ -315,7 +322,7 @@ public class AboutActivity extends AppCompatActivity {
      * 从 release JSON 对象中提取版本号字符串。
      * 稳定版 tag_name: "v3.0.0" -> "3.0.0"
      * 预发布 tag_name: "prerelease"（无法提取版本号，改用 name）
-     * name: "Release v3.0.0" / "PreRelease v3.1-dev" -> "3.0.0" / "3.1-dev"
+     * name: "Release v3.0.0" / "PreRelease v3.0-dev-abc1234" -> "3.0.0" / "3.0-dev-abc1234"
      */
     private String extractVersion(JSONObject release) {
         // 稳定版优先从 tag_name 提取
@@ -347,9 +354,9 @@ public class AboutActivity extends AppCompatActivity {
         boolean isDev1 = v1.contains("-dev");
         boolean isDev2 = v2.contains("-dev");
 
-        // 去掉后缀得到基础版本号
-        String base1 = v1.replaceAll("-dev$", "").replaceAll("\\.$", "");
-        String base2 = v2.replaceAll("-dev$", "").replaceAll("\\.$", "");
+        // 去掉 -dev 及之后的 commit hash，得到基础版本号
+        String base1 = v1.replaceAll("-dev.*$", "").replaceAll("\\.$", "");
+        String base2 = v2.replaceAll("-dev.*$", "").replaceAll("\\.$", "");
 
         String[] parts1 = base1.split("\\.");
         String[] parts2 = base2.split("\\.");
@@ -370,6 +377,57 @@ public class AboutActivity extends AppCompatActivity {
         if (isDev1 && !isDev2) return -1;
         if (!isDev1 && isDev2) return 1;
         return 0;
+    }
+
+    /**
+     * 从版本号中提取 dev 后的 commit hash。
+     * 例如 "3.0-dev-abc1234" -> "abc1234"
+     * 如果没有 commit hash（例如 "3.0-dev"），返回 null。
+     */
+    private String extractDevCommitHash(String version) {
+        if (version == null) return null;
+        int idx = version.indexOf("-dev-");
+        if (idx >= 0) {
+            return version.substring(idx + 5);
+        }
+        return null;
+    }
+
+    /**
+     * 从 release JSON 对象中提取信息并展示更新对话框。
+     */
+    private void showReleaseUpdate(JSONObject release, boolean isPrerelease) {
+        String releaseName = release.optString("name", "");
+        String releaseBody = release.optString("body", "");
+        String publishedAt = release.optString("published_at", "");
+
+        // 查找 APK 下载链接
+        String apkUrl = null;
+        String apkName = null;
+        long apkSize = 0;
+        JSONArray assets = release.optJSONArray("assets");
+        if (assets != null) {
+            for (int i = 0; i < assets.length(); i++) {
+                try {
+                    JSONObject asset = assets.getJSONObject(i);
+                    String name = asset.optString("name", "");
+                    if (name.endsWith(".apk")) {
+                        apkUrl = asset.optString("browser_download_url", "");
+                        apkName = name;
+                        apkSize = asset.optLong("size", 0);
+                        break;
+                    }
+                } catch (Exception ignored) {}
+            }
+        }
+
+        final String finalApkUrl = apkUrl;
+        final String finalApkName = apkName;
+        final long finalApkSize = apkSize;
+
+        runOnUiThread(() -> showUpdateDialog(
+                releaseName, releaseBody, publishedAt,
+                isPrerelease, finalApkUrl, finalApkName, finalApkSize));
     }
 
     /**

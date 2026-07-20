@@ -108,6 +108,16 @@ jobs:
           keytool -list -v -keystore ~/.config/.android/debug.keystore -storepass android -alias androiddebugkey 2>/dev/null \
             | grep -iE "SHA1|SHA256|fingerprint|Valid" || echo "Failed to read keystore"
 
+      # ── 注入 commit hash 到 dev 版本号 ──────────────────────────
+      # 开发版版本号格式: "3.0-dev" -> "3.0-dev-abc1234"
+      # 稳定版版本号不含 -dev，sed 不匹配，不受影响
+      - name: Inject commit hash into dev version name
+        run: |
+          SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-7)
+          sed -i "s/versionName \"\(.*-dev\)\"/versionName \"\1-${SHORT_SHA}\"/" app/build.gradle
+          echo "Injected commit hash ${SHORT_SHA} into versionName (if dev build)"
+          grep versionName app/build.gradle
+
       - name: Build Debug APK
         run: gradle assembleDebug --no-daemon --stacktrace
 
@@ -192,8 +202,7 @@ jobs:
       - name: Rename APK for prerelease
         env:
           VERSION_NAME: ${{ needs.build.outputs.version_name }}
-          SHORT_SHA: ${{ needs.build.outputs.short_sha }}
-        run: mv ./apk/app-debug.apk ./apk/Nova-v${VERSION_NAME}-${SHORT_SHA}.apk
+        run: mv ./apk/app-debug.apk ./apk/Nova-v${VERSION_NAME}.apk
 
       - name: Delete old prerelease
         env:
@@ -231,7 +240,7 @@ jobs:
               --prerelease \
               --title "PreRelease v${{ needs.build.outputs.version_name }}" \
               --notes-file ./release_notes.md \
-              ./apk/Nova-v${{ needs.build.outputs.version_name }}-${{ needs.build.outputs.short_sha }}.apk
+              ./apk/Nova-v${{ needs.build.outputs.version_name }}.apk
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
