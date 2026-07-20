@@ -59,26 +59,11 @@ jobs:
           ls -lh "${{ github.workspace }}/app/src/main/assets/vosk-model-small-cn/"
 
       # ── Debug Keystore ────────────────────────────────────────────
-      # 使用 GitHub Actions Cache 持久化 keystore，确保每次构建签名一致
-      # debug keystore 密码公开 (android/android)，不存在安全风险
-      - name: Cache debug keystore
-        id: cache-keystore
-        uses: actions/cache@v4
-        with:
-          path: ~/.android/debug.keystore
-          key: debug-keystore-v1
-
-      - name: Generate debug keystore
-        if: steps.cache-keystore.outputs.cache-hit != 'true'
+      # 使用 GitHub Secret 存储签名一致的 debug keystore
+      - name: Setup debug keystore
         run: |
           mkdir -p ~/.android
-          keytool -genkey -v -keystore ~/.android/debug.keystore \
-            -alias androiddebugkey \
-            -storepass android \
-            -keypass android \
-            -keyalg RSA -keysize 2048 -validity 10000 \
-            -dname "CN=Android Debug,O=Android,C=US"
-          echo "🆕 Generated new debug keystore"
+          echo "${{ secrets.DEBUG_KEYSTORE }}" | base64 -d > ~/.android/debug.keystore
 
       - name: Build Debug APK
         run: gradle assembleDebug --no-daemon --stacktrace
