@@ -63,6 +63,7 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
     private List<String> visibleKeys;   // 与 visibleItems 一一对应的 stableKey
     private Map<String, Integer> keyToPosition;  // O(1) 查找位置
     private Markwon markwon;
+    private Markwon userMarkwon;
     private Context context;
     private int linkColor;
     
@@ -117,6 +118,9 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
         
         // 配置 Markdown 标题大小：通过 AbstractMarkwonPlugin 配置主题
         int codeBlockBg = ContextCompat.getColor(context, R.color.code_block_bg);
+        int userCodeBlockBg = ContextCompat.getColor(context, R.color.user_code_block_bg);
+        
+        // AI 消息的 Markwon（灰色代码块背景，适配浅/深色气泡）
         this.markwon = Markwon.builder(context)
             .usePlugin(new AbstractMarkwonPlugin() {
                 @Override
@@ -132,6 +136,24 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
                     // 代码块/内联代码背景与工具卡片内容背景保持一致
                     builder.codeBlockBackgroundColor(codeBlockBg);
                     builder.codeBackgroundColor(codeBlockBg);
+                }
+            })
+            .usePlugin(TablePlugin.create(context))
+            .usePlugin(TaskListPlugin.create(context))
+            .usePlugin(StrikethroughPlugin.create())
+            .usePlugin(HtmlPlugin.create())
+            .build();
+        
+        // 用户消息的 Markwon（深蓝代码块背景，适配蓝色气泡）
+        this.userMarkwon = Markwon.builder(context)
+            .usePlugin(new AbstractMarkwonPlugin() {
+                @Override
+                public void configureTheme(@NonNull MarkwonTheme.Builder builder) {
+                    builder.headingTextSizeMultipliers(new float[]{
+                        1.14f, 1.07f, 1.00f, 0.93f, 0.86f, 0.79f
+                    });
+                    builder.codeBlockBackgroundColor(userCodeBlockBg);
+                    builder.codeBackgroundColor(userCodeBlockBg);
                 }
             })
             .usePlugin(TablePlugin.create(context))
@@ -390,7 +412,8 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
             if (message.isError()) {
                 holder.messageText.setText(content);
             } else {
-                markwon.setMarkdown(holder.messageText, contentSafe);
+                Markwon mk = message.isUser() ? userMarkwon : markwon;
+                mk.setMarkdown(holder.messageText, contentSafe);
                 holder.messageText.setMovementMethod(LinkMovementMethod.getInstance());
                 holder.messageText.setLinkTextColor(linkColor);
             }
