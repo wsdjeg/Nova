@@ -60,10 +60,11 @@ jobs:
 
       # ── Debug Keystore ────────────────────────────────────────────
       # 使用 GitHub Secret 存储签名一致的 debug keystore
-      - name: Setup debug keystore
+      - name: Restore debug keystore
+        shell: bash
         run: |
           mkdir -p ~/.android
-          echo "${{ secrets.DEBUG_KEYSTORE }}" | base64 -d > ~/.android/debug.keystore
+          printf '%s' "${{ secrets.DEBUG_KEYSTORE }}" | tr -d '\n\r ' | base64 -d > ~/.android/debug.keystore
 
       - name: Build Debug APK
         run: gradle assembleDebug --no-daemon --stacktrace
