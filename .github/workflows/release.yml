@@ -65,20 +65,25 @@ jobs:
 
       # ── Debug Keystore ────────────────────────────────────────────
       # 使用 cache 缓存自动生成的 debug keystore，保证每次构建签名一致
+      # 注意: Gradle/AGP 在 ubuntu-latest 上使用 ~/.config/.android/debug.keystore
+      #       而非传统的 ~/.android/debug.keystore，必须缓存正确路径！
       - name: Cache debug keystore
         id: cache-keystore
         uses: actions/cache@v4
         with:
-          path: ~/.android/debug.keystore
-          key: android-debug-keystore-v1
+          path: |
+            ~/.config/.android/debug.keystore
+            ~/.android/debug.keystore
+          key: android-debug-keystore-v2
 
       - name: Generate debug keystore
         if: steps.cache-keystore.outputs.cache-hit != 'true'
         run: |
+          mkdir -p ~/.config/.android
           mkdir -p ~/.android
           keytool -genkeypair \
             -v \
-            -keystore ~/.android/debug.keystore \
+            -keystore ~/.config/.android/debug.keystore \
             -alias androiddebugkey \
             -storepass android \
             -keypass android \
@@ -86,18 +91,21 @@ jobs:
             -keysize 2048 \
             -validity 10000 \
             -dname "CN=Android Debug,O=Android,C=US"
-          echo "✅ Generated new debug keystore"
+          # 同步到传统路径（兼容旧版工具）
+          cp ~/.config/.android/debug.keystore ~/.android/debug.keystore
+          echo "✅ Generated new debug keystore at ~/.config/.android/debug.keystore"
 
       # ── Debug: 打印 keystore 指纹用于诊断签名不一致问题 ──────────
       - name: Debug keystore info
         run: |
           echo "=== Keystore Cache Hit: ${{ steps.cache-keystore.outputs.cache-hit }} ==="
           echo "HOME=$HOME"
-          echo "user.home=$(java -XshowSettings:properties -version 2>&1 | grep 'user.home' || echo 'unknown')"
+          echo "=== ~/.config/.android/ directory ==="
+          ls -la ~/.config/.android/ 2>/dev/null || echo "~/.config/.android/ does not exist"
           echo "=== ~/.android/ directory ==="
           ls -la ~/.android/ 2>/dev/null || echo "~/.android/ does not exist"
           echo "=== Keystore fingerprint (BEFORE build) ==="
-          keytool -list -v -keystore ~/.android/debug.keystore -storepass android -alias androiddebugkey 2>/dev/null \
+          keytool -list -v -keystore ~/.config/.android/debug.keystore -storepass android -alias androiddebugkey 2>/dev/null \
             | grep -iE "SHA1|SHA256|fingerprint|Valid" || echo "Failed to read keystore"
 
       - name: Build Debug APK
@@ -135,11 +143,6 @@ jobs:
             keytool -list -v -keystore "$f" -storepass android -alias androiddebugkey 2>/dev/null \
               | grep -iE "SHA1|SHA256" || echo "(unreadable or different password)"
           done
-          echo ""
-          echo "=== Keystore at ~/.android/ AFTER build ==="
-          ls -la ~/.android/debug.keystore 2>/dev/null
-          keytool -list -v -keystore ~/.android/debug.keystore -storepass android -alias androiddebugkey 2>/dev/null \
-            | grep -iE "SHA1|SHA256|fingerprint|Valid" || echo "Failed to read keystore"
           echo ""
           echo "=== Gradle signing report ==="
           gradle :app:signingReport --no-daemon 2>&1 | head -50
