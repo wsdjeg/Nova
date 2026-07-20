@@ -46,7 +46,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
                 android:text="暂无账号"
-                android:textColor="#999999"
+                android:textColor="@color/text_hint"
                 android:textSize="16sp" />
 
             <TextView
@@ -54,7 +54,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
                 android:text="点击右下方 + 添加账号"
-                android:textColor="#CCCCCC"
+                android:textColor="@color/text_secondary"
                 android:textSize="14sp" />
         </LinearLayout>
 

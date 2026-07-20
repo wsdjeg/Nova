@@ -1,27 +1,69 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Dark theme colors -->
+    <!-- Theme colors - Blue -->
     <color name="primary_color">#64B5F6</color>
-    <color name="primary_dark">#42A5F5</color>
-    
-    <!-- Text colors - dark theme -->
+    <color name="primary_dark">#0288D1</color>
+
+    <!-- Standard Material colors -->
+    <color name="colorPrimary">#64B5F6</color>
+    <color name="colorPrimaryDark">#0288D1</color>
+    <color name="colorAccent">#FF80AB</color>
+
+    <!-- Text colors -->
     <color name="text_primary">#FFFFFF</color>
     <color name="text_secondary">#B0B0B0</color>
-    
-    <!-- Message colors - dark theme -->
+    <color name="text_hint">#888888</color>
+
+    <!-- Status colors -->
+    <color name="error">#EF5350</color>
+    <color name="success">#66BB6A</color>
+    <color name="warning">#FFB74D</color>
+    <color name="primary_light">#6464B5F6</color>
+    <color name="divider">#1FFFFFFF</color>
+
+    <!-- Message colors - Blue theme -->
     <color name="user_message_bg">#64B5F6</color>
     <color name="ai_message_bg">#2D2D2D</color>
-    <color name="user_message_text">#000000</color>
+    <color name="user_message_text">#FFFFFF</color>
     <color name="ai_message_text">#FFFFFF</color>
 
-    <!-- Tool call/result border - dark theme -->
-    <color name="tool_border">#3D3D3D</color>
-    
-    <!-- Background colors - dark theme -->
-    <color name="background_dark">#121212</color>
-    <color name="surface_dark">#1E1E1E</color>
-    
-    <!-- Account tag colors - dark theme -->
+    <!-- Tool call/result border -->
+    <color name="tool_border">#555555</color>
+    <color name="tool_name_color">#64B5F6</color>
+
+    <!-- Diamond blue colors -->
+    <color name="diamond_blue">#64B5F6</color>
+    <color name="diamond_light">#90CAF9</color>
+    <color name="diamond_dark">#0288D1</color>
+
+    <!-- Account tag colors -->
     <color name="account_tag_bg">#1E3A5F</color>
     <color name="account_tag_text">#64B5F6</color>
+
+    <!-- Background colors -->
+    <color name="chat_background">#121212</color>
+    <color name="input_area_bg">#1E1E1E</color>
+    <color name="input_field_bg">#2D2D2D</color>
+    <color name="fab_background">#2D2D2D</color>
+
+    <!-- Error message -->
+    <color name="error_bg">#3D1F1F</color>
+    <color name="error_text_color">#EF9A9A</color>
+
+    <!-- Time text -->
+    <color name="time_text">#888888</color>
+
+    <!-- Session icon background -->
+    <color name="session_icon_bg_color">#1E3A5F</color>
+
+    <!-- Provider tag -->
+    <color name="provider_tag_bg_color">#1B3A1E</color>
+    <color name="provider_tag_border_color">#66BB6A</color>
+
+    <!-- Link color -->
+    <color name="link_color">#64B5F6</color>
+
+    <!-- Divider for about page -->
+    <color name="about_divider">#3D3D3D</color>
 </resources>
+

@@ -53,7 +53,7 @@
                 android:layout_height="wrap_content"
                 android:text="Version 1.0.0"
                 android:textSize="14sp"
-                android:textColor="#757575"
+                android:textColor="@color/text_secondary"
                 android:layout_marginBottom="24dp" />
 
             <!-- Description -->
@@ -70,7 +70,7 @@
                 android:layout_height="wrap_content"
                 android:text="通过 Nova，您可以随时随地与 AI 助手进行对话，获取编程帮助、文档查询等服务。"
                 android:textSize="14sp"
-                android:textColor="#757575"
+                android:textColor="@color/text_secondary"
                 android:gravity="center"
                 android:layout_marginBottom="24dp" />
 
@@ -79,7 +79,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="1dp"
                 android:layout_marginBottom="24dp"
-                android:background="#E0E0E0" />
+                android:background="@color/about_divider" />
 
             <!-- Links -->
             <TextView
@@ -96,7 +96,7 @@
                 android:layout_height="wrap_content"
                 android:text="GitHub 仓库"
                 android:textSize="16sp"
-                android:textColor="#1976D2"
+                android:textColor="@color/link_color"
                 android:padding="12dp"
                 android:background="?attr/selectableItemBackground"
                 android:clickable="true"
@@ -108,7 +108,7 @@
                 android:layout_height="wrap_content"
                 android:text="chat.nvim 官网"
                 android:textSize="16sp"
-                android:textColor="#1976D2"
+                android:textColor="@color/link_color"
                 android:padding="12dp"
                 android:background="?attr/selectableItemBackground"
                 android:clickable="true"
@@ -120,7 +120,7 @@
                 android:layout_height="wrap_content"
                 android:text="检查更新"
                 android:textSize="16sp"
-                android:textColor="#1976D2"
+                android:textColor="@color/link_color"
                 android:padding="12dp"
                 android:background="?attr/selectableItemBackground"
                 android:clickable="true"
@@ -132,7 +132,7 @@
                 android:layout_height="1dp"
                 android:layout_marginTop="16dp"
                 android:layout_marginBottom="24dp"
-                android:background="#E0E0E0" />
+                android:background="@color/about_divider" />
 
             <!-- Copyright -->
             <TextView
@@ -140,14 +140,14 @@
                 android:layout_height="wrap_content"
                 android:text="© 2025 wsdjeg"
                 android:textSize="12sp"
-                android:textColor="#9E9E9E" />
+                android:textColor="@color/text_hint" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Licensed under GPL v3"
                 android:textSize="12sp"
-                android:textColor="#9E9E9E"
+                android:textColor="@color/text_hint"
                 android:layout_marginTop="4dp" />
 
         </LinearLayout>
@@ -155,3 +155,4 @@
     </ScrollView>
 
 </LinearLayout>
+

@@ -501,7 +501,7 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
         } else {
             holder.statusIcon.setText("✅");
             holder.toolNameText.setText(toolName);
-            holder.toolNameText.setTextColor(0xFF2196F3);
+            holder.toolNameText.setTextColor(ContextCompat.getColor(context, R.color.tool_name_color));
         }
         
         String content = message.getContent();

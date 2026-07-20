@@ -8,6 +8,7 @@ import android.widget.ImageButton;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
+import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.RecyclerView;
 
 import java.text.SimpleDateFormat;
@@ -81,7 +82,7 @@ public class AccountAdapter extends RecyclerView.Adapter<AccountAdapter.ViewHold
         if (account.isActive()) {
             holder.statusDot.setBackgroundResource(R.drawable.session_icon_bg);
             holder.textStatusLabel.setText("默认账号");
-            holder.textStatusLabel.setTextColor(0xFF4CAF50);  // 绿色
+            holder.textStatusLabel.setTextColor(ContextCompat.getColor(context, R.color.success));
             holder.textStatusLabel.setVisibility(View.VISIBLE);
             // 不设置背景颜色，保留点击效果
         } else {
@@ -100,7 +101,7 @@ public class AccountAdapter extends RecyclerView.Adapter<AccountAdapter.ViewHold
                 SimpleDateFormat sdf = new SimpleDateFormat("MM-dd", Locale.getDefault());
                 holder.textLastUsed.setText("最后使用: " + sdf.format(new Date(lastUsed)));
             }
-            holder.textLastUsed.setTextColor(0xFF9E9E9E);  // 灰色
+            holder.textLastUsed.setTextColor(ContextCompat.getColor(context, R.color.text_hint));
             holder.textStatusLabel.setVisibility(View.GONE);
             // 不设置背景颜色，保留点击效果
         }

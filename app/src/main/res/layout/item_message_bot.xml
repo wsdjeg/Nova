@@ -24,7 +24,7 @@
             android:textSize="14sp"
             android:lineSpacingExtra="4dp"
             android:background="@drawable/ai_message_bg"
-            android:textColor="#333333" />
+            android:textColor="@color/ai_message_text" />
 
     </androidx.cardview.widget.CardView>
 
@@ -35,7 +35,7 @@
         android:layout_marginTop="4dp"
         android:layout_marginStart="8dp"
         android:textSize="12sp"
-        android:textColor="#999999" />
+        android:textColor="@color/time_text" />
 
 </LinearLayout>
 
