@@ -68,5 +68,9 @@
 
     <!-- Divider for about page -->
     <color name="about_divider">#3D3D3D</color>
+
+    <!-- Popup menu colors -->
+    <color name="popup_bg">#2D2D2D</color>
+    <color name="popup_text">#FFFFFF</color>
 </resources>
 

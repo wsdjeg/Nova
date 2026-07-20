@@ -9,4 +9,10 @@
     </style>
 
     <style name="Theme.MyAndroidApp" parent="Base.Theme.MyAndroidApp" />
+
+    <!-- Popup menu overlay - adapts to light/dark mode -->
+    <style name="ToolbarPopupOverlay" parent="ThemeOverlay.AppCompat">
+        <item name="android:colorBackground">@color/popup_bg</item>
+        <item name="android:textColorPrimary">@color/popup_text</item>
+    </style>
 </resources>
