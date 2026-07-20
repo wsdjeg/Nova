@@ -4,33 +4,71 @@ import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
+import android.util.Log;
+import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
-import android.widget.EditText;
-import android.widget.LinearLayout;
-import android.widget.RadioButton;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
+import android.widget.ProgressBar;
 import android.widget.RadioGroup;
+import android.widget.RadioButton;
+import android.widget.LinearLayout;
+import android.widget.Spinner;
 import android.widget.TextView;
+import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.app.AppCompatDelegate;
 import androidx.appcompat.widget.Toolbar;
 import androidx.core.content.ContextCompat;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 public class SettingsActivity extends AppCompatActivity {
+    
+    private static final String TAG = "SettingsActivity";
     
     public static final String EXTRA_SETTINGS_SAVED = "settings_saved";
     public static final String EXTRA_THEME_CHANGED = "theme_changed";
     public static final String EXTRA_COLOR_CHANGED = "color_changed";
     
+    // 表示"留空/服务端默认"的占位字符串
+    private static final String EMPTY_OPTION = "（留空 / 服务端默认）";
+    
     private RadioGroup rgTheme;
     private RadioButton rbSystem, rbLight, rbDark;
     private LinearLayout colorPickerContainer;
-    private EditText etDefaultProvider, etDefaultModel;
+    private Spinner spinnerProvider, spinnerModel;
+    private ProgressBar progressBar;
+    private TextView tvProviderStatus;
     private SettingsManager settingsManager;
+    private AccountManager accountManager;
+    private ApiClient apiClient;
     
     private int selectedColorIndex = 2; // 默认蓝色
     private View[] colorViews;
-
+    
+    // Provider 和 Model 数据
+    private List<ApiClient.Provider> providers;
+    private Map<String, List<String>> providerModelsMap;
+    private List<String> providerNames;
+    private List<String> currentModels;
+    
+    private ArrayAdapter<String> providerAdapter;
+    private ArrayAdapter<String> modelAdapter;
+    
+    private boolean isProviderLoaded = false;
+    private boolean isInitializingSpinner = false;
+    private int selectedProviderIndex = -1;
+    private int selectedModelIndex = -1;
+    
+    // 保存的默认 provider/model（来自 SettingsManager）
+    private String savedProvider;
+    private String savedModel;
+    
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -41,9 +79,8 @@ public class SettingsActivity extends AppCompatActivity {
         setSupportActionBar(toolbar);
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
         
-        etDefaultProvider = findViewById(R.id.et_provider);
-        etDefaultModel = findViewById(R.id.et_model);
         settingsManager = new SettingsManager(this);
+        accountManager = AccountManager.getInstance(this);
         
         initViews();
         loadSettings();
@@ -55,6 +92,10 @@ public class SettingsActivity extends AppCompatActivity {
         rbLight = findViewById(R.id.rb_theme_light);
         rbDark = findViewById(R.id.rb_theme_dark);
         colorPickerContainer = findViewById(R.id.color_picker_container);
+        spinnerProvider = findViewById(R.id.spinner_provider);
+        spinnerModel = findViewById(R.id.spinner_model);
+        progressBar = findViewById(R.id.progress_bar);
+        tvProviderStatus = findViewById(R.id.tv_provider_status);
         
         // 主题选择监听
         rgTheme.setOnCheckedChangeListener((group, checkedId) -> {
@@ -75,19 +116,60 @@ public class SettingsActivity extends AppCompatActivity {
             setResult(RESULT_OK, resultIntent);
         });
         
-        // Provider 输入监听 - 保存设置
-        etDefaultProvider.setOnFocusChangeListener((v, hasFocus) -> {
-            if (!hasFocus) {
-                String provider = etDefaultProvider.getText().toString().trim();
-                settingsManager.setDefaultProvider(provider);
+        // 初始化 Spinner adapters
+        providerNames = new ArrayList<>();
+        currentModels = new ArrayList<>();
+        providerModelsMap = new HashMap<>();
+        
+        providerAdapter = new ArrayAdapter<>(this,
+            android.R.layout.simple_spinner_item, providerNames);
+        providerAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spinnerProvider.setAdapter(providerAdapter);
+        
+        modelAdapter = new ArrayAdapter<>(this,
+            android.R.layout.simple_spinner_item, currentModels);
+        modelAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spinnerModel.setAdapter(modelAdapter);
+        
+        // Provider 选择监听
+        spinnerProvider.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                if (isProviderLoaded && !isInitializingSpinner && position >= 0 && position < providerNames.size()) {
+                    if (position != selectedProviderIndex) {
+                        String selectedProvider = providerNames.get(position);
+                        // 如果选的是"留空"选项，model 也重置为"留空"
+                        if (EMPTY_OPTION.equals(selectedProvider)) {
+                            currentModels.clear();
+                            currentModels.add(EMPTY_OPTION);
+                            modelAdapter.notifyDataSetChanged();
+                            spinnerModel.setSelection(0);
+                            selectedModelIndex = 0;
+                        } else {
+                            updateModelSpinner(selectedProvider, null);
+                        }
+                        selectedProviderIndex = position;
+                        Log.d(TAG, "User selected provider: " + selectedProvider);
+                    }
+                }
+            }
+            
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {
             }
         });
         
-        // Model 输入监听 - 保存设置
-        etDefaultModel.setOnFocusChangeListener((v, hasFocus) -> {
-            if (!hasFocus) {
-                String model = etDefaultModel.getText().toString().trim();
-                settingsManager.setDefaultModel(model);
+        // Model 选择监听
+        spinnerModel.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                if (position >= 0 && position < currentModels.size()) {
+                    selectedModelIndex = position;
+                }
+            }
+            
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {
             }
         });
         
@@ -95,6 +177,9 @@ public class SettingsActivity extends AppCompatActivity {
         initColorPicker();
     }
     
+    /**
+     * 初始化颜色选择器
+     */
     private void initColorPicker() {
         int size = (int) (40 * getResources().getDisplayMetrics().density);
         int margin = (int) (8 * getResources().getDisplayMetrics().density);
@@ -132,7 +217,6 @@ public class SettingsActivity extends AppCompatActivity {
      * 创建"自动"颜色选项视图
      */
     private View createAutoColorView(int size, int margin) {
-        // 使用 FrameLayout 包含图标和背景
         android.widget.FrameLayout container = new android.widget.FrameLayout(this);
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(size, size);
         params.setMargins(margin, 0, margin, 0);
@@ -167,19 +251,17 @@ public class SettingsActivity extends AppCompatActivity {
         autoText.setLayoutParams(textParams);
         
         container.addView(autoText);
-        container.setOnClickListener(v -> selectColor(0)); // 0 表示自动
+        container.setOnClickListener(v -> selectColor(0));
         
         return container;
     }
     
     private void selectColor(int index) {
         selectedColorIndex = index;
-        // 存储颜色索引（0 表示自动，存储为 -1）
         int storageIndex = (index == 0) ? SettingsManager.AUTO_COLOR_INDEX : index - 1;
         settingsManager.setAccountTagColorIndex(storageIndex);
         updateColorSelection();
         
-        // 通知颜色已更改
         Intent resultIntent = new Intent();
         resultIntent.putExtra(EXTRA_COLOR_CHANGED, true);
         setResult(RESULT_OK, resultIntent);
@@ -192,7 +274,6 @@ public class SettingsActivity extends AppCompatActivity {
             drawable.setShape(GradientDrawable.OVAL);
             
             if (i == 0) {
-                // 自动选项：渐变背景
                 drawable.setColors(new int[] {
                     Color.parseColor("#FF6B6B"),
                     Color.parseColor("#4ECDC4"),
@@ -201,12 +282,10 @@ public class SettingsActivity extends AppCompatActivity {
                 });
                 drawable.setGradientType(GradientDrawable.SWEEP_GRADIENT);
             } else {
-                // 颜色选项
                 drawable.setColor(Color.parseColor(SettingsManager.ACCOUNT_TAG_COLORS[i - 1]));
             }
             
             if (i == selectedColorIndex) {
-                // 选中的添加边框
                 drawable.setStroke(4, ContextCompat.getColor(this, R.color.primary));
             }
             
@@ -231,13 +310,198 @@ public class SettingsActivity extends AppCompatActivity {
         
         // 加载账户标签颜色设置
         int storedIndex = settingsManager.getAccountTagColorIndex();
-        // 转换存储索引到显示索引：-1 -> 0（自动），0-7 -> 1-8
         selectedColorIndex = (storedIndex == SettingsManager.AUTO_COLOR_INDEX) ? 0 : storedIndex + 1;
         updateColorSelection();
         
-        // 加载默认 provider 和 model
-        etDefaultProvider.setText(settingsManager.getDefaultProvider());
-        etDefaultModel.setText(settingsManager.getDefaultModel());
+        // 加载已保存的默认 provider 和 model
+        savedProvider = settingsManager.getDefaultProvider();
+        savedModel = settingsManager.getDefaultModel();
+        
+        // 获取当前活跃账号，创建 ApiClient 从服务器获取 provider/model 列表
+        Account account = accountManager.getActiveAccount();
+        if (account != null) {
+            apiClient = new ApiClient(account.getUrl(), account.getApiKey());
+            loadProviders();
+        } else {
+            // 没有账号时，仍然显示已保存的值
+            tvProviderStatus.setText("未配置账号，无法获取可用列表");
+            setupSpinnersWithoutApi();
+        }
+    }
+    
+    /**
+     * 没有账号/API 不可用时，使用已保存的值初始化 spinner
+     */
+    private void setupSpinnersWithoutApi() {
+        providerNames.clear();
+        providerModelsMap.clear();
+        
+        // 添加"留空"选项
+        providerNames.add(EMPTY_OPTION);
+        // 如果有已保存的 provider 且不是空，添加到列表
+        if (savedProvider != null && !savedProvider.isEmpty()) {
+            providerNames.add(savedProvider);
+            List<String> models = new ArrayList<>();
+            models.add(EMPTY_OPTION);
+            if (savedModel != null && !savedModel.isEmpty()) {
+                models.add(savedModel);
+            }
+            providerModelsMap.put(savedProvider, models);
+        }
+        providerAdapter.notifyDataSetChanged();
+        
+        // 设置当前选择
+        isInitializingSpinner = true;
+        if (savedProvider != null && !savedProvider.isEmpty()) {
+            int idx = providerNames.indexOf(savedProvider);
+            if (idx >= 0) {
+                spinnerProvider.setSelection(idx);
+                selectedProviderIndex = idx;
+                updateModelSpinner(savedProvider, savedModel);
+            }
+        } else {
+            spinnerProvider.setSelection(0);
+            selectedProviderIndex = 0;
+            currentModels.clear();
+            currentModels.add(EMPTY_OPTION);
+            modelAdapter.notifyDataSetChanged();
+            spinnerModel.setSelection(0);
+            selectedModelIndex = 0;
+        }
+        isProviderLoaded = true;
+        isInitializingSpinner = false;
+    }
+    
+    /**
+     * 从服务器获取 providers 列表
+     */
+    private void loadProviders() {
+        progressBar.setVisibility(View.VISIBLE);
+        tvProviderStatus.setText("正在加载可用 Provider/Model 列表...");
+        
+        apiClient.getProviders(new ApiClient.ProvidersCallback() {
+            @Override
+            public void onSuccess(List<ApiClient.Provider> providersList) {
+                runOnUiThread(() -> {
+                    progressBar.setVisibility(View.GONE);
+                    tvProviderStatus.setText("");
+                    
+                    providers = providersList;
+                    providerNames.clear();
+                    providerModelsMap.clear();
+                    
+                    // 第一个选项是"留空 / 服务端默认"
+                    providerNames.add(EMPTY_OPTION);
+                    
+                    for (ApiClient.Provider provider : providers) {
+                        providerNames.add(provider.name);
+                        providerModelsMap.put(provider.name, provider.models);
+                    }
+                    
+                    providerAdapter.notifyDataSetChanged();
+                    
+                    // 设置当前保存的 provider/model
+                    setCurrentSelection();
+                });
+            }
+            
+            @Override
+            public void onError(String error) {
+                runOnUiThread(() -> {
+                    progressBar.setVisibility(View.GONE);
+                    tvProviderStatus.setText("加载失败: " + error + "（可手动选择已保存的值）");
+                    
+                    // 使用已保存的值备用
+                    setupSpinnersWithoutApi();
+                });
+            }
+        });
+    }
+    
+    /**
+     * 设置当前保存的 provider/model 选择
+     */
+    private void setCurrentSelection() {
+        isInitializingSpinner = true;
+        
+        Log.d(TAG, "setCurrentSelection: savedProvider=" + savedProvider + ", savedModel=" + savedModel);
+        
+        if (savedProvider != null && !savedProvider.isEmpty()) {
+            int providerIndex = providerNames.indexOf(savedProvider);
+            if (providerIndex >= 0) {
+                selectedProviderIndex = providerIndex;
+                spinnerProvider.setSelection(providerIndex);
+                updateModelSpinner(savedProvider, savedModel);
+                Log.d(TAG, "Set provider to index " + providerIndex + ": " + savedProvider);
+            } else {
+                // 保存的 provider 不在列表中，添加到列表
+                providerNames.add(savedProvider);
+                List<String> models = new ArrayList<>();
+                models.add(EMPTY_OPTION);
+                if (savedModel != null && !savedModel.isEmpty()) {
+                    models.add(savedModel);
+                }
+                providerModelsMap.put(savedProvider, models);
+                providerAdapter.notifyDataSetChanged();
+                
+                selectedProviderIndex = providerNames.size() - 1;
+                spinnerProvider.setSelection(selectedProviderIndex);
+                updateModelSpinner(savedProvider, savedModel);
+                Log.d(TAG, "Added missing provider: " + savedProvider);
+            }
+        } else {
+            // 没有保存的 provider，选择"留空"
+            selectedProviderIndex = 0;
+            spinnerProvider.setSelection(0);
+            currentModels.clear();
+            currentModels.add(EMPTY_OPTION);
+            modelAdapter.notifyDataSetChanged();
+            spinnerModel.setSelection(0);
+            selectedModelIndex = 0;
+        }
+        
+        isProviderLoaded = true;
+        isInitializingSpinner = false;
+        
+        Log.d(TAG, "setCurrentSelection done: isProviderLoaded=" + isProviderLoaded);
+    }
+    
+    /**
+     * 更新 Model Spinner
+     * @param providerName provider 名称（可能是 EMPTY_OPTION）
+     * @param selectModel 要选择的 model，如果为 null 则选择第一个
+     */
+    private void updateModelSpinner(String providerName, String selectModel) {
+        currentModels.clear();
+        
+        // 添加"留空"选项
+        currentModels.add(EMPTY_OPTION);
+        
+        if (!EMPTY_OPTION.equals(providerName)) {
+            List<String> models = providerModelsMap.get(providerName);
+            if (models != null) {
+                currentModels.addAll(models);
+            }
+        }
+        modelAdapter.notifyDataSetChanged();
+        
+        // 选择指定的 model 或第一个
+        if (selectModel != null && !selectModel.isEmpty()) {
+            int modelIndex = currentModels.indexOf(selectModel);
+            if (modelIndex >= 0) {
+                spinnerModel.setSelection(modelIndex);
+                selectedModelIndex = modelIndex;
+            } else {
+                // 保存的 model 不在列表中，添加到列表并选择
+                currentModels.add(0, selectModel);
+                modelAdapter.notifyDataSetChanged();
+                spinnerModel.setSelection(0);
+                selectedModelIndex = 0;
+            }
+        } else {
+            spinnerModel.setSelection(0);
+            selectedModelIndex = 0;
+        }
     }
     
     private void applyTheme(int themeMode) {
@@ -253,30 +517,61 @@ public class SettingsActivity extends AppCompatActivity {
                 break;
         }
     }
-
+    
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        getMenuInflater().inflate(R.menu.settings_menu, menu);
+        return true;
+    }
+    
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         if (item.getItemId() == android.R.id.home) {
-            // 保存 provider 和 model 设置
-            String provider = etDefaultProvider.getText().toString().trim();
-            String model = etDefaultModel.getText().toString().trim();
-            settingsManager.setDefaultProvider(provider);
-            settingsManager.setDefaultModel(model);
             finish();
+            return true;
+        } else if (item.getItemId() == R.id.action_save) {
+            saveSettings();
             return true;
         }
         return super.onOptionsItemSelected(item);
     }
     
-    @Override
-    protected void onPause() {
-        super.onPause();
-        // 确保在离开时保存设置
-        if (etDefaultProvider != null && etDefaultModel != null) {
-            String provider = etDefaultProvider.getText().toString().trim();
-            String model = etDefaultModel.getText().toString().trim();
-            settingsManager.setDefaultProvider(provider);
-            settingsManager.setDefaultModel(model);
+    /**
+     * 保存设置
+     */
+    private void saveSettings() {
+        String provider = "";
+        String model = "";
+        
+        if (selectedProviderIndex >= 0 && selectedProviderIndex < providerNames.size()) {
+            String selectedProvider = providerNames.get(selectedProviderIndex);
+            if (!EMPTY_OPTION.equals(selectedProvider)) {
+                provider = selectedProvider;
+            }
         }
+        
+        if (selectedModelIndex >= 0 && selectedModelIndex < currentModels.size()) {
+            String selectedModel = currentModels.get(selectedModelIndex);
+            if (!EMPTY_OPTION.equals(selectedModel)) {
+                model = selectedModel;
+            }
+        }
+        
+        // 如果 provider 为空，model 也清空
+        if (provider.isEmpty()) {
+            model = "";
+        }
+        
+        settingsManager.setDefaultProvider(provider);
+        settingsManager.setDefaultModel(model);
+        
+        // 通知设置已保存
+        Intent resultIntent = new Intent();
+        resultIntent.putExtra(EXTRA_SETTINGS_SAVED, true);
+        setResult(RESULT_OK, resultIntent);
+        
+        Toast.makeText(this, "设置已保存", Toast.LENGTH_SHORT).show();
+        Log.d(TAG, "Saved: provider=" + provider + ", model=" + model);
     }
 }
+

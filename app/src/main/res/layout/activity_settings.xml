@@ -37,38 +37,61 @@
                 android:textStyle="bold"
                 android:layout_marginBottom="16dp" />
 
-            <!-- Provider 设置 -->
+            <!-- Provider 选择 -->
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="Provider"
-                android:textSize="16sp"
+                android:textSize="14sp"
+                android:textColor="?android:attr/textColorSecondary"
                 android:layout_marginBottom="4dp" />
 
-            <EditText
-                android:id="@+id/et_provider"
+            <Spinner
+                android:id="@+id/spinner_provider"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:hint="例如: openai, anthropic (留空使用服务端默认)"
-                android:inputType="text"
-                android:singleLine="true"
+                android:layout_height="48dp"
                 android:layout_marginBottom="16dp" />
 
-            <!-- Model 设置 -->
+            <!-- Model 选择 -->
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="Model"
-                android:textSize="16sp"
+                android:textSize="14sp"
+                android:textColor="?android:attr/textColorSecondary"
                 android:layout_marginBottom="4dp" />
 
-            <EditText
-                android:id="@+id/et_model"
+            <Spinner
+                android:id="@+id/spinner_model"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:layout_marginBottom="8dp" />
+
+            <!-- 加载状态 -->
+            <ProgressBar
+                android:id="@+id/progress_bar"
+                android:layout_width="match_parent"
+                android:layout_height="24dp"
+                android:visibility="gone"
+                android:layout_marginBottom="8dp" />
+
+            <TextView
+                android:id="@+id/tv_provider_status"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="例如: gpt-4o, claude-3-5-sonnet (留空使用服务端默认)"
-                android:inputType="text"
-                android:singleLine="true"
+                android:text=""
+                android:textSize="14sp"
+                android:textColor="?android:attr/textColorSecondary"
+                android:gravity="center"
+                android:layout_marginBottom="16dp" />
+
+            <!-- 提示 -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="留空使用服务端默认配置。修改后请点击右上角保存按钮。"
+                android:textSize="12sp"
+                android:textColor="?android:attr/textColorSecondary"
                 android:layout_marginBottom="24dp" />
 
             <!-- 外观设置 -->
@@ -161,3 +184,4 @@
     </ScrollView>
 
 </LinearLayout>
+
