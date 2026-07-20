@@ -130,7 +130,7 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
                         0.79f  // H6 -> 11sp
                     });
                     // 代码块/内联代码背景与工具卡片内容背景保持一致
-                    builder.codeBlockBackground(codeBlockBg);
+                    builder.codeBlockBackgroundColor(codeBlockBg);
                     builder.codeBackgroundColor(codeBlockBg);
                 }
             })
