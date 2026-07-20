@@ -126,6 +126,24 @@ jobs:
             rm -rf "$TMPDIR"
           fi
 
+      # ── Debug: 搜索所有 keystore 并对比指纹 ──────────────────────
+      - name: Debug keystore search
+        run: |
+          echo "=== All debug.keystore files on system ==="
+          find / -name "debug.keystore" -type f 2>/dev/null | while read f; do
+            echo "--- $f ---"
+            keytool -list -v -keystore "$f" -storepass android -alias androiddebugkey 2>/dev/null \
+              | grep -iE "SHA1|SHA256" || echo "(unreadable or different password)"
+          done
+          echo ""
+          echo "=== Keystore at ~/.android/ AFTER build ==="
+          ls -la ~/.android/debug.keystore 2>/dev/null
+          keytool -list -v -keystore ~/.android/debug.keystore -storepass android -alias androiddebugkey 2>/dev/null \
+            | grep -iE "SHA1|SHA256|fingerprint|Valid" || echo "Failed to read keystore"
+          echo ""
+          echo "=== Gradle signing report ==="
+          gradle :app:signingReport --no-daemon 2>&1 | head -50
+
       - name: Get version info
         id: version
         env:
