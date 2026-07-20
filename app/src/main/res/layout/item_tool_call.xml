@@ -76,7 +76,7 @@
                     android:layout_height="wrap_content"
                     android:maxWidth="296dp"
                     android:padding="8dp"
-                    android:background="@color/ai_message_bg"
+                    android:background="@color/code_block_bg"
                     android:textColor="@color/text_secondary"
                     android:textSize="11sp"
                     android:fontFamily="monospace"

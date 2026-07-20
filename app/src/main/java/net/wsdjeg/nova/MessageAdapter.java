@@ -116,6 +116,7 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
         setHasStableIds(true);
         
         // 配置 Markdown 标题大小：通过 AbstractMarkwonPlugin 配置主题
+        int codeBlockBg = ContextCompat.getColor(context, R.color.code_block_bg);
         this.markwon = Markwon.builder(context)
             .usePlugin(new AbstractMarkwonPlugin() {
                 @Override
@@ -128,6 +129,9 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
                         0.86f, // H5 -> 12sp
                         0.79f  // H6 -> 11sp
                     });
+                    // 代码块/内联代码背景与工具卡片内容背景保持一致
+                    builder.codeBlockBackground(codeBlockBg);
+                    builder.codeBackgroundColor(codeBlockBg);
                 }
             })
             .usePlugin(TablePlugin.create(context))

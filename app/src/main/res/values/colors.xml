@@ -40,6 +40,9 @@
     <color name="tool_border">#BDBDBD</color>
     <color name="tool_name_color">#2196F3</color>
 
+    <!-- Code block background (used in Markwon + tool card content) -->
+    <color name="code_block_bg">#CCCCCC</color>
+
     <!-- Diamond blue colors -->
     <color name="diamond_blue">#2196F3</color>
     <color name="diamond_light">#64B5F6</color>
