@@ -13,7 +13,8 @@ permissions:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+  # 正式发版（chore: release 提交）和 tag 推送不被取消
+  cancel-in-progress: ${{ !(startsWith(github.ref, 'refs/tags/') || contains(github.event.head_commit.message, 'chore: release')) }}
 
 jobs:
   build:
@@ -180,7 +181,10 @@ jobs:
 
   release:
     needs: build
-    if: startsWith(github.ref, 'refs/tags/v')
+    # 正式发版两种触发方式：
+    # 1. push "chore: release" 到 master（主要方式，action 自动创建 tag）
+    # 2. 手动推送 v* tag（兼容方式）
+    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'push' && github.ref == 'refs/heads/master' && contains(github.event.head_commit.message, 'chore: release'))
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -213,8 +217,8 @@ jobs:
         run: gh release delete v${{ needs.build.outputs.version_name }} --yes --cleanup-tag 2>/dev/null || true
 
       # ── Create Release (with retry) ───────────────────────────────
-      # 使用 gh CLI + nick-fields/retry 替代 softprops/action-gh-release@v1
-      # 解决 GitHub asset upload 偶发 502 Bad Gateway 问题
+      # gh release create 会自动创建 tag（使用 GITHUB_TOKEN 创建的 tag 不会触发新的 workflow）
+      # --target 确保 tag 创建在正确的 commit 上
       - name: Write release notes
         env:
           VERSION_NAME: ${{ needs.build.outputs.version_name }}
@@ -237,6 +241,7 @@ jobs:
           retry_on: error
           command: |
             gh release create v${{ needs.build.outputs.version_name }} \
+              --target ${{ github.sha }} \
               --title "Release v${{ needs.build.outputs.version_name }}" \
               --notes-file ./release_notes.md \
               ./apk/Nova-v${{ needs.build.outputs.version_name }}.apk

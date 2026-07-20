@@ -139,7 +139,7 @@ chore: 构建/工具
 │ versionName 带   │           │ 去掉 -dev 后缀   │
 │ -dev 后缀        │  ───────> │ 整理 CHANGELOG   │
 │ 例: "3.0-dev"   │           │ 更新 README      │
-│                  │           │ 创建 git tag     │
+│                  │           │ 提交 chore: release │
 └──────────────────┘           └──────────────────┘
 ```
 
@@ -151,7 +151,10 @@ chore: 构建/工具
 |----------|------|
 | **Pull Request** | 只构建验证，不发布 |
 | **Push to master**（非 release 提交） | 自动创建/更新 prerelease，APK 命名 `Nova-v{version}-{sha}.apk` |
-| **Tag push (v\*)** | 创建正式 Release，APK 命名 `Nova-v{version}.apk`，附带 CHANGELOG |
+| **Push to master**（commit message 含 `chore: release`） | 自动创建正式 Release + tag，APK 命名 `Nova-v{version}.apk`，附带 CHANGELOG |
+
+> **注意**: 用户不需要手动创建或推送 tag。CI 通过 `gh release create --target` 自动创建 tag。
+> 使用 `GITHUB_TOKEN` 创建的 tag 不会触发新的 workflow run，避免重复构建。
 
 ### 🔒 CI 签名规则（绝对禁止违反）
 
@@ -188,14 +191,16 @@ chore: 构建/工具
    补充新功能特性
    更新项目结构说明
 
-4. 提交并推送
+4. 提交并推送（CI 自动创建 tag + Release）
    git add app/build.gradle CHANGELOG.md README.md
    git commit -m "chore: release v3.0.0"
    git push
 
-5. 创建并推送 tag（触发正式 Release 构建）
-   git tag -a v3.0 -m "Release v3.0.0"
-   git push origin v3.0
+   ⚠️ 不需要手动创建或推送 tag！
+   CI 检测到 "chore: release" 提交后会自动：
+   - 构建 APK
+   - 创建 v3.0.0 tag（通过 gh release create --target）
+   - 创建正式 GitHub Release，附带 CHANGELOG
 ```
 
 ### 开发阶段版本提升
@@ -217,6 +222,7 @@ chore: 构建/工具
 
 - 正式版: `v1.0`、`v2.0`、`v3.0`（不带 patch 号）
 - 预发布: `prerelease`（固定名称，每次 push master 自动更新）
+- 所有 tag 均由 CI 自动创建，不需要手动操作
 
 ---
 
