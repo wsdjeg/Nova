@@ -763,6 +763,40 @@ public class ChatActivity extends AppCompatActivity {
                     
                     int serverCount = session.getMessageCount();
                     
+                    // 更新会话标题/provider/model（处理 /title 等命令修改后的刷新）
+                    String serverTitle = session.getTitle();
+                    String serverProvider = session.getProvider();
+                    String serverModel = session.getModel();
+                    Session localSession = sessionManager.getSession(currentSessionId);
+                    if (localSession != null) {
+                        boolean sessionInfoUpdated = false;
+                        if (serverTitle != null && !serverTitle.isEmpty()
+                            && !serverTitle.equals(localSession.getTitle())) {
+                            localSession.setTitle(serverTitle);
+                            currentSessionTitle = serverTitle;
+                            tvSessionTitle.setText(serverTitle);
+                            sessionInfoUpdated = true;
+                        }
+                        if (serverProvider != null && !serverProvider.isEmpty()
+                            && !serverProvider.equals(localSession.getProvider())) {
+                            localSession.setProvider(serverProvider);
+                            currentProvider = serverProvider;
+                            sessionInfoUpdated = true;
+                        }
+                        if (serverModel != null && !serverModel.isEmpty()
+                            && !serverModel.equals(localSession.getModel())) {
+                            localSession.setModel(serverModel);
+                            currentModel = serverModel;
+                            sessionInfoUpdated = true;
+                        }
+                        if (sessionInfoUpdated) {
+                            sessionManager.updateSession(localSession);
+                            if (currentProvider != null && currentModel != null) {
+                                tvSessionInfo.setText(currentProvider + " | " + currentModel);
+                            }
+                        }
+                    }
+                    
                     if (isInProgress) {
                         setButtonStateSending();
                     } else {
