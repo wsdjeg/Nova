@@ -5,11 +5,16 @@ import android.content.ClipboardManager;
 import android.content.Context;
 import android.graphics.Typeface;
 import android.text.method.LinkMovementMethod;
+import android.graphics.drawable.GradientDrawable;
 import android.util.Log;
+import android.view.Gravity;
 import android.view.LayoutInflater;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.HorizontalScrollView;
+import android.widget.LinearLayout;
+import android.widget.PopupWindow;
 import android.widget.TextView;
 import android.widget.Toast;
 import androidx.annotation.NonNull;
@@ -68,6 +73,10 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
     private Markwon userMarkwon;
     private Context context;
     private int linkColor;
+    
+    // 长按弹窗：记录最近一次触摸坐标（屏幕绝对坐标）
+    private float lastTouchX;
+    private float lastTouchY;
     
     // 记录展开状态的项 - 改用 stableKey 避免 position 变化时状态错乱
     private Set<String> expandedToolCalls = new HashSet<>();
@@ -467,15 +476,8 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
         holder.timeText.setText(time);
         
         final String copyText = contentSafe;
-        holder.messageText.setOnLongClickListener(v -> {
-            showMessageActionPopup(v, copyText, message);
-            return true;
-        });
-        
-        holder.itemView.setOnLongClickListener(v -> {
-            showMessageActionPopup(v, copyText, message);
-            return true;
-        });
+        setupLongPressMenu(holder.messageText, copyText, message);
+        setupLongPressMenu(holder.itemView, copyText, message);
     }
     /**
      * 计算内容区域的高度（dp）
@@ -541,10 +543,7 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
         holder.expandHint.setOnClickListener(toggleListener);
         
         final String toolCallCopyText = item.getToolName() + "\n" + (args != null ? args : "");
-        holder.itemView.setOnLongClickListener(v -> {
-            showMessageActionPopup(v, toolCallCopyText, item.parentMessage);
-            return true;
-        });
+        setupLongPressMenu(holder.itemView, toolCallCopyText, item.parentMessage);
     }
     
     private void updateContentHeight(ToolCallViewHolder holder, boolean isExpanded) {
@@ -612,10 +611,7 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
         holder.expandHint.setOnClickListener(toggleListener);
         
         final String toolResultCopyText = content != null ? content : "";
-        holder.itemView.setOnLongClickListener(v -> {
-            showMessageActionPopup(v, toolResultCopyText, message);
-            return true;
-        });
+        setupLongPressMenu(holder.itemView, toolResultCopyText, message);
     }
     
     private String formatJson(org.json.JSONObject json) {
@@ -820,44 +816,140 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
     }
     
     /**
+     * 设置长按菜单（同时跟踪触摸坐标）
+     *
+     * 在 ACTION_DOWN 时记录屏幕绝对坐标，长按时用该坐标定位弹窗，
+     * 使弹窗出现在用户手指触点旁边。
+     *
+     * @param view     要绑定长按的 View
+     * @param copyText 要复制的文本
+     * @param message  对应的 Message 对象
+     */
+    private void setupLongPressMenu(View view, String copyText, Message message) {
+        view.setOnTouchListener((v, event) -> {
+            if (event.getAction() == MotionEvent.ACTION_DOWN) {
+                lastTouchX = event.getRawX();
+                lastTouchY = event.getRawY();
+            }
+            return false; // 不消费事件，让长按检测正常工作
+        });
+        view.setOnLongClickListener(v -> {
+            showMessageActionPopup(v, copyText, message);
+            return true;
+        });
+    }
+
+    /**
      * 显示消息长按操作弹窗（复制 / 删除）
      *
-     * @param anchorView 长按的 View，用于定位弹窗
+     * 使用 PopupWindow 在触点位置显示弹窗，而不是锚定到 View 下方。
+     *
+     * @param anchorView 长按的 View（用于 showAtLocation 锚定窗口）
      * @param copyText   要复制的文本内容
      * @param message    对应的 Message 对象（用于删除操作）
      */
     private void showMessageActionPopup(View anchorView, String copyText, Message message) {
-        android.widget.PopupMenu popup = new android.widget.PopupMenu(context, anchorView);
-        popup.getMenu().add(0, 1, 0, "复制");
-        
-        // 只有服务端消息（有 serverIndex）且非 pending、非 error 的消息才能删除
         boolean canDelete = message != null
             && !message.isPending()
             && !message.isError()
             && message.getServerIndex() > 0;
-        if (canDelete) {
-            popup.getMenu().add(0, 2, 1, "删除");
-        }
-        
-        popup.setOnMenuItemClickListener(item -> {
-            switch (item.getItemId()) {
-                case 1: // 复制
-                    if (actionListener != null) {
-                        actionListener.onCopyMessage(copyText);
-                    } else {
-                        copyToClipboard(copyText);
-                    }
-                    return true;
-                case 2: // 删除
-                    if (actionListener != null) {
-                        actionListener.onDeleteMessage(message);
-                    }
-                    return true;
+
+        int popupBg = ContextCompat.getColor(context, R.color.popup_bg);
+        int popupText = ContextCompat.getColor(context, R.color.popup_text);
+        int errorColor = ContextCompat.getColor(context, R.color.error);
+        float density = context.getResources().getDisplayMetrics().density;
+        int padH = (int) (20 * density + 0.5f);
+        int padV = (int) (12 * density + 0.5f);
+        int cornerRadius = (int) (8 * density + 0.5f);
+
+        // 圆角背景
+        GradientDrawable bgDrawable = new GradientDrawable();
+        bgDrawable.setColor(popupBg);
+        bgDrawable.setCornerRadius(cornerRadius);
+
+        LinearLayout layout = new LinearLayout(context);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setBackground(bgDrawable);
+        layout.setElevation(6 * density);
+        layout.setClipToOutline(true);
+
+        // 辅助方法：创建一个菜单项 TextView
+        // 使用 final 数组持有 popup 引用，供 lambda 消费
+        final PopupWindow[] popupHolder = new PopupWindow[1];
+
+        // 复制
+        TextView copyItem = new TextView(context);
+        copyItem.setText("复制");
+        copyItem.setTextColor(popupText);
+        copyItem.setTextSize(15);
+        copyItem.setPadding(padH, padV, padH, padV);
+        copyItem.setOnClickListener(v -> {
+            if (actionListener != null) {
+                actionListener.onCopyMessage(copyText);
+            } else {
+                copyToClipboard(copyText);
             }
-            return false;
+            if (popupHolder[0] != null) popupHolder[0].dismiss();
         });
-        
-        popup.show();
+        layout.addView(copyItem);
+
+        if (canDelete) {
+            // 分隔线
+            View divider = new View(context);
+            divider.setBackgroundColor(popupText);
+            divider.setAlpha(0.12f);
+            LinearLayout.LayoutParams dividerLp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, 1);
+            layout.addView(divider, dividerLp);
+
+            // 删除
+            TextView deleteItem = new TextView(context);
+            deleteItem.setText("删除");
+            deleteItem.setTextColor(errorColor);
+            deleteItem.setTextSize(15);
+            deleteItem.setPadding(padH, padV, padH, padV);
+            deleteItem.setOnClickListener(v -> {
+                if (actionListener != null) {
+                    actionListener.onDeleteMessage(message);
+                }
+                if (popupHolder[0] != null) popupHolder[0].dismiss();
+            });
+            layout.addView(deleteItem);
+        }
+
+        PopupWindow popup = new PopupWindow(layout,
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT, true);
+        popup.setOutsideTouchable(true);
+        popup.setElevation(6 * density);
+        popupHolder[0] = popup;
+
+        // 在触点位置显示弹窗
+        // touchX/Y 是屏幕绝对坐标，showAtLocation 的 x/y 是相对于 Gravity 的偏移
+        // 使用 Gravity.NO_GRAVITY 时，x/y 就是屏幕绝对坐标
+        // 但需要稍微偏移，使弹窗不完全覆盖触点
+        int offsetX = (int) lastTouchX;
+        int offsetY = (int) lastTouchY - (int) (10 * density + 0.5f);
+
+        // 测量布局以获取实际宽高，用于边界检查
+        layout.measure(View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
+            View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED));
+        int popupWidth = layout.getMeasuredWidth();
+        int popupHeight = layout.getMeasuredHeight();
+
+        int screenWidth = context.getResources().getDisplayMetrics().widthPixels;
+        int screenHeight = context.getResources().getDisplayMetrics().heightPixels;
+
+        // 确保弹窗不超出屏幕右边界
+        if (offsetX + popupWidth > screenWidth - (int) (8 * density)) {
+            offsetX = screenWidth - popupWidth - (int) (8 * density);
+        }
+        // 确保弹窗不超出屏幕底部
+        if (offsetY + popupHeight > screenHeight - (int) (8 * density)) {
+            offsetY = (int) lastTouchY - popupHeight - (int) (10 * density + 0.5f);
+        }
+
+        popup.showAtLocation(anchorView, Gravity.NO_GRAVITY, offsetX, offsetY);
     }
 
     /**
