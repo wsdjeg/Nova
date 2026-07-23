@@ -513,6 +513,7 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
                     holder.expandHint.setText(isExpanded ? "收起 ▲" : "展开 ▼");
                 } else {
                     holder.expandHint.setVisibility(View.GONE);
+                    holder.contentScrollV.setScrollEnabled(false);
                     holder.contentScrollV.getLayoutParams().height = ViewGroup.LayoutParams.WRAP_CONTENT;
                 }
             });
@@ -545,12 +546,14 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
     private void updateContentHeight(ToolCallViewHolder holder, boolean isExpanded) {
         int heightPx = calculateHeightPx(isExpanded ? EXPANDED_LINES : COLLAPSED_LINES);
         holder.contentScrollV.getLayoutParams().height = heightPx;
+        holder.contentScrollV.setScrollEnabled(isExpanded);
         holder.contentScrollV.requestLayout();
     }
     
     private void updateResultContentHeight(ToolResultViewHolder holder, boolean isExpanded) {
         int heightPx = calculateHeightPx(isExpanded ? EXPANDED_LINES : COLLAPSED_LINES);
         holder.contentScrollV.getLayoutParams().height = heightPx;
+        holder.contentScrollV.setScrollEnabled(isExpanded);
         holder.contentScrollV.requestLayout();
     }
     
@@ -581,6 +584,7 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
                     holder.expandHint.setText(isExpanded ? "收起 ▲" : "展开 ▼");
                 } else {
                     holder.expandHint.setVisibility(View.GONE);
+                    holder.contentScrollV.setScrollEnabled(false);
                     holder.contentScrollV.getLayoutParams().height = ViewGroup.LayoutParams.WRAP_CONTENT;
                 }
             });

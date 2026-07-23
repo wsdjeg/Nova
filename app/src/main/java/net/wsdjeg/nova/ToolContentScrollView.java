@@ -13,17 +13,22 @@ import android.widget.ScrollView;
  * 上下滚动经常失败的问题：RecyclerView 抢先拦截了垂直滚动事件。
  * 
  * 策略：
- * - ACTION_DOWN: 如果内容可滚动，立即禁止父视图拦截
- * - ACTION_MOVE: 判断方向
- *   - 垂直滑动 → 继续禁止父视图拦截，让本 ScrollView 处理
- *   - 水平滑动 → 放开拦截，让外层 HorizontalScrollView 处理
- * - ACTION_UP/CANCEL: 恢复父视图拦截权限
+ * - 只有展开状态（scrollEnabled=true）且内容可滚动时，才接管垂直滚动
+ * - 折叠状态（scrollEnabled=false）时，所有触摸事件传递给父视图（RecyclerView），
+ *   让用户滚动整个消息列表
+ * - 展开后：
+ *   - ACTION_DOWN: 如果内容可滚动，立即禁止父视图拦截
+ *   - ACTION_MOVE: 判断方向
+ *     - 垂直滑动 -> 继续禁止父视图拦截，让本 ScrollView 处理
+ *     - 水平滑动 -> 放开拦截，让外层 HorizontalScrollView 处理
+ *   - ACTION_UP/CANCEL: 恢复父视图拦截权限
  */
 public class ToolContentScrollView extends ScrollView {
 
     private float startX, startY;
     private boolean isVerticalScroll = false;
     private boolean isHandlingTouch = false;
+    private boolean scrollEnabled = false;
 
     private static final int TOUCH_SLOP = 10;
 
@@ -39,8 +44,21 @@ public class ToolContentScrollView extends ScrollView {
         super(context, attrs, defStyleAttr);
     }
 
+    /**
+     * 设置是否允许内部滚动。
+     * 折叠状态设为 false，展开状态设为 true。
+     */
+    public void setScrollEnabled(boolean enabled) {
+        this.scrollEnabled = enabled;
+    }
+
     @Override
     public boolean onInterceptTouchEvent(MotionEvent ev) {
+        // 折叠状态下，不拦截任何触摸事件，全部交给父视图（RecyclerView）
+        if (!scrollEnabled) {
+            return false;
+        }
+
         int action = ev.getActionMasked();
         switch (action) {
             case MotionEvent.ACTION_DOWN:
@@ -63,10 +81,10 @@ public class ToolContentScrollView extends ScrollView {
                     isVerticalScroll = true;
                 }
                 if (isVerticalScroll) {
-                    // 垂直滚动 → 禁止所有父视图拦截
+                    // 垂直滚动 -> 禁止所有父视图拦截
                     disallowParentIntercept(true);
                 } else if (dx > dy && dx > TOUCH_SLOP) {
-                    // 水平滚动 → 放开拦截，让 HorizontalScrollView 处理
+                    // 水平滚动 -> 放开拦截，让 HorizontalScrollView 处理
                     disallowParentIntercept(false);
                     isHandlingTouch = false;
                 }
