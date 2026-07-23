@@ -59,6 +59,9 @@ public class AboutActivity extends AppCompatActivity {
     // GitHub API：获取所有 releases（含 prerelease）
     private static final String GITHUB_API_RELEASES =
             "https://api.github.com/repos/wsdjeg/Nova/releases";
+    // GitHub API：直接通过 tag 获取 prerelease（fallback，当 /releases 列表未返回 prerelease 时使用）
+    private static final String GITHUB_API_PRERELEASE_TAG =
+            "https://api.github.com/repos/wsdjeg/Nova/releases/tags/prerelease";
     // GitHub 仓库
     private static final String GITHUB_URL = "https://github.com/wsdjeg/Nova";
     // chat.nvim 官网
@@ -244,8 +247,10 @@ public class AboutActivity extends AppCompatActivity {
                         }
 
                         if (prerelease == null) {
-                            runOnUiThread(() -> Toast.makeText(AboutActivity.this,
-                                    "暂无开发版可用", Toast.LENGTH_SHORT).show());
+                            // GitHub /releases 列表 API 有时不返回 prerelease
+                            // （CI 使用 delete + recreate 方式更新 prerelease 时可能出现此问题）
+                            // Fallback: 直接通过 tag 获取 prerelease
+                            fetchPrereleaseByTag(currentVersion);
                             return;
                         }
 
@@ -326,7 +331,75 @@ public class AboutActivity extends AppCompatActivity {
     }
 
     /**
-     * 从 release JSON 对象中提取版本号字符串。
+     * Fallback: 直接通过 tag 获取 prerelease。
+     * 当 /releases 列表 API 未返回 prerelease 时调用。
+     * GitHub 的 /releases 列表端点在某些情况下（如 CI 使用 delete + recreate
+     * 方式更新 prerelease）可能不返回 prerelease，但 /releases/tags/prerelease
+     * 可以正常获取。
+     */
+    private void fetchPrereleaseByTag(String currentVersion) {
+        Request request = new Request.Builder()
+                .url(GITHUB_API_PRERELEASE_TAG)
+                .header("Accept", "application/vnd.github.v3+json")
+                .header("User-Agent", "Nova-Android")
+                .header("Cache-Control", "no-cache")
+                .build();
+
+        httpClient.newCall(request).enqueue(new Callback() {
+            @Override
+            public void onFailure(Call call, IOException e) {
+                runOnUiThread(() -> Toast.makeText(AboutActivity.this,
+                        "暂无开发版可用",
+                        Toast.LENGTH_SHORT).show());
+            }
+
+            @Override
+            public void onResponse(Call call, Response response) throws IOException {
+                if (!response.isSuccessful()) {
+                    final int code = response.code();
+                    runOnUiThread(() -> {
+                        if (code == 404) {
+                            Toast.makeText(AboutActivity.this,
+                                    "暂无开发版可用",
+                                    Toast.LENGTH_SHORT).show();
+                        } else {
+                            Toast.makeText(AboutActivity.this,
+                                    "检查更新失败: HTTP " + code,
+                                    Toast.LENGTH_SHORT).show();
+                        }
+                    });
+                    return;
+                }
+
+                try {
+                    JSONObject prerelease = new JSONObject(response.body().string());
+
+                    String remoteHash = extractDevCommitHash(extractVersion(prerelease));
+                    String localHash = extractDevCommitHash(currentVersion);
+
+                    // commit hash 相同 -> 已是最新
+                    if (remoteHash != null && remoteHash.equals(localHash)) {
+                        final String curVer = currentVersion;
+                        runOnUiThread(() -> Toast.makeText(AboutActivity.this,
+                                "当前已是最新开发版本 (v" + curVer + ")",
+                                Toast.LENGTH_SHORT).show());
+                        return;
+                    }
+
+                    // 有新开发版，展示更新对话框
+                    showReleaseUpdate(prerelease, true);
+
+                } catch (Exception e) {
+                    Log.e(TAG, "解析 prerelease JSON 失败", e);
+                    runOnUiThread(() -> Toast.makeText(AboutActivity.this,
+                            "暂无开发版可用",
+                            Toast.LENGTH_SHORT).show());
+                }
+            }
+        });
+    }
+
+    /**
      * 稳定版 tag_name: "v3.0.0" -> "3.0.0"
      * 预发布 tag_name: "prerelease"（无法提取版本号，改用 name）
      * name: "Release v3.0.0" / "PreRelease v3.0-dev-abc1234" -> "3.0.0" / "3.0-dev-abc1234"
