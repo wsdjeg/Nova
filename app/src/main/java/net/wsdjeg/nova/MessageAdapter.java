@@ -858,7 +858,7 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
         int popupText = ContextCompat.getColor(context, R.color.popup_text);
         int errorColor = ContextCompat.getColor(context, R.color.error);
         float density = context.getResources().getDisplayMetrics().density;
-        int padH = (int) (20 * density + 0.5f);
+        int padH = (int) (8 * density + 0.5f);
         int padV = (int) (12 * density + 0.5f);
         int cornerRadius = (int) (8 * density + 0.5f);
 
