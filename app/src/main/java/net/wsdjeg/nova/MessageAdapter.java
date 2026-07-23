@@ -858,8 +858,8 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
         int popupText = ContextCompat.getColor(context, R.color.popup_text);
         int errorColor = ContextCompat.getColor(context, R.color.error);
         float density = context.getResources().getDisplayMetrics().density;
-        int padH = (int) (8 * density + 0.5f);
-        int padV = (int) (12 * density + 0.5f);
+        int padH = (int) (6 * density + 0.5f);
+        int padV = (int) (10 * density + 0.5f);
         int cornerRadius = (int) (8 * density + 0.5f);
 
         // 圆角背景
@@ -872,8 +872,8 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
         layout.setBackground(bgDrawable);
         layout.setElevation(6 * density);
         layout.setClipToOutline(true);
+        layout.setMinimumWidth(0);
 
-        // 辅助方法：创建一个菜单项 TextView
         // 使用 final 数组持有 popup 引用，供 lambda 消费
         final PopupWindow[] popupHolder = new PopupWindow[1];
 
@@ -881,7 +881,9 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
         TextView copyItem = new TextView(context);
         copyItem.setText("复制");
         copyItem.setTextColor(popupText);
-        copyItem.setTextSize(15);
+        copyItem.setTextSize(14);
+        copyItem.setMinWidth(0);
+        copyItem.setMinimumWidth(0);
         copyItem.setPadding(padH, padV, padH, padV);
         copyItem.setOnClickListener(v -> {
             if (actionListener != null) {
@@ -906,7 +908,9 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
             TextView deleteItem = new TextView(context);
             deleteItem.setText("删除");
             deleteItem.setTextColor(errorColor);
-            deleteItem.setTextSize(15);
+            deleteItem.setTextSize(14);
+            deleteItem.setMinWidth(0);
+            deleteItem.setMinimumWidth(0);
             deleteItem.setPadding(padH, padV, padH, padV);
             deleteItem.setOnClickListener(v -> {
                 if (actionListener != null) {
