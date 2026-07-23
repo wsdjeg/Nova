@@ -935,11 +935,15 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
         int offsetX = (int) lastTouchX;
         int offsetY = (int) lastTouchY - (int) (10 * density + 0.5f);
 
-        // 测量布局以获取实际宽高，用于边界检查
+        // 测量布局以获取实际宽高
         layout.measure(View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
             View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED));
         int popupWidth = layout.getMeasuredWidth();
         int popupHeight = layout.getMeasuredHeight();
+
+        // 显式设置 popup 宽高，避免 WRAP_CONTENT 在 showAtLocation 时异常展开
+        popup.setWidth(popupWidth);
+        popup.setHeight(popupHeight);
 
         int screenWidth = context.getResources().getDisplayMetrics().widthPixels;
         int screenHeight = context.getResources().getDisplayMetrics().heightPixels;
@@ -947,6 +951,10 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
         // 确保弹窗不超出屏幕右边界
         if (offsetX + popupWidth > screenWidth - (int) (8 * density)) {
             offsetX = screenWidth - popupWidth - (int) (8 * density);
+        }
+        // 确保弹窗不超出屏幕左边界
+        if (offsetX < (int) (8 * density)) {
+            offsetX = (int) (8 * density);
         }
         // 确保弹窗不超出屏幕底部
         if (offsetY + popupHeight > screenHeight - (int) (8 * density)) {
