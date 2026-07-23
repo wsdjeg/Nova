@@ -872,7 +872,7 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
         layout.setBackground(bgDrawable);
         layout.setElevation(6 * density);
         layout.setClipToOutline(true);
-        layout.setMinimumWidth(0);
+        layout.setMinimumWidth((int) (128 * density + 0.5f));
 
         // 使用 final 数组持有 popup 引用，供 lambda 消费
         final PopupWindow[] popupHolder = new PopupWindow[1];
@@ -882,8 +882,6 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
         copyItem.setText("复制");
         copyItem.setTextColor(popupText);
         copyItem.setTextSize(14);
-        copyItem.setMinWidth(0);
-        copyItem.setMinimumWidth(0);
         copyItem.setPadding(padH, padV, padH, padV);
         copyItem.setOnClickListener(v -> {
             if (actionListener != null) {
@@ -893,7 +891,8 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
             }
             if (popupHolder[0] != null) popupHolder[0].dismiss();
         });
-        layout.addView(copyItem);
+        layout.addView(copyItem, new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
         if (canDelete) {
             // 分隔线
@@ -909,8 +908,6 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
             deleteItem.setText("删除");
             deleteItem.setTextColor(errorColor);
             deleteItem.setTextSize(14);
-            deleteItem.setMinWidth(0);
-            deleteItem.setMinimumWidth(0);
             deleteItem.setPadding(padH, padV, padH, padV);
             deleteItem.setOnClickListener(v -> {
                 if (actionListener != null) {
@@ -918,7 +915,8 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
                 }
                 if (popupHolder[0] != null) popupHolder[0].dismiss();
             });
-            layout.addView(deleteItem);
+            layout.addView(deleteItem, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         }
 
         PopupWindow popup = new PopupWindow(layout,
