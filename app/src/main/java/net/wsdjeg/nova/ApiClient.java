@@ -77,6 +77,15 @@ public class ApiClient {
         void onSuccess();
         void onError(String error);
     }
+
+    /**
+     * 删除消息的回调接口
+     * 用于 DELETE /session/:id/messages/:index API
+     */
+    public interface DeleteMessageCallback {
+        void onSuccess();
+        void onError(String error);
+    }
     
     public interface ProvidersCallback {
         void onSuccess(List<Provider> providers);
@@ -887,6 +896,79 @@ public class ApiClient {
                 }
             } catch (Exception e) {
                 Log.e(TAG, "deleteSession failed", e);
+                new Handler(Looper.getMainLooper()).post(() -> 
+                    callback.onError("Network error: " + e.getMessage()));
+            } finally {
+                if (conn != null) {
+                    conn.disconnect();
+                }
+            }
+        }).start();
+    }
+    
+    /**
+     * 删除会话中的指定消息
+     * API 端点: DELETE /session/:id/messages/:index
+     *
+     * @param sessionId 会话 ID
+     * @param messageIndex 消息在服务端的 1-based 索引
+     * @param callback 回调
+     */
+    public void deleteMessage(String sessionId, int messageIndex, DeleteMessageCallback callback) {
+        String baseUrl = getBaseUrl();
+        String apiKey = getApiKey();
+        
+        if (baseUrl.isEmpty() || apiKey.isEmpty()) {
+            callback.onError("Please configure API settings");
+            return;
+        }
+        
+        if (sessionId == null || sessionId.isEmpty()) {
+            callback.onError("Session ID is required");
+            return;
+        }
+        
+        if (messageIndex < 1) {
+            callback.onError("Invalid message index");
+            return;
+        }
+        
+        new Thread(() -> {
+            HttpURLConnection conn = null;
+            try {
+                URL url = new URL(baseUrl + "/session/" + sessionId + "/messages/" + messageIndex);
+                conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("DELETE");
+                conn.setRequestProperty("X-API-Key", apiKey);
+                conn.setRequestProperty("Connection", "close");
+                conn.setConnectTimeout(15000);
+                conn.setReadTimeout(30000);
+                conn.setUseCaches(false);
+
+                int responseCode = conn.getResponseCode();
+                
+                if (responseCode == 204) {
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onSuccess());
+                } else if (responseCode == 400) {
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onError("Invalid or out-of-range message index"));
+                } else if (responseCode == 404) {
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onError("Session not found"));
+                } else if (responseCode == 409) {
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onError("Session is in progress, cannot delete message"));
+                } else if (responseCode == 401) {
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onError("Unauthorized: Invalid API Key"));
+                } else {
+                    final int code = responseCode;
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onError("Error: " + code));
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "deleteMessage failed", e);
                 new Handler(Looper.getMainLooper()).post(() -> 
                     callback.onError("Network error: " + e.getMessage()));
             } finally {

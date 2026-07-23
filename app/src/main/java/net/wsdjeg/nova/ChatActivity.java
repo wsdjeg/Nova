@@ -279,6 +279,17 @@ public class ChatActivity extends AppCompatActivity {
         
         messages = new ArrayList<>();
         adapter = new MessageAdapter(messages, this);
+        adapter.setOnMessageActionListener(new MessageAdapter.OnMessageActionListener() {
+            @Override
+            public void onCopyMessage(String text) {
+                copyMessageToClipboard(text);
+            }
+            
+            @Override
+            public void onDeleteMessage(Message message) {
+                confirmDeleteMessage(message);
+            }
+        });
         LinearLayoutManager layoutManager = new LinearLayoutManager(this);
         rvMessages.setLayoutManager(layoutManager);
         rvMessages.setItemAnimator(null);
@@ -1301,6 +1312,65 @@ public class ChatActivity extends AppCompatActivity {
         sessionManager.updateFirstMessageIndex(currentSessionId, 0);
         hideLoadMoreHint();
         loadMessagesPage();
+    }
+    
+    /**
+     * 复制消息内容到剪贴板
+     */
+    private void copyMessageToClipboard(String text) {
+        if (text == null || text.isEmpty()) {
+            Toast.makeText(this, "消息内容为空", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        android.content.ClipboardManager clipboard = (android.content.ClipboardManager)
+            getSystemService(android.content.Context.CLIPBOARD_SERVICE);
+        if (clipboard != null) {
+            android.content.ClipData clip = android.content.ClipData.newPlainText("消息内容", text);
+            clipboard.setPrimaryClip(clip);
+            Toast.makeText(this, "已复制到剪贴板", Toast.LENGTH_SHORT).show();
+        }
+    }
+    
+    /**
+     * 确认删除消息（弹出确认对话框）
+     */
+    private void confirmDeleteMessage(Message message) {
+        if (message == null || message.getServerIndex() < 1) {
+            Toast.makeText(this, "无法删除此消息", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        new androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("删除消息")
+            .setMessage("确定要删除这条消息吗？")
+            .setPositiveButton("删除", (dialog, which) -> deleteMessageFromServer(message))
+            .setNegativeButton("取消", null)
+            .show();
+    }
+    
+    /**
+     * 调用 API 删除服务端消息，成功后重新加载消息列表
+     */
+    private void deleteMessageFromServer(Message message) {
+        final int serverIndex = message.getServerIndex();
+        Log.d(TAG, "Deleting message at server index: " + serverIndex);
+        
+        apiClient.deleteMessage(currentSessionId, serverIndex, new ApiClient.DeleteMessageCallback() {
+            @Override
+            public void onSuccess() {
+                runOnUiThread(() -> {
+                    Toast.makeText(ChatActivity.this, "消息已删除", Toast.LENGTH_SHORT).show();
+                    reloadMessages();
+                });
+            }
+            
+            @Override
+            public void onError(String error) {
+                runOnUiThread(() -> {
+                    Toast.makeText(ChatActivity.this, "删除失败: " + error, Toast.LENGTH_SHORT).show();
+                });
+            }
+        });
     }
     
     private void scrollToBottomSmooth() {

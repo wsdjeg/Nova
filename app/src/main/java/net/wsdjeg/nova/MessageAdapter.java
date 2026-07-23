@@ -107,6 +107,30 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
         }
     }
 
+    /**
+     * 消息长按操作监听器
+     * 用于处理复制和删除操作
+     */
+    public interface OnMessageActionListener {
+        /**
+         * 复制消息内容
+         * @param text 要复制的文本
+         */
+        void onCopyMessage(String text);
+        
+        /**
+         * 删除消息
+         * @param message 要删除的 Message 对象
+         */
+        void onDeleteMessage(Message message);
+    }
+    
+    private OnMessageActionListener actionListener;
+    
+    public void setOnMessageActionListener(OnMessageActionListener listener) {
+        this.actionListener = listener;
+    }
+
     public MessageAdapter(List<Message> messages, Context context) {
         this.messages = messages;
         this.visibleItems = new ArrayList<>();
@@ -444,12 +468,12 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
         
         final String copyText = contentSafe;
         holder.messageText.setOnLongClickListener(v -> {
-            copyToClipboard(copyText);
+            showMessageActionPopup(v, copyText, message);
             return true;
         });
         
         holder.itemView.setOnLongClickListener(v -> {
-            copyToClipboard(copyText);
+            showMessageActionPopup(v, copyText, message);
             return true;
         });
     }
@@ -516,8 +540,9 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
         };
         holder.expandHint.setOnClickListener(toggleListener);
         
+        final String toolCallCopyText = item.getToolName() + "\n" + (args != null ? args : "");
         holder.itemView.setOnLongClickListener(v -> {
-            copyToClipboard(item.getToolName() + "\n" + args);
+            showMessageActionPopup(v, toolCallCopyText, item.parentMessage);
             return true;
         });
     }
@@ -586,10 +611,9 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
         };
         holder.expandHint.setOnClickListener(toggleListener);
         
+        final String toolResultCopyText = content != null ? content : "";
         holder.itemView.setOnLongClickListener(v -> {
-            if (content != null && !content.isEmpty()) {
-                copyToClipboard(content);
-            }
+            showMessageActionPopup(v, toolResultCopyText, message);
             return true;
         });
     }
@@ -793,6 +817,47 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
             clipboard.setPrimaryClip(clip);
             Toast.makeText(context, "已复制到剪贴板", Toast.LENGTH_SHORT).show();
         }
+    }
+    
+    /**
+     * 显示消息长按操作弹窗（复制 / 删除）
+     *
+     * @param anchorView 长按的 View，用于定位弹窗
+     * @param copyText   要复制的文本内容
+     * @param message    对应的 Message 对象（用于删除操作）
+     */
+    private void showMessageActionPopup(View anchorView, String copyText, Message message) {
+        android.widget.PopupMenu popup = new android.widget.PopupMenu(context, anchorView);
+        popup.getMenu().add(0, 1, 0, "复制");
+        
+        // 只有服务端消息（有 serverIndex）且非 pending、非 error 的消息才能删除
+        boolean canDelete = message != null
+            && !message.isPending()
+            && !message.isError()
+            && message.getServerIndex() > 0;
+        if (canDelete) {
+            popup.getMenu().add(0, 2, 1, "删除");
+        }
+        
+        popup.setOnMenuItemClickListener(item -> {
+            switch (item.getItemId()) {
+                case 1: // 复制
+                    if (actionListener != null) {
+                        actionListener.onCopyMessage(copyText);
+                    } else {
+                        copyToClipboard(copyText);
+                    }
+                    return true;
+                case 2: // 删除
+                    if (actionListener != null) {
+                        actionListener.onDeleteMessage(message);
+                    }
+                    return true;
+            }
+            return false;
+        });
+        
+        popup.show();
     }
 
     /**
