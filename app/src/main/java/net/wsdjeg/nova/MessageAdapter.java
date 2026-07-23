@@ -136,6 +136,8 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
                     // 代码块/内联代码背景与工具卡片内容背景保持一致
                     builder.codeBlockBackgroundColor(codeBlockBg);
                     builder.codeBackgroundColor(codeBlockBg);
+                    // 缩小无序列表圆点大小（默认 ~12dp 太大）
+                    builder.bulletWidth((int) (4 * context.getResources().getDisplayMetrics().density + 0.5f));
                 }
             })
             .usePlugin(TablePlugin.create(context))
@@ -154,6 +156,8 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
                     });
                     builder.codeBlockBackgroundColor(userCodeBlockBg);
                     builder.codeBackgroundColor(userCodeBlockBg);
+                    // 缩小无序列表圆点大小（默认 ~12dp 太大）
+                    builder.bulletWidth((int) (4 * context.getResources().getDisplayMetrics().density + 0.5f));
                 }
             })
             .usePlugin(TablePlugin.create(context))
