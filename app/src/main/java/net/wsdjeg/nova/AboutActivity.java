@@ -40,6 +40,8 @@ import java.util.regex.Pattern;
 import io.noties.markwon.Markwon;
 import io.noties.markwon.AbstractMarkwonPlugin;
 import io.noties.markwon.core.MarkwonTheme;
+import io.noties.markwon.MarkwonSpansFactory;
+import org.commonmark.node.Code;
 import io.noties.markwon.ext.tables.TablePlugin;
 import io.noties.markwon.ext.tasklist.TaskListPlugin;
 import io.noties.markwon.ext.strikethrough.StrikethroughPlugin;
@@ -108,6 +110,11 @@ public class AboutActivity extends AppCompatActivity {
                         0.93f, // H5 -> 13sp
                         0.86f  // H6 -> 12sp
                     });
+                }
+                @Override
+                public void configureSpansFactory(@NonNull MarkwonSpansFactory.Builder builder) {
+                    builder.setFactory(Code.class, (configuration, renderProps) ->
+                        new InlineCodeSpan(0, getResources().getDisplayMetrics().density));
                 }
             })
             .usePlugin(TablePlugin.create(this))

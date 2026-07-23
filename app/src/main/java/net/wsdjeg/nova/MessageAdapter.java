@@ -24,6 +24,8 @@ import io.noties.markwon.ext.tasklist.TaskListPlugin;
 import io.noties.markwon.ext.strikethrough.StrikethroughPlugin;
 import io.noties.markwon.html.HtmlPlugin;
 import io.noties.markwon.core.MarkwonTheme;
+import io.noties.markwon.MarkwonSpansFactory;
+import org.commonmark.node.Code;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -139,6 +141,11 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
                     // 缩小无序列表圆点大小（默认 ~12dp 太大）
                     builder.bulletWidth((int) (4 * context.getResources().getDisplayMetrics().density + 0.5f));
                 }
+                @Override
+                public void configureSpansFactory(@NonNull MarkwonSpansFactory.Builder builder) {
+                    builder.setFactory(Code.class, (configuration, renderProps) ->
+                        new InlineCodeSpan(codeBlockBg, context.getResources().getDisplayMetrics().density));
+                }
             })
             .usePlugin(TablePlugin.create(context))
             .usePlugin(TaskListPlugin.create(context))
@@ -158,6 +165,11 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
                     builder.codeBackgroundColor(userCodeBlockBg);
                     // 缩小无序列表圆点大小（默认 ~12dp 太大）
                     builder.bulletWidth((int) (4 * context.getResources().getDisplayMetrics().density + 0.5f));
+                }
+                @Override
+                public void configureSpansFactory(@NonNull MarkwonSpansFactory.Builder builder) {
+                    builder.setFactory(Code.class, (configuration, renderProps) ->
+                        new InlineCodeSpan(userCodeBlockBg, context.getResources().getDisplayMetrics().density));
                 }
             })
             .usePlugin(TablePlugin.create(context))
