@@ -170,6 +170,7 @@ public class ApiClient {
         public List<ToolCall> toolCalls;  // 工具调用（AI 调用工具时）
         public ToolCallState toolCallState;  // 工具状态（工具结果消息）
         public String toolCallId;  // tool 消息引用的 tool_call.id（顶层 tool_call_id）
+        public int rawIndex = -1;  // 在 API 原始响应中的位置（0-based），用于计算正确的 serverIndex
         
         public ChatMessage(String role, String content, long created) {
             this.role = role;
@@ -1448,8 +1449,11 @@ public class ApiClient {
                     for (int i = 0; i < jsonArray.length(); i++) {
                         JSONObject msg = jsonArray.getJSONObject(i);
                         ChatMessage chatMsg = parseMessage(msg);
-                        if (chatMsg != null && (chatMsg.hasDisplayableContent() || chatMsg.hasToolCalls() || chatMsg.isToolResult())) {
-                            messages.add(chatMsg);
+                        if (chatMsg != null) {
+                            chatMsg.rawIndex = i;
+                            if (chatMsg.hasDisplayableContent() || chatMsg.hasToolCalls() || chatMsg.isToolResult()) {
+                                messages.add(chatMsg);
+                            }
                         }
                     }
                     
@@ -1554,8 +1558,11 @@ public class ApiClient {
                     for (int i = 0; i < jsonArray.length(); i++) {
                         JSONObject msg = jsonArray.getJSONObject(i);
                         ChatMessage chatMsg = parseMessage(msg);
-                        if (chatMsg != null && (chatMsg.hasDisplayableContent() || chatMsg.hasToolCalls() || chatMsg.isToolResult())) {
-                            messages.add(chatMsg);
+                        if (chatMsg != null) {
+                            chatMsg.rawIndex = i;
+                            if (chatMsg.hasDisplayableContent() || chatMsg.hasToolCalls() || chatMsg.isToolResult()) {
+                                messages.add(chatMsg);
+                            }
                         }
                     }
                     

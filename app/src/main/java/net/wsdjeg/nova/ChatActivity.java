@@ -418,26 +418,6 @@ public class ChatActivity extends AppCompatActivity {
         return msg.created + ":" + (msg.role != null ? msg.role : "") + ":" + toolCallId + ":" + content;
     }
 
-    /**
-     * 从 Message 对象构建指纹，格式与 getMessageFingerprint(ChatMessage) 一致。
-     * 用于在删除消息时，从服务端完整消息列表中匹配正确的 1-based 索引。
-     */
-    private String getMessageFingerprintFromMessage(Message msg) {
-        String toolCallId = "";
-        if (msg.hasToolCalls()) {
-            toolCallId = msg.getToolCalls().get(0).id != null ? msg.getToolCalls().get(0).id : "";
-        }
-        String content = "";
-        String role = msg.getRole();
-        if (msg.isError()) {
-            content = "error:" + msg.getError();
-            role = null; // 匹配 ChatMessage 错误消息的 null role
-        } else if (msg.getContent() != null) {
-            content = msg.getContent();
-        }
-        return msg.getCreated() + ":" + (role != null ? role : "") + ":" + toolCallId + ":" + content;
-    }
-
     private void setupScrollListener() {
         rvMessages.addOnScrollListener(new RecyclerView.OnScrollListener() {
             @Override
@@ -881,7 +861,7 @@ public class ChatActivity extends AppCompatActivity {
                     boolean addedNew = false;
                     for (int i = 0; i < chatMessages.size(); i++) {
                         ApiClient.ChatMessage msg = chatMessages.get(i);
-                        int serverIndex = sinceIndex + i;
+                        int serverIndex = sinceIndex + msg.rawIndex;
                         
                         boolean hasToolCalls = msg.toolCalls != null && !msg.toolCalls.isEmpty();
                         boolean isTool = "tool".equals(msg.role);
@@ -924,7 +904,11 @@ public class ChatActivity extends AppCompatActivity {
                         addedNew = true;
                     }
                     
-                    processedServerMessageCount += chatMessages.size();
+                    // 使用最后一条消息的 rawIndex 计算真实的已处理消息数
+                    // 避免过滤掉空消息后计数偏小，导致下次重复拉取
+                    if (!chatMessages.isEmpty()) {
+                        processedServerMessageCount = sinceIndex + chatMessages.get(chatMessages.size() - 1).rawIndex;
+                    }
                     
                     cleanupPendingMessages();
                     
@@ -1096,7 +1080,7 @@ public class ChatActivity extends AppCompatActivity {
                         
                         for (int i = 0; i < chatMessages.size(); i++) {
                             ApiClient.ChatMessage msg = chatMessages.get(i);
-                            int serverIndex = since + i;
+                            int serverIndex = since + msg.rawIndex;
                             messages.add(createMessageFromChatMessage(msg, serverIndex));
                             messageFingerprints.add(getMessageFingerprint(msg));
                         }
@@ -1173,7 +1157,7 @@ public class ChatActivity extends AppCompatActivity {
                     
                     for (int i = chatMessages.size() - 1; i >= 0; i--) {
                         ApiClient.ChatMessage msg = chatMessages.get(i);
-                        int serverIndex = newSince + i;
+                        int serverIndex = newSince + msg.rawIndex;
                         if (!messageFingerprints.contains(getMessageFingerprint(msg))) {
                             Message message = createMessageFromChatMessage(msg, serverIndex);
                             messages.add(0, message);
@@ -1282,12 +1266,12 @@ public class ChatActivity extends AppCompatActivity {
                         ApiClient.ChatMessage msg = chatMessages.get(i);
                         if (msg.error != null && !msg.error.isEmpty()) {
                             latestFiltered = msg;
-                            latestSvrIdx = sinceIndex + i;
+                            latestSvrIdx = sinceIndex + msg.rawIndex;
                             break;
                         }
                         if (msg.content != null && !msg.content.isEmpty() && !"tool".equals(msg.role)) {
                             latestFiltered = msg;
-                            latestSvrIdx = sinceIndex + i;
+                            latestSvrIdx = sinceIndex + msg.rawIndex;
                             break;
                         }
                     }
@@ -1371,62 +1355,26 @@ public class ChatActivity extends AppCompatActivity {
     /**
      * 调用 API 删除服务端消息，成功后重新加载消息列表。
      * 
-     * 由于 Nova 消息列表是分页窗口视图，本地存储的 serverIndex 可能已过时
-     * （服务端可能已新增或删除消息导致索引偏移）。
-     * 因此先从服务端获取完整消息列表，通过指纹匹配找到准确的 1-based 索引，再执行删除。
+     * serverIndex 通过 since + msg.rawIndex 计算，是消息在服务端的真实 1-based 索引。
+     * 直接使用即可，无需从服务端拉取全部消息重新匹配。
      */
     private void deleteMessageFromServer(Message message) {
-        final String targetFingerprint = getMessageFingerprintFromMessage(message);
-        final int oldServerIndex = message.getServerIndex();
-        Log.d(TAG, "Delete requested: oldServerIndex=" + oldServerIndex
-                + ", fingerprint=" + targetFingerprint);
+        final int serverIndex = message.getServerIndex();
+        Log.d(TAG, "Delete requested: serverIndex=" + serverIndex);
 
-        // 先从服务端获取完整消息列表（since=1 获取全部）
-        apiClient.getNewMessages(currentSessionId, 1, new ApiClient.MessagesCallback() {
+        if (serverIndex < 1) {
+            Toast.makeText(this, "无法删除此消息", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        apiClient.deleteMessage(currentSessionId, serverIndex,
+                new ApiClient.DeleteMessageCallback() {
             @Override
-            public void onSuccess(List<ApiClient.ChatMessage> chatMessages) {
-                // 在服务端完整列表中通过指纹匹配目标消息
-                int matchedIndex = -1;
-                for (int i = 0; i < chatMessages.size(); i++) {
-                    String fp = getMessageFingerprint(chatMessages.get(i));
-                    if (fp.equals(targetFingerprint)) {
-                        matchedIndex = i + 1; // 服务端是 1-based 索引
-                        break;
-                    }
-                }
-
-                if (matchedIndex < 1) {
-                    Log.w(TAG, "Message not found in server response, may have been deleted already");
-                    runOnUiThread(() -> {
-                        Toast.makeText(ChatActivity.this,
-                                "消息未找到，可能已被删除", Toast.LENGTH_SHORT).show();
-                        reloadMessages();
-                    });
-                    return;
-                }
-
-                Log.d(TAG, "Matched server index: " + matchedIndex
-                        + " (oldServerIndex was " + oldServerIndex + ")");
-
-                // 使用准确的服务端索引执行删除
-                apiClient.deleteMessage(currentSessionId, matchedIndex,
-                        new ApiClient.DeleteMessageCallback() {
-                    @Override
-                    public void onSuccess() {
-                        runOnUiThread(() -> {
-                            Toast.makeText(ChatActivity.this,
-                                    "消息已删除", Toast.LENGTH_SHORT).show();
-                            reloadMessages();
-                        });
-                    }
-
-                    @Override
-                    public void onError(String error) {
-                        runOnUiThread(() -> {
-                            Toast.makeText(ChatActivity.this,
-                                    "删除失败: " + error, Toast.LENGTH_SHORT).show();
-                        });
-                    }
+            public void onSuccess() {
+                runOnUiThread(() -> {
+                    Toast.makeText(ChatActivity.this,
+                            "消息已删除", Toast.LENGTH_SHORT).show();
+                    reloadMessages();
                 });
             }
 
@@ -1434,7 +1382,7 @@ public class ChatActivity extends AppCompatActivity {
             public void onError(String error) {
                 runOnUiThread(() -> {
                     Toast.makeText(ChatActivity.this,
-                            "获取消息列表失败: " + error, Toast.LENGTH_SHORT).show();
+                            "删除失败: " + error, Toast.LENGTH_SHORT).show();
                 });
             }
         });
