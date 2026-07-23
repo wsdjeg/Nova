@@ -3,6 +3,7 @@ package net.wsdjeg.nova;
 import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
 import android.view.LayoutInflater;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
@@ -29,13 +30,17 @@ public class SessionAdapter extends RecyclerView.Adapter<SessionAdapter.SessionV
     private OnSessionClickListener listener;
     private AccountManager accountManager;
     private SettingsManager settingsManager;
-    
+
+    // 长按弹窗：记录最近一次触摸坐标（屏幕绝对坐标）
+    private float lastTouchX = 0;
+    private float lastTouchY = 0;
+
     /**
      * 会话点击监听器接口
      */
     public interface OnSessionClickListener {
         void onSessionClick(Session session);
-        void onSessionLongClick(Session session);
+        void onSessionLongClick(Session session, float touchX, float touchY, View anchorView);
     }
     
     public SessionAdapter(List<Session> sessions, OnSessionClickListener listener) {
@@ -149,10 +154,17 @@ public class SessionAdapter extends RecyclerView.Adapter<SessionAdapter.SessionV
             }
         });
         
-        // 长按事件
+        // 长按事件（跟踪触摸坐标 + 长按回调）
+        holder.itemView.setOnTouchListener((v, event) -> {
+            if (event.getAction() == MotionEvent.ACTION_DOWN) {
+                lastTouchX = event.getRawX();
+                lastTouchY = event.getRawY();
+            }
+            return false;
+        });
         holder.itemView.setOnLongClickListener(v -> {
             if (listener != null) {
-                listener.onSessionLongClick(session);
+                listener.onSessionLongClick(session, lastTouchX, lastTouchY, v);
                 return true;
             }
             return false;
@@ -257,3 +269,4 @@ public class SessionAdapter extends RecyclerView.Adapter<SessionAdapter.SessionV
         }
     }
 }
+

@@ -640,22 +640,14 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
     }
     
     @Override
-    public void onSessionLongClick(Session session) {
-        // 显示菜单：删除、置顶（或取消置顶）
+    public void onSessionLongClick(Session session, float touchX, float touchY, View anchorView) {
         String pinActionText = session.isPinned() ? "取消置顶" : "置顶";
-        
-        new androidx.appcompat.app.AlertDialog.Builder(this)
-            .setTitle("会话操作")
-            .setItems(new String[]{pinActionText, "删除"}, (dialog, which) -> {
-                if (which == 0) {
-                    // 置顶/取消置顶
-                    toggleSessionPin(session);
-                } else if (which == 1) {
-                    // 删除 - 需要确认
-                    confirmDeleteSession(session);
-                }
-            })
-            .show();
+
+        List<PopupHelper.PopupItem> items = new ArrayList<>();
+        items.add(new PopupHelper.PopupItem(pinActionText, () -> toggleSessionPin(session)));
+        items.add(new PopupHelper.PopupItem("删除", true, () -> confirmDeleteSession(session)));
+
+        PopupHelper.show(this, anchorView, touchX, touchY, items);
     }
     
     /**

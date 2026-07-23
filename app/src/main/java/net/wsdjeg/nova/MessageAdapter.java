@@ -5,16 +5,12 @@ import android.content.ClipboardManager;
 import android.content.Context;
 import android.graphics.Typeface;
 import android.text.method.LinkMovementMethod;
-import android.graphics.drawable.GradientDrawable;
 import android.util.Log;
-import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.HorizontalScrollView;
-import android.widget.LinearLayout;
-import android.widget.PopupWindow;
 import android.widget.TextView;
 import android.widget.Toast;
 import androidx.annotation.NonNull;
@@ -842,7 +838,7 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
     /**
      * 显示消息长按操作弹窗（复制 / 删除）
      *
-     * 使用 PopupWindow 在触点位置显示弹窗，而不是锚定到 View 下方。
+     * 使用 PopupHelper 在触点位置显示统一风格的弹窗。
      *
      * @param anchorView 长按的 View（用于 showAtLocation 锚定窗口）
      * @param copyText   要复制的文本内容
@@ -854,112 +850,24 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
             && !message.isError()
             && message.getServerIndex() > 0;
 
-        int popupBg = ContextCompat.getColor(context, R.color.popup_bg);
-        int popupText = ContextCompat.getColor(context, R.color.popup_text);
-        int errorColor = ContextCompat.getColor(context, R.color.error);
-        float density = context.getResources().getDisplayMetrics().density;
-        int padH = (int) (6 * density + 0.5f);
-        int padV = (int) (10 * density + 0.5f);
-        int cornerRadius = (int) (8 * density + 0.5f);
-
-        // 圆角背景
-        GradientDrawable bgDrawable = new GradientDrawable();
-        bgDrawable.setColor(popupBg);
-        bgDrawable.setCornerRadius(cornerRadius);
-
-        LinearLayout layout = new LinearLayout(context);
-        layout.setOrientation(LinearLayout.VERTICAL);
-        layout.setBackground(bgDrawable);
-        layout.setElevation(6 * density);
-        layout.setClipToOutline(true);
-        layout.setMinimumWidth((int) (128 * density + 0.5f));
-
-        // 使用 final 数组持有 popup 引用，供 lambda 消费
-        final PopupWindow[] popupHolder = new PopupWindow[1];
-
-        // 复制
-        TextView copyItem = new TextView(context);
-        copyItem.setText("复制");
-        copyItem.setTextColor(popupText);
-        copyItem.setTextSize(14);
-        copyItem.setPadding(padH, padV, padH, padV);
-        copyItem.setOnClickListener(v -> {
+        List<PopupHelper.PopupItem> items = new ArrayList<>();
+        items.add(new PopupHelper.PopupItem("复制", () -> {
             if (actionListener != null) {
                 actionListener.onCopyMessage(copyText);
             } else {
                 copyToClipboard(copyText);
             }
-            if (popupHolder[0] != null) popupHolder[0].dismiss();
-        });
-        layout.addView(copyItem, new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        }));
 
         if (canDelete) {
-            // 分隔线
-            View divider = new View(context);
-            divider.setBackgroundColor(popupText);
-            divider.setAlpha(0.12f);
-            LinearLayout.LayoutParams dividerLp = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, 1);
-            layout.addView(divider, dividerLp);
-
-            // 删除
-            TextView deleteItem = new TextView(context);
-            deleteItem.setText("删除");
-            deleteItem.setTextColor(errorColor);
-            deleteItem.setTextSize(14);
-            deleteItem.setPadding(padH, padV, padH, padV);
-            deleteItem.setOnClickListener(v -> {
+            items.add(new PopupHelper.PopupItem("删除", true, () -> {
                 if (actionListener != null) {
                     actionListener.onDeleteMessage(message);
                 }
-                if (popupHolder[0] != null) popupHolder[0].dismiss();
-            });
-            layout.addView(deleteItem, new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+            }));
         }
 
-        PopupWindow popup = new PopupWindow(layout,
-            ViewGroup.LayoutParams.WRAP_CONTENT,
-            ViewGroup.LayoutParams.WRAP_CONTENT, true);
-        popup.setOutsideTouchable(true);
-        popup.setElevation(6 * density);
-        popupHolder[0] = popup;
-
-        // 在触点位置显示弹窗
-        // touchX/Y 是屏幕绝对坐标，showAtLocation 的 x/y 是相对于 Gravity 的偏移
-        // 使用 Gravity.NO_GRAVITY 时，x/y 就是屏幕绝对坐标
-        // 但需要稍微偏移，使弹窗不完全覆盖触点
-        int offsetX = (int) lastTouchX;
-        int offsetY = (int) lastTouchY - (int) (10 * density + 0.5f);
-
-        // 测量布局以获取实际宽高
-        layout.measure(View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
-            View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED));
-        int popupWidth = layout.getMeasuredWidth();
-        int popupHeight = layout.getMeasuredHeight();
-
-        // 显式设置 popup 宽高，避免 WRAP_CONTENT 在 showAtLocation 时异常展开
-        popup.setWidth(popupWidth);
-        popup.setHeight(popupHeight);
-
-        int screenWidth = context.getResources().getDisplayMetrics().widthPixels;
-        int screenHeight = context.getResources().getDisplayMetrics().heightPixels;
-
-        // 确保弹窗不超出屏幕右边界
-        if (offsetX + popupWidth > screenWidth - (int) (8 * density)) {
-            offsetX = screenWidth - popupWidth - (int) (8 * density);
-        }
-        // 确保弹窗不超出屏幕左边界
-        if (offsetX < (int) (8 * density)) {
-            offsetX = (int) (8 * density);
-        }
-        // 确保弹窗不超出屏幕底部
-        if (offsetY + popupHeight > screenHeight - (int) (8 * density)) {
-            offsetY = (int) lastTouchY - popupHeight - (int) (10 * density + 0.5f);
-        }
-
-        popup.showAtLocation(anchorView, Gravity.NO_GRAVITY, offsetX, offsetY);
+        PopupHelper.show(context, anchorView, lastTouchX, lastTouchY, items);
     }
 
     /**
