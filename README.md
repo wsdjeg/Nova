@@ -20,7 +20,7 @@ browse tool-call results, and more, all from your phone.
 
 | Session List | Chat | Account List | Edit Account | About |
 |:--------:|:--------:|:--------:|:--------:|:--------:|
-| <img width="1264" height="2780" alt="session list" src="https://github.com/user-attachments/assets/71b50d8a-8d85-498e-a966-b324c5bd0b80" /> | <img width="1264" height="2780" alt="chat" src="https://github.com/user-attachments/assets/b05b7ddd-434c-4d7e-9c5f-4b1bb8e96f90" /> | <img width="1264" height="2780" alt="account list" src="https://github.com/user-attachments/assets/102dd9a0-ae93-45c5-88d6-32d716dc35ff" /> | <img width="1264" height="2780" alt="edit account" src="https://github.com/user-attachments/assets/a4f10477-b6eb-40c2-9ced-e2c298b8e69d" /> | <img width="1264" height="2780" alt="about" src="https://github.com/user-attachments/assets/422d42b7-6ed5-4f51-86f3-bb612a04999a" /> |
+| <img alt="session list" src="https://github.com/user-attachments/assets/71b50d8a-8d85-498e-a966-b324c5bd0b80" /> | <img alt="chat" src="https://github.com/user-attachments/assets/b05b7ddd-434c-4d7e-9c5f-4b1bb8e96f90" /> | <img alt="account list" src="https://github.com/user-attachments/assets/102dd9a0-ae93-45c5-88d6-32d716dc35ff" /> | <img alt="edit account" src="https://github.com/user-attachments/assets/a4f10477-b6eb-40c2-9ced-e2c298b8e69d" /> | <img alt="about" src="https://github.com/user-attachments/assets/422d42b7-6ed5-4f51-86f3-bb612a04999a" /> |
 
 </div>
 
