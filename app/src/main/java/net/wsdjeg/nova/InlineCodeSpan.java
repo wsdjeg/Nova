@@ -1,34 +1,37 @@
 package net.wsdjeg.nova;
 
-import android.graphics.Canvas;
-import android.graphics.Paint;
-import android.graphics.RectF;
 import android.graphics.Typeface;
-import android.text.style.ReplacementSpan;
+import android.text.TextPaint;
+import android.text.style.MetricAffectingSpan;
 import androidx.annotation.NonNull;
 
 /**
- * 自定义行内代码 Span，控制背景高度避免连续行内代码背景相连。
+ * 自定义行内代码 Span。
  *
- * Markwon 默认 CodeSpan 使用 MetricAffectingSpan + bgColor，
- * 背景高度接近行高，导致连续行代码背景之间没有间隙。
- * 本 Span 使用 ReplacementSpan 完全控制绘制：
- * - 背景高度仅覆盖代码文字 + 少量内边距（不占满行高）
- * - 圆角矩形背景
- * - 等宽字体 + 0.87x 文字大小（与 Markwon 默认比例一致）
+ * ⚠️ 必须使用 MetricAffectingSpan（不能用 ReplacementSpan）。
+ *
+ * ReplacementSpan 在 StaticLayout 中被视为不可分割的原子单元，
+ * 即使文本中插入了 ZWSP（零宽空格），StaticLayout 也无法在 span
+ * 内部断行。这会导致表格单元格中的长代码标识符溢出列宽。
+ *
+ * MetricAffectingSpan 仅修改 TextPaint 属性（字体、字号、背景色），
+ * 不替换文本绘制，因此 StaticLayout 可以正常在 span 内部断行。
+ * ZWSP 插入的断行点也能正确生效。
+ *
+ * 背景色通过 TextPaint.bgColor 实现，由 StaticLayout 自动绘制。
+ * 相比 ReplacementSpan 的圆角矩形背景，bgColor 为全行高矩形，
+ * 但换来了关键的文本换行能力。
  */
-public class InlineCodeSpan extends ReplacementSpan {
+public class InlineCodeSpan extends MetricAffectingSpan {
 
     private static final float TEXT_SIZE_RATIO = 0.87f;
-    private static final float CORNER_RADIUS_DP = 3f;
-    private static final float VERTICAL_PADDING_DP = 1.5f;
 
     private final int backgroundColor;
     private final float density;
 
     /**
      * @param backgroundColor 行内代码背景色，传 0 则在绘制时根据文字颜色自动计算（alpha=25）
-     * @param density         屏幕密度，用于 dp -> px 转换
+     * @param density         屏幕密度（保留兼容性，当前未使用）
      */
     public InlineCodeSpan(int backgroundColor, float density) {
         this.backgroundColor = backgroundColor;
@@ -36,63 +39,23 @@ public class InlineCodeSpan extends ReplacementSpan {
     }
 
     @Override
-    public int getSize(@NonNull Paint paint, CharSequence text, int start, int end,
-                       Paint.FontMetricsInt fm) {
-        float originalSize = paint.getTextSize();
-        Typeface originalTypeface = paint.getTypeface();
-
-        paint.setTextSize(originalSize * TEXT_SIZE_RATIO);
-        paint.setTypeface(Typeface.MONOSPACE);
-        int width = Math.round(paint.measureText(text, start, end));
-
-        paint.setTextSize(originalSize);
-        paint.setTypeface(originalTypeface);
-        return width;
+    public void updateMeasureState(@NonNull TextPaint paint) {
+        apply(paint);
     }
 
     @Override
-    public void draw(@NonNull Canvas canvas, CharSequence text, int start, int end,
-                     float x, int top, int y, int bottom, @NonNull Paint paint) {
-        float originalSize = paint.getTextSize();
-        int originalColor = paint.getColor();
-        Typeface originalTypeface = paint.getTypeface();
+    public void updateDrawState(@NonNull TextPaint paint) {
+        apply(paint);
+    }
 
-        // Apply code text style
-        paint.setTextSize(originalSize * TEXT_SIZE_RATIO);
+    private void apply(@NonNull TextPaint paint) {
         paint.setTypeface(Typeface.MONOSPACE);
+        paint.setTextSize(paint.getTextSize() * TEXT_SIZE_RATIO);
 
-        // Get code text metrics
-        Paint.FontMetrics codeFm = paint.getFontMetrics();
-        float codeTextHeight = codeFm.descent - codeFm.ascent;
-
-        // Calculate vertically centered background (smaller than line height)
-        float lineCenter = (top + bottom) / 2f;
-        float vPad = VERTICAL_PADDING_DP * density;
-        float bgTop = lineCenter - codeTextHeight / 2f - vPad;
-        float bgBottom = lineCenter + codeTextHeight / 2f + vPad;
-
-        float textWidth = paint.measureText(text, start, end);
-
-        // Draw rounded rectangle background
         int bgColor = backgroundColor != 0
                 ? backgroundColor
-                : (originalColor & 0x00FFFFFF) | (25 << 24);
-        paint.setColor(bgColor);
-        paint.setStyle(Paint.Style.FILL);
-        float cornerRadius = CORNER_RADIUS_DP * density;
-        RectF rect = new RectF(x, bgTop, x + textWidth, bgBottom);
-        canvas.drawRoundRect(rect, cornerRadius, cornerRadius, paint);
-
-        // Draw text centered vertically
-        paint.setColor(originalColor);
-        float codeBaseline = lineCenter - (codeFm.ascent + codeFm.descent) / 2f;
-        canvas.drawText(text, start, end, x, codeBaseline, paint);
-
-        // Restore paint
-        paint.setTextSize(originalSize);
-        paint.setColor(originalColor);
-        paint.setTypeface(originalTypeface);
-        paint.setStyle(Paint.Style.FILL);
+                : (paint.getColor() & 0x00FFFFFF) | (25 << 24);
+        paint.bgColor = bgColor;
     }
 }
 
