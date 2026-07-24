@@ -458,7 +458,7 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
                 holder.messageText.setText(content);
             } else {
                 Markwon mk = message.isUser() ? userMarkwon : markwon;
-                mk.setMarkdown(holder.messageText, contentSafe);
+                mk.setMarkdown(holder.messageText, MarkdownUtils.preprocessMarkdown(contentSafe));
                 holder.messageText.setMovementMethod(LinkMovementMethod.getInstance());
                 holder.messageText.setLinkTextColor(linkColor);
             }

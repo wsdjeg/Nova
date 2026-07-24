@@ -558,7 +558,7 @@ public class AboutActivity extends AppCompatActivity {
         String bodyContent = (releaseBody != null && !releaseBody.isEmpty())
                 ? releaseBody
                 : "*暂无更新说明*";
-        markwon.setMarkdown(tvBody, bodyContent);
+        markwon.setMarkdown(tvBody, MarkdownUtils.preprocessMarkdown(bodyContent));
 
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle("发现新版本");
