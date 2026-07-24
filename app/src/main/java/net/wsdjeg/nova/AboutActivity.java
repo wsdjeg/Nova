@@ -3,6 +3,7 @@ package net.wsdjeg.nova;
 import android.app.AlertDialog;
 import android.app.ProgressDialog;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.graphics.PorterDuff;
@@ -58,7 +59,7 @@ public class AboutActivity extends AppCompatActivity {
 
     // GitHub API：获取所有 releases（含 prerelease）
     private static final String GITHUB_API_RELEASES =
-            "https://api.github.com/repos/wsdjeg/Nova/releases";
+            "https://api.github.com/repos/wsdjeg/Nova/releases?per_page=10";
     // GitHub API：直接通过 tag 获取 prerelease（fallback，当 /releases 列表未返回 prerelease 时使用）
     private static final String GITHUB_API_PRERELEASE_TAG =
             "https://api.github.com/repos/wsdjeg/Nova/releases/tags/prerelease";
@@ -66,6 +67,12 @@ public class AboutActivity extends AppCompatActivity {
     private static final String GITHUB_URL = "https://github.com/wsdjeg/Nova";
     // chat.nvim 官网
     private static final String CHAT_NVIM_URL = "https://nvim.chat";
+    // SharedPreferences 用于 ETag 缓存，减少 API 调用次数（避免 403 速率限制）
+    private static final String PREFS_NAME = "nova_update_cache";
+    private static final String KEY_ETAG_RELEASES = "etag_releases";
+    private static final String KEY_CACHED_RELEASES = "cached_releases";
+    private static final String KEY_ETAG_PRERELEASE = "etag_prerelease";
+    private static final String KEY_CACHED_PRERELEASE = "cached_prerelease";
 
     private OkHttpClient httpClient;
     private Markwon markwon;
@@ -192,12 +199,17 @@ public class AboutActivity extends AppCompatActivity {
         loading.setCancelable(false);
         loading.show();
 
-        Request request = new Request.Builder()
+        // 读取缓存的 ETag，发送 If-None-Match 头以减少 API 调用
+        // GitHub 返回 304 时不消耗速率限制配额
+        String etag = getPrefs().getString(KEY_ETAG_RELEASES, null);
+        Request.Builder reqBuilder = new Request.Builder()
                 .url(GITHUB_API_RELEASES)
                 .header("Accept", "application/vnd.github.v3+json")
-                .header("User-Agent", "Nova-Android")
-                .header("Cache-Control", "no-cache")
-                .build();
+                .header("User-Agent", "Nova-Android");
+        if (etag != null) {
+            reqBuilder.header("If-None-Match", etag);
+        }
+        Request request = reqBuilder.build();
 
         httpClient.newCall(request).enqueue(new Callback() {
             @Override
@@ -214,112 +226,53 @@ public class AboutActivity extends AppCompatActivity {
             public void onResponse(Call call, Response response) throws IOException {
                 runOnUiThread(() -> loading.dismiss());
 
+                // 304 Not Modified: 使用缓存的响应（不消耗速率限制配额）
+                if (response.code() == 304) {
+                    String cachedBody = getPrefs().getString(KEY_CACHED_RELEASES, null);
+                    if (cachedBody != null) {
+                        try {
+                            String currentVersion = getCurrentVersion();
+                            JSONArray releases = new JSONArray(cachedBody);
+                            processReleases(releases, currentVersion);
+                        } catch (Exception e) {
+                            Log.e(TAG, "解析缓存 releases 失败", e);
+                            runOnUiThread(() -> Toast.makeText(AboutActivity.this,
+                                    "检查更新失败: 缓存数据损坏",
+                                    Toast.LENGTH_SHORT).show());
+                        }
+                    } else {
+                        runOnUiThread(() -> Toast.makeText(AboutActivity.this,
+                                "检查更新失败: 无缓存数据，请稍后再试",
+                                Toast.LENGTH_SHORT).show());
+                    }
+                    return;
+                }
+
                 if (!response.isSuccessful()) {
                     final int code = response.code();
-                    runOnUiThread(() -> Toast.makeText(AboutActivity.this,
-                            "检查更新失败: HTTP " + code,
-                            Toast.LENGTH_SHORT).show());
+                    if (code == 403) {
+                        // GitHub API 速率限制（未认证 60 次/小时）
+                        String resetEpoch = response.header("X-RateLimit-Reset");
+                        runOnUiThread(() -> showRateLimitError(resetEpoch));
+                    } else {
+                        runOnUiThread(() -> Toast.makeText(AboutActivity.this,
+                                "检查更新失败: HTTP " + code,
+                                Toast.LENGTH_SHORT).show());
+                    }
                     return;
                 }
 
                 try {
                     String bodyStr = response.body().string();
+                    // 缓存 ETag 和响应体，下次请求可发送 If-None-Match
+                    String newEtag = response.header("ETag");
+                    if (newEtag != null) {
+                        saveCachedString(KEY_ETAG_RELEASES, newEtag);
+                        saveCachedString(KEY_CACHED_RELEASES, bodyStr);
+                    }
                     JSONArray releases = new JSONArray(bodyStr);
 
-                    if (releases.length() == 0) {
-                        runOnUiThread(() -> Toast.makeText(AboutActivity.this,
-                                "暂无可用版本", Toast.LENGTH_SHORT).show());
-                        return;
-                    }
-
-                    String currentVersion = getCurrentVersion();
-                    boolean isDev = currentVersion.contains("-dev");
-
-                    if (isDev) {
-                        // 开发版：只需找到 prerelease，比较 commit hash
-                        JSONObject prerelease = null;
-                        for (int i = 0; i < releases.length(); i++) {
-                            JSONObject release = releases.getJSONObject(i);
-                            if (release.optBoolean("prerelease", false)) {
-                                prerelease = release;
-                                break;
-                            }
-                        }
-
-                        if (prerelease == null) {
-                            // GitHub /releases 列表 API 有时不返回 prerelease
-                            // （CI 使用 delete + recreate 方式更新 prerelease 时可能出现此问题）
-                            // Fallback: 直接通过 tag 获取 prerelease
-                            fetchPrereleaseByTag(currentVersion);
-                            return;
-                        }
-
-                        String remoteHash = extractDevCommitHash(extractVersion(prerelease));
-                        String localHash = extractDevCommitHash(currentVersion);
-
-                        // commit hash 相同 -> 已是最新
-                        if (remoteHash != null && remoteHash.equals(localHash)) {
-                            final String curVer = currentVersion;
-                            runOnUiThread(() -> Toast.makeText(AboutActivity.this,
-                                    "当前已是最新开发版本 (v" + curVer + ")",
-                                    Toast.LENGTH_SHORT).show());
-                            return;
-                        }
-
-                        // 有新开发版，展示更新对话框
-                        showReleaseUpdate(prerelease, true);
-                        return;
-                    }
-
-                    // 稳定版：遍历 releases 找到最新版本进行比较
-                    JSONObject latestStable = null;
-                    JSONObject latestPrerelease = null;
-
-                    for (int i = 0; i < releases.length(); i++) {
-                        JSONObject release = releases.getJSONObject(i);
-                        boolean isPre = release.optBoolean("prerelease", false);
-                        if (isPre) {
-                            if (latestPrerelease == null) {
-                                latestPrerelease = release;
-                            }
-                        } else {
-                            if (latestStable == null) {
-                                latestStable = release;
-                            }
-                        }
-                        // 两者都找到后提前退出
-                        if (latestStable != null && latestPrerelease != null) break;
-                    }
-
-                    // 选择要展示的 release：
-                    // 优先稳定版；仅当预发布版本号严格大于稳定版时才选预发布
-                    JSONObject latest;
-                    if (latestStable != null && latestPrerelease != null) {
-                        String stableVer = extractVersion(latestStable);
-                        String preVer = extractVersion(latestPrerelease);
-                        latest = (compareVersions(preVer, stableVer) > 0)
-                                ? latestPrerelease : latestStable;
-                    } else {
-                        latest = (latestStable != null) ? latestStable : latestPrerelease;
-                    }
-
-                    if (latest == null) {
-                        runOnUiThread(() -> Toast.makeText(AboutActivity.this,
-                                "暂无可用版本", Toast.LENGTH_SHORT).show());
-                        return;
-                    }
-
-                    // 版本比较：获取到的版本不比当前版本新时，提示已最新
-                    String latestVer = extractVersion(latest);
-                    if (compareVersions(latestVer, currentVersion) <= 0) {
-                        final String curVer = currentVersion;
-                        runOnUiThread(() -> Toast.makeText(AboutActivity.this,
-                                "当前已是最新版本 (v" + curVer + ")",
-                                Toast.LENGTH_SHORT).show());
-                        return;
-                    }
-
-                    showReleaseUpdate(latest, latest.optBoolean("prerelease", false));
+                    processReleases(releases, getCurrentVersion());
 
                 } catch (Exception e) {
                     Log.e(TAG, "解析 release JSON 失败", e);
@@ -331,6 +284,154 @@ public class AboutActivity extends AppCompatActivity {
     }
 
     /**
+     * 处理 releases 列表，判断是否有新版本。
+     * 被 checkForUpdates() 的 200 和 304 响应共用。
+     */
+    private void processReleases(JSONArray releases, String currentVersion) {
+        try {
+            if (releases.length() == 0) {
+                runOnUiThread(() -> Toast.makeText(AboutActivity.this,
+                        "暂无可用版本", Toast.LENGTH_SHORT).show());
+                return;
+            }
+
+            boolean isDev = currentVersion.contains("-dev");
+
+            if (isDev) {
+                // 开发版：只需找到 prerelease，比较 commit hash
+                JSONObject prerelease = null;
+                for (int i = 0; i < releases.length(); i++) {
+                    JSONObject release = releases.getJSONObject(i);
+                    if (release.optBoolean("prerelease", false)) {
+                        prerelease = release;
+                        break;
+                    }
+                }
+
+                if (prerelease == null) {
+                    // GitHub /releases 列表 API 有时不返回 prerelease
+                    // （CI 使用 delete + recreate 方式更新 prerelease 时可能出现此问题）
+                    // Fallback: 直接通过 tag 获取 prerelease
+                    fetchPrereleaseByTag(currentVersion);
+                    return;
+                }
+
+                String remoteHash = extractDevCommitHash(extractVersion(prerelease));
+                String localHash = extractDevCommitHash(currentVersion);
+
+                // commit hash 相同 -> 已是最新
+                if (remoteHash != null && remoteHash.equals(localHash)) {
+                    final String curVer = currentVersion;
+                    runOnUiThread(() -> Toast.makeText(AboutActivity.this,
+                            "当前已是最新开发版本 (v" + curVer + ")",
+                            Toast.LENGTH_SHORT).show());
+                    return;
+                }
+
+                // 有新开发版，展示更新对话框
+                showReleaseUpdate(prerelease, true);
+                return;
+            }
+
+            // 稳定版：遍历 releases 找到最新版本进行比较
+            JSONObject latestStable = null;
+            JSONObject latestPrerelease = null;
+
+            for (int i = 0; i < releases.length(); i++) {
+                JSONObject release = releases.getJSONObject(i);
+                boolean isPre = release.optBoolean("prerelease", false);
+                if (isPre) {
+                    if (latestPrerelease == null) {
+                        latestPrerelease = release;
+                    }
+                } else {
+                    if (latestStable == null) {
+                        latestStable = release;
+                    }
+                }
+                // 两者都找到后提前退出
+                if (latestStable != null && latestPrerelease != null) break;
+            }
+
+            // 选择要展示的 release：
+            // 优先稳定版；仅当预发布版本号严格大于稳定版时才选预发布
+            JSONObject latest;
+            if (latestStable != null && latestPrerelease != null) {
+                String stableVer = extractVersion(latestStable);
+                String preVer = extractVersion(latestPrerelease);
+                latest = (compareVersions(preVer, stableVer) > 0)
+                        ? latestPrerelease : latestStable;
+            } else {
+                latest = (latestStable != null) ? latestStable : latestPrerelease;
+            }
+
+            if (latest == null) {
+                runOnUiThread(() -> Toast.makeText(AboutActivity.this,
+                        "暂无可用版本", Toast.LENGTH_SHORT).show());
+                return;
+            }
+
+            // 版本比较：获取到的版本不比当前版本新时，提示已最新
+            String latestVer = extractVersion(latest);
+            if (compareVersions(latestVer, currentVersion) <= 0) {
+                final String curVer = currentVersion;
+                runOnUiThread(() -> Toast.makeText(AboutActivity.this,
+                        "当前已是最新版本 (v" + curVer + ")",
+                        Toast.LENGTH_SHORT).show());
+                return;
+            }
+
+            showReleaseUpdate(latest, latest.optBoolean("prerelease", false));
+
+        } catch (Exception e) {
+            Log.e(TAG, "解析 release JSON 失败", e);
+            runOnUiThread(() -> Toast.makeText(AboutActivity.this,
+                    "解析更新信息失败", Toast.LENGTH_SHORT).show());
+        }
+    }
+
+    /**
+     * 显示 GitHub API 速率限制错误对话框。
+     * @param resetEpoch 速率限制重置时间（Unix 时间戳秒数），可能为 null
+     */
+    private void showRateLimitError(String resetEpoch) {
+        String message = "GitHub API 速率限制（未认证每小时 60 次）。\n";
+        if (resetEpoch != null) {
+            try {
+                long resetTime = Long.parseLong(resetEpoch) * 1000;
+                SimpleDateFormat sdf = new SimpleDateFormat("HH:mm:ss", Locale.getDefault());
+                message += "配额将在 " + sdf.format(new Date(resetTime)) + " 重置。";
+            } catch (NumberFormatException ignored) {
+                message += "请稍后再试。";
+            }
+        } else {
+            message += "请稍后再试。";
+        }
+
+        new AlertDialog.Builder(this)
+                .setTitle("检查更新失败")
+                .setMessage(message)
+                .setPositiveButton("浏览器打开", (d, w) ->
+                        openUrl("https://github.com/wsdjeg/Nova/releases"))
+                .setNegativeButton("关闭", null)
+                .show();
+    }
+
+    // ── ETag 缓存工具方法 ──────────────────────────────────────────
+
+    private SharedPreferences getPrefs() {
+        return getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+    }
+
+    private void saveCachedString(String key, String value) {
+        try {
+            getPrefs().edit().putString(key, value).apply();
+        } catch (Exception e) {
+            Log.w(TAG, "缓存写入失败: " + key, e);
+        }
+    }
+
+    /**
      * Fallback: 直接通过 tag 获取 prerelease。
      * 当 /releases 列表 API 未返回 prerelease 时调用。
      * GitHub 的 /releases 列表端点在某些情况下（如 CI 使用 delete + recreate
@@ -338,12 +439,16 @@ public class AboutActivity extends AppCompatActivity {
      * 可以正常获取。
      */
     private void fetchPrereleaseByTag(String currentVersion) {
-        Request request = new Request.Builder()
+        // 读取缓存的 ETag
+        String etag = getPrefs().getString(KEY_ETAG_PRERELEASE, null);
+        Request.Builder reqBuilder = new Request.Builder()
                 .url(GITHUB_API_PRERELEASE_TAG)
                 .header("Accept", "application/vnd.github.v3+json")
-                .header("User-Agent", "Nova-Android")
-                .header("Cache-Control", "no-cache")
-                .build();
+                .header("User-Agent", "Nova-Android");
+        if (etag != null) {
+            reqBuilder.header("If-None-Match", etag);
+        }
+        Request request = reqBuilder.build();
 
         httpClient.newCall(request).enqueue(new Callback() {
             @Override
@@ -355,39 +460,56 @@ public class AboutActivity extends AppCompatActivity {
 
             @Override
             public void onResponse(Call call, Response response) throws IOException {
+                // 304 Not Modified: 使用缓存的响应
+                if (response.code() == 304) {
+                    String cachedBody = getPrefs().getString(KEY_CACHED_PRERELEASE, null);
+                    if (cachedBody != null) {
+                        try {
+                            JSONObject prerelease = new JSONObject(cachedBody);
+                            compareAndShowPrerelease(prerelease, currentVersion);
+                        } catch (Exception e) {
+                            Log.e(TAG, "解析缓存 prerelease 失败", e);
+                            runOnUiThread(() -> Toast.makeText(AboutActivity.this,
+                                    "暂无开发版可用", Toast.LENGTH_SHORT).show());
+                        }
+                    } else {
+                        runOnUiThread(() -> Toast.makeText(AboutActivity.this,
+                                "暂无开发版可用", Toast.LENGTH_SHORT).show());
+                    }
+                    return;
+                }
+
                 if (!response.isSuccessful()) {
                     final int code = response.code();
-                    runOnUiThread(() -> {
-                        if (code == 404) {
-                            Toast.makeText(AboutActivity.this,
-                                    "暂无开发版可用",
-                                    Toast.LENGTH_SHORT).show();
-                        } else {
-                            Toast.makeText(AboutActivity.this,
-                                    "检查更新失败: HTTP " + code,
-                                    Toast.LENGTH_SHORT).show();
-                        }
-                    });
+                    if (code == 403) {
+                        String resetEpoch = response.header("X-RateLimit-Reset");
+                        runOnUiThread(() -> showRateLimitError(resetEpoch));
+                    } else {
+                        runOnUiThread(() -> {
+                            if (code == 404) {
+                                Toast.makeText(AboutActivity.this,
+                                        "暂无开发版可用",
+                                        Toast.LENGTH_SHORT).show();
+                            } else {
+                                Toast.makeText(AboutActivity.this,
+                                        "检查更新失败: HTTP " + code,
+                                        Toast.LENGTH_SHORT).show();
+                            }
+                        });
+                    }
                     return;
                 }
 
                 try {
-                    JSONObject prerelease = new JSONObject(response.body().string());
-
-                    String remoteHash = extractDevCommitHash(extractVersion(prerelease));
-                    String localHash = extractDevCommitHash(currentVersion);
-
-                    // commit hash 相同 -> 已是最新
-                    if (remoteHash != null && remoteHash.equals(localHash)) {
-                        final String curVer = currentVersion;
-                        runOnUiThread(() -> Toast.makeText(AboutActivity.this,
-                                "当前已是最新开发版本 (v" + curVer + ")",
-                                Toast.LENGTH_SHORT).show());
-                        return;
+                    String bodyStr = response.body().string();
+                    // 缓存 ETag 和响应体
+                    String newEtag = response.header("ETag");
+                    if (newEtag != null) {
+                        saveCachedString(KEY_ETAG_PRERELEASE, newEtag);
+                        saveCachedString(KEY_CACHED_PRERELEASE, bodyStr);
                     }
-
-                    // 有新开发版，展示更新对话框
-                    showReleaseUpdate(prerelease, true);
+                    JSONObject prerelease = new JSONObject(bodyStr);
+                    compareAndShowPrerelease(prerelease, currentVersion);
 
                 } catch (Exception e) {
                     Log.e(TAG, "解析 prerelease JSON 失败", e);
@@ -397,6 +519,27 @@ public class AboutActivity extends AppCompatActivity {
                 }
             }
         });
+    }
+
+    /**
+     * 比较 prerelease 的 commit hash，决定是否展示更新对话框。
+     * 被 fetchPrereleaseByTag() 的 200 和 304 响应共用。
+     */
+    private void compareAndShowPrerelease(JSONObject prerelease, String currentVersion) {
+        String remoteHash = extractDevCommitHash(extractVersion(prerelease));
+        String localHash = extractDevCommitHash(currentVersion);
+
+        // commit hash 相同 -> 已是最新
+        if (remoteHash != null && remoteHash.equals(localHash)) {
+            final String curVer = currentVersion;
+            runOnUiThread(() -> Toast.makeText(AboutActivity.this,
+                    "当前已是最新开发版本 (v" + curVer + ")",
+                    Toast.LENGTH_SHORT).show());
+            return;
+        }
+
+        // 有新开发版，展示更新对话框
+        showReleaseUpdate(prerelease, true);
     }
 
     /**
