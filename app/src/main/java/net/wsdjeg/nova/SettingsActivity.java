@@ -65,6 +65,7 @@ public class SettingsActivity extends AppCompatActivity {
     
     private boolean isProviderLoaded = false;
     private boolean isInitializingSpinner = false;
+    private boolean isInitializingLanguage = false;
     private int selectedProviderIndex = -1;
     private int selectedModelIndex = -1;
     
@@ -125,6 +126,7 @@ public class SettingsActivity extends AppCompatActivity {
         
         // 语言选择监听
         rgLanguage.setOnCheckedChangeListener((group, checkedId) -> {
+            if (isInitializingLanguage) return;
             int language;
             if (checkedId == R.id.rb_language_system) {
                 language = SettingsManager.LANGUAGE_SYSTEM;
@@ -338,6 +340,7 @@ public class SettingsActivity extends AppCompatActivity {
         }
         
         // 加载语言设置
+        isInitializingLanguage = true;
         int language = settingsManager.getLanguage();
         switch (language) {
             case SettingsManager.LANGUAGE_ENGLISH:
@@ -350,6 +353,7 @@ public class SettingsActivity extends AppCompatActivity {
                 rbLangSystem.setChecked(true);
                 break;
         }
+        isInitializingLanguage = false;
         
         // 加载账户标签颜色设置
         int storedIndex = settingsManager.getAccountTagColorIndex();
