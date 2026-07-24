@@ -32,7 +32,7 @@
                 android:id="@+id/tv_session_title"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="新会话"
+                android:text="@string/new_session"
                 android:textColor="@android:color/white"
                 android:textSize="16sp"
                 android:textStyle="bold"
@@ -82,7 +82,7 @@
         android:layout_height="36dp"
         android:layout_below="@id/toolbar"
         android:gravity="center"
-        android:text="下拉加载更多"
+        android:text="@string/load_more"
         android:textColor="@android:color/white"
         android:textSize="14sp"
         android:background="@color/success"
@@ -100,7 +100,7 @@
         android:layout_marginBottom="8dp"
         android:src="@drawable/ic_arrow_down"
         android:visibility="gone"
-        android:contentDescription="滚动到底部"
+        android:contentDescription="@string/scroll_to_bottom"
         app:backgroundTint="@color/fab_background"
         app:fabSize="mini" />
 
@@ -124,7 +124,7 @@
             android:minHeight="44dp"
             android:maxHeight="100dp"
             android:background="@drawable/input_bg"
-            android:hint="输入消息..."
+            android:hint="@string/type_message"
             android:inputType="textMultiLine|textCapSentences"
             android:maxLines="4"
             android:paddingStart="12dp"
@@ -144,7 +144,7 @@
             android:layout_alignBottom="@id/et_message"
             android:src="@drawable/ic_mic"
             android:background="@drawable/mic_button_bg"
-            android:contentDescription="发送"
+            android:contentDescription="@string/send"
             android:scaleType="centerInside"
             app:backgroundTint="@null" />
     </RelativeLayout>

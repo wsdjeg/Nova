@@ -7,7 +7,7 @@
     android:gravity="center_vertical"
     android:background="?attr/selectableItemBackground">
 
-    <!-- 状态指示器 -->
+    <!-- Status indicator -->
     <LinearLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
@@ -15,14 +15,14 @@
         android:gravity="center_horizontal"
         android:layout_marginEnd="16dp">
 
-        <!-- 默认状态圆点 -->
+        <!-- Default status dot -->
         <View
             android:id="@+id/account_status_dot"
             android:layout_width="12dp"
             android:layout_height="12dp"
             android:background="@drawable/session_icon_bg" />
 
-        <!-- 最后使用时间 -->
+        <!-- Last used time -->
         <TextView
             android:id="@+id/account_last_used"
             android:layout_width="wrap_content"
@@ -30,18 +30,18 @@
             android:textSize="11sp"
             android:textColor="@color/text_secondary"
             android:layout_marginTop="4dp"
-            android:text="昨天" />
+            android:text="@string/yesterday" />
 
     </LinearLayout>
 
-    <!-- 账号信息 -->
+    <!-- Account info -->
     <LinearLayout
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_weight="1"
         android:orientation="vertical">
 
-        <!-- 账号名称 -->
+        <!-- Account name -->
         <TextView
             android:id="@+id/account_name"
             android:layout_width="wrap_content"
@@ -51,7 +51,7 @@
             android:textColor="@color/text_primary"
             android:textStyle="bold" />
 
-        <!-- 服务器地址 -->
+        <!-- Server address -->
         <TextView
             android:id="@+id/account_url"
             android:layout_width="wrap_content"
@@ -61,12 +61,12 @@
             android:textColor="@color/text_secondary"
             android:layout_marginTop="2dp" />
 
-        <!-- 状态标签 -->
+        <!-- Status label -->
         <TextView
             android:id="@+id/account_status_label"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="默认账号"
+            android:text="@string/default_account"
             android:textSize="11sp"
             android:textColor="@color/primary"
             android:layout_marginTop="4dp"
@@ -74,42 +74,43 @@
 
     </LinearLayout>
 
-    <!-- 操作按钮 -->
+    <!-- Action buttons -->
     <LinearLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:orientation="horizontal">
 
-        <!-- 设为默认按钮 -->
+        <!-- Set default button -->
         <ImageButton
             android:id="@+id/account_default_button"
             android:layout_width="40dp"
             android:layout_height="40dp"
             android:src="@android:drawable/ic_menu_agenda"
             android:background="?attr/selectableItemBackgroundBorderless"
-            android:contentDescription="设为默认账号"
+            android:contentDescription="@string/set_default_account"
             android:padding="8dp" />
 
-        <!-- 编辑按钮 -->
+        <!-- Edit button -->
         <ImageButton
             android:id="@+id/account_edit_button"
             android:layout_width="40dp"
             android:layout_height="40dp"
             android:src="@android:drawable/ic_menu_edit"
             android:background="?attr/selectableItemBackgroundBorderless"
-            android:contentDescription="编辑账号"
+            android:contentDescription="@string/edit_account"
             android:padding="8dp" />
 
-        <!-- 删除按钮 -->
+        <!-- Delete button -->
         <ImageButton
             android:id="@+id/account_delete_button"
             android:layout_width="40dp"
             android:layout_height="40dp"
             android:src="@android:drawable/ic_menu_delete"
             android:background="?attr/selectableItemBackgroundBorderless"
-            android:contentDescription="删除账号"
+            android:contentDescription="@string/delete_account"
             android:padding="8dp" />
 
     </LinearLayout>
 
 </LinearLayout>
+

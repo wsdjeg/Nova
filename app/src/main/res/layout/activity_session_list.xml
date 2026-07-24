@@ -4,7 +4,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-    <!-- 标题栏 -->
+    <!-- Toolbar -->
     <androidx.appcompat.widget.Toolbar
         android:id="@+id/toolbar"
         android:layout_width="match_parent"
@@ -13,11 +13,11 @@
         android:elevation="4dp"
         android:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar"
         app:popupTheme="@style/ToolbarPopupOverlay"
-        app:title="Nova"
+        app:title="@string/app_name"
         app:titleTextColor="@android:color/white"
         app:subtitleTextColor="#CCCCCC" />
 
-    <!-- 会话列表 -->
+    <!-- Session list -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rv_sessions"
         android:layout_width="match_parent"
@@ -26,7 +26,7 @@
         android:scrollbars="vertical"
         android:padding="8dp" />
 
-    <!-- 新建会话 FAB -->
+    <!-- New session FAB -->
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/fab_new_session"
         android:layout_width="wrap_content"
@@ -34,8 +34,9 @@
         android:layout_alignParentBottom="true"
         android:layout_alignParentEnd="true"
         android:layout_margin="16dp"
-        android:contentDescription="新建会话"
+        android:contentDescription="@string/new_session"
         android:src="@android:drawable/ic_input_add"
         app:backgroundTint="@color/colorPrimary" />
 
 </RelativeLayout>
+

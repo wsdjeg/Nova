@@ -4,11 +4,12 @@
     
     <item
         android:id="@+id/action_refresh"
-        android:title="刷新"
+        android:title="@string/menu_refresh"
         app:showAsAction="never" />
     
     <item
         android:id="@+id/action_clear"
-        android:title="清空"
+        android:title="@string/menu_clear_log"
         app:showAsAction="never" />
 </menu>
+

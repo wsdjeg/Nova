@@ -12,7 +12,7 @@
         android:background="?attr/colorPrimary"
         android:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar"
         app:popupTheme="@style/ToolbarPopupOverlay"
-        app:title="编辑账号"
+        app:title="@string/title_account_edit"
         app:titleTextColor="@android:color/white"
         app:navigationIcon="?attr/homeAsUpIndicator" />
 
@@ -30,7 +30,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="账号名称"
+                android:text="@string/account_name"
                 android:textSize="14sp"
                 android:textColor="@color/text_secondary"/>
 
@@ -38,7 +38,7 @@
                 android:id="@+id/et_account_name"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="例如：Home, Office, VPS"
+                android:hint="@string/account_name_hint"
                 android:inputType="text"
                 android:maxLines="1"
                 android:layout_marginTop="4dp"/>
@@ -46,7 +46,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="服务器地址"
+                android:text="@string/server_address"
                 android:textSize="14sp"
                 android:textColor="@color/text_secondary"
                 android:layout_marginTop="16dp"/>
@@ -62,7 +62,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:hint="IP 或域名"
+                    android:hint="@string/server_address_hint"
                     android:inputType="textUri"
                     android:maxLines="1"/>
 
@@ -78,7 +78,7 @@
                     android:id="@+id/et_port"
                     android:layout_width="80dp"
                     android:layout_height="wrap_content"
-                    android:hint="端口"
+                    android:hint="@string/port_hint"
                     android:inputType="number"
                     android:maxLines="1"
                     android:text="8080"/>
@@ -88,7 +88,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="API密钥（可选）"
+                android:text="@string/api_key_optional"
                 android:textSize="14sp"
                 android:textColor="@color/text_secondary"
                 android:layout_marginTop="16dp"/>
@@ -97,7 +97,7 @@
                 android:id="@+id/et_api_key"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="如果服务器需要认证"
+                android:hint="@string/api_key_hint"
                 android:inputType="textPassword"
                 android:maxLines="1"
                 android:layout_marginTop="4dp"/>
@@ -105,7 +105,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="标签颜色"
+                android:text="@string/tag_color"
                 android:textSize="14sp"
                 android:textColor="@color/text_secondary"
                 android:layout_marginTop="16dp"/>
@@ -113,12 +113,12 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="选中颜色作为账号标签，不选择则使用全局设置"
+                android:text="@string/tag_color_hint"
                 android:textSize="12sp"
                 android:textColor="@color/text_hint"
                 android:layout_marginTop="2dp"/>
 
-            <!-- 颜色选择器容器 - 由代码动态填充 -->
+            <!-- Color picker container - populated dynamically -->
             <LinearLayout
                 android:id="@+id/color_picker_container"
                 android:layout_width="match_parent"
@@ -140,7 +140,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="测试连接"
+                    android:text="@string/test_connection"
                     android:layout_marginEnd="8dp"
                     style="@style/Widget.MaterialComponents.Button.OutlinedButton"/>
 
@@ -149,7 +149,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="保存"
+                    android:text="@string/save"
                     android:layout_marginStart="8dp"/>
 
             </LinearLayout>
@@ -158,7 +158,7 @@
                 android:id="@+id/btn_delete"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="删除账号"
+                android:text="@string/delete_account"
                 android:layout_marginTop="16dp"
                 android:visibility="gone"
                 style="@style/Widget.MaterialComponents.Button.TextButton"
@@ -177,3 +177,4 @@
     </ScrollView>
 
 </LinearLayout>
+

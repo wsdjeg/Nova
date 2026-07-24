@@ -19,7 +19,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
         android:gravity="center"
-        android:text="准备下载..."
+        android:text="@string/preparing_download"
         android:textSize="14sp" />
 
 </LinearLayout>

@@ -1,44 +1,290 @@
 <resources>
     <string name="app_name">Nova</string>
-    <string name="settings">Settings</string>
-    <string name="send">Send</string>
-    <string name="type_message">Type a message...</string>
+    <string name="settings">设置</string>
+    <string name="send">发送</string>
+    <string name="type_message">输入消息...</string>
     <string name="url">URL</string>
-    <string name="port">Port</string>
+    <string name="port">端口</string>
     <string name="api_key">API Key</string>
     <string name="session_id">Session ID</string>
-    <string name="save">Save</string>
-    <string name="cancel">Cancel</string>
-    <string name="no_settings">Please configure API settings first</string>
-    <string name="error">Error</string>
-    <string name="success">Saved successfully</string>
-    <string name="session_required">Session ID is required</string>
-    <string name="api_key_required">API Key is required</string>
-    <string name="url_required">URL is required</string>
-    
+    <string name="save">保存</string>
+    <string name="cancel">取消</string>
+    <string name="no_settings">请先配置 API 设置</string>
+    <string name="error">错误</string>
+    <string name="success">保存成功</string>
+    <string name="session_required">Session ID 不能为空</string>
+    <string name="api_key_required">API Key 不能为空</string>
+    <string name="url_required">URL 不能为空</string>
+
     <!-- Commands -->
-    <string name="help_header">📝 Available Commands:</string>
-    <string name="help_help">/help - Show this help</string>
-    <string name="help_sessions">/sessions - List all active sessions</string>
-    <string name="help_session">/session [id] - Get session preview (optional id)</string>
-    <string name="help_set">/set [id] - Set current session id</string>
-    <string name="help_clear">/clear - Clear message list</string>
-    <string name="no_active_sessions">No active sessions</string>
-    <string name="active_sessions">Active Sessions:</string>
-    <string name="session_preview">Session Preview:</string>
-    <string name="session_set">Session set to: %s</string>
-    <string name="session_id_required">Session ID is required</string>
-    <string name="messages_cleared">Messages cleared</string>
-    <string name="unknown_command">Unknown command: %s</string>
-    <string name="current_session">Current Session: %s</string>
-    
+    <string name="help_header">📝 可用命令:</string>
+    <string name="help_help">/help - 显示帮助</string>
+    <string name="help_sessions">/sessions - 列出所有活跃会话</string>
+    <string name="help_session">/session [id] - 获取会话预览（可选 id）</string>
+    <string name="help_set">/set [id] - 设置当前会话 id</string>
+    <string name="help_clear">/clear - 清空消息列表</string>
+    <string name="no_active_sessions">暂无活跃会话</string>
+    <string name="active_sessions">活跃会话:</string>
+    <string name="session_preview">会话预览:</string>
+    <string name="session_set">会话已设为: %s</string>
+    <string name="session_id_required">Session ID 不能为空</string>
+    <string name="messages_cleared">消息已清空</string>
+    <string name="unknown_command">未知命令: %s</string>
+    <string name="current_session">当前会话: %s</string>
+
     <!-- About -->
     <string name="about_title">关于 Nova</string>
     <string name="app_description">Nova 是一个 Android AI 聊天助手应用，作为 chat.nvim 的移动端客户端。</string>
+    <string name="app_description_extended">通过 Nova，您可以随时随地与 AI 助手进行对话，获取编程帮助、文档查询等服务。</string>
     <string name="features_title">主要功能</string>
     <string name="features_content">• 多会话管理\n• 实时聊天\n• Markdown 支持\n• API 配置</string>
     <string name="tech_title">技术栈</string>
     <string name="tech_content">• Java\n• AndroidX\n• OkHttp\n• Material Design</string>
     <string name="github_title">开源项目</string>
     <string name="github_url">https://github.com/wsdjeg/Nova</string>
+    <string name="links_title">相关链接</string>
+    <string name="github_repo">GitHub 仓库</string>
+    <string name="chat_nvim_site">chat.nvim 官网</string>
+    <string name="check_update">检查更新</string>
+
+    <!-- Activity titles -->
+    <string name="title_about">关于</string>
+    <string name="title_settings">设置</string>
+    <string name="title_chat">聊天</string>
+    <string name="title_session_settings">会话设置</string>
+    <string name="title_account_manager">账号管理</string>
+    <string name="title_account_edit">编辑账号</string>
+    <string name="title_account_add">添加账号</string>
+    <string name="title_log_viewer">日志查看器</string>
+
+    <!-- Menu items -->
+    <string name="menu_search">搜索</string>
+    <string name="menu_retry">重试</string>
+    <string name="menu_refresh">刷新</string>
+    <string name="menu_clear_session">清空会话</string>
+    <string name="menu_delete_session">删除会话</string>
+    <string name="menu_preview">预览</string>
+    <string name="menu_settings">设置</string>
+    <string name="menu_save">保存</string>
+    <string name="menu_account_manager">账号管理</string>
+    <string name="menu_view_log">查看日志</string>
+    <string name="menu_about">关于</string>
+    <string name="menu_import">导入</string>
+    <string name="menu_export">导出</string>
+    <string name="menu_clear_log">清空</string>
+
+    <!-- Chat -->
+    <string name="new_session">新会话</string>
+    <string name="load_more">下拉加载更多</string>
+    <string name="loading">加载中...</string>
+    <string name="loading_messages">正在加载消息...</string>
+    <string name="load_timeout">加载超时，请检查网络连接后下拉刷新</string>
+    <string name="init_failed">初始化失败，请重试</string>
+    <string name="no_messages">暂无消息</string>
+    <string name="message_parse_failed">消息解析失败: %s</string>
+    <string name="load_failed">加载失败: %s</string>
+    <string name="reached_first_message">已到第一条消息</string>
+    <string name="loading_more_hint">⏳ 加载中...</string>
+    <string name="continue_loading_hint">⏳ 继续加载...</string>
+    <string name="loaded_visible_messages">✓ 已加载 %d 条可见消息</string>
+    <string name="reached_first_hint">已到第一条消息</string>
+    <string name="invalid_session_id">无效的会话ID</string>
+    <string name="please_add_account">请先添加账号</string>
+    <string name="please_configure_account">请先配置账号信息</string>
+    <string name="account_invalid">账号信息无效</string>
+    <string name="please_configure_server">请先配置服务器地址</string>
+    <string name="send_failed">发送失败: %s</string>
+    <string name="stop_failed">停止失败: %s</string>
+    <string name="session_in_progress">会话正在进行中，请先停止</string>
+    <string name="retrying">正在重试...</string>
+    <string name="retry_started">已发起重试</string>
+    <string name="retry_failed">重试失败: %s</string>
+    <string name="clear_session_title">清空会话</string>
+    <string name="clear_session_message">确定要清空当前会话的所有消息吗？</string>
+    <string name="clear">清空</string>
+    <string name="session_cleared">会话已清空</string>
+    <string name="clear_failed">清空失败: %s</string>
+    <string name="delete_session_title">删除会话</string>
+    <string name="delete_session_message">确定要删除当前会话吗？</string>
+    <string name="delete">删除</string>
+    <string name="session_deleted">会话已删除</string>
+    <string name="delete_failed">删除失败: %s</string>
+
+    <!-- Message actions -->
+    <string name="copy">复制</string>
+    <string name="message_empty">消息内容为空</string>
+    <string name="message_content_label">消息内容</string>
+    <string name="copied_to_clipboard">已复制到剪贴板</string>
+    <string name="cannot_delete_message">无法删除此消息</string>
+    <string name="delete_message_title">删除消息</string>
+    <string name="delete_message_confirm">确定要删除这条消息吗？</string>
+    <string name="message_deleted">消息已删除</string>
+
+    <!-- Expand / collapse -->
+    <string name="expand">展开 ▼</string>
+    <string name="collapse">收起 ▲</string>
+
+    <!-- Voice input -->
+    <string name="listening">正在聆听...</string>
+    <string name="speak">说话...</string>
+    <string name="microphone">麦克风</string>
+    <string name="voice_model_loading">语音模型加载中，请稍候...</string>
+    <string name="voice_model_loading_start">语音模型正在加载中...</string>
+    <string name="voice_model_not_found">语音模型未找到: assets/%s</string>
+    <string name="no_speech_engine">未安装语音识别引擎，且离线模型未就绪</string>
+    <string name="voice_start_failed">语音识别启动失败: %s</string>
+    <string name="need_mic_permission">需要麦克风权限才能使用语音输入</string>
+    <string name="voice_recognize_failed">识别失败: %s</string>
+    <string name="voice_recognize_ended">语音识别结束</string>
+    <string name="voice_start_error">启动失败: %s</string>
+    <string name="scroll_to_bottom">滚动到底部</string>
+
+    <!-- Session list -->
+    <string name="search_session_hint">搜索会话标题</string>
+    <string name="no_sessions_hint">暂无会话，点击 + 创建新会话</string>
+    <string name="creating_session">正在创建新会话...</string>
+    <string name="session_created">已创建新会话: %s</string>
+    <string name="create_session_failed">创建会话失败: %s</string>
+    <string name="account_config_incomplete">账号配置不完整，请检查 URL 和 API Key</string>
+    <string name="total_sessions">共 %d 个会话</string>
+    <string name="found_sessions">找到 %1$d/%2$d 个会话</string>
+    <string name="pin">置顶</string>
+    <string name="unpin">取消置顶</string>
+    <string name="session_actions">会话操作</string>
+    <string name="delete_session_confirm">确定要删除会话 %1$s 吗？\n\n此操作不可恢复。</string>
+    <string name="deleting_session">正在删除会话...</string>
+    <string name="session_deleted_toast">已删除会话</string>
+    <string name="deleted_local_session">已删除本地会话</string>
+    <string name="deleted_local_session_not_on_server">已删除本地会话（服务器上不存在）</string>
+    <string name="delete_session_failed">删除会话失败: %s</string>
+    <string name="pinned_local">已置顶（本地）</string>
+    <string name="unpinned_local">已取消置顶（本地）</string>
+    <string name="pinning">正在置顶...</string>
+    <string name="unpinning">正在取消置顶...</string>
+    <string name="pinned">已置顶</string>
+    <string name="unpinned">已取消置顶</string>
+    <string name="pin_failed">置顶失败: %s</string>
+    <string name="unpin_failed">取消置顶失败: %s</string>
+
+    <!-- Account -->
+    <string name="account_name">账号名称</string>
+    <string name="account_name_hint">例如：Home, Office, VPS</string>
+    <string name="server_address">服务器地址</string>
+    <string name="server_address_hint">IP 或域名</string>
+    <string name="port_hint">端口</string>
+    <string name="api_key_optional">API密钥（可选）</string>
+    <string name="api_key_hint">如果服务器需要认证</string>
+    <string name="tag_color">标签颜色</string>
+    <string name="tag_color_hint">选中颜色作为账号标签，不选择则使用全局设置</string>
+    <string name="test_connection">测试连接</string>
+    <string name="delete_account">删除账号</string>
+    <string name="no_accounts">暂无账号</string>
+    <string name="no_accounts_hint">点击右下方 + 添加账号</string>
+    <string name="add_account">添加账号</string>
+    <string name="default_account">默认账号</string>
+    <string name="set_default_account">设为默认账号</string>
+    <string name="edit_account">编辑账号</string>
+    <string name="just_used">刚刚使用</string>
+    <string name="minutes_ago">%d分钟前</string>
+    <string name="hours_ago">%d小时前</string>
+    <string name="last_used">最后使用: %s</string>
+    <string name="please_enter_name">请输入账号名称</string>
+    <string name="please_enter_server">请输入服务器地址</string>
+    <string name="port_format_error">端口格式错误</string>
+    <string name="account_updated">账号已更新</string>
+    <string name="account_not_exist">账号不存在</string>
+    <string name="account_added">账号已添加</string>
+    <string name="connection_success">连接成功: %s</string>
+    <string name="connection_failed">连接失败: %s</string>
+    <string name="delete_account_title">删除账号</string>
+    <string name="delete_account_confirm">确定要删除此账号吗？</string>
+    <string name="account_deleted">账号已删除</string>
+    <string name="no_accounts_to_export">没有账号可导出</string>
+    <string name="export_failed_no_data">导出失败: 无法生成数据</string>
+    <string name="export_success">导出成功</string>
+    <string name="export_failed">导出失败: %s</string>
+    <string name="import_success">成功导入 %d 个账号</string>
+    <string name="import_failed">导入失败: %s</string>
+    <string name="set_as_default">已设为默认账号: %s</string>
+
+    <!-- Session settings -->
+    <string name="session_info">会话信息</string>
+    <string name="session_id_label">会话 ID: %s</string>
+    <string name="session_title">会话标题</string>
+    <string name="session_title_hint">输入会话标题（可选）</string>
+    <string name="cwd">工作目录 (CWD)</string>
+    <string name="cwd_hint">输入工作目录路径</string>
+    <string name="ai_settings">AI 设置</string>
+    <string name="session_settings_hint">修改配置后，点击右上角保存按钮应用更改。</string>
+    <string name="getting_session_info">正在获取会话信息...</string>
+    <string name="get_session_info_failed">获取会话信息失败: %s</string>
+    <string name="loading_providers">正在加载 Providers...</string>
+    <string name="load_providers_failed">加载失败: %s</string>
+    <string name="no_account_info">无法获取账号信息</string>
+    <string name="data_not_loaded">数据尚未加载完成</string>
+    <string name="please_select_provider">请选择 Provider</string>
+    <string name="please_select_model">请选择 Model</string>
+    <string name="config_unchanged">配置未改变</string>
+    <string name="saving">正在保存...</string>
+    <string name="settings_saved">设置已保存</string>
+    <string name="provider_model_update_failed">Provider/Model 更新失败: %s</string>
+    <string name="cwd_update_failed">CWD 更新失败: %s</string>
+    <string name="title_update_failed">标题更新失败: %s</string>
+
+    <!-- Settings -->
+    <string name="new_session_defaults">新建会话默认设置</string>
+    <string name="appearance_settings">外观设置</string>
+    <string name="theme_mode">主题模式</string>
+    <string name="theme_system">跟随系统</string>
+    <string name="theme_light">浅色模式</string>
+    <string name="theme_dark">深色模式</string>
+    <string name="session_list">会话列表</string>
+    <string name="account_tag_color">账户标签颜色</string>
+    <string name="settings_hint">留空使用服务端默认配置。修改后请点击右上角保存按钮。</string>
+    <string name="account_hint">提示：账户管理请在"账号管理"中进行</string>
+    <string name="empty_option">（留空 / 服务端默认）</string>
+    <string name="no_account_no_list">未配置账号，无法获取可用列表</string>
+    <string name="loading_providers_models">正在加载可用 Provider/Model 列表...</string>
+    <string name="load_providers_models_failed">加载失败: %1$s（可手动选择已保存的值）</string>
+
+    <!-- About - update check -->
+    <string name="checking_update">正在检查更新...</string>
+    <string name="check_update_failed">检查更新失败: %s</string>
+    <string name="check_update_failed_cache">检查更新失败: 缓存数据损坏</string>
+    <string name="check_update_failed_no_cache">检查更新失败: 无缓存数据，请稍后再试</string>
+    <string name="check_update_failed_http">检查更新失败: HTTP %d</string>
+    <string name="parse_update_failed">解析更新信息失败</string>
+    <string name="no_versions_available">暂无可用版本</string>
+    <string name="latest_dev_version">当前已是最新开发版本 (v%s)</string>
+    <string name="latest_version">当前已是最新版本 (v%s)</string>
+    <string name="no_dev_version">暂无开发版可用</string>
+    <string name="github_rate_limit">GitHub API 速率限制（未认证每小时 60 次）。\n</string>
+    <string name="rate_limit_reset">配额将在 %s 重置。</string>
+    <string name="try_again_later">请稍后再试。</string>
+    <string name="check_update_failed_title">检查更新失败</string>
+    <string name="open_in_browser">浏览器打开</string>
+    <string name="close">关闭</string>
+    <string name="new_version_found">发现新版本</string>
+    <string name="download_install">下载并安装</string>
+    <string name="later">稍后再说</string>
+    <string name="ok">确定</string>
+    <string name="current_version_label">当前版本: v%s\n</string>
+    <string name="latest_version_label">最新版本: %s\n</string>
+    <string name="type_prerelease">类型: 开发版 (Prerelease)\n</string>
+    <string name="release_time">发布时间: %s\n</string>
+    <string name="apk_size">安装包: %s</string>
+    <string name="no_release_notes">*暂无更新说明*</string>
+    <string name="preparing_download">准备下载...</string>
+    <string name="downloading_update">正在下载更新</string>
+    <string name="download_failed">下载失败: %s</string>
+    <string name="download_failed_http">下载失败: HTTP %d</string>
+    <string name="download_complete_installing">下载完成，正在安装...</string>
+    <string name="install_failed">安装失败: %s</string>
+
+    <!-- Log viewer -->
+    <string name="read_log_failed">读取日志失败: %s</string>
+
+    <!-- Time -->
+    <string name="yesterday">昨天</string>
 </resources>
+

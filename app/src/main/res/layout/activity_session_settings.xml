@@ -17,7 +17,7 @@
         app:titleTextColor="@android:color/white"
         app:navigationIcon="?attr/homeAsUpIndicator" />
     
-    <!-- 内容区域 -->
+    <!-- Content area -->
     <ScrollView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
@@ -29,11 +29,11 @@
             android:orientation="vertical"
             android:padding="16dp">
             
-            <!-- 会话信息区域 -->
+            <!-- Session info section -->
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="会话信息"
+                android:text="@string/session_info"
                 android:textSize="16sp"
                 android:textStyle="bold"
                 android:textColor="?android:attr/textColorPrimary"
@@ -43,16 +43,16 @@
                 android:id="@+id/tv_session_id"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="会话 ID: "
+                android:text=""
                 android:textSize="14sp"
                 android:textColor="?android:attr/textColorSecondary"
                 android:layout_marginBottom="8dp" />
             
-            <!-- 标题编辑 -->
+            <!-- Title edit -->
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="会话标题"
+                android:text="@string/session_title"
                 android:textSize="14sp"
                 android:textColor="?android:attr/textColorSecondary"
                 android:layout_marginTop="8dp"
@@ -62,7 +62,7 @@
                 android:id="@+id/et_title"
                 android:layout_width="match_parent"
                 android:layout_height="48dp"
-                android:hint="输入会话标题（可选）"
+                android:hint="@string/session_title_hint"
                 android:textSize="14sp"
                 android:paddingStart="12dp"
                 android:paddingEnd="12dp"
@@ -73,11 +73,11 @@
                 android:maxLength="100"
                 android:maxLines="1" />
             
-            <!-- 工作目录编辑 -->
+            <!-- CWD edit -->
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="工作目录 (CWD)"
+                android:text="@string/cwd"
                 android:textSize="14sp"
                 android:textColor="?android:attr/textColorSecondary"
                 android:layout_marginBottom="4dp" />
@@ -86,7 +86,7 @@
                 android:id="@+id/et_cwd"
                 android:layout_width="match_parent"
                 android:layout_height="48dp"
-                android:hint="输入工作目录路径"
+                android:hint="@string/cwd_hint"
                 android:textSize="14sp"
                 android:paddingStart="12dp"
                 android:paddingEnd="12dp"
@@ -95,24 +95,24 @@
                 android:layout_marginBottom="16dp"
                 android:importantForAutofill="no" />
             
-            <!-- 分隔线 -->
+            <!-- Divider -->
             <View
                 android:layout_width="match_parent"
                 android:layout_height="1dp"
                 android:background="?android:attr/listDivider"
                 android:layout_marginBottom="16dp" />
             
-            <!-- Provider/Model 设置区域 -->
+            <!-- Provider/Model settings section -->
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="AI 设置"
+                android:text="@string/ai_settings"
                 android:textSize="16sp"
                 android:textStyle="bold"
                 android:textColor="?android:attr/textColorPrimary"
                 android:layout_marginBottom="12dp" />
             
-            <!-- Provider 选择 -->
+            <!-- Provider selection -->
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -127,7 +127,7 @@
                 android:layout_height="48dp"
                 android:layout_marginBottom="16dp" />
             
-            <!-- Model 选择 -->
+            <!-- Model selection -->
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -142,7 +142,7 @@
                 android:layout_height="48dp"
                 android:layout_marginBottom="16dp" />
             
-            <!-- 加载状态 -->
+            <!-- Loading status -->
             <ProgressBar
                 android:id="@+id/progress_bar"
                 android:layout_width="match_parent"
@@ -160,18 +160,18 @@
                 android:gravity="center"
                 android:layout_marginBottom="16dp" />
             
-            <!-- 分隔线 -->
+            <!-- Divider -->
             <View
                 android:layout_width="match_parent"
                 android:layout_height="1dp"
                 android:background="?android:attr/listDivider"
                 android:layout_marginBottom="16dp" />
             
-            <!-- 提示信息 -->
+            <!-- Hint -->
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="修改配置后，点击右上角保存按钮应用更改。"
+                android:text="@string/session_settings_hint"
                 android:textSize="12sp"
                 android:textColor="?android:attr/textColorSecondary"
                 android:gravity="center"
@@ -180,3 +180,4 @@
         </LinearLayout>
     </ScrollView>
 </LinearLayout>
+

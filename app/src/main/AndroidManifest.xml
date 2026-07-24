@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- 网络权限 -->
+    <!-- Network permission -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-    <!-- 语音输入：录音权限 -->
+    <!-- Voice input: recording permission -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
-    <!-- 安装 APK 权限（Android 8+） -->
+    <!-- Install APK permission (Android 8+) -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
     <application
@@ -18,7 +18,7 @@
         android:theme="@style/Theme.MyAndroidApp"
         android:usesCleartextTraffic="true">
 
-        <!-- FileProvider：用于 APK 安装时共享文件 -->
+        <!-- FileProvider: used for sharing files during APK installation -->
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"
@@ -29,7 +29,7 @@
                 android:resource="@xml/file_paths" />
         </provider>
 
-        <!-- SessionListActivity 作为启动界面 -->
+        <!-- SessionListActivity as launcher activity -->
         <activity
             android:name=".SessionListActivity"
             android:exported="true">
@@ -38,48 +38,48 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <!-- ChatActivity 聊天界面 -->
+        <!-- ChatActivity -->
         <activity
             android:name=".ChatActivity"
             android:exported="false"
-            android:label="聊天"
+            android:label="@string/title_chat"
             android:windowSoftInputMode="adjustResize" />
 
-        <!-- SessionSettingsActivity 会话设置界面 -->
+        <!-- SessionSettingsActivity -->
         <activity
             android:name=".SessionSettingsActivity"
             android:exported="false"
-            android:label="会话设置" />
+            android:label="@string/title_session_settings" />
 
-        <!-- SettingsActivity 设置界面 -->
+        <!-- SettingsActivity -->
         <activity
             android:name=".SettingsActivity"
             android:exported="false"
-            android:label="设置" />
+            android:label="@string/title_settings" />
 
-        <!-- AboutActivity 关于界面 -->
+        <!-- AboutActivity -->
         <activity
             android:name=".AboutActivity"
             android:exported="false"
-            android:label="关于" />
+            android:label="@string/title_about" />
 
-        <!-- AccountManagerActivity 账号管理界面 -->
+        <!-- AccountManagerActivity -->
         <activity
             android:name=".AccountManagerActivity"
             android:exported="false"
-            android:label="账号管理" />
+            android:label="@string/title_account_manager" />
 
-        <!-- AccountEditActivity 账号编辑界面 -->
+        <!-- AccountEditActivity -->
         <activity
             android:name=".AccountEditActivity"
             android:exported="false"
-            android:label="编辑账号" />
+            android:label="@string/title_account_edit" />
 
-        <!-- LogViewerActivity 日志查看界面 -->
+        <!-- LogViewerActivity -->
         <activity
             android:name=".LogViewerActivity"
             android:exported="false"
-            android:label="日志查看器" />
+            android:label="@string/title_log_viewer" />
 
     </application>
 

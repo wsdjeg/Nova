@@ -11,13 +11,13 @@
         android:layout_height="56dp"
         android:src="@drawable/ic_mic"
         android:layout_marginBottom="12dp"
-        android:contentDescription="麦克风" />
+        android:contentDescription="@string/microphone" />
 
     <TextView
         android:id="@+id/tv_voice_status"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="正在聆听..."
+        android:text="@string/listening"
         android:textSize="14sp"
         android:textColor="@color/text_secondary"
         android:layout_marginBottom="16dp" />

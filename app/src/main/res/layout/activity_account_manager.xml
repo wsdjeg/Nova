@@ -12,7 +12,7 @@
         android:background="?attr/colorPrimary"
         android:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar"
         app:popupTheme="@style/ToolbarPopupOverlay"
-        app:title="账号管理"
+        app:title="@string/title_account_manager"
         app:titleTextColor="@android:color/white"
         app:navigationIcon="?attr/homeAsUpIndicator" />
 
@@ -45,7 +45,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
-                android:text="暂无账号"
+                android:text="@string/no_accounts"
                 android:textColor="@color/text_hint"
                 android:textSize="16sp" />
 
@@ -53,7 +53,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
-                android:text="点击右下方 + 添加账号"
+                android:text="@string/no_accounts_hint"
                 android:textColor="@color/text_secondary"
                 android:textSize="14sp" />
         </LinearLayout>
@@ -65,10 +65,11 @@
             android:layout_alignParentEnd="true"
             android:layout_alignParentBottom="true"
             android:layout_margin="16dp"
-            android:contentDescription="添加账号"
+            android:contentDescription="@string/add_account"
             android:src="@android:drawable/ic_input_add"
             app:backgroundTint="@color/colorPrimary" />
 
     </RelativeLayout>
 
 </LinearLayout>
+

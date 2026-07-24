@@ -15,7 +15,7 @@
         android:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar"
         app:popupTheme="@style/ToolbarPopupOverlay"
         app:navigationIcon="?attr/homeAsUpIndicator"
-        app:title="关于"
+        app:title="@string/title_about"
         app:titleTextColor="@android:color/white" />
 
     <ScrollView
@@ -30,7 +30,7 @@
             android:padding="24dp"
             android:gravity="center_horizontal">
 
-            <!-- App Icon - 使用高清版本 -->
+            <!-- App Icon -->
             <ImageView
                 android:layout_width="120dp"
                 android:layout_height="120dp"
@@ -60,7 +60,7 @@
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Nova 是一个 Android AI 聊天助手应用，作为 chat.nvim 的移动端客户端。"
+                android:text="@string/app_description"
                 android:textSize="16sp"
                 android:gravity="center"
                 android:layout_marginBottom="16dp" />
@@ -68,13 +68,13 @@
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="通过 Nova，您可以随时随地与 AI 助手进行对话，获取编程帮助、文档查询等服务。"
+                android:text="@string/app_description_extended"
                 android:textSize="14sp"
                 android:textColor="@color/text_secondary"
                 android:gravity="center"
                 android:layout_marginBottom="24dp" />
 
-            <!-- 分隔线 -->
+            <!-- Divider -->
             <View
                 android:layout_width="match_parent"
                 android:layout_height="1dp"
@@ -85,7 +85,7 @@
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="相关链接"
+                android:text="@string/links_title"
                 android:textSize="18sp"
                 android:textStyle="bold"
                 android:layout_marginBottom="16dp" />
@@ -94,7 +94,7 @@
                 android:id="@+id/tv_github"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="GitHub 仓库"
+                android:text="@string/github_repo"
                 android:textSize="16sp"
                 android:textColor="@color/link_color"
                 android:padding="12dp"
@@ -106,7 +106,7 @@
                 android:id="@+id/tv_chat_nvim"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="chat.nvim 官网"
+                android:text="@string/chat_nvim_site"
                 android:textSize="16sp"
                 android:textColor="@color/link_color"
                 android:padding="12dp"
@@ -118,7 +118,7 @@
                 android:id="@+id/tv_check_update"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="检查更新"
+                android:text="@string/check_update"
                 android:textSize="16sp"
                 android:textColor="@color/link_color"
                 android:padding="12dp"
@@ -126,7 +126,7 @@
                 android:clickable="true"
                 android:focusable="true" />
 
-            <!-- 分隔线 -->
+            <!-- Divider -->
             <View
                 android:layout_width="match_parent"
                 android:layout_height="1dp"

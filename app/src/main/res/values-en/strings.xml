@@ -1,0 +1,290 @@
+<resources>
+    <string name="app_name">Nova</string>
+    <string name="settings">Settings</string>
+    <string name="send">Send</string>
+    <string name="type_message">Type a message...</string>
+    <string name="url">URL</string>
+    <string name="port">Port</string>
+    <string name="api_key">API Key</string>
+    <string name="session_id">Session ID</string>
+    <string name="save">Save</string>
+    <string name="cancel">Cancel</string>
+    <string name="no_settings">Please configure API settings first</string>
+    <string name="error">Error</string>
+    <string name="success">Saved successfully</string>
+    <string name="session_required">Session ID is required</string>
+    <string name="api_key_required">API Key is required</string>
+    <string name="url_required">URL is required</string>
+
+    <!-- Commands -->
+    <string name="help_header">📝 Available Commands:</string>
+    <string name="help_help">/help - Show this help</string>
+    <string name="help_sessions">/sessions - List all active sessions</string>
+    <string name="help_session">/session [id] - Get session preview (optional id)</string>
+    <string name="help_set">/set [id] - Set current session id</string>
+    <string name="help_clear">/clear - Clear message list</string>
+    <string name="no_active_sessions">No active sessions</string>
+    <string name="active_sessions">Active Sessions:</string>
+    <string name="session_preview">Session Preview:</string>
+    <string name="session_set">Session set to: %s</string>
+    <string name="session_id_required">Session ID is required</string>
+    <string name="messages_cleared">Messages cleared</string>
+    <string name="unknown_command">Unknown command: %s</string>
+    <string name="current_session">Current Session: %s</string>
+
+    <!-- About -->
+    <string name="about_title">About Nova</string>
+    <string name="app_description">Nova is an Android AI chat assistant app, serving as the mobile client for chat.nvim.</string>
+    <string name="app_description_extended">With Nova, you can chat with your AI assistant anytime, anywhere, getting programming help, documentation queries, and more.</string>
+    <string name="features_title">Key Features</string>
+    <string name="features_content">• Multi-session management\n• Real-time chat\n• Markdown support\n• API configuration</string>
+    <string name="tech_title">Tech Stack</string>
+    <string name="tech_content">• Java\n• AndroidX\n• OkHttp\n• Material Design</string>
+    <string name="github_title">Open Source</string>
+    <string name="github_url">https://github.com/wsdjeg/Nova</string>
+    <string name="links_title">Related Links</string>
+    <string name="github_repo">GitHub Repository</string>
+    <string name="chat_nvim_site">chat.nvim Website</string>
+    <string name="check_update">Check for Updates</string>
+
+    <!-- Activity titles -->
+    <string name="title_about">About</string>
+    <string name="title_settings">Settings</string>
+    <string name="title_chat">Chat</string>
+    <string name="title_session_settings">Session Settings</string>
+    <string name="title_account_manager">Account Manager</string>
+    <string name="title_account_edit">Edit Account</string>
+    <string name="title_account_add">Add Account</string>
+    <string name="title_log_viewer">Log Viewer</string>
+
+    <!-- Menu items -->
+    <string name="menu_search">Search</string>
+    <string name="menu_retry">Retry</string>
+    <string name="menu_refresh">Refresh</string>
+    <string name="menu_clear_session">Clear Session</string>
+    <string name="menu_delete_session">Delete Session</string>
+    <string name="menu_preview">Preview</string>
+    <string name="menu_settings">Settings</string>
+    <string name="menu_save">Save</string>
+    <string name="menu_account_manager">Account Manager</string>
+    <string name="menu_view_log">View Logs</string>
+    <string name="menu_about">About</string>
+    <string name="menu_import">Import</string>
+    <string name="menu_export">Export</string>
+    <string name="menu_clear_log">Clear</string>
+
+    <!-- Chat -->
+    <string name="new_session">New Session</string>
+    <string name="load_more">Pull down to load more</string>
+    <string name="loading">Loading...</string>
+    <string name="loading_messages">Loading messages...</string>
+    <string name="load_timeout">Load timed out, please check your network and pull down to refresh</string>
+    <string name="init_failed">Initialization failed, please retry</string>
+    <string name="no_messages">No messages</string>
+    <string name="message_parse_failed">Failed to parse messages: %s</string>
+    <string name="load_failed">Load failed: %s</string>
+    <string name="reached_first_message">Reached the first message</string>
+    <string name="loading_more_hint">⏳ Loading...</string>
+    <string name="continue_loading_hint">⏳ Loading more...</string>
+    <string name="loaded_visible_messages">✓ Loaded %d visible messages</string>
+    <string name="reached_first_hint">Reached the first message</string>
+    <string name="invalid_session_id">Invalid session ID</string>
+    <string name="please_add_account">Please add an account first</string>
+    <string name="please_configure_account">Please configure account info first</string>
+    <string name="account_invalid">Account info is invalid</string>
+    <string name="please_configure_server">Please configure server address first</string>
+    <string name="send_failed">Send failed: %s</string>
+    <string name="stop_failed">Stop failed: %s</string>
+    <string name="session_in_progress">Session is in progress, please stop first</string>
+    <string name="retrying">Retrying...</string>
+    <string name="retry_started">Retry started</string>
+    <string name="retry_failed">Retry failed: %s</string>
+    <string name="clear_session_title">Clear Session</string>
+    <string name="clear_session_message">Are you sure you want to clear all messages in this session?</string>
+    <string name="clear">Clear</string>
+    <string name="session_cleared">Session cleared</string>
+    <string name="clear_failed">Clear failed: %s</string>
+    <string name="delete_session_title">Delete Session</string>
+    <string name="delete_session_message">Are you sure you want to delete this session?</string>
+    <string name="delete">Delete</string>
+    <string name="session_deleted">Session deleted</string>
+    <string name="delete_failed">Delete failed: %s</string>
+
+    <!-- Message actions -->
+    <string name="copy">Copy</string>
+    <string name="message_empty">Message content is empty</string>
+    <string name="message_content_label">Message content</string>
+    <string name="copied_to_clipboard">Copied to clipboard</string>
+    <string name="cannot_delete_message">Cannot delete this message</string>
+    <string name="delete_message_title">Delete Message</string>
+    <string name="delete_message_confirm">Are you sure you want to delete this message?</string>
+    <string name="message_deleted">Message deleted</string>
+
+    <!-- Expand / collapse -->
+    <string name="expand">Expand ▼</string>
+    <string name="collapse">Collapse ▲</string>
+
+    <!-- Voice input -->
+    <string name="listening">Listening...</string>
+    <string name="speak">Speak...</string>
+    <string name="microphone">Microphone</string>
+    <string name="voice_model_loading">Voice model is loading, please wait...</string>
+    <string name="voice_model_loading_start">Voice model is loading...</string>
+    <string name="voice_model_not_found">Voice model not found: assets/%s</string>
+    <string name="no_speech_engine">No speech recognition engine installed, and offline model not ready</string>
+    <string name="voice_start_failed">Speech recognition failed to start: %s</string>
+    <string name="need_mic_permission">Microphone permission is required for voice input</string>
+    <string name="voice_recognize_failed">Recognition failed: %s</string>
+    <string name="voice_recognize_ended">Speech recognition ended</string>
+    <string name="voice_start_error">Start failed: %s</string>
+    <string name="scroll_to_bottom">Scroll to bottom</string>
+
+    <!-- Session list -->
+    <string name="search_session_hint">Search session titles</string>
+    <string name="no_sessions_hint">No sessions, tap + to create a new one</string>
+    <string name="creating_session">Creating new session...</string>
+    <string name="session_created">New session created: %s</string>
+    <string name="create_session_failed">Failed to create session: %s</string>
+    <string name="account_config_incomplete">Account configuration incomplete, please check URL and API Key</string>
+    <string name="total_sessions">%d sessions total</string>
+    <string name="found_sessions">Found %1$d/%2$d sessions</string>
+    <string name="pin">Pin</string>
+    <string name="unpin">Unpin</string>
+    <string name="session_actions">Session Actions</string>
+    <string name="delete_session_confirm">Are you sure you want to delete session %1$s?\n\nThis action cannot be undone.</string>
+    <string name="deleting_session">Deleting session...</string>
+    <string name="session_deleted_toast">Session deleted</string>
+    <string name="deleted_local_session">Deleted local session</string>
+    <string name="deleted_local_session_not_on_server">Deleted local session (not found on server)</string>
+    <string name="delete_session_failed">Failed to delete session: %s</string>
+    <string name="pinned_local">Pinned (local)</string>
+    <string name="unpinned_local">Unpinned (local)</string>
+    <string name="pinning">Pinning...</string>
+    <string name="unpinning">Unpinning...</string>
+    <string name="pinned">Pinned</string>
+    <string name="unpinned">Unpinned</string>
+    <string name="pin_failed">Pin failed: %s</string>
+    <string name="unpin_failed">Unpin failed: %s</string>
+
+    <!-- Account -->
+    <string name="account_name">Account Name</string>
+    <string name="account_name_hint">e.g. Home, Office, VPS</string>
+    <string name="server_address">Server Address</string>
+    <string name="server_address_hint">IP or domain</string>
+    <string name="port_hint">Port</string>
+    <string name="api_key_optional">API Key (optional)</string>
+    <string name="api_key_hint">If the server requires authentication</string>
+    <string name="tag_color">Tag Color</string>
+    <string name="tag_color_hint">Select a color for the account tag, or use global settings</string>
+    <string name="test_connection">Test Connection</string>
+    <string name="delete_account">Delete Account</string>
+    <string name="no_accounts">No accounts</string>
+    <string name="no_accounts_hint">Tap the + button below to add an account</string>
+    <string name="add_account">Add Account</string>
+    <string name="default_account">Default</string>
+    <string name="set_default_account">Set as default account</string>
+    <string name="edit_account">Edit Account</string>
+    <string name="just_used">Just used</string>
+    <string name="minutes_ago">%d min ago</string>
+    <string name="hours_ago">%d hr ago</string>
+    <string name="last_used">Last used: %s</string>
+    <string name="please_enter_name">Please enter an account name</string>
+    <string name="please_enter_server">Please enter the server address</string>
+    <string name="port_format_error">Invalid port format</string>
+    <string name="account_updated">Account updated</string>
+    <string name="account_not_exist">Account does not exist</string>
+    <string name="account_added">Account added</string>
+    <string name="connection_success">Connection successful: %s</string>
+    <string name="connection_failed">Connection failed: %s</string>
+    <string name="delete_account_title">Delete Account</string>
+    <string name="delete_account_confirm">Are you sure you want to delete this account?</string>
+    <string name="account_deleted">Account deleted</string>
+    <string name="no_accounts_to_export">No accounts to export</string>
+    <string name="export_failed_no_data">Export failed: unable to generate data</string>
+    <string name="export_success">Export successful</string>
+    <string name="export_failed">Export failed: %s</string>
+    <string name="import_success">Successfully imported %d accounts</string>
+    <string name="import_failed">Import failed: %s</string>
+    <string name="set_as_default">Set as default account: %s</string>
+
+    <!-- Session settings -->
+    <string name="session_info">Session Info</string>
+    <string name="session_id_label">Session ID: %s</string>
+    <string name="session_title">Session Title</string>
+    <string name="session_title_hint">Enter session title (optional)</string>
+    <string name="cwd">Working Directory (CWD)</string>
+    <string name="cwd_hint">Enter working directory path</string>
+    <string name="ai_settings">AI Settings</string>
+    <string name="session_settings_hint">After modifying settings, tap the save button to apply changes.</string>
+    <string name="getting_session_info">Getting session info...</string>
+    <string name="get_session_info_failed">Failed to get session info: %s</string>
+    <string name="loading_providers">Loading Providers...</string>
+    <string name="load_providers_failed">Load failed: %s</string>
+    <string name="no_account_info">Unable to get account info</string>
+    <string name="data_not_loaded">Data not fully loaded yet</string>
+    <string name="please_select_provider">Please select a Provider</string>
+    <string name="please_select_model">Please select a Model</string>
+    <string name="config_unchanged">Configuration unchanged</string>
+    <string name="saving">Saving...</string>
+    <string name="settings_saved">Settings saved</string>
+    <string name="provider_model_update_failed">Provider/Model update failed: %s</string>
+    <string name="cwd_update_failed">CWD update failed: %s</string>
+    <string name="title_update_failed">Title update failed: %s</string>
+
+    <!-- Settings -->
+    <string name="new_session_defaults">New Session Defaults</string>
+    <string name="appearance_settings">Appearance</string>
+    <string name="theme_mode">Theme Mode</string>
+    <string name="theme_system">Follow System</string>
+    <string name="theme_light">Light Mode</string>
+    <string name="theme_dark">Dark Mode</string>
+    <string name="session_list">Session List</string>
+    <string name="account_tag_color">Account Tag Color</string>
+    <string name="settings_hint">Leave empty to use server defaults. Tap the save button after changes.</string>
+    <string name="account_hint">Tip: Account management is in "Account Manager"</string>
+    <string name="empty_option">(Empty / Server default)</string>
+    <string name="no_account_no_list">No account configured, unable to fetch available list</string>
+    <string name="loading_providers_models">Loading available Provider/Model list...</string>
+    <string name="load_providers_models_failed">Load failed: %1$s (you can manually select saved values)</string>
+
+    <!-- About - update check -->
+    <string name="checking_update">Checking for updates...</string>
+    <string name="check_update_failed">Update check failed: %s</string>
+    <string name="check_update_failed_cache">Update check failed: cache data corrupted</string>
+    <string name="check_update_failed_no_cache">Update check failed: no cached data, please try again later</string>
+    <string name="check_update_failed_http">Update check failed: HTTP %d</string>
+    <string name="parse_update_failed">Failed to parse update info</string>
+    <string name="no_versions_available">No versions available</string>
+    <string name="latest_dev_version">You are on the latest dev version (v%s)</string>
+    <string name="latest_version">You are on the latest version (v%s)</string>
+    <string name="no_dev_version">No dev version available</string>
+    <string name="github_rate_limit">GitHub API rate limit (60/hour for unauthenticated).\n</string>
+    <string name="rate_limit_reset">Quota will reset at %s.</string>
+    <string name="try_again_later">Please try again later.</string>
+    <string name="check_update_failed_title">Update Check Failed</string>
+    <string name="open_in_browser">Open in Browser</string>
+    <string name="close">Close</string>
+    <string name="new_version_found">New Version Available</string>
+    <string name="download_install">Download and Install</string>
+    <string name="later">Maybe Later</string>
+    <string name="ok">OK</string>
+    <string name="current_version_label">Current version: v%s\n</string>
+    <string name="latest_version_label">Latest version: %s\n</string>
+    <string name="type_prerelease">Type: Prerelease\n</string>
+    <string name="release_time">Released: %s\n</string>
+    <string name="apk_size">Size: %s</string>
+    <string name="no_release_notes">*No release notes*</string>
+    <string name="preparing_download">Preparing download...</string>
+    <string name="downloading_update">Downloading Update</string>
+    <string name="download_failed">Download failed: %s</string>
+    <string name="download_failed_http">Download failed: HTTP %d</string>
+    <string name="download_complete_installing">Download complete, installing...</string>
+    <string name="install_failed">Install failed: %s</string>
+
+    <!-- Log viewer -->
+    <string name="read_log_failed">Failed to read logs: %s</string>
+
+    <!-- Time -->
+    <string name="yesterday">Yesterday</string>
+</resources>
+

@@ -13,7 +13,7 @@
         android:background="?attr/colorPrimary"
         android:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar"
         app:popupTheme="@style/ToolbarPopupOverlay"
-        app:title="设置"
+        app:title="@string/title_settings"
         app:titleTextColor="@android:color/white"
         app:navigationIcon="?attr/homeAsUpIndicator" />
 
@@ -28,16 +28,16 @@
             android:orientation="vertical"
             android:padding="16dp">
 
-            <!-- 新建会话默认设置 -->
+            <!-- New session defaults -->
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="新建会话默认设置"
+                android:text="@string/new_session_defaults"
                 android:textSize="20sp"
                 android:textStyle="bold"
                 android:layout_marginBottom="16dp" />
 
-            <!-- Provider 选择 -->
+            <!-- Provider selection -->
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -52,7 +52,7 @@
                 android:layout_height="48dp"
                 android:layout_marginBottom="16dp" />
 
-            <!-- Model 选择 -->
+            <!-- Model selection -->
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -67,7 +67,7 @@
                 android:layout_height="48dp"
                 android:layout_marginBottom="8dp" />
 
-            <!-- 加载状态 -->
+            <!-- Loading status -->
             <ProgressBar
                 android:id="@+id/progress_bar"
                 android:layout_width="match_parent"
@@ -85,29 +85,29 @@
                 android:gravity="center"
                 android:layout_marginBottom="16dp" />
 
-            <!-- 提示 -->
+            <!-- Hint -->
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="留空使用服务端默认配置。修改后请点击右上角保存按钮。"
+                android:text="@string/settings_hint"
                 android:textSize="12sp"
                 android:textColor="?android:attr/textColorSecondary"
                 android:layout_marginBottom="24dp" />
 
-            <!-- 外观设置 -->
+            <!-- Appearance settings -->
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="外观设置"
+                android:text="@string/appearance_settings"
                 android:textSize="20sp"
                 android:textStyle="bold"
                 android:layout_marginBottom="16dp" />
 
-            <!-- 主题模式 -->
+            <!-- Theme mode -->
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="主题模式"
+                android:text="@string/theme_mode"
                 android:textSize="16sp"
                 android:layout_marginBottom="8dp" />
 
@@ -122,39 +122,39 @@
                     android:id="@+id/rb_theme_system"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="跟随系统"
+                    android:text="@string/theme_system"
                     android:padding="8dp" />
 
                 <RadioButton
                     android:id="@+id/rb_theme_light"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="浅色模式"
+                    android:text="@string/theme_light"
                     android:padding="8dp" />
 
                 <RadioButton
                     android:id="@+id/rb_theme_dark"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="深色模式"
+                    android:text="@string/theme_dark"
                     android:padding="8dp" />
 
             </RadioGroup>
 
-            <!-- 会话列表设置 -->
+            <!-- Session list settings -->
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="会话列表"
+                android:text="@string/session_list"
                 android:textSize="20sp"
                 android:textStyle="bold"
                 android:layout_marginBottom="16dp" />
 
-            <!-- 账户标签颜色 -->
+            <!-- Account tag color -->
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="账户标签颜色"
+                android:text="@string/account_tag_color"
                 android:textSize="16sp"
                 android:layout_marginBottom="8dp" />
 
@@ -166,18 +166,18 @@
                 android:gravity="center_vertical"
                 android:layout_marginBottom="24dp">
 
-                <!-- 颜色选项将通过代码动态添加 -->
+                <!-- Color options added dynamically -->
 
             </LinearLayout>
 
-            <!-- 提示信息 -->
+            <!-- Hint -->
             <TextView
                 android:id="@+id/tv_status"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:textSize="14sp"
                 android:textColor="@color/text_secondary"
-                android:text="提示：账户管理请在&quot;账号管理&quot;中进行" />
+                android:text="@string/account_hint" />
 
         </LinearLayout>
 

@@ -10,27 +10,27 @@
         <menu>
             <item
                 android:id="@+id/action_retry"
-                android:title="重试" />
+                android:title="@string/menu_retry" />
             
             <item
                 android:id="@+id/action_refresh"
-                android:title="刷新" />
+                android:title="@string/menu_refresh" />
             
             <item
                 android:id="@+id/action_clear_session"
-                android:title="清空会话" />
+                android:title="@string/menu_clear_session" />
             
             <item
                 android:id="@+id/action_delete_session"
-                android:title="删除会话" />
+                android:title="@string/menu_delete_session" />
             
             <item
                 android:id="@+id/action_preview"
-                android:title="预览" />
+                android:title="@string/menu_preview" />
             
             <item
                 android:id="@+id/action_settings"
-                android:title="设置" />
+                android:title="@string/menu_settings" />
         </menu>
     </item>
 </menu>

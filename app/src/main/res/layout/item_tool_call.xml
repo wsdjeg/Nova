@@ -6,7 +6,7 @@
     android:padding="8dp"
     android:gravity="start">
 
-    <!-- 工具调用卡片 -->
+    <!-- Tool call card -->
     <LinearLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
@@ -46,7 +46,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="8dp"
-                android:text="展开 ▼"
+                android:text="@string/expand"
                 android:textSize="11sp"
                 android:textColor="@color/tool_name_color"
                 android:padding="4dp"
@@ -54,7 +54,7 @@
 
         </LinearLayout>
 
-        <!-- Tool arguments container - 可滚动 -->
+        <!-- Tool arguments container - scrollable -->
         <HorizontalScrollView
             android:id="@+id/contentScrollH"
             android:layout_width="wrap_content"
@@ -88,7 +88,7 @@
 
     </LinearLayout>
 
-    <!-- 时间戳 -->
+    <!-- Timestamp -->
     <TextView
         android:id="@+id/timeText"
         android:layout_width="wrap_content"
