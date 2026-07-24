@@ -1,25 +1,36 @@
 package net.wsdjeg.nova;
 
 import android.app.Application;
+import android.content.Context;
 
 import androidx.appcompat.app.AppCompatDelegate;
 
 /**
- * Nova Application 类
- * 负责在应用启动时应用主题设置
+ * Nova Application class
+ * Responsible for applying theme settings on app startup
  */
 public class NovaApplication extends Application {
+
+    private static Context appContext;
 
     @Override
     public void onCreate() {
         super.onCreate();
+        appContext = getApplicationContext();
         
-        // 应用保存的主题设置
+        // Apply saved theme settings
         applyTheme();
     }
 
     /**
-     * 应用主题设置
+     * Get application context (for accessing resources from non-Activity classes)
+     */
+    public static Context getAppContext() {
+        return appContext;
+    }
+
+    /**
+     * Apply theme settings
      */
     private void applyTheme() {
         SettingsManager settingsManager = new SettingsManager(this);
@@ -39,3 +50,4 @@ public class NovaApplication extends Application {
         }
     }
 }
+

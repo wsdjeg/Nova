@@ -18,8 +18,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
- * 日志查看器 Activity
- * 用于查看 App 的 LogCat 输出，方便调试
+ * Log viewer Activity
+ * Used to view the app's LogCat output for debugging
  */
 public class LogViewerActivity extends AppCompatActivity {
     
@@ -41,7 +41,7 @@ public class LogViewerActivity extends AppCompatActivity {
         setSupportActionBar(toolbar);
         if (getSupportActionBar() != null) {
             getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-            getSupportActionBar().setTitle("日志查看器");
+            getSupportActionBar().setTitle(R.string.title_log_viewer);
         }
         
         tvLog = findViewById(R.id.tv_log);
@@ -50,7 +50,7 @@ public class LogViewerActivity extends AppCompatActivity {
         executor = Executors.newSingleThreadExecutor();
         handler = new Handler(Looper.getMainLooper());
         
-        // 加载日志
+        // Load logs
         loadLogs();
     }
     
@@ -83,7 +83,7 @@ public class LogViewerActivity extends AppCompatActivity {
     private void loadLogs() {
         executor.execute(() -> {
             try {
-                // 使用 logcat 命令读取日志
+                // Read logs using logcat command
                 Process process = Runtime.getRuntime().exec(
                     "logcat -d -t " + MAX_LINES + " -v time NovaChat:V ApiClient:V MessageAdapter:V *:S"
                 );
@@ -97,7 +97,7 @@ public class LogViewerActivity extends AppCompatActivity {
                     lines.add(line);
                 }
                 
-                // 只保留最近的日志
+                // Keep only recent logs
                 if (lines.size() > MAX_LINES) {
                     lines = lines.subList(lines.size() - MAX_LINES, lines.size());
                 }
@@ -114,9 +114,10 @@ public class LogViewerActivity extends AppCompatActivity {
                 
             } catch (Exception e) {
                 handler.post(() -> {
-                    tvLog.setText("读取日志失败: " + e.getMessage());
+                    tvLog.setText(getString(R.string.read_log_failed, e.getMessage()));
                 });
             }
         });
     }
 }
+

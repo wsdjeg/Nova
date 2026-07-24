@@ -510,7 +510,7 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
                     holder.expandHint.setVisibility(View.VISIBLE);
                     boolean isExpanded = expandedToolCalls.contains(stableKey);
                     updateContentHeight(holder, isExpanded);
-                    holder.expandHint.setText(isExpanded ? "收起 ▲" : "展开 ▼");
+                    holder.expandHint.setText(isExpanded ? context.getString(R.string.collapse) : context.getString(R.string.expand));
                 } else {
                     holder.expandHint.setVisibility(View.GONE);
                     holder.contentScrollV.setScrollEnabled(false);
@@ -530,11 +530,11 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
             if (isExpanded) {
                 expandedToolCalls.remove(stableKey);
                 updateContentHeight(holder, false);
-                holder.expandHint.setText("展开 ▼");
+                holder.expandHint.setText(context.getString(R.string.expand));
             } else {
                 expandedToolCalls.add(stableKey);
                 updateContentHeight(holder, true);
-                holder.expandHint.setText("收起 ▲");
+                holder.expandHint.setText(context.getString(R.string.collapse));
             }
         };
         holder.expandHint.setOnClickListener(toggleListener);
@@ -581,7 +581,7 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
                     holder.expandHint.setVisibility(View.VISIBLE);
                     boolean isExpanded = expandedToolResults.contains(stableKey);
                     updateResultContentHeight(holder, isExpanded);
-                    holder.expandHint.setText(isExpanded ? "收起 ▲" : "展开 ▼");
+                    holder.expandHint.setText(isExpanded ? context.getString(R.string.collapse) : context.getString(R.string.expand));
                 } else {
                     holder.expandHint.setVisibility(View.GONE);
                     holder.contentScrollV.setScrollEnabled(false);
@@ -601,11 +601,11 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
             if (isExpanded) {
                 expandedToolResults.remove(stableKey);
                 updateResultContentHeight(holder, false);
-                holder.expandHint.setText("展开 ▼");
+                holder.expandHint.setText(context.getString(R.string.expand));
             } else {
                 expandedToolResults.add(stableKey);
                 updateResultContentHeight(holder, true);
-                holder.expandHint.setText("收起 ▲");
+                holder.expandHint.setText(context.getString(R.string.collapse));
             }
         };
         holder.expandHint.setOnClickListener(toggleListener);
@@ -809,9 +809,9 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
     private void copyToClipboard(String text) {
         ClipboardManager clipboard = (ClipboardManager) context.getSystemService(Context.CLIPBOARD_SERVICE);
         if (clipboard != null) {
-            ClipData clip = ClipData.newPlainText("消息内容", text);
+            ClipData clip = ClipData.newPlainText(context.getString(R.string.message_content_label), text);
             clipboard.setPrimaryClip(clip);
-            Toast.makeText(context, "已复制到剪贴板", Toast.LENGTH_SHORT).show();
+            Toast.makeText(context, context.getString(R.string.copied_to_clipboard), Toast.LENGTH_SHORT).show();
         }
     }
     
@@ -855,7 +855,7 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
             && message.getServerIndex() > 0;
 
         List<PopupHelper.PopupItem> items = new ArrayList<>();
-        items.add(new PopupHelper.PopupItem("复制", () -> {
+        items.add(new PopupHelper.PopupItem(context.getString(R.string.copy), () -> {
             if (actionListener != null) {
                 actionListener.onCopyMessage(copyText);
             } else {
@@ -864,7 +864,7 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
         }));
 
         if (canDelete) {
-            items.add(new PopupHelper.PopupItem("删除", true, () -> {
+            items.add(new PopupHelper.PopupItem(context.getString(R.string.delete), true, () -> {
                 if (actionListener != null) {
                     actionListener.onDeleteMessage(message);
                 }

@@ -277,7 +277,7 @@ public class Session {
             }
             return firstLine;
         }
-        return "新会话";
+        return NovaApplication.getAppContext().getString(R.string.new_session);
     }
     
     public void setTitle(String title) {

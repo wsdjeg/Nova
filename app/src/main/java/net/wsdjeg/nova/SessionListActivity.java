@@ -111,7 +111,7 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
         MenuItem searchItem = menu.findItem(R.id.action_search);
         SearchView searchView = (SearchView) searchItem.getActionView();
         if (searchView != null) {
-            searchView.setQueryHint("搜索会话标题");
+            searchView.setQueryHint(getString(R.string.search_session_hint));
             searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
                 @Override
                 public boolean onQueryTextSubmit(String query) {
@@ -296,7 +296,7 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
                                 - fm.ascent;
                         float textX = Math.min(itemView.getLeft() + 48f,
                                 itemView.getLeft() + dX / 3);
-                        c.drawText("置顶", textX, textY, paint);
+                        c.drawText(getString(R.string.pin), textX, textY, paint);
                         
                     } else if (dX < 0) {
                         // 左滑 -> 取消置顶：橙色背景
@@ -314,7 +314,7 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
                                 - fm.ascent;
                         float textX = Math.max(itemView.getRight() - 48f,
                                 itemView.getRight() + dX / 3);
-                        c.drawText("取消置顶", textX, textY, paint);
+                        c.drawText(getString(R.string.unpin), textX, textY, paint);
                     }
                 }
                 
@@ -364,11 +364,11 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
             sessions.clear();
             adapter.notifyDataSetChanged();
             updateSubtitle();
-            Toast.makeText(this, "请先添加账号", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, getString(R.string.please_add_account), Toast.LENGTH_SHORT).show();
             return;
         }
         
-        // 加载所有账号的会话
+        // Load sessions from all accounts
         List<Session> loadedSessions = sessionManager.loadAllSessions();
         
         // 确保 accountId 正确设置
@@ -386,7 +386,7 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
         applyFilter();
         
         if (allSessions.isEmpty()) {
-            Toast.makeText(this, "暂无会话，点击 + 创建新会话", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, getString(R.string.no_sessions_hint), Toast.LENGTH_SHORT).show();
         }
     }
     
@@ -442,9 +442,9 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
         
         String subtitle;
         if (searchQuery.isEmpty()) {
-            subtitle = "共 " + total + " 个会话";
+            subtitle = getString(R.string.total_sessions, total);
         } else {
-            subtitle = "找到 " + shown + "/" + total + " 个会话";
+            subtitle = getString(R.string.found_sessions, shown, total);
         }
         getSupportActionBar().setSubtitle(subtitle);
     }
@@ -550,7 +550,7 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
     private void createNewSession() {
         Account defaultAccount = accountManager.getDefaultAccount();
         if (defaultAccount == null) {
-            Toast.makeText(this, "请先添加账号", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, getString(R.string.please_add_account), Toast.LENGTH_SHORT).show();
             startActivityForResult(
                 new Intent(this, AccountManagerActivity.class),
                 REQUEST_ACCOUNT_MANAGE
@@ -562,7 +562,7 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
         String apiKey = defaultAccount.getApiKey();
         
         if (baseUrl == null || baseUrl.isEmpty() || apiKey == null || apiKey.isEmpty()) {
-            Toast.makeText(this, "账号配置不完整，请检查 URL 和 API Key", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, getString(R.string.account_config_incomplete), Toast.LENGTH_SHORT).show();
             return;
         }
         
@@ -572,7 +572,7 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
         String defaultProvider = settingsManager.getDefaultProvider();
         String defaultModel = settingsManager.getDefaultModel();
         
-        Toast.makeText(this, "正在创建新会话...", Toast.LENGTH_SHORT).show();
+        Toast.makeText(this, getString(R.string.creating_session), Toast.LENGTH_SHORT).show();
         
         accountApiClient.createSession(null, defaultProvider, defaultModel, defaultAccount.getId(), new ApiClient.CreateSessionCallback() {
             @Override
@@ -594,7 +594,7 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
                     openChatActivity(session);
                     
                     Toast.makeText(SessionListActivity.this, 
-                        "已创建新会话: " + session.getSessionId(), 
+                        getString(R.string.session_created, session.getSessionId()), 
                         Toast.LENGTH_SHORT).show();
                 });
             }
@@ -603,7 +603,7 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
             public void onError(String error) {
                 runOnUiThread(() -> {
                     Toast.makeText(SessionListActivity.this, 
-                        "创建会话失败: " + error, 
+                        getString(R.string.create_session_failed, error), 
                         Toast.LENGTH_SHORT).show();
                 });
             }
@@ -642,11 +642,11 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
     @Override
     public void onSessionLongClick(Session session) {
         // 显示菜单：删除、置顶（或取消置顶）
-        String pinActionText = session.isPinned() ? "取消置顶" : "置顶";
+        String pinActionText = session.isPinned() ? getString(R.string.unpin) : getString(R.string.pin);
         
         new androidx.appcompat.app.AlertDialog.Builder(this)
-            .setTitle("会话操作")
-            .setItems(new String[]{pinActionText, "删除"}, (dialog, which) -> {
+            .setTitle(getString(R.string.session_actions))
+            .setItems(new String[]{pinActionText, getString(R.string.delete)}, (dialog, which) -> {
                 if (which == 0) {
                     // 置顶/取消置顶
                     toggleSessionPin(session);
@@ -663,12 +663,12 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
      */
     private void confirmDeleteSession(Session session) {
         new androidx.appcompat.app.AlertDialog.Builder(this)
-            .setTitle("删除会话")
-            .setMessage("确定要删除会话 " + session.getTitle() + " 吗？\n\n此操作不可恢复。")
-            .setPositiveButton("删除", (dialog, which) -> {
+            .setTitle(getString(R.string.delete_session_title))
+            .setMessage(getString(R.string.delete_session_confirm, session.getTitle()))
+            .setPositiveButton(getString(R.string.delete), (dialog, which) -> {
                 deleteSession(session);
             })
-            .setNegativeButton("取消", null)
+            .setNegativeButton(getString(R.string.cancel), null)
             .show();
     }
     
@@ -694,7 +694,7 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
             sessionManager.addOrUpdateSession(session);
             loadSessions();
             Toast.makeText(this, 
-                session.isPinned() ? "已置顶（本地）" : "已取消置顶（本地）", 
+                session.isPinned() ? getString(R.string.pinned_local) : getString(R.string.unpinned_local), 
                 Toast.LENGTH_SHORT).show();
             return;
         }
@@ -708,7 +708,7 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
             sessionManager.addOrUpdateSession(session);
             loadSessions();
             Toast.makeText(this, 
-                session.isPinned() ? "已置顶（本地）" : "已取消置顶（本地）", 
+                session.isPinned() ? getString(R.string.pinned_local) : getString(R.string.unpinned_local), 
                 Toast.LENGTH_SHORT).show();
             return;
         }
@@ -717,7 +717,7 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
         boolean newPinnedState = !session.isPinned();
         
         Toast.makeText(this, 
-            newPinnedState ? "正在置顶..." : "正在取消置顶...", 
+            newPinnedState ? getString(R.string.pinning) : getString(R.string.unpinning), 
             Toast.LENGTH_SHORT).show();
         
         accountApiClient.setSessionPinned(session.getSessionId(), newPinnedState, new ApiClient.UpdateSessionCallback() {
@@ -729,7 +729,7 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
                     sessionManager.addOrUpdateSession(session);
                     loadSessions();
                     Toast.makeText(SessionListActivity.this, 
-                        newPinnedState ? "已置顶" : "已取消置顶", 
+                        newPinnedState ? getString(R.string.pinned) : getString(R.string.unpinned), 
                         Toast.LENGTH_SHORT).show();
                 });
             }
@@ -738,7 +738,7 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
             public void onError(String error) {
                 runOnUiThread(() -> {
                     Toast.makeText(SessionListActivity.this, 
-                        (newPinnedState ? "置顶失败: " : "取消置顶失败: ") + error, 
+                        (newPinnedState ? getString(R.string.pin_failed, error) : getString(R.string.unpin_failed, error)), 
                         Toast.LENGTH_SHORT).show();
                 });
             }
@@ -761,7 +761,7 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
         if (account == null) {
             sessionManager.deleteSession(session.getSessionId());
             loadSessions();
-            Toast.makeText(this, "已删除本地会话", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, getString(R.string.deleted_local_session), Toast.LENGTH_SHORT).show();
             return;
         }
         
@@ -771,13 +771,13 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
         if (baseUrl == null || baseUrl.isEmpty() || apiKey == null || apiKey.isEmpty()) {
             sessionManager.deleteSession(session.getSessionId());
             loadSessions();
-            Toast.makeText(this, "已删除本地会话", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, getString(R.string.deleted_local_session), Toast.LENGTH_SHORT).show();
             return;
         }
         
         ApiClient accountApiClient = new ApiClient(baseUrl, apiKey);
         
-        Toast.makeText(this, "正在删除会话...", Toast.LENGTH_SHORT).show();
+        Toast.makeText(this, getString(R.string.deleting_session), Toast.LENGTH_SHORT).show();
         
         accountApiClient.deleteSession(session.getSessionId(), new ApiClient.DeleteSessionCallback() {
             @Override
@@ -786,7 +786,7 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
                     sessionManager.deleteSession(session.getSessionId());
                     loadSessions();
                     Toast.makeText(SessionListActivity.this, 
-                        "已删除会话", Toast.LENGTH_SHORT).show();
+                        getString(R.string.session_deleted_toast), Toast.LENGTH_SHORT).show();
                 });
             }
             
@@ -797,10 +797,10 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
                         sessionManager.deleteSession(session.getSessionId());
                         loadSessions();
                         Toast.makeText(SessionListActivity.this, 
-                            "已删除本地会话（服务器上不存在）", Toast.LENGTH_SHORT).show();
+                            getString(R.string.deleted_local_session_not_on_server), Toast.LENGTH_SHORT).show();
                     } else {
                         Toast.makeText(SessionListActivity.this, 
-                            "删除会话失败: " + error, Toast.LENGTH_SHORT).show();
+                            getString(R.string.delete_session_failed, error), Toast.LENGTH_SHORT).show();
                     }
                 });
             }

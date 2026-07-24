@@ -81,7 +81,7 @@ public class AccountAdapter extends RecyclerView.Adapter<AccountAdapter.ViewHold
         // 默认状态
         if (account.isActive()) {
             holder.statusDot.setBackgroundResource(R.drawable.session_icon_bg);
-            holder.textStatusLabel.setText("默认账号");
+            holder.textStatusLabel.setText(context.getString(R.string.default_account));
             holder.textStatusLabel.setTextColor(ContextCompat.getColor(context, R.color.success));
             holder.textStatusLabel.setVisibility(View.VISIBLE);
             // 不设置背景颜色，保留点击效果
@@ -92,14 +92,14 @@ public class AccountAdapter extends RecyclerView.Adapter<AccountAdapter.ViewHold
             long diff = now - lastUsed;
             
             if (diff < 60000) {  // 1分钟内
-                holder.textLastUsed.setText("刚刚使用");
+                holder.textLastUsed.setText(context.getString(R.string.just_used));
             } else if (diff < 3600000) {  // 1小时内
-                holder.textLastUsed.setText((diff / 60000) + "分钟前");
+                holder.textLastUsed.setText(context.getString(R.string.minutes_ago, (int)(diff / 60000)));
             } else if (diff < 86400000) {  // 24小时内
-                holder.textLastUsed.setText((diff / 3600000) + "小时前");
+                holder.textLastUsed.setText(context.getString(R.string.hours_ago, (int)(diff / 3600000)));
             } else {
                 SimpleDateFormat sdf = new SimpleDateFormat("MM-dd", Locale.getDefault());
-                holder.textLastUsed.setText("最后使用: " + sdf.format(new Date(lastUsed)));
+                holder.textLastUsed.setText(context.getString(R.string.last_used, sdf.format(new Date(lastUsed))));
             }
             holder.textLastUsed.setTextColor(ContextCompat.getColor(context, R.color.text_hint));
             holder.textStatusLabel.setVisibility(View.GONE);
