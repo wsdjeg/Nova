@@ -243,7 +243,7 @@ public class VoskSpeechRecognizer {
 
             } catch (IOException e) {
                 Log.e(TAG, "Failed to load Vosk model", e);
-                modelError = "模型加载失败: " + e.getMessage();
+                modelError = context.getString(R.string.voice_start_error, e.getMessage());
                 if (listener != null) {
                     listener.onModelError(modelError);
                 }
@@ -368,7 +368,7 @@ public class VoskSpeechRecognizer {
     public void startListening() {
         if (!modelInitialized || recognizer == null) {
             if (listener != null) {
-                listener.onError("模型未初始化，请先调用 initModel()");
+                listener.onError(context.getString(R.string.voice_model_loading));
             }
             return;
         }
@@ -427,7 +427,7 @@ public class VoskSpeechRecognizer {
                 public void onError(Exception e) {
                     Log.e(TAG, "Recognition error", e);
                     if (listener != null) {
-                        listener.onError("识别错误: " + e.getMessage());
+                        listener.onError(context.getString(R.string.voice_recognize_failed, e.getMessage()));
                     }
                 }
 
@@ -447,7 +447,7 @@ public class VoskSpeechRecognizer {
         } catch (IOException e) {
             Log.e(TAG, "Failed to start listening", e);
             if (listener != null) {
-                listener.onError("启动识别失败: " + e.getMessage());
+                listener.onError(context.getString(R.string.voice_start_error, e.getMessage()));
             }
         }
     }
