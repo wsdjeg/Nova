@@ -136,15 +136,17 @@ public class SettingsActivity extends AppCompatActivity {
                 language = SettingsManager.LANGUAGE_CHINESE;
             }
             settingsManager.setLanguage(language);
-            SettingsManager.applyLanguage(language);
             
             // 通知需要重建界面
             Intent resultIntent = new Intent();
             resultIntent.putExtra(EXTRA_LANGUAGE_CHANGED, true);
             setResult(RESULT_OK, resultIntent);
             
-            // 重建 Activity 以应用语言变更
-            recreate();
+            // applyLanguage 内部调用 AppCompatDelegate.setApplicationLocales()
+            // 该方法会自动触发 Activity 重建，无需手动调用 recreate()
+            // 手动 recreate() 会与 setApplicationLocales() 的重建冲突，
+            // 导致重建时 locale 尚未更新，UI 仍显示旧语言
+            SettingsManager.applyLanguage(language);
         });
         
         // 初始化 Spinner adapters
