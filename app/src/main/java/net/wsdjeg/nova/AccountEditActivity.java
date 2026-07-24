@@ -64,7 +64,7 @@ public class AccountEditActivity extends AppCompatActivity {
         toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-        getSupportActionBar().setTitle("添加账号");
+        getSupportActionBar().setTitle(R.string.title_account_add);
         
         etName = findViewById(R.id.et_account_name);
         etHost = findViewById(R.id.et_host);
@@ -176,7 +176,7 @@ public class AccountEditActivity extends AppCompatActivity {
             
             if (account != null) {
                 isEditMode = true;
-                getSupportActionBar().setTitle("编辑账号");
+                getSupportActionBar().setTitle(R.string.title_account_edit);
                 
                 etName.setText(account.getName());
                 etHost.setText(account.getHost());
@@ -193,7 +193,7 @@ public class AccountEditActivity extends AppCompatActivity {
             } else {
                 // 账号不存在，回退到 Intent 数据（兼容旧方式）
                 isEditMode = true;
-                getSupportActionBar().setTitle("编辑账号");
+                getSupportActionBar().setTitle(R.string.title_account_edit);
                 
                 etName.setText(intent.getStringExtra(EXTRA_ACCOUNT_NAME));
                 etHost.setText(intent.getStringExtra(EXTRA_ACCOUNT_HOST));
@@ -226,12 +226,12 @@ public class AccountEditActivity extends AppCompatActivity {
         String apiKey = etApiKey.getText().toString().trim();
         
         if (TextUtils.isEmpty(name)) {
-            Toast.makeText(this, "请输入账号名称", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, getString(R.string.please_enter_name), Toast.LENGTH_SHORT).show();
             return;
         }
         
         if (TextUtils.isEmpty(host)) {
-            Toast.makeText(this, "请输入服务器地址", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, getString(R.string.please_enter_server), Toast.LENGTH_SHORT).show();
             return;
         }
         
@@ -240,7 +240,7 @@ public class AccountEditActivity extends AppCompatActivity {
             try {
                 port = Integer.parseInt(portStr);
             } catch (NumberFormatException e) {
-                Toast.makeText(this, "端口格式错误", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, getString(R.string.port_format_error), Toast.LENGTH_SHORT).show();
                 return;
             }
         }
@@ -255,9 +255,9 @@ public class AccountEditActivity extends AppCompatActivity {
                 account.setApiKey(apiKey);
                 account.setColorIndex(selectedColorIndex);
                 accountManager.updateAccount(account);
-                Toast.makeText(this, "账号已更新", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, getString(R.string.account_updated), Toast.LENGTH_SHORT).show();
             } else {
-                Toast.makeText(this, "账号不存在", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, getString(R.string.account_not_exist), Toast.LENGTH_SHORT).show();
             }
         } else {
             // 新增模式：创建新账号
@@ -270,7 +270,7 @@ public class AccountEditActivity extends AppCompatActivity {
             accountManager.addAccount(account);
             
             // addAccount 已经会自动处理第一个账号为默认的情况
-            Toast.makeText(this, "账号已添加", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, getString(R.string.account_added), Toast.LENGTH_SHORT).show();
         }
         
         setResult(RESULT_OK);
@@ -283,7 +283,7 @@ public class AccountEditActivity extends AppCompatActivity {
         String apiKey = etApiKey.getText().toString().trim();
         
         if (TextUtils.isEmpty(host)) {
-            Toast.makeText(this, "请输入服务器地址", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, getString(R.string.please_enter_server), Toast.LENGTH_SHORT).show();
             return;
         }
         
@@ -292,7 +292,7 @@ public class AccountEditActivity extends AppCompatActivity {
             try {
                 port = Integer.parseInt(portStr);
             } catch (NumberFormatException e) {
-                Toast.makeText(this, "端口格式错误", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, getString(R.string.port_format_error), Toast.LENGTH_SHORT).show();
                 return;
             }
         }
@@ -312,9 +312,9 @@ public class AccountEditActivity extends AppCompatActivity {
             public void onSuccess(String message) {
                 runOnUiThread(() -> {
                     btnTest.setEnabled(true);
-                    btnTest.setText("测试连接");
+                    btnTest.setText(getString(R.string.test_connection));
                     Toast.makeText(AccountEditActivity.this, 
-                        "连接成功: " + message, Toast.LENGTH_SHORT).show();
+                        getString(R.string.connection_success, message), Toast.LENGTH_SHORT).show();
                 });
             }
             
@@ -322,9 +322,9 @@ public class AccountEditActivity extends AppCompatActivity {
             public void onError(String error) {
                 runOnUiThread(() -> {
                     btnTest.setEnabled(true);
-                    btnTest.setText("测试连接");
+                    btnTest.setText(getString(R.string.test_connection));
                     Toast.makeText(AccountEditActivity.this, 
-                        "连接失败: " + error, Toast.LENGTH_SHORT).show();
+                        getString(R.string.connection_failed, error), Toast.LENGTH_SHORT).show();
                 });
             }
         });
@@ -332,15 +332,15 @@ public class AccountEditActivity extends AppCompatActivity {
     
     private void showDeleteConfirmDialog() {
         new AlertDialog.Builder(this)
-            .setTitle("删除账号")
-            .setMessage("确定要删除此账号吗？")
-            .setPositiveButton("删除", (dialog, which) -> {
+            .setTitle(getString(R.string.delete_account_title))
+            .setMessage(getString(R.string.delete_account_confirm))
+            .setPositiveButton(getString(R.string.delete), (dialog, which) -> {
                 accountManager.removeAccount(accountId);
-                Toast.makeText(this, "账号已删除", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, getString(R.string.account_deleted), Toast.LENGTH_SHORT).show();
                 setResult(RESULT_OK);
                 finish();
             })
-            .setNegativeButton("取消", null)
+            .setNegativeButton(getString(R.string.cancel), null)
             .show();
     }
     

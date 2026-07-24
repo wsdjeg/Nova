@@ -94,7 +94,7 @@ public class SessionSettingsActivity extends AppCompatActivity {
         title = getIntent().getStringExtra(EXTRA_TITLE);
         
         if (sessionId == null || sessionId.isEmpty()) {
-            Toast.makeText(this, "无效的会话ID", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, getString(R.string.invalid_session_id), Toast.LENGTH_SHORT).show();
             finish();
             return;
         }
@@ -111,7 +111,7 @@ public class SessionSettingsActivity extends AppCompatActivity {
         toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-        getSupportActionBar().setTitle("会话设置");
+        getSupportActionBar().setTitle(R.string.title_session_settings);
         
         tvSessionId = findViewById(R.id.tv_session_id);
         etTitle = findViewById(R.id.et_title);
@@ -182,7 +182,7 @@ public class SessionSettingsActivity extends AppCompatActivity {
     
     private void loadSessionInfo() {
         // 显示会话基本信息
-        tvSessionId.setText("会话 ID: " + sessionId);
+        tvSessionId.setText(getString(R.string.session_id_label, sessionId));
         etCwd.setText(cwd != null ? cwd : "");
         etTitle.setText(title != null ? title : "");
         originalCwd = cwd;
@@ -198,7 +198,7 @@ public class SessionSettingsActivity extends AppCompatActivity {
         }
         
         if (account == null) {
-            tvStatus.setText("无法获取账号信息");
+            tvStatus.setText(getString(R.string.no_account_info));
             return;
         }
         
@@ -213,7 +213,7 @@ public class SessionSettingsActivity extends AppCompatActivity {
      */
     private void fetchSessionFromServer() {
         progressBar.setVisibility(View.VISIBLE);
-        tvStatus.setText("正在获取会话信息...");
+        tvStatus.setText(getString(R.string.getting_session_info));
         
         // 使用新的 getSession API 直接获取单个会话
         apiClient.getSession(sessionId, accountId, new ApiClient.SessionCallback() {
@@ -253,7 +253,7 @@ public class SessionSettingsActivity extends AppCompatActivity {
             public void onError(String error) {
                 runOnUiThread(() -> {
                     progressBar.setVisibility(View.GONE);
-                    tvStatus.setText("获取会话信息失败: " + error);
+                    tvStatus.setText(getString(R.string.get_session_info_failed, error));
                     
                     // 使用本地 session 信息备用
                     Session localSession = sessionManager.getSession(sessionId);
@@ -278,7 +278,7 @@ public class SessionSettingsActivity extends AppCompatActivity {
      */
     private void loadProviders() {
         progressBar.setVisibility(View.VISIBLE);
-        tvStatus.setText("正在加载 Providers...");
+        tvStatus.setText(getString(R.string.loading_providers));
         
         apiClient.getProviders(new ApiClient.ProvidersCallback() {
             @Override
@@ -307,7 +307,7 @@ public class SessionSettingsActivity extends AppCompatActivity {
             public void onError(String error) {
                 runOnUiThread(() -> {
                     progressBar.setVisibility(View.GONE);
-                    tvStatus.setText("加载失败: " + error);
+                    tvStatus.setText(getString(R.string.load_providers_failed, error));
                     
                     // 使用默认的 provider/model 显示
                     providerNames.clear();
@@ -439,17 +439,17 @@ public class SessionSettingsActivity extends AppCompatActivity {
      */
     private void saveSessionSettings() {
         if (!isProviderLoaded) {
-            Toast.makeText(this, "数据尚未加载完成", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, getString(R.string.data_not_loaded), Toast.LENGTH_SHORT).show();
             return;
         }
         
         if (selectedProviderIndex < 0 || selectedProviderIndex >= providerNames.size()) {
-            Toast.makeText(this, "请选择 Provider", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, getString(R.string.please_select_provider), Toast.LENGTH_SHORT).show();
             return;
         }
         
         if (selectedModelIndex < 0 || selectedModelIndex >= currentModels.size()) {
-            Toast.makeText(this, "请选择 Model", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, getString(R.string.please_select_model), Toast.LENGTH_SHORT).show();
             return;
         }
         
@@ -465,12 +465,12 @@ public class SessionSettingsActivity extends AppCompatActivity {
         boolean titleChanged = !newTitle.equals(originalTitle != null ? originalTitle : "");
         
         if (!providerChanged && !modelChanged && !cwdChanged && !titleChanged) {
-            Toast.makeText(this, "配置未改变", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, getString(R.string.config_unchanged), Toast.LENGTH_SHORT).show();
             return;
         }
         
         progressBar.setVisibility(View.VISIBLE);
-        tvStatus.setText("正在保存...");
+        tvStatus.setText(getString(R.string.saving));
         
         Log.d(TAG, "Saving session settings: provider=" + newProvider + ", model=" + newModel + ", cwd=" + newCwd + ", title=" + newTitle);
         
@@ -514,7 +514,7 @@ public class SessionSettingsActivity extends AppCompatActivity {
                             }
                         } else {
                             hasError[0] = true;
-                            errorMessage[0] = "Provider/Model 更新失败: " + error;
+                            errorMessage[0] = getString(R.string.provider_model_update_failed, error);
                             progressBar.setVisibility(View.GONE);
                             tvStatus.setText("");
                             Toast.makeText(SessionSettingsActivity.this, errorMessage[0], Toast.LENGTH_SHORT).show();
@@ -548,7 +548,7 @@ public class SessionSettingsActivity extends AppCompatActivity {
                             }
                         } else {
                             hasError[0] = true;
-                            errorMessage[0] = "CWD 更新失败: " + error;
+                            errorMessage[0] = getString(R.string.cwd_update_failed, error);
                             progressBar.setVisibility(View.GONE);
                             tvStatus.setText("");
                             Toast.makeText(SessionSettingsActivity.this, errorMessage[0], Toast.LENGTH_SHORT).show();
@@ -582,7 +582,7 @@ public class SessionSettingsActivity extends AppCompatActivity {
                             }
                         } else {
                             hasError[0] = true;
-                            errorMessage[0] = "标题更新失败: " + error;
+                            errorMessage[0] = getString(R.string.title_update_failed, error);
                             progressBar.setVisibility(View.GONE);
                             tvStatus.setText("");
                             Toast.makeText(SessionSettingsActivity.this, errorMessage[0], Toast.LENGTH_SHORT).show();
@@ -618,7 +618,7 @@ public class SessionSettingsActivity extends AppCompatActivity {
         result.putExtra(RESULT_TITLE, newTitle);
         setResult(RESULT_OK, result);
         
-        Toast.makeText(SessionSettingsActivity.this, "设置已保存", Toast.LENGTH_SHORT).show();
+        Toast.makeText(SessionSettingsActivity.this, getString(R.string.settings_saved), Toast.LENGTH_SHORT).show();
         finish();
     }
 }

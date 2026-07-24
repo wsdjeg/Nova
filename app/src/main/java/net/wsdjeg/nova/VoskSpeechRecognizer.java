@@ -215,7 +215,7 @@ public class VoskSpeechRecognizer {
                             }
                         } catch (IOException ignored) {}
 
-                        String detail = "语音模型未找到: assets/" + ASSET_MODEL_NAME;
+                        String detail = context.getString(R.string.voice_model_not_found, ASSET_MODEL_NAME);
                         if (found.length() > 0) {
                             detail += "\n实际找到: " + found.toString().trim();
                         } else {

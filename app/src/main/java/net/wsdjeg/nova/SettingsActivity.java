@@ -36,7 +36,7 @@ public class SettingsActivity extends AppCompatActivity {
     public static final String EXTRA_COLOR_CHANGED = "color_changed";
     
     // 表示"留空/服务端默认"的占位字符串
-    private static final String EMPTY_OPTION = "（留空 / 服务端默认）";
+    private String getEmptyOption() { return getString(R.string.empty_option); } // Localized "empty" option
     
     private RadioGroup rgTheme;
     private RadioButton rbSystem, rbLight, rbDark;
@@ -139,9 +139,9 @@ public class SettingsActivity extends AppCompatActivity {
                     if (position != selectedProviderIndex) {
                         String selectedProvider = providerNames.get(position);
                         // 如果选的是"留空"选项，model 也重置为"留空"
-                        if (EMPTY_OPTION.equals(selectedProvider)) {
+                        if (getEmptyOption().equals(selectedProvider)) {
                             currentModels.clear();
-                            currentModels.add(EMPTY_OPTION);
+                            currentModels.add(getEmptyOption());
                             modelAdapter.notifyDataSetChanged();
                             spinnerModel.setSelection(0);
                             selectedModelIndex = 0;
@@ -324,7 +324,7 @@ public class SettingsActivity extends AppCompatActivity {
             loadProviders();
         } else {
             // 没有账号时，仍然显示已保存的值
-            tvProviderStatus.setText("未配置账号，无法获取可用列表");
+            tvProviderStatus.setText(getString(R.string.no_account_no_list));
             setupSpinnersWithoutApi();
         }
     }
@@ -337,12 +337,12 @@ public class SettingsActivity extends AppCompatActivity {
         providerModelsMap.clear();
         
         // 添加"留空"选项
-        providerNames.add(EMPTY_OPTION);
+        providerNames.add(getEmptyOption());
         // 如果有已保存的 provider 且不是空，添加到列表
         if (savedProvider != null && !savedProvider.isEmpty()) {
             providerNames.add(savedProvider);
             List<String> models = new ArrayList<>();
-            models.add(EMPTY_OPTION);
+            models.add(getEmptyOption());
             if (savedModel != null && !savedModel.isEmpty()) {
                 models.add(savedModel);
             }
@@ -363,7 +363,7 @@ public class SettingsActivity extends AppCompatActivity {
             spinnerProvider.setSelection(0);
             selectedProviderIndex = 0;
             currentModels.clear();
-            currentModels.add(EMPTY_OPTION);
+            currentModels.add(getEmptyOption());
             modelAdapter.notifyDataSetChanged();
             spinnerModel.setSelection(0);
             selectedModelIndex = 0;
@@ -377,7 +377,7 @@ public class SettingsActivity extends AppCompatActivity {
      */
     private void loadProviders() {
         progressBar.setVisibility(View.VISIBLE);
-        tvProviderStatus.setText("正在加载可用 Provider/Model 列表...");
+        tvProviderStatus.setText(getString(R.string.loading_providers_models));
         
         apiClient.getProviders(new ApiClient.ProvidersCallback() {
             @Override
@@ -391,7 +391,7 @@ public class SettingsActivity extends AppCompatActivity {
                     providerModelsMap.clear();
                     
                     // 第一个选项是"留空 / 服务端默认"
-                    providerNames.add(EMPTY_OPTION);
+                    providerNames.add(getEmptyOption());
                     
                     for (ApiClient.Provider provider : providers) {
                         providerNames.add(provider.name);
@@ -409,7 +409,7 @@ public class SettingsActivity extends AppCompatActivity {
             public void onError(String error) {
                 runOnUiThread(() -> {
                     progressBar.setVisibility(View.GONE);
-                    tvProviderStatus.setText("加载失败: " + error + "（可手动选择已保存的值）");
+                    tvProviderStatus.setText(getString(R.string.load_providers_models_failed, error));
                     
                     // 使用已保存的值备用
                     setupSpinnersWithoutApi();
@@ -437,7 +437,7 @@ public class SettingsActivity extends AppCompatActivity {
                 // 保存的 provider 不在列表中，添加到列表
                 providerNames.add(savedProvider);
                 List<String> models = new ArrayList<>();
-                models.add(EMPTY_OPTION);
+                models.add(getEmptyOption());
                 if (savedModel != null && !savedModel.isEmpty()) {
                     models.add(savedModel);
                 }
@@ -454,7 +454,7 @@ public class SettingsActivity extends AppCompatActivity {
             selectedProviderIndex = 0;
             spinnerProvider.setSelection(0);
             currentModels.clear();
-            currentModels.add(EMPTY_OPTION);
+            currentModels.add(getEmptyOption());
             modelAdapter.notifyDataSetChanged();
             spinnerModel.setSelection(0);
             selectedModelIndex = 0;
@@ -468,16 +468,16 @@ public class SettingsActivity extends AppCompatActivity {
     
     /**
      * 更新 Model Spinner
-     * @param providerName provider 名称（可能是 EMPTY_OPTION）
+     * @param providerName provider 名称（可能是 getEmptyOption()）
      * @param selectModel 要选择的 model，如果为 null 则选择第一个
      */
     private void updateModelSpinner(String providerName, String selectModel) {
         currentModels.clear();
         
         // 添加"留空"选项
-        currentModels.add(EMPTY_OPTION);
+        currentModels.add(getEmptyOption());
         
-        if (!EMPTY_OPTION.equals(providerName)) {
+        if (!getEmptyOption().equals(providerName)) {
             List<String> models = providerModelsMap.get(providerName);
             if (models != null) {
                 currentModels.addAll(models);
@@ -545,14 +545,14 @@ public class SettingsActivity extends AppCompatActivity {
         
         if (selectedProviderIndex >= 0 && selectedProviderIndex < providerNames.size()) {
             String selectedProvider = providerNames.get(selectedProviderIndex);
-            if (!EMPTY_OPTION.equals(selectedProvider)) {
+            if (!getEmptyOption().equals(selectedProvider)) {
                 provider = selectedProvider;
             }
         }
         
         if (selectedModelIndex >= 0 && selectedModelIndex < currentModels.size()) {
             String selectedModel = currentModels.get(selectedModelIndex);
-            if (!EMPTY_OPTION.equals(selectedModel)) {
+            if (!getEmptyOption().equals(selectedModel)) {
                 model = selectedModel;
             }
         }
@@ -570,7 +570,7 @@ public class SettingsActivity extends AppCompatActivity {
         resultIntent.putExtra(EXTRA_SETTINGS_SAVED, true);
         setResult(RESULT_OK, resultIntent);
         
-        Toast.makeText(this, "设置已保存", Toast.LENGTH_SHORT).show();
+        Toast.makeText(this, getString(R.string.settings_saved), Toast.LENGTH_SHORT).show();
         Log.d(TAG, "Saved: provider=" + provider + ", model=" + model);
     }
 }

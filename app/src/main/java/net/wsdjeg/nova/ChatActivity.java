@@ -211,7 +211,7 @@ public class ChatActivity extends AppCompatActivity {
         boolean intentInProgress = getIntent().getBooleanExtra("in_progress", false);
         
         if (currentSessionId == null || currentSessionId.isEmpty()) {
-            Toast.makeText(this, "无效的会话ID", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, getString(R.string.invalid_session_id), Toast.LENGTH_SHORT).show();
             finish();
             return;
         }
@@ -244,7 +244,7 @@ public class ChatActivity extends AppCompatActivity {
             sessionAccount = accountManager.getActiveAccount();
         }
         if (sessionAccount == null) {
-            Toast.makeText(this, "请先添加账号", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, getString(R.string.please_add_account), Toast.LENGTH_SHORT).show();
             finish();
             return;
         }
@@ -256,7 +256,7 @@ public class ChatActivity extends AppCompatActivity {
         String apiKey = sessionAccount.getApiKey();
         
         if (baseUrl == null || baseUrl.isEmpty() || apiKey == null || apiKey.isEmpty()) {
-            Toast.makeText(this, "请先配置账号信息", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, getString(R.string.please_configure_account), Toast.LENGTH_SHORT).show();
             finish();
             return;
         }
@@ -339,7 +339,7 @@ public class ChatActivity extends AppCompatActivity {
         // 初始化 Vosk 离线语音识别
         initVoskRecognizer();
         
-        messages.add(new Message("正在加载消息...", false));
+        messages.add(new Message(getString(R.string.loading_messages), false));
         adapter.notifyDataSetChangedWithUpdate();
         refreshSessionStatus(() -> loadMessagesPage());
         startAutoRefresh();
@@ -348,7 +348,7 @@ public class ChatActivity extends AppCompatActivity {
         initialLoadTimeoutHandler = new Handler(Looper.getMainLooper());
         initialLoadTimeoutRunnable = () -> {
             if (!isInitialLoadComplete && !messages.isEmpty()) {
-                boolean hasPlaceholder = "正在加载消息...".equals(messages.get(0).getContent())
+                boolean hasPlaceholder = getString(R.string.loading_messages).equals(messages.get(0).getContent())
                         && messages.get(0).getServerIndex() == -1
                         && !messages.get(0).isPending();
                 if (hasPlaceholder) {
@@ -357,7 +357,7 @@ public class ChatActivity extends AppCompatActivity {
                     messageFingerprints.clear();
                     pendingMessages.clear();
                     messagesInPool.clear();
-                    addSystemMessage("加载超时，请检查网络连接后下拉刷新");
+                    addSystemMessage(getString(R.string.load_timeout));
                     adapter.notifyDataSetChangedWithUpdate();
                     hideLoadMoreHint();
                     isInitialLoadComplete = true;
@@ -455,7 +455,7 @@ public class ChatActivity extends AppCompatActivity {
                 boolean isAtTop = (firstVisible == 0 && total > 0);
                 if (!isLoadingOlder) {
                     if (isAtTop && canLoadMore()) {
-                        showLoadMoreHint("↑ 下拉加载更多");
+                        showLoadMoreHint(getString(R.string.load_more));
                     } else {
                         hideLoadMoreHint();
                     }
@@ -571,7 +571,7 @@ public class ChatActivity extends AppCompatActivity {
         if (tvLoadMore != null) {
             tvLoadMore.setVisibility(View.VISIBLE);
             tvLoadMore.setText(text);
-            if (text.contains("正在加载") || text.contains("继续加载")) {
+            if (text.contains(getString(R.string.loading)) || text.contains(getString(R.string.loading).substring(0, 2))) {
                 tvLoadMore.setBackgroundColor(Color.parseColor("#FFBB33"));
             } else {
                 tvLoadMore.setBackgroundColor(Color.parseColor("#2196F3"));
@@ -853,7 +853,7 @@ public class ChatActivity extends AppCompatActivity {
                     // 移除"正在加载消息..."占位消息（初始加载期间自动刷新可能触发此方法）
                     if (!messages.isEmpty() && messages.get(0).getServerIndex() == -1
                             && !messages.get(0).isPending()
-                            && "正在加载消息...".equals(messages.get(0).getContent())) {
+                            && getString(R.string.loading_messages).equals(messages.get(0).getContent())) {
                         messages.remove(0);
                     }
                     
@@ -976,7 +976,7 @@ public class ChatActivity extends AppCompatActivity {
         if (isLoadingOlder || !canLoadMore()) return;
         
         isLoadingOlder = true;
-        showLoadMoreHint("⏳ 加载中...");
+                        showLoadMoreHint(getString(R.string.loading_more_hint));
         stopAutoRefresh();
         
         saveScrollPosition();
@@ -1036,7 +1036,7 @@ public class ChatActivity extends AppCompatActivity {
             messageFingerprints.clear();
             pendingMessages.clear();
             messagesInPool.clear();
-            addSystemMessage("初始化失败，请重试");
+            addSystemMessage(getString(R.string.init_failed));
             adapter.notifyDataSetChangedWithUpdate();
             hideLoadMoreHint();
             isInitialLoadComplete = true;
@@ -1048,7 +1048,7 @@ public class ChatActivity extends AppCompatActivity {
             messageFingerprints.clear();
             pendingMessages.clear();
             messagesInPool.clear();
-            addSystemMessage("暂无消息");
+            addSystemMessage(getString(R.string.no_messages));
             processedServerMessageCount = 0;
             currentSince = 0;
             adapter.notifyDataSetChangedWithUpdate();
@@ -1070,7 +1070,7 @@ public class ChatActivity extends AppCompatActivity {
                         messagesInPool.clear();
                         
                         if (chatMessages.isEmpty()) {
-                            addSystemMessage("暂无消息");
+                            addSystemMessage(getString(R.string.no_messages));
                             processedServerMessageCount = 0;
                             currentSince = 0;
                             adapter.notifyDataSetChangedWithUpdate();
@@ -1096,7 +1096,7 @@ public class ChatActivity extends AppCompatActivity {
                     } catch (Exception e) {
                         Log.e(TAG, "loadMessagesPage onSuccess error", e);
                         messages.clear();
-                        addSystemMessage("消息解析失败: " + e.getMessage());
+                        addSystemMessage(getString(R.string.message_parse_failed, e.getMessage()));
                         adapter.notifyDataSetChangedWithUpdate();
                         hideLoadMoreHint();
                     } finally {
@@ -1114,7 +1114,7 @@ public class ChatActivity extends AppCompatActivity {
                         messageFingerprints.clear();
                         pendingMessages.clear();
                         messagesInPool.clear();
-                        addSystemMessage("加载失败: " + error);
+                        addSystemMessage(getString(R.string.load_failed, error));
                         currentSince = 0;
                         adapter.notifyDataSetChangedWithUpdate();
                         hideLoadMoreHint();
@@ -1133,7 +1133,7 @@ public class ChatActivity extends AppCompatActivity {
         if (!canLoadMore()) {
             isLoadingOlder = false;
             hideLoadMoreHint();
-            Toast.makeText(this, "已到第一条消息", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, getString(R.string.reached_first_message), Toast.LENGTH_SHORT).show();
             return;
         }
         
@@ -1147,7 +1147,7 @@ public class ChatActivity extends AppCompatActivity {
                         currentSince = 1;
                         isLoadingOlder = false;
                         hideLoadMoreHint();
-                        Toast.makeText(ChatActivity.this, "已到第一条消息", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(ChatActivity.this, getString(R.string.reached_first_message), Toast.LENGTH_SHORT).show();
                         startAutoRefresh();
                         return;
                     }
@@ -1176,11 +1176,11 @@ public class ChatActivity extends AppCompatActivity {
                         currentSince = newSince;
                         isLoadingOlder = false;
                         if (canLoadMore()) {
-                            showLoadMoreHint("⏳ 继续加载...");
+                            showLoadMoreHint(getString(R.string.continue_loading_hint));
                             rvMessages.postDelayed(() -> triggerLoadOlder(), 200);
                         } else {
                             hideLoadMoreHint();
-                            Toast.makeText(ChatActivity.this, "已到第一条消息", Toast.LENGTH_SHORT).show();
+                            Toast.makeText(ChatActivity.this, getString(R.string.reached_first_message), Toast.LENGTH_SHORT).show();
                             startAutoRefresh();
                         }
                         return;
@@ -1217,17 +1217,17 @@ public class ChatActivity extends AppCompatActivity {
                         isLoadingOlder = false;
                         
                         if (canLoadMore()) {
-                            showLoadMoreHint("✓ 已加载 " + loadedVisible + " 条可见消息");
+                            showLoadMoreHint(getString(R.string.loaded_visible_messages, loadedVisible));
                             rvMessages.postDelayed(() -> {
                                 LinearLayoutManager lm2 = (LinearLayoutManager) rvMessages.getLayoutManager();
                                 if (lm2 != null && lm2.findFirstVisibleItemPosition() == 0 && canLoadMore()) {
-                                    showLoadMoreHint("↑ 下拉加载更多");
+                                    showLoadMoreHint(getString(R.string.load_more));
                                 } else {
                                     hideLoadMoreHint();
                                 }
                             }, 1500);
                         } else {
-                            showLoadMoreHint("已到第一条消息");
+                            showLoadMoreHint(getString(R.string.reached_first_hint));
                             rvMessages.postDelayed(() -> hideLoadMoreHint(), 1500);
                         }
                         
@@ -1241,7 +1241,7 @@ public class ChatActivity extends AppCompatActivity {
                 runOnUiThread(() -> {
                     isLoadingOlder = false;
                     hideLoadMoreHint();
-                    Toast.makeText(ChatActivity.this, "加载失败: " + error, Toast.LENGTH_SHORT).show();
+                    Toast.makeText(ChatActivity.this, getString(R.string.load_failed, error), Toast.LENGTH_SHORT).show();
                     startAutoRefresh();
                 });
             }
@@ -1323,15 +1323,15 @@ public class ChatActivity extends AppCompatActivity {
      */
     private void copyMessageToClipboard(String text) {
         if (text == null || text.isEmpty()) {
-            Toast.makeText(this, "消息内容为空", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, getString(R.string.message_empty), Toast.LENGTH_SHORT).show();
             return;
         }
         android.content.ClipboardManager clipboard = (android.content.ClipboardManager)
             getSystemService(android.content.Context.CLIPBOARD_SERVICE);
         if (clipboard != null) {
-            android.content.ClipData clip = android.content.ClipData.newPlainText("消息内容", text);
+            android.content.ClipData clip = android.content.ClipData.newPlainText(getString(R.string.message_content_label), text);
             clipboard.setPrimaryClip(clip);
-            Toast.makeText(this, "已复制到剪贴板", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, getString(R.string.copied_to_clipboard), Toast.LENGTH_SHORT).show();
         }
     }
     
@@ -1340,15 +1340,15 @@ public class ChatActivity extends AppCompatActivity {
      */
     private void confirmDeleteMessage(Message message) {
         if (message == null || message.getServerIndex() < 1) {
-            Toast.makeText(this, "无法删除此消息", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, getString(R.string.cannot_delete_message), Toast.LENGTH_SHORT).show();
             return;
         }
         
         new androidx.appcompat.app.AlertDialog.Builder(this)
-            .setTitle("删除消息")
-            .setMessage("确定要删除这条消息吗？")
-            .setPositiveButton("删除", (dialog, which) -> deleteMessageFromServer(message))
-            .setNegativeButton("取消", null)
+            .setTitle(getString(R.string.delete_message_title))
+            .setMessage(getString(R.string.delete_message_confirm))
+            .setPositiveButton(getString(R.string.delete), (dialog, which) -> deleteMessageFromServer(message))
+            .setNegativeButton(getString(R.string.cancel), null)
             .show();
     }
     
@@ -1363,7 +1363,7 @@ public class ChatActivity extends AppCompatActivity {
         Log.d(TAG, "Delete requested: serverIndex=" + serverIndex);
 
         if (serverIndex < 1) {
-            Toast.makeText(this, "无法删除此消息", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, getString(R.string.cannot_delete_message), Toast.LENGTH_SHORT).show();
             return;
         }
 
@@ -1373,7 +1373,7 @@ public class ChatActivity extends AppCompatActivity {
             public void onSuccess() {
                 runOnUiThread(() -> {
                     Toast.makeText(ChatActivity.this,
-                            "消息已删除", Toast.LENGTH_SHORT).show();
+                            getString(R.string.message_deleted), Toast.LENGTH_SHORT).show();
                     reloadMessages();
                 });
             }
@@ -1382,7 +1382,7 @@ public class ChatActivity extends AppCompatActivity {
             public void onError(String error) {
                 runOnUiThread(() -> {
                     Toast.makeText(ChatActivity.this,
-                            "删除失败: " + error, Toast.LENGTH_SHORT).show();
+                            getString(R.string.delete_failed, error), Toast.LENGTH_SHORT).show();
                 });
             }
         });
@@ -1571,12 +1571,12 @@ public class ChatActivity extends AppCompatActivity {
     private void openPreviewUrl() {
         if (currentSessionId == null) return;
         if (currentAccount == null) {
-            Toast.makeText(this, "账号信息无效", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, getString(R.string.account_invalid), Toast.LENGTH_SHORT).show();
             return;
         }
         String url = currentAccount.getUrl();
         if (url == null || url.isEmpty()) {
-            Toast.makeText(this, "请先配置服务器地址", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, getString(R.string.please_configure_server), Toast.LENGTH_SHORT).show();
             return;
         }
         String previewUrl = url + "/session?id=" + currentSessionId;
@@ -1636,7 +1636,7 @@ public class ChatActivity extends AppCompatActivity {
                     adapter.notifyDataSetChangedWithUpdate();
                     setButtonStateNormal();
                     isInProgress = false;
-                    Toast.makeText(ChatActivity.this, "发送失败: " + error, Toast.LENGTH_SHORT).show();
+                    Toast.makeText(ChatActivity.this, getString(R.string.send_failed, error), Toast.LENGTH_SHORT).show();
                 });
             }
         });
@@ -1660,7 +1660,7 @@ public class ChatActivity extends AppCompatActivity {
                 runOnUiThread(() -> {
                     setButtonStateNormal();
                     isInProgress = false;
-                    Toast.makeText(ChatActivity.this, "停止失败: " + error, Toast.LENGTH_SHORT).show();
+                    Toast.makeText(ChatActivity.this, getString(R.string.stop_failed, error), Toast.LENGTH_SHORT).show();
                 });
             }
         });
@@ -1668,11 +1668,11 @@ public class ChatActivity extends AppCompatActivity {
     
     private void retrySession() {
         if (isInProgress) {
-            Toast.makeText(this, "会话正在进行中，请先停止", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, getString(R.string.session_in_progress), Toast.LENGTH_SHORT).show();
             return;
         }
         
-        Toast.makeText(this, "正在重试...", Toast.LENGTH_SHORT).show();
+        Toast.makeText(this, getString(R.string.retrying), Toast.LENGTH_SHORT).show();
         
         apiClient.retrySession(currentSessionId, new ApiClient.RetryCallback() {
             @Override
@@ -1680,14 +1680,14 @@ public class ChatActivity extends AppCompatActivity {
                 runOnUiThread(() -> {
                     setButtonStateSending();
                     isInProgress = true;
-                    Toast.makeText(ChatActivity.this, "已发起重试", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(ChatActivity.this, getString(R.string.retry_started), Toast.LENGTH_SHORT).show();
                 });
             }
             
             @Override
             public void onError(String error) {
                 runOnUiThread(() -> {
-                    Toast.makeText(ChatActivity.this, "重试失败: " + error, Toast.LENGTH_SHORT).show();
+                    Toast.makeText(ChatActivity.this, getString(R.string.retry_failed, error), Toast.LENGTH_SHORT).show();
                 });
             }
         });
@@ -1727,9 +1727,9 @@ public class ChatActivity extends AppCompatActivity {
 
     private void clearSession() {
         new android.app.AlertDialog.Builder(this)
-            .setTitle("清空会话")
-            .setMessage("确定要清空当前会话的所有消息吗？")
-            .setPositiveButton("清空", (dialog, which) -> {
+            .setTitle(getString(R.string.clear_session_title))
+            .setMessage(getString(R.string.clear_session_message))
+            .setPositiveButton(getString(R.string.clear), (dialog, which) -> {
                 apiClient.clearSession(currentSessionId, new ApiClient.ClearCallback() {
                     @Override
                     public void onSuccess() {
@@ -1742,35 +1742,35 @@ public class ChatActivity extends AppCompatActivity {
                             currentSince = 0;
                             totalMessageCount = 0;
                             adapter.notifyDataSetChangedWithUpdate();
-                            addSystemMessage("会话已清空");
+                            addSystemMessage(getString(R.string.session_cleared));
                             sessionManager.updateFirstMessageIndex(currentSessionId, 0);
-                            Toast.makeText(ChatActivity.this, "会话已清空", Toast.LENGTH_SHORT).show();
+                            Toast.makeText(ChatActivity.this, getString(R.string.session_cleared), Toast.LENGTH_SHORT).show();
                         });
                     }
 
                     @Override
                     public void onError(String error) {
                         runOnUiThread(() -> {
-                            Toast.makeText(ChatActivity.this, "清空失败: " + error, Toast.LENGTH_SHORT).show();
+                            Toast.makeText(ChatActivity.this, getString(R.string.clear_failed, error), Toast.LENGTH_SHORT).show();
                         });
                     }
                 });
             })
-            .setNegativeButton("取消", null)
+            .setNegativeButton(getString(R.string.cancel), null)
             .show();
     }
     
     private void deleteSession() {
         new android.app.AlertDialog.Builder(this)
-            .setTitle("删除会话")
-            .setMessage("确定要删除当前会话吗？")
-            .setPositiveButton("删除", (dialog, which) -> {
+            .setTitle(getString(R.string.delete_session_title))
+            .setMessage(getString(R.string.delete_session_message))
+            .setPositiveButton(getString(R.string.delete), (dialog, which) -> {
                 apiClient.deleteSession(currentSessionId, new ApiClient.DeleteSessionCallback() {
                     @Override
                     public void onSuccess() {
                         runOnUiThread(() -> {
                             sessionManager.deleteSession(currentSessionId);
-                            Toast.makeText(ChatActivity.this, "会话已删除", Toast.LENGTH_SHORT).show();
+                            Toast.makeText(ChatActivity.this, getString(R.string.session_deleted), Toast.LENGTH_SHORT).show();
                             finish();
                         });
                     }
@@ -1778,12 +1778,12 @@ public class ChatActivity extends AppCompatActivity {
                     @Override
                     public void onError(String error) {
                         runOnUiThread(() -> {
-                            Toast.makeText(ChatActivity.this, "删除失败: " + error, Toast.LENGTH_SHORT).show();
+                            Toast.makeText(ChatActivity.this, getString(R.string.delete_failed, error), Toast.LENGTH_SHORT).show();
                         });
                     }
                 });
             })
-            .setNegativeButton("取消", null)
+            .setNegativeButton(getString(R.string.cancel), null)
             .show();
     }
     
@@ -1846,7 +1846,7 @@ public class ChatActivity extends AppCompatActivity {
                 Log.w(TAG, "Vosk model error shown to user: " + errMsg);
             } else {
                 // 模型还在后台加载中
-                Toast.makeText(this, "语音模型加载中，请稍候...", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, getString(R.string.voice_model_loading), Toast.LENGTH_SHORT).show();
             }
             return;
         }
@@ -1855,13 +1855,13 @@ public class ChatActivity extends AppCompatActivity {
         Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
         intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
         intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault());
-        intent.putExtra(RecognizerIntent.EXTRA_PROMPT, "说话...");
+        intent.putExtra(RecognizerIntent.EXTRA_PROMPT, getString(R.string.speak));
         try {
             startActivityForResult(intent, REQUEST_VOICE_INPUT);
         } catch (ActivityNotFoundException e) {
-            Toast.makeText(this, "未安装语音识别引擎，且离线模型未就绪", Toast.LENGTH_LONG).show();
+            Toast.makeText(this, getString(R.string.no_speech_engine), Toast.LENGTH_LONG).show();
         } catch (Exception e) {
-            Toast.makeText(this, "语音识别启动失败: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, getString(R.string.voice_start_failed, e.getMessage()), Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -1872,7 +1872,7 @@ public class ChatActivity extends AppCompatActivity {
             if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                 startVoiceInput();
             } else {
-                Toast.makeText(this, "需要麦克风权限才能使用语音输入", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, getString(R.string.need_mic_permission), Toast.LENGTH_SHORT).show();
             }
         }
     }
@@ -1923,7 +1923,7 @@ public class ChatActivity extends AppCompatActivity {
                         buttonState = STATE_NORMAL;
                         updateButtonAppearance();
                         stopListeningPulse();
-                        Toast.makeText(ChatActivity.this, "识别失败: " + error, Toast.LENGTH_LONG).show();
+                        Toast.makeText(ChatActivity.this, getString(R.string.voice_recognize_failed, error), Toast.LENGTH_LONG).show();
                     });
                 }
 
@@ -1937,7 +1937,7 @@ public class ChatActivity extends AppCompatActivity {
                         stopListeningPulse();
                         String currentText = etMessage.getText().toString().trim();
                         if (!currentText.isEmpty()) {
-                            Toast.makeText(ChatActivity.this, "语音识别结束", Toast.LENGTH_SHORT).show();
+                            Toast.makeText(ChatActivity.this, getString(R.string.voice_recognize_ended), Toast.LENGTH_SHORT).show();
                         }
                     });
                 }
@@ -1953,7 +1953,7 @@ public class ChatActivity extends AppCompatActivity {
     private void startVoskListening() {
         if (voskRecognizer == null || isVoskListening) return;
         if (!voskRecognizer.isModelReady()) {
-            Toast.makeText(this, "语音模型正在加载中...", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, getString(R.string.voice_model_loading_start), Toast.LENGTH_SHORT).show();
             return;
         }
         try {
@@ -1968,7 +1968,7 @@ public class ChatActivity extends AppCompatActivity {
             startListeningPulse();
         } catch (Exception e) {
             isVoskListening = false;
-            Toast.makeText(this, "启动失败: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, getString(R.string.voice_start_error, e.getMessage()), Toast.LENGTH_SHORT).show();
         }
     }
     private void stopVoskListening() {

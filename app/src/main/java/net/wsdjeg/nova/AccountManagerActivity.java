@@ -83,7 +83,7 @@ public class AccountManagerActivity extends AppCompatActivity implements Account
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-        getSupportActionBar().setTitle("账号管理");
+        getSupportActionBar().setTitle(R.string.title_account_manager);
         
         recyclerView = findViewById(R.id.recycler_accounts);
         emptyView = findViewById(R.id.empty_view);
@@ -156,7 +156,7 @@ public class AccountManagerActivity extends AppCompatActivity implements Account
     private void exportAccounts() {
         List<Account> accounts = accountManager.getAccounts();
         if (accounts.isEmpty()) {
-            Toast.makeText(this, "没有账号可导出", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, getString(R.string.no_accounts_to_export), Toast.LENGTH_SHORT).show();
             return;
         }
         
@@ -173,7 +173,7 @@ public class AccountManagerActivity extends AppCompatActivity implements Account
             String json = accountManager.toJson();
             
             if (json == null) {
-                Toast.makeText(this, "导出失败: 无法生成数据", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, getString(R.string.export_failed_no_data), Toast.LENGTH_SHORT).show();
                 return;
             }
             
@@ -181,11 +181,11 @@ public class AccountManagerActivity extends AppCompatActivity implements Account
                 if (os != null) {
                     os.write(json.getBytes("UTF-8"));
                     os.flush();
-                    Toast.makeText(this, "导出成功", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(this, getString(R.string.export_success), Toast.LENGTH_SHORT).show();
                 }
             }
         } catch (Exception e) {
-            Toast.makeText(this, "导出失败: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, getString(R.string.export_failed, e.getMessage()), Toast.LENGTH_SHORT).show();
             e.printStackTrace();
         }
     }
@@ -218,10 +218,10 @@ public class AccountManagerActivity extends AppCompatActivity implements Account
             int importedCount = accountManager.importFromJson(json);
             
             loadAccounts();
-            Toast.makeText(this, "成功导入 " + importedCount + " 个账号", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, getString(R.string.import_success, importedCount), Toast.LENGTH_SHORT).show();
             
         } catch (Exception e) {
-            Toast.makeText(this, "导入失败: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, getString(R.string.import_failed, e.getMessage()), Toast.LENGTH_SHORT).show();
             e.printStackTrace();
         }
     }
@@ -233,7 +233,7 @@ public class AccountManagerActivity extends AppCompatActivity implements Account
         // 点击账号，设为默认账号
         accountManager.setDefaultAccount(account.getId());
         loadAccounts();
-        Toast.makeText(this, "已设为默认账号: " + account.getDisplayName(), Toast.LENGTH_SHORT).show();
+        Toast.makeText(this, getString(R.string.set_as_default, account.getDisplayName()), Toast.LENGTH_SHORT).show();
     }
     
     @Override

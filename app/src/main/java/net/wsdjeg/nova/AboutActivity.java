@@ -90,7 +90,7 @@ public class AboutActivity extends AppCompatActivity {
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-        getSupportActionBar().setTitle("关于");
+        getSupportActionBar().setTitle(R.string.title_about);
 
         // 设置返回箭头颜色为白色
         Drawable navigationIcon = toolbar.getNavigationIcon();
@@ -195,7 +195,7 @@ public class AboutActivity extends AppCompatActivity {
      */
     private void checkForUpdates() {
         ProgressDialog loading = new ProgressDialog(this);
-        loading.setMessage("正在检查更新...");
+        loading.setMessage(getString(R.string.checking_update));
         loading.setCancelable(false);
         loading.show();
 
@@ -217,7 +217,7 @@ public class AboutActivity extends AppCompatActivity {
                 runOnUiThread(() -> {
                     loading.dismiss();
                     Toast.makeText(AboutActivity.this,
-                            "检查更新失败: " + e.getMessage(),
+                            getString(R.string.check_update_failed, e.getMessage()),
                             Toast.LENGTH_SHORT).show();
                 });
             }
@@ -237,12 +237,12 @@ public class AboutActivity extends AppCompatActivity {
                         } catch (Exception e) {
                             Log.e(TAG, "解析缓存 releases 失败", e);
                             runOnUiThread(() -> Toast.makeText(AboutActivity.this,
-                                    "检查更新失败: 缓存数据损坏",
+                                    getString(R.string.check_update_failed_cache),
                                     Toast.LENGTH_SHORT).show());
                         }
                     } else {
                         runOnUiThread(() -> Toast.makeText(AboutActivity.this,
-                                "检查更新失败: 无缓存数据，请稍后再试",
+                                getString(R.string.check_update_failed_no_cache),
                                 Toast.LENGTH_SHORT).show());
                     }
                     return;
@@ -256,7 +256,7 @@ public class AboutActivity extends AppCompatActivity {
                         runOnUiThread(() -> showRateLimitError(resetEpoch));
                     } else {
                         runOnUiThread(() -> Toast.makeText(AboutActivity.this,
-                                "检查更新失败: HTTP " + code,
+                                getString(R.string.check_update_failed_http, code),
                                 Toast.LENGTH_SHORT).show());
                     }
                     return;
@@ -277,7 +277,7 @@ public class AboutActivity extends AppCompatActivity {
                 } catch (Exception e) {
                     Log.e(TAG, "解析 release JSON 失败", e);
                     runOnUiThread(() -> Toast.makeText(AboutActivity.this,
-                            "解析更新信息失败", Toast.LENGTH_SHORT).show());
+                            getString(R.string.parse_update_failed), Toast.LENGTH_SHORT).show());
                 }
             }
         });
@@ -291,7 +291,7 @@ public class AboutActivity extends AppCompatActivity {
         try {
             if (releases.length() == 0) {
                 runOnUiThread(() -> Toast.makeText(AboutActivity.this,
-                        "暂无可用版本", Toast.LENGTH_SHORT).show());
+                        getString(R.string.no_versions_available), Toast.LENGTH_SHORT).show());
                 return;
             }
 
@@ -323,7 +323,7 @@ public class AboutActivity extends AppCompatActivity {
                 if (remoteHash != null && remoteHash.equals(localHash)) {
                     final String curVer = currentVersion;
                     runOnUiThread(() -> Toast.makeText(AboutActivity.this,
-                            "当前已是最新开发版本 (v" + curVer + ")",
+                            getString(R.string.latest_dev_version, curVer),
                             Toast.LENGTH_SHORT).show());
                     return;
                 }
@@ -367,7 +367,7 @@ public class AboutActivity extends AppCompatActivity {
 
             if (latest == null) {
                 runOnUiThread(() -> Toast.makeText(AboutActivity.this,
-                        "暂无可用版本", Toast.LENGTH_SHORT).show());
+                        getString(R.string.no_versions_available), Toast.LENGTH_SHORT).show());
                 return;
             }
 
@@ -376,7 +376,7 @@ public class AboutActivity extends AppCompatActivity {
             if (compareVersions(latestVer, currentVersion) <= 0) {
                 final String curVer = currentVersion;
                 runOnUiThread(() -> Toast.makeText(AboutActivity.this,
-                        "当前已是最新版本 (v" + curVer + ")",
+                        getString(R.string.latest_version, curVer),
                         Toast.LENGTH_SHORT).show());
                 return;
             }
@@ -386,7 +386,7 @@ public class AboutActivity extends AppCompatActivity {
         } catch (Exception e) {
             Log.e(TAG, "解析 release JSON 失败", e);
             runOnUiThread(() -> Toast.makeText(AboutActivity.this,
-                    "解析更新信息失败", Toast.LENGTH_SHORT).show());
+                    getString(R.string.parse_update_failed), Toast.LENGTH_SHORT).show());
         }
     }
 
@@ -395,25 +395,25 @@ public class AboutActivity extends AppCompatActivity {
      * @param resetEpoch 速率限制重置时间（Unix 时间戳秒数），可能为 null
      */
     private void showRateLimitError(String resetEpoch) {
-        String message = "GitHub API 速率限制（未认证每小时 60 次）。\n";
+        String message = getString(R.string.github_rate_limit);
         if (resetEpoch != null) {
             try {
                 long resetTime = Long.parseLong(resetEpoch) * 1000;
                 SimpleDateFormat sdf = new SimpleDateFormat("HH:mm:ss", Locale.getDefault());
-                message += "配额将在 " + sdf.format(new Date(resetTime)) + " 重置。";
+                message += getString(R.string.rate_limit_reset, sdf.format(new Date(resetTime)));
             } catch (NumberFormatException ignored) {
-                message += "请稍后再试。";
+                message += getString(R.string.try_again_later);
             }
         } else {
-            message += "请稍后再试。";
+            message += getString(R.string.try_again_later);
         }
 
         new AlertDialog.Builder(this)
-                .setTitle("检查更新失败")
+                .setTitle(getString(R.string.check_update_failed_title))
                 .setMessage(message)
-                .setPositiveButton("浏览器打开", (d, w) ->
+                .setPositiveButton(getString(R.string.open_in_browser), (d, w) ->
                         openUrl("https://github.com/wsdjeg/Nova/releases"))
-                .setNegativeButton("关闭", null)
+                .setNegativeButton(getString(R.string.close), null)
                 .show();
     }
 
@@ -454,7 +454,7 @@ public class AboutActivity extends AppCompatActivity {
             @Override
             public void onFailure(Call call, IOException e) {
                 runOnUiThread(() -> Toast.makeText(AboutActivity.this,
-                        "暂无开发版可用",
+                        getString(R.string.no_dev_version),
                         Toast.LENGTH_SHORT).show());
             }
 
@@ -470,11 +470,11 @@ public class AboutActivity extends AppCompatActivity {
                         } catch (Exception e) {
                             Log.e(TAG, "解析缓存 prerelease 失败", e);
                             runOnUiThread(() -> Toast.makeText(AboutActivity.this,
-                                    "暂无开发版可用", Toast.LENGTH_SHORT).show());
+                                    getString(R.string.no_dev_version), Toast.LENGTH_SHORT).show());
                         }
                     } else {
                         runOnUiThread(() -> Toast.makeText(AboutActivity.this,
-                                "暂无开发版可用", Toast.LENGTH_SHORT).show());
+                                getString(R.string.no_dev_version), Toast.LENGTH_SHORT).show());
                     }
                     return;
                 }
@@ -488,11 +488,11 @@ public class AboutActivity extends AppCompatActivity {
                         runOnUiThread(() -> {
                             if (code == 404) {
                                 Toast.makeText(AboutActivity.this,
-                                        "暂无开发版可用",
+                                        getString(R.string.no_dev_version),
                                         Toast.LENGTH_SHORT).show();
                             } else {
                                 Toast.makeText(AboutActivity.this,
-                                        "检查更新失败: HTTP " + code,
+                                        getString(R.string.check_update_failed_http, code),
                                         Toast.LENGTH_SHORT).show();
                             }
                         });
@@ -514,7 +514,7 @@ public class AboutActivity extends AppCompatActivity {
                 } catch (Exception e) {
                     Log.e(TAG, "解析 prerelease JSON 失败", e);
                     runOnUiThread(() -> Toast.makeText(AboutActivity.this,
-                            "暂无开发版可用",
+                            getString(R.string.no_dev_version),
                             Toast.LENGTH_SHORT).show());
                 }
             }
@@ -533,7 +533,7 @@ public class AboutActivity extends AppCompatActivity {
         if (remoteHash != null && remoteHash.equals(localHash)) {
             final String curVer = currentVersion;
             runOnUiThread(() -> Toast.makeText(AboutActivity.this,
-                    "当前已是最新开发版本 (v" + curVer + ")",
+                    getString(R.string.latest_dev_version, curVer),
                     Toast.LENGTH_SHORT).show());
             return;
         }
@@ -679,14 +679,14 @@ public class AboutActivity extends AppCompatActivity {
 
         // 构建信息部分（纯文本）
         StringBuilder info = new StringBuilder();
-        info.append("当前版本: v").append(currentVersion).append("\n");
-        info.append("最新版本: ").append(releaseName).append("\n");
+        info.append(getString(R.string.current_version_label, currentVersion));
+        info.append(getString(R.string.latest_version_label, releaseName));
         if (isPrerelease) {
-            info.append("类型: 开发版 (Prerelease)\n");
+            info.append(getString(R.string.type_prerelease));
         }
-        info.append("发布时间: ").append(dateStr).append("\n");
+        info.append(getString(R.string.release_time, dateStr));
         if (apkSize > 0) {
-            info.append("安装包: ").append(formatFileSize(apkSize));
+            info.append(getString(R.string.apk_size, formatFileSize(apkSize)));
         }
 
         // 加载自定义布局
@@ -700,22 +700,22 @@ public class AboutActivity extends AppCompatActivity {
         // 使用 Markwon 渲染 Markdown 更新内容
         String bodyContent = (releaseBody != null && !releaseBody.isEmpty())
                 ? releaseBody
-                : "*暂无更新说明*";
+                : getString(R.string.no_release_notes);
         markwon.setMarkdown(tvBody, MarkdownUtils.preprocessMarkdown(bodyContent));
 
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("发现新版本");
+        builder.setTitle(getString(R.string.new_version_found));
         builder.setView(dialogView);
 
         if (apkUrl != null) {
-            builder.setPositiveButton("下载并安装", (dialog, which) ->
+            builder.setPositiveButton(getString(R.string.download_install), (dialog, which) ->
                     downloadAndInstallApk(apkUrl, apkName));
-            builder.setNegativeButton("稍后再说", null);
+            builder.setNegativeButton(getString(R.string.later), null);
         } else {
-            builder.setPositiveButton("确定", null);
+            builder.setPositiveButton(getString(R.string.ok), null);
         }
 
-        builder.setNeutralButton("浏览器打开", (dialog, which) ->
+        builder.setNeutralButton(getString(R.string.open_in_browser), (dialog, which) ->
                 openUrl("https://github.com/wsdjeg/Nova/releases"));
 
         builder.show();
@@ -738,13 +738,13 @@ public class AboutActivity extends AppCompatActivity {
         downloadProgressText = dialogView.findViewById(R.id.progress_text);
         downloadProgressBar.setMax(100);
         downloadProgressBar.setProgress(0);
-        downloadProgressText.setText("准备下载...");
+        downloadProgressText.setText(getString(R.string.preparing_download));
 
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("正在下载更新");
+        builder.setTitle(getString(R.string.downloading_update));
         builder.setView(dialogView);
         builder.setCancelable(false);
-        builder.setNegativeButton("取消", (dialog, which) -> {
+        builder.setNegativeButton(getString(R.string.cancel), (dialog, which) -> {
             if (downloadCall != null && !downloadCall.isCanceled()) {
                 downloadCall.cancel();
             }
@@ -763,7 +763,7 @@ public class AboutActivity extends AppCompatActivity {
                         downloadDialog.dismiss();
                     }
                     Toast.makeText(AboutActivity.this,
-                            "下载失败: " + e.getMessage(),
+                            getString(R.string.download_failed, e.getMessage()),
                             Toast.LENGTH_SHORT).show();
                 });
             }
@@ -777,7 +777,7 @@ public class AboutActivity extends AppCompatActivity {
                             downloadDialog.dismiss();
                         }
                         Toast.makeText(AboutActivity.this,
-                                "下载失败: HTTP " + code,
+                                getString(R.string.download_failed_http, code),
                                 Toast.LENGTH_SHORT).show();
                     });
                     return;
@@ -836,7 +836,7 @@ public class AboutActivity extends AppCompatActivity {
                             downloadDialog.dismiss();
                         }
                         Toast.makeText(AboutActivity.this,
-                                "下载完成，正在安装...",
+                                getString(R.string.download_complete_installing),
                                 Toast.LENGTH_SHORT).show();
                         installApk(apkFile);
                     });
@@ -852,7 +852,7 @@ public class AboutActivity extends AppCompatActivity {
                             downloadDialog.dismiss();
                         }
                         Toast.makeText(AboutActivity.this,
-                                "下载失败: " + e.getMessage(),
+                                getString(R.string.download_failed, e.getMessage()),
                                 Toast.LENGTH_SHORT).show();
                     });
                 } finally {
@@ -881,7 +881,7 @@ public class AboutActivity extends AppCompatActivity {
         } catch (Exception e) {
             Log.e(TAG, "启动安装失败", e);
             Toast.makeText(this,
-                    "安装失败: " + e.getMessage(),
+                    getString(R.string.install_failed, e.getMessage()),
                     Toast.LENGTH_SHORT).show();
         }
     }
