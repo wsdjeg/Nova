@@ -141,6 +141,44 @@
 
             </RadioGroup>
 
+            <!-- Language -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/language"
+                android:textSize="16sp"
+                android:layout_marginBottom="8dp" />
+
+            <RadioGroup
+                android:id="@+id/rg_language"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:layout_marginBottom="24dp">
+
+                <RadioButton
+                    android:id="@+id/rb_language_system"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/language_system"
+                    android:padding="8dp" />
+
+                <RadioButton
+                    android:id="@+id/rb_language_english"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/language_english"
+                    android:padding="8dp" />
+
+                <RadioButton
+                    android:id="@+id/rb_language_chinese"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/language_chinese"
+                    android:padding="8dp" />
+
+            </RadioGroup>
+
             <!-- Session list settings -->
             <TextView
                 android:layout_width="match_parent"

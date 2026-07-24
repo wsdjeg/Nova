@@ -34,12 +34,15 @@ public class SettingsActivity extends AppCompatActivity {
     public static final String EXTRA_SETTINGS_SAVED = "settings_saved";
     public static final String EXTRA_THEME_CHANGED = "theme_changed";
     public static final String EXTRA_COLOR_CHANGED = "color_changed";
+    public static final String EXTRA_LANGUAGE_CHANGED = "language_changed";
     
     // 表示"留空/服务端默认"的占位字符串
     private String getEmptyOption() { return getString(R.string.empty_option); } // Localized "empty" option
     
     private RadioGroup rgTheme;
     private RadioButton rbSystem, rbLight, rbDark;
+    private RadioGroup rgLanguage;
+    private RadioButton rbLangSystem, rbLangEnglish, rbLangChinese;
     private LinearLayout colorPickerContainer;
     private Spinner spinnerProvider, spinnerModel;
     private ProgressBar progressBar;
@@ -91,6 +94,10 @@ public class SettingsActivity extends AppCompatActivity {
         rbSystem = findViewById(R.id.rb_theme_system);
         rbLight = findViewById(R.id.rb_theme_light);
         rbDark = findViewById(R.id.rb_theme_dark);
+        rgLanguage = findViewById(R.id.rg_language);
+        rbLangSystem = findViewById(R.id.rb_language_system);
+        rbLangEnglish = findViewById(R.id.rb_language_english);
+        rbLangChinese = findViewById(R.id.rb_language_chinese);
         colorPickerContainer = findViewById(R.id.color_picker_container);
         spinnerProvider = findViewById(R.id.spinner_provider);
         spinnerModel = findViewById(R.id.spinner_model);
@@ -114,6 +121,28 @@ public class SettingsActivity extends AppCompatActivity {
             Intent resultIntent = new Intent();
             resultIntent.putExtra(EXTRA_THEME_CHANGED, true);
             setResult(RESULT_OK, resultIntent);
+        });
+        
+        // 语言选择监听
+        rgLanguage.setOnCheckedChangeListener((group, checkedId) -> {
+            int language;
+            if (checkedId == R.id.rb_language_system) {
+                language = SettingsManager.LANGUAGE_SYSTEM;
+            } else if (checkedId == R.id.rb_language_english) {
+                language = SettingsManager.LANGUAGE_ENGLISH;
+            } else {
+                language = SettingsManager.LANGUAGE_CHINESE;
+            }
+            settingsManager.setLanguage(language);
+            SettingsManager.applyLanguage(language);
+            
+            // 通知需要重建界面
+            Intent resultIntent = new Intent();
+            resultIntent.putExtra(EXTRA_LANGUAGE_CHANGED, true);
+            setResult(RESULT_OK, resultIntent);
+            
+            // 重建 Activity 以应用语言变更
+            recreate();
         });
         
         // 初始化 Spinner adapters
@@ -305,6 +334,20 @@ public class SettingsActivity extends AppCompatActivity {
                 break;
             default:
                 rbSystem.setChecked(true);
+                break;
+        }
+        
+        // 加载语言设置
+        int language = settingsManager.getLanguage();
+        switch (language) {
+            case SettingsManager.LANGUAGE_ENGLISH:
+                rbLangEnglish.setChecked(true);
+                break;
+            case SettingsManager.LANGUAGE_CHINESE:
+                rbLangChinese.setChecked(true);
+                break;
+            default:
+                rbLangSystem.setChecked(true);
                 break;
         }
         

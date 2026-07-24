@@ -30,12 +30,13 @@ public class NovaApplication extends Application {
     }
 
     /**
-     * Apply theme settings
+     * Apply theme and language settings
      */
     private void applyTheme() {
         SettingsManager settingsManager = new SettingsManager(this);
-        int themeMode = settingsManager.getThemeMode();
         
+        // Apply theme
+        int themeMode = settingsManager.getThemeMode();
         switch (themeMode) {
             case SettingsManager.THEME_LIGHT:
                 AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO);
@@ -48,6 +49,10 @@ public class NovaApplication extends Application {
                 AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM);
                 break;
         }
+        
+        // Apply language
+        int language = settingsManager.getLanguage();
+        SettingsManager.applyLanguage(language);
     }
 }
 

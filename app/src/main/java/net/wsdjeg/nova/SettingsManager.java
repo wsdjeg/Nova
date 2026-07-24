@@ -3,6 +3,9 @@ package net.wsdjeg.nova;
 import android.content.Context;
 import android.content.SharedPreferences;
 
+import androidx.appcompat.app.AppCompatDelegate;
+import androidx.core.os.LocaleListCompat;
+
 public class SettingsManager {
     private static final String PREFS_NAME = "ChatAppSettings";
     private static final String KEY_URL = "url";
@@ -10,6 +13,7 @@ public class SettingsManager {
     private static final String KEY_API_KEY = "api_key";
     private static final String KEY_SESSION = "session";
     private static final String KEY_THEME_MODE = "theme_mode";
+    private static final String KEY_LANGUAGE = "language";
     private static final String KEY_ACCOUNT_TAG_COLOR_INDEX = "account_tag_color_index";
     private static final String KEY_DEFAULT_PROVIDER = "default_provider";
     private static final String KEY_DEFAULT_MODEL = "default_model";
@@ -18,6 +22,11 @@ public class SettingsManager {
     public static final int THEME_SYSTEM = 0;
     public static final int THEME_LIGHT = 1;
     public static final int THEME_DARK = 2;
+    
+    // 语言常量
+    public static final int LANGUAGE_SYSTEM = 0;
+    public static final int LANGUAGE_ENGLISH = 1;
+    public static final int LANGUAGE_CHINESE = 2;
     
     // 自动分配颜色模式（使用索引 -1 表示自动）
     public static final int AUTO_COLOR_INDEX = -1;
@@ -88,6 +97,46 @@ public class SettingsManager {
      */
     public String getDefaultModel() {
         return prefs.getString(KEY_DEFAULT_MODEL, "");
+    }
+    
+    /**
+     * 设置语言
+     * @param language LANGUAGE_SYSTEM, LANGUAGE_ENGLISH, 或 LANGUAGE_CHINESE
+     */
+    public void setLanguage(int language) {
+        prefs.edit()
+            .putInt(KEY_LANGUAGE, language)
+            .apply();
+    }
+    
+    /**
+     * 获取语言设置
+     * @return LANGUAGE_SYSTEM, LANGUAGE_ENGLISH, 或 LANGUAGE_CHINESE
+     */
+    public int getLanguage() {
+        return prefs.getInt(KEY_LANGUAGE, LANGUAGE_SYSTEM);
+    }
+    
+    /**
+     * 应用语言设置到 AppCompatDelegate
+     * @param language 语言常量
+     */
+    public static void applyLanguage(int language) {
+        switch (language) {
+            case LANGUAGE_ENGLISH:
+                AppCompatDelegate.setApplicationLocales(
+                    LocaleListCompat.forLanguageTags("en"));
+                break;
+            case LANGUAGE_CHINESE:
+                AppCompatDelegate.setApplicationLocales(
+                    LocaleListCompat.forLanguageTags("zh"));
+                break;
+            case LANGUAGE_SYSTEM:
+            default:
+                AppCompatDelegate.setApplicationLocales(
+                    LocaleListCompat.getEmptyLocaleList());
+                break;
+        }
     }
     
     /**

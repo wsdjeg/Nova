@@ -238,6 +238,10 @@
     <string name="theme_system">Follow System</string>
     <string name="theme_light">Light Mode</string>
     <string name="theme_dark">Dark Mode</string>
+    <string name="language">Language</string>
+    <string name="language_system">Follow System</string>
+    <string name="language_english">English</string>
+    <string name="language_chinese">中文</string>
     <string name="session_list">Session List</string>
     <string name="account_tag_color">Account Tag Color</string>
     <string name="settings_hint">Leave empty to use server defaults. Tap the save button after changes.</string>
