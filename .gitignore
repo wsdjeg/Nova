@@ -16,3 +16,7 @@ local.properties
 
 # Scripts (not needed)
 *.sh
+
+# Fetched reference files (not part of project)
+chat_server.lua
+markwon_theme_full.txt
