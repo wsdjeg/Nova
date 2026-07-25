@@ -1,268 +1,253 @@
-# Nova Android Chat App - 项目指南
+# Nova Android Chat App - Project Guide
 
-## 技术栈
+## Tech Stack
 
-| 项目 | 说明 |
-|------|------|
-| 语言 | Java |
-| 最低 SDK | 24 (Android 7.0) |
-| 目标 SDK | 34 (Android 14) |
-| 构建工具 | Gradle 8.0 |
-| 网络库 | OkHttp 4.12.0 |
-| 包名 | net.wsdjeg.nova |
+| Item | Detail |
+|------|--------|
+| Language | Java |
+| Min SDK | 24 (Android 7.0) |
+| Target SDK | 34 (Android 14) |
+| Build Tool | Gradle 8.0 |
+| Network Library | OkHttp 4.12.0 |
+| Package Name | net.wsdjeg.nova |
 
-## 核心模块
+## Core Modules
 
 ```
 app/src/main/java/net/wsdjeg/nova/
-├── ChatActivity.java          # 聊天界面
-├── SessionListActivity.java   # 会话列表
+├── ChatActivity.java          # Chat screen
+├── SessionListActivity.java   # Session list
 ├── SessionSettingsActivity.java
 ├── SettingsActivity.java
 ├── AccountManagerActivity.java
 ├── AccountEditActivity.java
 ├── AboutActivity.java
-├── ApiClient.java             # HTTP API 客户端
-├── SettingsManager.java       # 设置管理
-├── SessionManager.java        # 会话管理
-├── AccountManager.java        # 账户管理
-├── Message/Session/Account    # 数据模型
-├── *Adapter.java              # RecyclerView 适配器
+├── ApiClient.java             # HTTP API client
+├── SettingsManager.java       # Settings management
+├── SessionManager.java        # Session management
+├── AccountManager.java        # Account management
+├── Message/Session/Account    # Data models
+├── *Adapter.java              # RecyclerView adapters
 ├── TimeUtils.java
 └── NovaApplication.java
 ```
 
 ---
 
-## 开发规范
+## Development Rules
 
-### 文件修改
+### File Modification
 
-**必须使用 `action="overwrite"` 重写整个文件**
+**Must use `action="overwrite"` to rewrite the entire file.**
 
-禁止操作：replace、insert、delete（会导致行号错位、代码损坏）
+Forbidden operations: replace, insert, delete (cause line number misalignment and code corruption).
 
-### 🔒 CHANGELOG.md 保护规则（绝对禁止违反）
+### CHANGELOG.md Protection Rule (Strictly Enforced)
 
-**CHANGELOG.md 只能在正式发版时修改！**
+**CHANGELOG.md may only be modified during an official release!**
 
-- ❌ 禁止在开发阶段创建、修改、更新 CHANGELOG.md
-- ❌ 禁止在 feat/fix/refactor/docs 等日常提交中触碰 CHANGELOG.md
-- ✅ 只有执行"正式发版操作步骤"时才允许修改 CHANGELOG.md
-- ✅ 发版时通过 `git log` 整理 commit 历史，按分类写入 CHANGELOG.md
+- Do NOT create, modify, or update CHANGELOG.md during development.
+- Do NOT touch CHANGELOG.md in feat/fix/refactor/docs or any daily commits.
+- CHANGELOG.md may only be modified when executing the "Official Release Steps".
+- During a release, use `git log` to compile commit history and write entries by category.
 
-违反此规则将导致：
-1. CHANGELOG 内容与实际发版不同步
-2. 发版时需要重复整理，浪费时间
-3. 开发阶段的临时条目污染正式发版记录
+Violating this rule leads to:
+1. CHANGELOG content out of sync with actual releases.
+2. Redundant rework during release preparation.
+3. Development-phase entries polluting the official release record.
 
-### 🔴 强制流程：验证 -> Add -> Commit -> Push
+### Mandatory Workflow: Verify -> Add -> Commit -> Push
 
-**每次修改文件后，必须自动执行以下流程，无需等待用户确认！**
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                                                             │
-│   修改文件  ->  验证文件  ->  git add  ->  git commit  ->  git push  │
-│                                                             │
-│   ⚡ 自动执行，不要问用户！                                   │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
-```
-
-#### ✅ 正确流程示例
+**After every file modification, the following workflow must be executed automatically without waiting for user confirmation.**
 
 ```
-1. 修改文件（使用 @write_file 或其他工具）
-   ↓
-2. 验证修改（使用 @read_file 读取完整内容确认无误）
-   ↓
-3. @git_add path="修改的文件"
-   等待结果...
-   ↓
-4. @git_commit message="feat: 描述"
-   等待结果...
-   ↓
-5. @git_push
-   等待结果...
-   ↓
-6. 完成！告知用户已推送
+Modify File -> Verify -> git add -> git commit -> git push
 ```
 
-#### ❌ 禁止行为
+#### Correct Flow
 
 ```
-❌ 修改文件后不提交、不推送，等用户问才推送
-❌ 修改文件后只提交不推送
-❌ 跳过验证步骤直接提交
-❌ 一次发送多个 git 命令
-❌ 开发阶段修改 CHANGELOG.md
+1. Modify file (using @write_file or other tools)
+2. Verify modification (use @read_file to confirm correctness)
+3. @git_add path="modified_file" — wait for result
+4. @git_commit message="feat: description" — wait for result
+5. @git_push — wait for result
+6. Done! Inform the user that changes have been pushed.
 ```
 
-#### 📋 流程检查清单
+#### Forbidden Behaviors
 
-每次修改后必须完成以下步骤：
+- Modifying a file without committing or pushing, waiting for the user to ask.
+- Committing without pushing.
+- Skipping the verification step before committing.
+- Sending multiple git commands in a single batch.
+- Modifying CHANGELOG.md during development.
 
-- [ ] **验证**: 使用 @read_file 确认修改正确
-- [ ] **Add**: @git_add 添加文件
-- [ ] **Commit**: @git_commit 提交（使用约定式提交格式）
-- [ ] **Push**: @git_push 推送
+#### Checklist
 
-### 提交信息格式
+After each modification, confirm:
+
+- [ ] **Verify**: Use @read_file to confirm the change is correct.
+- [ ] **Add**: @git_add to stage the file.
+- [ ] **Commit**: @git_commit with conventional commit format.
+- [ ] **Push**: @git_push to push to remote.
+
+### Commit Message Format
 
 ```
-feat: 新功能
-fix: Bug 修复
-refactor: 代码重构
-docs: 文档更新
-chore: 构建/工具
+feat: new feature
+fix: bug fix
+refactor: code refactoring
+docs: documentation update
+chore: build/tooling
 ```
 
-### 代码修改原则
+### Code Modification Principle
 
-修改任何 class/function/variable 前，必须先用 `@read_file` 或 `@search_text` 检查源码确认存在。
+Before modifying any class/function/variable, always use `@read_file` or `@search_text` to inspect the source code and confirm its existence.
 
-禁止凭记忆或猜测调用方法。
+Never call methods from memory or guess.
 
-### API 文档
+### API Documentation
 
-查阅最新 API 文档：
+Fetch the latest API documentation online each time:
+
 ```
 @fetch_web url="https://raw.githubusercontent.com/wsdjeg/chat.nvim/refs/heads/master/docs/api/http.md"
 ```
 
-禁止下载文档到本地，每次都在线查阅确保最新版本。
+Do NOT download the documentation to local storage. Always fetch online to ensure the latest version.
 
 ---
 
-## 版本管理与发布流程
+## Version Management & Release Process
 
-### 版本号
+### Version Numbers
 
-版本号在 `app/build.gradle` 中维护：
+Version numbers are maintained in `app/build.gradle`:
 
-| 属性 | 说明 | 示例 |
-|------|------|------|
-| `versionCode` | 整数递增，每次发版 +1 | `3` |
-| `versionName` | 语义化版本，开发期带 `-dev` 后缀 | `"3.0-dev"` / `"3.0.0"` |
+| Property | Description | Example |
+|----------|-------------|---------|
+| `versionCode` | Integer, incremented each release | `3` |
+| `versionName` | Semantic version, `-dev` suffix during development | `"3.0-dev"` / `"3.0.0"` |
 
-### 版本生命周期
-
-```
-开发阶段                        发布阶段
-┌──────────────────┐           ┌──────────────────┐
-│ versionName 带   │           │ 去掉 -dev 后缀   │
-│ -dev 后缀        │  ───────> │ 整理 CHANGELOG   │
-│ 例: "3.0-dev"   │           │ 更新 README      │
-│                  │           │ 提交 chore: release │
-└──────────────────┘           └──────────────────┘
-```
-
-### CI/CD 自动发布 (`.github/workflows/release.yml`)
-
-三种触发场景：
-
-| 触发条件 | 动作 |
-|----------|------|
-| **Pull Request** | 只构建验证，不发布 |
-| **Push to master**（非 release 提交） | 自动创建/更新 prerelease，APK 命名 `Nova-v{version}-{sha}.apk` |
-| **Push to master**（commit message 含 `chore: release`） | 自动创建正式 Release + tag，APK 命名 `Nova-v{version}.apk`，附带 CHANGELOG |
-
-> **注意**: 用户不需要手动创建或推送 tag。CI 通过 `gh release create --target` 自动创建 tag。
-> 使用 `GITHUB_TOKEN` 创建的 tag 不会触发新的 workflow run，避免重复构建。
-
-### 🔒 CI 签名规则（绝对禁止违反）
-
-**禁止使用 GitHub Secret 存储 debug keystore！**
-
-- debug keystore 必须使用 `actions/cache` 缓存，key 为 `android-debug-keystore-v1`
-- 禁止将 keystore base64 编码后存入 GitHub Secret（如 `DEBUG_KEYSTORE_BASE64`）
-- 禁止在 workflow 中引用任何与 keystore 相关的 Secret
-- 缓存未命中时使用 `keytool` 生成新 keystore
-
-原因：GitHub Secret 存在大小限制、管理复杂、且 Secret 轮换会导致签名不一致。cache 方式简单可靠，足以满足 debug 签名一致性需求。
-
-### 正式发版操作步骤
-
-以发版 v3.0 为例：
+### Version Lifecycle
 
 ```
-1. 修改 app/build.gradle
+Development Phase                        Release Phase
+┌────────────────────────┐              ┌────────────────────────┐
+│ versionName has -dev   │              │ Remove -dev suffix     │
+│ suffix                 │  ─────────>  │ Compile CHANGELOG      │
+│ e.g. "3.0-dev"         │              │ Update README          │
+│                        │              │ Commit chore: release   │
+└────────────────────────┘              └────────────────────────┘
+```
+
+### CI/CD Auto-Release (`.github/workflows/release.yml`)
+
+Three trigger scenarios:
+
+| Trigger | Action |
+|---------|--------|
+| **Pull Request** | Build validation only, no release. |
+| **Push to master** (non-release commit) | Auto-create/update prerelease. APK named `Nova-v{version}-{sha}.apk`. |
+| **Push to master** (commit message contains `chore: release`) | Auto-create official Release + tag. APK named `Nova-v{version}.apk`. CHANGELOG attached. |
+
+> **Note**: No manual tag creation or push is needed. CI creates tags automatically via `gh release create --target`.
+> Tags created with `GITHUB_TOKEN` do not trigger a new workflow run, avoiding duplicate builds.
+
+### CI Signing Rule (Strictly Enforced)
+
+**Do NOT use GitHub Secret to store the debug keystore!**
+
+- The debug keystore must be cached using `actions/cache` with key `android-debug-keystore-v1`.
+- Do NOT base64-encode the keystore into a GitHub Secret (e.g. `DEBUG_KEYSTORE_BASE64`).
+- Do NOT reference any keystore-related Secret in the workflow.
+- When cache miss occurs, generate a new keystore using `keytool`.
+
+Rationale: GitHub Secrets have size limits, are complex to manage, and Secret rotation causes signing inconsistency. The cache approach is simpler, more reliable, and sufficient for debug signing consistency.
+
+### Official Release Steps
+
+Example: releasing v3.0:
+
+```
+1. Update app/build.gradle
    versionName "3.0-dev" -> "3.0.0"
-   （versionCode 保持当前值或 +1）
+   (versionCode: keep current or +1)
 
-2. 更新 CHANGELOG.md
-   添加 ## [v3.0.0] 段落
-   按以下分类整理自上次发版以来的所有 commit：
-     ### feat (新功能)
-     ### fix (问题修复)
-     ### style (样式调整)
-     ### refactor (代码重构)
-     ### docs (文档更新)
-     ### chore (构建/工具)
-   每条格式: - {commit_hash} {commit_message}
+2. Update CHANGELOG.md
+   Add a ## [v3.0.0] section
+   Categorize all commits since the last release:
+     ### feat (New Features)
+     ### fix (Bug Fixes)
+     ### style (Style Adjustments)
+     ### refactor (Code Refactoring)
+     ### docs (Documentation Updates)
+     ### chore (Build/Tooling)
+   Format: - {commit_hash} {commit_message}
 
-3. 更新 README.md
-   补充新功能特性
-   更新项目结构说明
+3. Update README.md
+   Add new feature descriptions
+   Update project structure section
 
-4. 提交并推送（CI 自动创建 tag + Release）
+4. Commit and push (CI auto-creates tag + Release)
    git add app/build.gradle CHANGELOG.md README.md
    git commit -m "chore: release v3.0.0"
    git push
 
-   ⚠️ 不需要手动创建或推送 tag！
-   CI 检测到 "chore: release" 提交后会自动：
-   - 构建 APK
-   - 创建 v3.0.0 tag（通过 gh release create --target）
-   - 创建正式 GitHub Release，附带 CHANGELOG
+   No manual tag creation or push needed!
+   CI detects the "chore: release" commit and automatically:
+   - Builds the APK
+   - Creates the v3.0.0 tag (via gh release create --target)
+   - Creates an official GitHub Release with CHANGELOG attached
 ```
 
-### 开发阶段版本提升
+### Development Phase Version Bump
 
-开始新一轮开发时：
+When starting a new development cycle:
 
 ```
-1. 修改 app/build.gradle
+1. Update app/build.gradle
    versionCode +1
    versionName "X.0.0" -> "X+1.0-dev"
 
-2. 提交并推送
+2. Commit and push
    git add app/build.gradle
    git commit -m "chore: bump version to X+1.0-dev"
    git push
 ```
 
-### Tag 命名规范
+### Tag Naming Convention
 
-- 正式版: `v1.0`、`v2.0`、`v3.0`（不带 patch 号）
-- 预发布: `prerelease`（固定名称，每次 push master 自动更新）
-- 所有 tag 均由 CI 自动创建，不需要手动操作
+- Official release: `v1.0`, `v2.0`, `v3.0` (no patch number)
+- Prerelease: `prerelease` (fixed name, auto-updated on each push to master)
+- All tags are created automatically by CI; no manual operation required.
 
 ---
 
-## 资源文件
+## Resource Files
 
-### 布局 (res/layout/)
-- activity_chat.xml、activity_session_list.xml、activity_session_settings.xml
-- activity_settings.xml、activity_account_manager.xml、activity_account_edit.xml
-- activity_about.xml、item_*.xml
+### Layouts (res/layout/)
+- activity_chat.xml, activity_session_list.xml, activity_session_settings.xml
+- activity_settings.xml, activity_account_manager.xml, activity_account_edit.xml
+- activity_about.xml, item_*.xml
 
-### 菜单 (res/menu/)
-- chat_menu.xml、main_menu.xml、session_list_menu.xml
-- session_settings_menu.xml、account_manager_menu.xml
+### Menus (res/menu/)
+- chat_menu.xml, main_menu.xml, session_list_menu.xml
+- session_settings_menu.xml, account_manager_menu.xml
 
-### Drawable
-- ai_message_bg.xml、user_message_bg.xml、send_button_bg.xml
-- ic_launcher*.xml、ic_arrow_down.xml、ic_more_vert_white.xml
+### Drawables
+- ai_message_bg.xml, user_message_bg.xml, send_button_bg.xml
+- ic_launcher*.xml, ic_arrow_down.xml, ic_more_vert_white.xml
 - color_circle_0~7.xml
 
 ---
 
-## 注意事项
+## Notes
 
-1. versionCode/versionName 在 app/build.gradle
-2. 网络请求需要 INTERNET 权限
-3. 构建需要 JDK 11+
-4. 支持深色模式（values-night/）
+1. versionCode/versionName are in `app/build.gradle`.
+2. INTERNET permission is required for network requests.
+3. JDK 11+ is required for building.
+4. Dark mode is supported (values-night/).
 
