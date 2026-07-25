@@ -12,6 +12,7 @@ browse tool-call results, and more, all from your phone.
 ![Platform](https://img.shields.io/badge/Platform-Android-green.svg)
 ![API](https://img.shields.io/badge/API-24%2B-brightgreen.svg)
 ![Java](https://img.shields.io/badge/Language-Java-orange.svg)
+[![Build & Release](https://github.com/wsdjeg/Nova/actions/workflows/release.yml/badge.svg)](https://github.com/wsdjeg/Nova/actions/workflows/release.yml)
 [![GitHub Release](https://img.shields.io/github/v/release/wsdjeg/Nova)](https://github.com/wsdjeg/Nova/releases)
 [![GitHub Issues or Pull Requests](https://img.shields.io/github/issues/wsdjeg/Nova)](https://github.com/wsdjeg/Nova/issues)
 [![GitHub License](https://img.shields.io/github/license/wsdjeg/Nova)](LICENSE)
