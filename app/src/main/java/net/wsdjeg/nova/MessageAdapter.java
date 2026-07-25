@@ -6,18 +6,16 @@ import android.content.Context;
 import android.graphics.Typeface;
 import android.text.method.ArrowKeyMovementMethod;
 import android.text.method.LinkMovementMethod;
-import android.text.method.MovementMethod;
 import android.util.Log;
-import android.view.ActionMode;
 import android.view.LayoutInflater;
-import android.view.Menu;
-import android.view.MenuItem;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.HorizontalScrollView;
+import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
+import androidx.appcompat.app.AlertDialog;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.core.content.ContextCompat;
@@ -873,7 +871,7 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
         // "选择文本"：仅对普通消息（有 TextView）可用
         if (messageText != null) {
             items.add(new PopupHelper.PopupItem(context.getString(R.string.select_text), () -> {
-                enterSelectionMode(messageText, copyText, message);
+                showTextSelectionDialog(copyText, message);
             }));
         }
 
@@ -889,63 +887,46 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
     }
 
     /**
-     * 进入文本选择模式
+     * 弹出文本选择对话框
      *
-     * 临时将 TextView 从 LinkMovementMethod（用于 Markdown 链接点击）
-     * 切换到 ArrowKeyMovementMethod（支持原生文本选择），并启用
-     * setTextIsSelectable(true)。
+     * 在独立对话框中显示消息内容，用户可以使用系统原生文本选择
+     * 手柄进行选择和复制。对话框关闭后手柄自动消失，不会影响
+     * 原消息 TextView 的状态，也不会干扰输入键盘。
      *
-     * 用户长按文字后会出现系统原生的选择手柄和操作栏（复制/全选等），
-     * 选择操作栏关闭后自动恢复原始状态（LinkMovementMethod + 长按弹窗）。
-     *
-     * @param messageText 要启用选择的 TextView
-     * @param copyText    原始完整文本（用于恢复长按弹窗）
-     * @param message     对应的 Message 对象
+     * @param content 原始消息文本
+     * @param message 对应的 Message 对象
      */
-    private void enterSelectionMode(TextView messageText, String copyText, Message message) {
-        // 保存原始 MovementMethod（普通消息为 LinkMovementMethod，错误消息为 null）
-        MovementMethod originalMethod = messageText.getMovementMethod();
+    private void showTextSelectionDialog(String content, Message message) {
+        float density = context.getResources().getDisplayMetrics().density;
 
-        // 切换到 ArrowKeyMovementMethod 以支持文本选择
-        messageText.setMovementMethod(ArrowKeyMovementMethod.getInstance());
+        TextView textView = new TextView(context);
+        textView.setTextSize(15);
+        textView.setLinkTextColor(linkColor);
+        int padH = (int) (16 * density + 0.5f);
+        int padV = (int) (12 * density + 0.5f);
+        textView.setPadding(padH, padV, padH, padV);
 
-        // 启用文本选择（注意：必须在设置 MovementMethod 之后调用，
-        // 否则 setTextIsSelectable 不会覆盖已存在的 LinkMovementMethod）
-        messageText.setTextIsSelectable(true);
+        // 渲染内容（普通消息用 Markwon，错误消息用纯文本）
+        if (message.isError()) {
+            textView.setText(content);
+        } else {
+            Markwon mk = message.isUser() ? userMarkwon : markwon;
+            mk.setMarkdown(textView, MarkdownUtils.preprocessMarkdown(content));
+        }
 
-        // 移除长按监听器，让系统原生长按选择生效
-        messageText.setOnLongClickListener(null);
+        // 启用文本选择（ArrowKeyMovementMethod 支持选择，覆盖 LinkMovementMethod）
+        textView.setMovementMethod(ArrowKeyMovementMethod.getInstance());
+        textView.setTextIsSelectable(true);
 
-        // 提示用户操作方式
-        Toast.makeText(context, context.getString(R.string.select_text_hint), Toast.LENGTH_SHORT).show();
+        // 用 ScrollView 包裹以支持长消息滚动
+        ScrollView scrollView = new ScrollView(context);
+        scrollView.addView(textView);
 
-        // 设置选择操作栏回调，在操作栏关闭时恢复原始状态
-        messageText.setCustomSelectionActionModeCallback(new ActionMode.Callback() {
-            @Override
-            public boolean onCreateActionMode(ActionMode mode, Menu menu) {
-                return true; // 允许默认操作栏（复制/全选等）
-            }
-
-            @Override
-            public boolean onPrepareActionMode(ActionMode mode, Menu menu) {
-                return false;
-            }
-
-            @Override
-            public boolean onActionItemClicked(ActionMode mode, MenuItem item) {
-                return false; // 使用默认处理
-            }
-
-            @Override
-            public void onDestroyActionMode(ActionMode mode) {
-                // 恢复原始状态
-                messageText.setTextIsSelectable(false);
-                messageText.setMovementMethod(originalMethod);
-                messageText.setCustomSelectionActionModeCallback(null);
-                // 重新绑定长按弹窗
-                setupLongPressMenu(messageText, copyText, message, messageText);
-            }
-        });
+        new AlertDialog.Builder(context)
+                .setTitle(R.string.select_text)
+                .setView(scrollView)
+                .setPositiveButton(android.R.string.ok, null)
+                .show();
     }
 
     /**
