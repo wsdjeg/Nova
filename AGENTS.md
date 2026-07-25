@@ -42,6 +42,20 @@ app/src/main/java/net/wsdjeg/nova/
 
 禁止操作：replace、insert、delete（会导致行号错位、代码损坏）
 
+### 🔒 CHANGELOG.md 保护规则（绝对禁止违反）
+
+**CHANGELOG.md 只能在正式发版时修改！**
+
+- ❌ 禁止在开发阶段创建、修改、更新 CHANGELOG.md
+- ❌ 禁止在 feat/fix/refactor/docs 等日常提交中触碰 CHANGELOG.md
+- ✅ 只有执行"正式发版操作步骤"时才允许修改 CHANGELOG.md
+- ✅ 发版时通过 `git log` 整理 commit 历史，按分类写入 CHANGELOG.md
+
+违反此规则将导致：
+1. CHANGELOG 内容与实际发版不同步
+2. 发版时需要重复整理，浪费时间
+3. 开发阶段的临时条目污染正式发版记录
+
 ### 🔴 强制流程：验证 -> Add -> Commit -> Push
 
 **每次修改文件后，必须自动执行以下流程，无需等待用户确认！**
@@ -82,6 +96,7 @@ app/src/main/java/net/wsdjeg/nova/
 ❌ 修改文件后只提交不推送
 ❌ 跳过验证步骤直接提交
 ❌ 一次发送多个 git 命令
+❌ 开发阶段修改 CHANGELOG.md
 ```
 
 #### 📋 流程检查清单
