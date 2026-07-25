@@ -112,6 +112,8 @@
 
     <!-- Message actions -->
     <string name="copy">Copy</string>
+    <string name="select_text">Select Text</string>
+    <string name="select_text_hint">Long press text to select content</string>
     <string name="message_empty">Message content is empty</string>
     <string name="message_content_label">Message content</string>
     <string name="copied_to_clipboard">Copied to clipboard</string>

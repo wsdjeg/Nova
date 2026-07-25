@@ -4,9 +4,14 @@ import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
 import android.graphics.Typeface;
+import android.text.method.ArrowKeyMovementMethod;
 import android.text.method.LinkMovementMethod;
+import android.text.method.MovementMethod;
 import android.util.Log;
+import android.view.ActionMode;
 import android.view.LayoutInflater;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
@@ -472,8 +477,8 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
         holder.timeText.setText(time);
         
         final String copyText = contentSafe;
-        setupLongPressMenu(holder.messageText, copyText, message);
-        setupLongPressMenu(holder.itemView, copyText, message);
+        setupLongPressMenu(holder.messageText, copyText, message, holder.messageText);
+        setupLongPressMenu(holder.itemView, copyText, message, holder.messageText);
     }
     /**
      * 计算内容区域的高度（dp）
@@ -540,7 +545,7 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
         holder.expandHint.setOnClickListener(toggleListener);
         
         final String toolCallCopyText = item.getToolName() + "\n" + (args != null ? args : "");
-        setupLongPressMenu(holder.itemView, toolCallCopyText, item.parentMessage);
+        setupLongPressMenu(holder.itemView, toolCallCopyText, item.parentMessage, null);
     }
     
     private void updateContentHeight(ToolCallViewHolder holder, boolean isExpanded) {
@@ -611,7 +616,7 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
         holder.expandHint.setOnClickListener(toggleListener);
         
         final String toolResultCopyText = content != null ? content : "";
-        setupLongPressMenu(holder.itemView, toolResultCopyText, message);
+        setupLongPressMenu(holder.itemView, toolResultCopyText, message, null);
     }
     
     private String formatJson(org.json.JSONObject json) {
@@ -821,11 +826,12 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
      * 在 ACTION_DOWN 时记录屏幕绝对坐标，长按时用该坐标定位弹窗，
      * 使弹窗出现在用户手指触点旁边。
      *
-     * @param view     要绑定长按的 View
-     * @param copyText 要复制的文本
-     * @param message  对应的 Message 对象
+     * @param view        要绑定长按的 View
+     * @param copyText    要复制的文本
+     * @param message     对应的 Message 对象
+     * @param messageText 消息内容 TextView（用于"选择文本"功能，null 表示不支持）
      */
-    private void setupLongPressMenu(View view, String copyText, Message message) {
+    private void setupLongPressMenu(View view, String copyText, Message message, TextView messageText) {
         view.setOnTouchListener((v, event) -> {
             if (event.getAction() == MotionEvent.ACTION_DOWN) {
                 lastTouchX = event.getRawX();
@@ -834,21 +840,22 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
             return false; // 不消费事件，让长按检测正常工作
         });
         view.setOnLongClickListener(v -> {
-            showMessageActionPopup(v, copyText, message);
+            showMessageActionPopup(v, copyText, message, messageText);
             return true;
         });
     }
 
     /**
-     * 显示消息长按操作弹窗（复制 / 删除）
+     * 显示消息长按操作弹窗（复制 / 选择文本 / 删除）
      *
      * 使用 PopupHelper 在触点位置显示统一风格的弹窗。
      *
-     * @param anchorView 长按的 View（用于 showAtLocation 锚定窗口）
-     * @param copyText   要复制的文本内容
-     * @param message    对应的 Message 对象（用于删除操作）
+     * @param anchorView  长按的 View（用于 showAtLocation 锚定窗口）
+     * @param copyText    要复制的文本内容
+     * @param message     对应的 Message 对象（用于删除操作）
+     * @param messageText 消息内容 TextView（用于"选择文本"功能，null 表示不支持）
      */
-    private void showMessageActionPopup(View anchorView, String copyText, Message message) {
+    private void showMessageActionPopup(View anchorView, String copyText, Message message, TextView messageText) {
         boolean canDelete = message != null
             && !message.isPending()
             && !message.isError()
@@ -863,6 +870,13 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
             }
         }));
 
+        // "选择文本"：仅对普通消息（有 TextView）可用
+        if (messageText != null) {
+            items.add(new PopupHelper.PopupItem(context.getString(R.string.select_text), () -> {
+                enterSelectionMode(messageText, copyText, message);
+            }));
+        }
+
         if (canDelete) {
             items.add(new PopupHelper.PopupItem(context.getString(R.string.delete), true, () -> {
                 if (actionListener != null) {
@@ -872,6 +886,66 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
         }
 
         PopupHelper.show(context, anchorView, lastTouchX, lastTouchY, items);
+    }
+
+    /**
+     * 进入文本选择模式
+     *
+     * 临时将 TextView 从 LinkMovementMethod（用于 Markdown 链接点击）
+     * 切换到 ArrowKeyMovementMethod（支持原生文本选择），并启用
+     * setTextIsSelectable(true)。
+     *
+     * 用户长按文字后会出现系统原生的选择手柄和操作栏（复制/全选等），
+     * 选择操作栏关闭后自动恢复原始状态（LinkMovementMethod + 长按弹窗）。
+     *
+     * @param messageText 要启用选择的 TextView
+     * @param copyText    原始完整文本（用于恢复长按弹窗）
+     * @param message     对应的 Message 对象
+     */
+    private void enterSelectionMode(TextView messageText, String copyText, Message message) {
+        // 保存原始 MovementMethod（普通消息为 LinkMovementMethod，错误消息为 null）
+        MovementMethod originalMethod = messageText.getMovementMethod();
+
+        // 切换到 ArrowKeyMovementMethod 以支持文本选择
+        messageText.setMovementMethod(ArrowKeyMovementMethod.getInstance());
+
+        // 启用文本选择（注意：必须在设置 MovementMethod 之后调用，
+        // 否则 setTextIsSelectable 不会覆盖已存在的 LinkMovementMethod）
+        messageText.setTextIsSelectable(true);
+
+        // 移除长按监听器，让系统原生长按选择生效
+        messageText.setOnLongClickListener(null);
+
+        // 提示用户操作方式
+        Toast.makeText(context, context.getString(R.string.select_text_hint), Toast.LENGTH_SHORT).show();
+
+        // 设置选择操作栏回调，在操作栏关闭时恢复原始状态
+        messageText.setCustomSelectionActionModeCallback(new ActionMode.Callback() {
+            @Override
+            public boolean onCreateActionMode(ActionMode mode, Menu menu) {
+                return true; // 允许默认操作栏（复制/全选等）
+            }
+
+            @Override
+            public boolean onPrepareActionMode(ActionMode mode, Menu menu) {
+                return false;
+            }
+
+            @Override
+            public boolean onActionItemClicked(ActionMode mode, MenuItem item) {
+                return false; // 使用默认处理
+            }
+
+            @Override
+            public void onDestroyActionMode(ActionMode mode) {
+                // 恢复原始状态
+                messageText.setTextIsSelectable(false);
+                messageText.setMovementMethod(originalMethod);
+                messageText.setCustomSelectionActionModeCallback(null);
+                // 重新绑定长按弹窗
+                setupLongPressMenu(messageText, copyText, message, messageText);
+            }
+        });
     }
 
     /**
