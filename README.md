@@ -3,7 +3,7 @@
 Nova is the Android client for [chat.nvim](https://nvim.chat),
 the Neovim AI chat plugin.
 It connects to a chat.nvim HTTP Server and lets you continue
-your AI conversations on the go — manage sessions, send messages,
+your AI conversations on the go - manage sessions, send messages,
 browse tool-call results, and more, all from your phone.
 
 > Nova does **not** talk to LLM APIs directly.
@@ -39,32 +39,32 @@ browse tool-call results, and more, all from your phone.
 
 <!-- vim-markdown-toc GFM -->
 
-- [✨ Features](#-features)
-- [📦 Quick Start](#-quick-start)
-- [🔧 Configuration](#-configuration)
-- [⚙️ Usage](#-usage)
+- [Features](#features)
+- [Quick Start](#quick-start)
+- [Configuration](#configuration)
+- [Usage](#usage)
     - [Account management](#account-management)
     - [Session management](#session-management)
     - [Chat](#chat)
     - [Voice input](#voice-input)
     - [App settings](#app-settings)
-- [🔌 API](#-api)
-- [📂 Project structure](#-project-structure)
-- [🛠️ Tech stack](#-tech-stack)
-- [🎯 Roadmap](#-roadmap)
-- [🤝 Contributing](#-contributing)
-- [💬 Feedback](#-feedback)
-- [🙏 Credits](#-credits)
-- [📄 License](#-license)
+- [API](#api)
+- [Project structure](#project-structure)
+- [Tech stack](#tech-stack)
+- [Roadmap](#roadmap)
+- [Contributing](#contributing)
+- [Feedback](#feedback)
+- [Credits](#credits)
+- [License](#license)
 
 <!-- vim-markdown-toc -->
 
-## ✨ Features
+## Features
 
 - Multi-account management with per-account color tags and connection testing
 - Account import / export in JSON for easy migration across devices
 - Session list with search, pin/unpin, swipe actions, and live session count
-- Session settings — edit title, provider, model, and cwd on the fly
+- Session settings - edit title, provider, model, and cwd on the fly
 - Paginated history loading with DiffUtil incremental updates
 - Stop and retry AI generation at any time
 - Tool-call and tool-result message cards with collapsible JSON
@@ -72,17 +72,20 @@ browse tool-call results, and more, all from your phone.
 - Clear session messages (smart `cleared_at` sorting)
 - Offline voice input via Vosk with automatic fallback to system speech recognition
 - Markdown rendering with syntax highlighting, tables, task lists, and strikethrough
-- Slash commands (`/help`, `/sessions`, `/session`, `/set`, `/clear`)
+- Separate Markwon instances for user (blue-tinted code) and AI messages
+- Slash commands (`/help`, `/sessions`, `/session`, `/set`, `/clear`, `/title`)
+- Long-press message for copy / delete with popup at touch point
 - Draft auto-save for unsent messages
 - Browser session preview
-- Smart scroll — pause auto-refresh while reading, restore position via stable-key anchors
+- Smart scroll - pause auto-refresh while reading, restore position via stable-key anchors
 - Content fingerprint to skip redundant Markdown re-binding
-- In-app update checker with download and install dialog
+- In-app update checker with download and install dialog (supports dev builds via commit hash)
+- Multi-language support (Chinese / English / System)
 - Built-in log viewer for debugging
 - Dark / light / system theme modes
 - Material Design UI
 
-## 📦 Quick Start
+## Quick Start
 
 1. **Install chat.nvim** in Neovim and configure the HTTP Server.
 
@@ -100,7 +103,7 @@ browse tool-call results, and more, all from your phone.
 
 3. **Install** the APK on your Android device (Android 7.0+).
 
-4. **Open Nova**, go to menu → **Account management**, add an account with your
+4. **Open Nova**, go to menu -> **Account management**, add an account with your
    server address (e.g. `http://192.168.1.100:7777`) and API key.
 
 5. Tap **Test connection** to verify, then save. The session list will load automatically.
@@ -114,9 +117,9 @@ cd Nova
 
 Open the project in Android Studio, let Gradle sync, then press **Run** (Shift + F10).
 
-## 🔧 Configuration
+## Configuration
 
-No configuration file is needed — everything is set up inside the app.
+No configuration file is needed - everything is set up inside the app.
 
 | Setting | Location | Description |
 | ------- | -------- | ----------- |
@@ -124,30 +127,31 @@ No configuration file is needed — everything is set up inside the app.
 | Default provider / model | App settings | Used when creating a new session |
 | Account tag color | App settings | Default color for new accounts (`auto` assigns by account ID) |
 | Theme mode | App settings | `System` / `Light` / `Dark` |
+| Language | App settings | `System` / `English` / `Chinese` |
 
-## ⚙️ Usage
+## Usage
 
 ### Account management
 
 | Action | How |
 | ------ | --- |
-| Add account | Account management → FAB button → fill in URL, API key, color → Test → Save |
+| Add account | Account management -> FAB button -> fill in URL, API key, color -> Test -> Save |
 | Set default | Tap an account in the list |
 | Edit / Delete | Long-press an account |
-| Import | Account management → menu → **Import** (select a JSON file) |
-| Export | Account management → menu → **Export** (saves a JSON file) |
+| Import | Account management -> menu -> **Import** (select a JSON file) |
+| Export | Account management -> menu -> **Export** (saves a JSON file) |
 
 ### Session management
 
 | Action | How |
 | ------ | --- |
-| View sessions | Open the app — sessions are sorted by last message time, pinned first |
+| View sessions | Open the app - sessions are sorted by last message time, pinned first |
 | Search | Tap the search icon in the session list toolbar |
 | Create session | FAB button in the session list |
-| Session settings | Chat → menu → **Settings** (edit title / provider / model / cwd) |
+| Session settings | Chat -> menu -> **Settings** (edit title / provider / model / cwd) |
 | Pin / Unpin | Swipe right to pin, swipe left to unpin (or use session settings) |
-| Delete session | Chat → menu → **Delete session** (or long-press in the list) |
-| Clear session | Chat → menu → **Clear session** |
+| Delete session | Chat -> menu -> **Delete session** (or long-press in the list) |
+| Clear session | Chat -> menu -> **Clear session** |
 
 ### Chat
 
@@ -155,12 +159,12 @@ No configuration file is needed — everything is set up inside the app.
 | ------ | --- |
 | Send message | Type in the input box and tap send |
 | Stop generation | Tap the stop button while AI is responding |
-| Retry | Chat → menu → **Retry** |
-| Refresh | Chat → menu → **Refresh** |
-| Load history | Scroll to the top — earlier messages load automatically |
-| Preview in browser | Chat → menu → **Preview** |
-| Copy message | Long-press a message |
-| Delete message | Long-press a message → **Delete** |
+| Retry | Chat -> menu -> **Retry** |
+| Refresh | Chat -> menu -> **Refresh** |
+| Load history | Scroll to the top - earlier messages load automatically |
+| Preview in browser | Chat -> menu -> **Preview** |
+| Copy message | Long-press a message -> **Copy** |
+| Delete message | Long-press a message -> **Delete** |
 | Slash commands | Type `/help` in the input box for available commands |
 
 ### Voice input
@@ -181,11 +185,12 @@ When the input box is empty, the send button switches to a microphone icon.
 | Setting | Options |
 | ------- | ------- |
 | Theme | System / Light / Dark |
+| Language | System / English / Chinese |
 | Default provider | Fetched from the server |
 | Default model | Depends on the selected provider |
-| Account tag color | Auto (by account ID) or a fixed color (0–8) |
+| Account tag color | Auto (by account ID) or a fixed color (0-8) |
 
-## 🔌 API
+## API
 
 Nova communicates with the [chat.nvim HTTP Server](https://nvim.chat/api/http/).
 All requests are authenticated via the `X-API-Key` header.
@@ -209,7 +214,7 @@ All requests are authenticated via the `X-API-Key` header.
 | `/` | POST | Send a message |
 | `/providers` | GET | List available providers |
 
-## 📂 Project structure
+## Project structure
 
 ```
 Nova/
@@ -244,7 +249,9 @@ Nova/
 │   ├── menu/                          # 8 menu XMLs
 │   ├── drawable/                      # 38 drawable resources
 │   ├── values/                        # colors, strings, themes
-│   └── values-night/                  # dark theme overrides
+│   ├── values-en/                     # English string resources
+│   ├── values-night/                  # dark theme overrides
+│   └── xml/                           # backup rules, file paths
 ├── app/build.gradle                   # App-level build config
 ├── .github/workflows/release.yml      # CI/CD (build, prerelease, release)
 ├── AGENTS.md                          # Development guide
@@ -252,7 +259,7 @@ Nova/
 └── README.md
 ```
 
-## 🛠️ Tech stack
+## Tech stack
 
 | Technology | Detail |
 | ---------- | ------ |
@@ -267,7 +274,7 @@ Nova/
 | JSON | org.json |
 | NDK ABI | armeabi-v7a, arm64-v8a, x86_64, x86 |
 
-## 🎯 Roadmap
+## Roadmap
 
 - [x] Multi-session management
 - [x] Multi-account with import / export
@@ -287,14 +294,16 @@ Nova/
 - [x] Voice input (Vosk + system fallback)
 - [x] Session search
 - [x] Slash commands
+- [x] Long-press message for copy / delete
 - [x] In-app update checker
+- [x] Multi-language support (Chinese / English)
 - [x] Log viewer
 - [ ] Streaming responses (SSE)
 - [ ] Image sending
 - [ ] Message search
 - [ ] Enhanced table rendering
 
-## 🤝 Contributing
+## Contributing
 
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/amazing-feature`)
@@ -304,18 +313,18 @@ Nova/
 
 See [AGENTS.md](AGENTS.md) for detailed development guidelines.
 
-## 💬 Feedback
+## Feedback
 
 If you encounter any bugs or have suggestions, please file an issue in the
 [issue tracker](https://github.com/wsdjeg/Nova/issues).
 
-## 🙏 Credits
+## Credits
 
-- [chat.nvim](https://github.com/wsdjeg/chat.nvim) — the Neovim AI chat plugin
-- [Vosk](https://alphacephei.com/vosk/) — offline speech recognition
-- [Markwon](https://github.com/noties/markwon) — Android Markdown library
+- [chat.nvim](https://github.com/wsdjeg/chat.nvim) - the Neovim AI chat plugin
+- [Vosk](https://alphacephei.com/vosk/) - offline speech recognition
+- [Markwon](https://github.com/noties/markwon) - Android Markdown library
 
-## 📄 License
+## License
 
 Licensed under [GPL-3.0](LICENSE).
 

@@ -2,6 +2,139 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v3.0.0] - 2025-07
+
+### feat (新功能)
+- 32736e8 feat: add language setting (system/English/Chinese)
+- 9db9e32 feat: complete i18n for VoskSpeechRecognizer error messages
+- 8d3c92f feat: update Java files to use string resources for i18n (part 2)
+- 4ac5855 feat: update Java files to use string resources for i18n (part 1)
+- 87f2671 feat: add multi-language support (Chinese/English) for XML resources
+- 0c35769 feat: 长按消息弹窗支持复制和删除
+- ad1af51 feat: 长按消息弹窗显示在触点位置
+- 71d957f feat: auto-insert blank line before GFM tables for lenient rendering
+- da48b94 feat: use separate Markwon instance for user messages with blue-tinted code block background
+- accedd9 feat: 设置页面 provider/model 改为下拉选择并增加保存按钮
+- ecfc42f feat: 更新弹窗使用 Markwon 渲染 Markdown 格式的更新日志
+- 153fb1f feat: 检查更新支持自动下载 APK 并安装
+- 4d541ef feat: dev版本检查更新改为比较commit hash
+- d545168 feat: 会话列表支持左滑取消置顶、右滑置顶
+- 66b9909 feat: 支持 cleared_at 字段优化会话排序
+- 2a604b3 feat: 搜索按钮改为白色图标紧贴三点菜单，副标题颜色匹配ChatActivity
+- 57acb0b feat: 添加会话列表搜索功能和会话数量显示
+- 4a6ca0e feat: 聆听状态使用声波图标替代停止图标
+- 6ea2886 feat: 语音聆听状态可视化，支持停止聆听与追加识别
+- a3db306 feat: 添加语音输入对话框布局，精简 AndroidManifest queries
+- b8fd8dd feat: add VoskSpeechRecognizer for offline speech recognition
+- 4eb5d08 feat: 添加语音输入功能
+- 5fd8973 feat: 合并话筒/发送/停止按钮为一个ImageButton
+- f854bb1 feat: 添加语音输入麦克风按钮到聊天界面
+- 1097f3f feat: 统一 item_message.xml 字体为 14sp
+- 2a258b1 feat: 统一消息字体为14sp, 配置 Markdown 标题大小
+- d001c3e feat: 在聊天界面右上角菜单添加重试按钮
+
+### perf (性能优化)
+- 375b35b perf: skip identical Markdown rebinds via per-ViewHolder content fingerprint
+- b28f019 perf: pause refresh while user scrolling and stabilize bottom alignment
+
+### fix (问题修复)
+- 1261af1 fix: use standard GPL-3.0 license text for GitHub recognition
+- 1de107e fix: 修复语言切换从英文切回中文无效的问题
+- a337fcb fix: 修复设置页面打开时无限闪烁的问题
+- 6f3625a fix: 开发版检查更新提示"暂无开发版可用"
+- 08fdd93 fix: 修复检查更新 403 错误（GitHub API 速率限制）
+- 5d5bbcb fix: InlineCodeSpan 从 ReplacementSpan 改为 MetricAffectingSpan
+- 7aa4f7e fix: table long text overflow by inserting ZWSP at natural break points
+- 0bf1481 fix: 工具消息折叠时不拦截滚动事件，展开后才允许内部滚动
+- 2db8d0b fix: /title 命令后会话标题不刷新
+- cba8f60 fix: 深色模式下弹出菜单文字颜色不可见
+- 57ab820 fix: use codeBlockBackgroundColor(int) instead of codeBlockBackground(int)
+- b390f5c fix: 检查更新获取到老版本的问题
+- 9968944 fix: 统一颜色资源，完善深色/浅色模式适配
+- 9c0dcca fix: unify message and tool background colors, fix dark mode
+- 6cc5d4d fix: cache debug keystore at ~/.config/.android/ (Gradle's actual path)
+- c18b15e fix: quote YAML values containing 'chore: release' to fix CI syntax error
+- 1a25637 fix: 使用 rawIndex 修正消息删除时的 serverIndex 计算
+- 6e5280d fix: fetch accurate server index before deleting message
+- f4dd103 fix: explicitly set popup width/height to prevent WRAP_CONTENT expansion
+- 704681f fix: 清除 TextView minWidth 限制，真正缩小浮窗宽度
+- 9cc31dd fix: 设置长按菜单最小宽度为128dp，避免弹窗过窄
+- 3cc3850 fix: 行内代码背景高度过大，连续行无间隙
+- af65b9c style: 缩小无序列表圆点大小从默认~12dp到4dp
+- d6ecdde fix: 修复"正在加载消息"占位消息卡死问题
+- 4e3d6a5 fix: 切换会话时"正在加载消息..."占位消息不消失
+- 03c39a1 fix: 修复 ChatActivity 编译错误并解决滚回底部不刷新问题
+- d3ec177 fix: 修复用户向上滚动再滚回底部后新消息不刷新的问题
+- 3a4145f fix: add missing closing brace in retrySession() method
+- 4d50bc7 fix: 语音聆听时自动刷新覆盖按钮状态导致显示飞机图标
+- 9e1dfc9 fix: 修复 VoskSpeechRecognizer initModel 模型加载诊断
+- ac703f7 fix: add diagnostic logging to list assets root, show actual dir names in error toast
+- 866474e fix: improve Vosk model error handling with diagnostic toasts
+- 3fc447f fix: rename etInput to etMessage in Vosk recognition callbacks
+- 4ddf0bd fix: integrate Vosk offline speech recognition into ChatActivity
+- ee46148 fix: remove unsupported setTimeout, add missing onFinalResult override
+- 97f3488 fix: remove @aar suffix from vosk-android dependency
+- 43ec83c fix: 移除 resolveActivity 预检查，改用 try-catch 直接启动语音识别
+- ef93656 fix: 添加 queries 声明修复 Android 11+ 语音识别不可用
+- bd78c6d fix: 添加语音输入运行时权限请求和Intent可用性检查
+- 100f933 fix: 添加缺失的 ic_send 和 ic_stop drawable 资源文件
+- 3f20c38 fix: add missing closing brace for onSuccess method in fetchNewMessagesAndRestorePosition
+- cb3df60 fix: 修复 userAtBottom 被程序化滚动错误更新的三个核心 Bug
+- 0c9f209 fix: 修复刷新后跳到错误位置的锚点漂移问题
+- 825aec6 fix: 修复打开会话时未滚动到最后一条消息底部的问题
+- 9fae97f fix: 限制 Markdown 标题最大字体不超过会话标题(16sp)
+- 773c6f6 fix: 会话列表排序改为按最后消息时间降序排列
+- a34c9d5 fix: 空会话排序使用 session ID 解析创建时间替代当前时间
+- ed3b7ed fix: 禁用 change 动画并立即复位 translationX，使滑动置顶复位更流畅
+- 64580fa fix: 修复工具卡片 maxWidth 无效问题
+- 90cfd4c fix: 工具卡片内部上下滚动经常失败的问题
+- 9ddeb02 fix: use GitHub Actions cache for debug keystore instead of git push
+- 00c6f4f fix: use gh CLI + retry for release upload to avoid 502
+
+### style (样式调整)
+- f865658 style: unify screenshot table column widths with HTML table
+- 4c1c235 style: reduce popup menu horizontal padding to 8dp for 2/3 width
+- a9198ec style: unify tool card border with AI message card and sync content bg with code block
+
+### refactor (代码重构)
+- fddbd03 refactor: 恢复会话列表长按弹窗为 AlertDialog 风格
+- 4140847 refactor: 统一会话列表和消息长按弹窗风格
+- 7f3eecc refactor: 工具卡片折叠时显示行数从3行改为2行
+- 8b6a89c refactor: 消息指纹从 Map<Long,String> 改为 Set<String>，格式为 created:role:toolcallid:content
+- 981896c refactor: use DiffUtil for incremental message updates
+- 56c6760 refactor: introduce StableKey-based message anchoring
+- aea7dd6 refactor: 将"查看日志"菜单项从聊天页移至会话列表页
+
+### docs (文档更新)
+- dfbdbf5 docs: remove width/height attributes from README screenshots
+- 62fcfe5 docs: update README screenshots to match issue #1 images
+- e871fe7 docs: reformat README following picker.nvim style
+- 8112a88 docs: 精简 README 中的 emoji 使用
+- cc885d3 docs: 禁止使用 GitHub Secret 存储 debug keystore
+- c7826c6 docs: 更新 README 添加会话搜索、滑动置顶、内容指纹等新功能
+- 1c02b20 docs: 添加版本管理与发布流程文档到 AGENTS.md
+- 4af0657 docs: 更新 README 截图为四张图（会话列表、消息界面、账号列表、账号设置）
+- 998e3a2 docs: 更新 README 添加语音输入功能文档
+- 68af857 docs: update README for v3.0 - add new features, performance optimizations, and updated project structure
+- 08ec03a docs: 从 my-blog/AGENTS.md 参考，增强自动推送要求
+
+### chore (构建/工具)
+- 3ea238a chore: 修复 prerelease APK 文件名重复 -dev 后缀
+- c0d63b5 chore: 版本更新 v2.0 -> v3.0-dev
+- e39d27c chore: 连续推送时自动取消前一次 CI 运行
+- d16471b feat: auto-generate and commit debug keystore in CI
+
+### ci (持续集成)
+- 7220dec ci: add keystore search debug step to find actual signing key
+- 7fd5b5a ci: add debug steps to diagnose keystore signature inconsistency
+- a743766 ci: release job auto-creates tag, no manual tag push needed
+- 3bf7536 ci: do not cancel tag-based release runs
+- b3bf23b ci: use cache mode for debug keystore, no more base64 secret
+- bf6b4f5 ci: robust keystore decode with validation and clear error messages
+- a14ae49 ci: use printf + tr for robust keystore decode
+- 4bed810 ci: use GitHub Secret for debug keystore instead of cache
+- da2f61d ci: download Vosk model in CI instead of committing to repo
+
 ## [v2.0.0] - 2025-04
 
 ### feat (新功能)
