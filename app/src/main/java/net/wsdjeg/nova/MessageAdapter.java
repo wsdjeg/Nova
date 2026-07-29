@@ -906,13 +906,8 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
         int padV = (int) (12 * density + 0.5f);
         textView.setPadding(padH, padV, padH, padV);
 
-        // 渲染内容（普通消息用 Markwon，错误消息用纯文本）
-        if (message.isError()) {
-            textView.setText(content);
-        } else {
-            Markwon mk = message.isUser() ? userMarkwon : markwon;
-            mk.setMarkdown(textView, MarkdownUtils.preprocessMarkdown(content));
-        }
+        // 使用纯文本显示，避免 Markwon 的代码块背景色覆盖系统选择高亮
+        textView.setText(content);
 
         // 启用文本选择（ArrowKeyMovementMethod 支持选择，覆盖 LinkMovementMethod）
         textView.setMovementMethod(ArrowKeyMovementMethod.getInstance());
