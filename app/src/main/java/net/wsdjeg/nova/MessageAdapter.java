@@ -906,10 +906,12 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
         int padV = (int) (12 * density + 0.5f);
         textView.setPadding(padH, padV, padH, padV);
 
-        // 使用纯文本显示，避免 Markwon 的代码块背景色覆盖系统选择高亮
-        textView.setText(content);
+        // 使用 Markwon 渲染 Markdown，保留格式
+        Markwon mk = (message != null && message.isUser()) ? userMarkwon : markwon;
+        mk.setMarkdown(textView, MarkdownUtils.preprocessMarkdown(content));
 
-        // 启用文本选择（ArrowKeyMovementMethod 支持选择，覆盖 LinkMovementMethod）
+        // 渲染后设置 ArrowKeyMovementMethod 以启用文本选择
+        // （必须在 setMarkdown 之后调用，否则会被 LinkMovementMethod 覆盖）
         textView.setMovementMethod(ArrowKeyMovementMethod.getInstance());
         textView.setTextIsSelectable(true);
 
