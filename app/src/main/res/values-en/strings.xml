@@ -122,6 +122,11 @@
     <string name="upload_image_short">Upload</string>
     <string name="upload_multiple_title">Upload %d images</string>
     <string name="upload_multiple_hint">Enter directory path, images keep original filenames</string>
+    <string name="upload_progress_title">Uploading Images</string>
+    <string name="upload_progress_format">Uploading (%1$d/%2$d)</string>
+    <string name="upload_batch_success">Successfully uploaded %d images</string>
+    <string name="upload_batch_partial">Upload complete: %1$d succeeded, %2$d failed</string>
+    <string name="upload_batch_all_failed">All uploads failed</string>
 
     <!-- Message actions -->
     <string name="copy">Copy</string>

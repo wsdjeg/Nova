@@ -20,10 +20,13 @@ import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.Gravity;
 import android.view.ViewTreeObserver;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageButton;
+import android.widget.LinearLayout;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -46,6 +49,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * 聊天界面 Activity
@@ -142,6 +146,15 @@ public class ChatActivity extends AppCompatActivity {
     
     // 首次加载完成标志：确保在首次加载完成前不显示"下拉加载更多"提示
     private boolean isInitialLoadComplete = false;
+
+    // 图片上传进度跟踪
+    private androidx.appcompat.app.AlertDialog uploadDialog;
+    private ProgressBar uploadProgressBar;
+    private TextView uploadProgressText;
+    private final AtomicInteger uploadCompleted = new AtomicInteger(0);
+    private final AtomicInteger uploadSuccess = new AtomicInteger(0);
+    private final AtomicInteger uploadFailed = new AtomicInteger(0);
+    private int uploadTotal = 0;
     
     private int buttonState = STATE_NORMAL;
     private boolean isInProgress = false;
@@ -1900,7 +1913,13 @@ public class ChatActivity extends AppCompatActivity {
                     Toast.makeText(this, getString(R.string.upload_path_hint), Toast.LENGTH_SHORT).show();
                     return;
                 }
-                performUpload(imageUri, relativePath, mimeType);
+                List<Uri> uris = new ArrayList<>();
+                uris.add(imageUri);
+                List<String> paths = new ArrayList<>();
+                paths.add(relativePath);
+                List<String> mimes = new ArrayList<>();
+                mimes.add(mimeType);
+                startUploadBatch(uris, paths, mimes);
             })
             .setNegativeButton(getString(R.string.cancel), null)
             .show();
@@ -1934,7 +1953,10 @@ public class ChatActivity extends AppCompatActivity {
                 if (!dir.endsWith("/")) {
                     dir = dir + "/";
                 }
-                // 逐个上传，保持原文件名
+                // 收集所有图片信息，批量上传
+                List<Uri> uris = new ArrayList<>();
+                List<String> paths = new ArrayList<>();
+                List<String> mimes = new ArrayList<>();
                 for (Uri uri : imageUris) {
                     String fileName = getFileNameFromUri(uri);
                     if (fileName == null || fileName.isEmpty()) {
@@ -1942,31 +1964,117 @@ public class ChatActivity extends AppCompatActivity {
                     }
                     String mime = getContentResolver().getType(uri);
                     String mimeType = (mime == null || mime.isEmpty()) ? "image/png" : mime;
-                    String relativePath = dir + fileName;
-                    performUpload(uri, relativePath, mimeType);
+                    uris.add(uri);
+                    paths.add(dir + fileName);
+                    mimes.add(mimeType);
                 }
+                startUploadBatch(uris, paths, mimes);
             })
             .setNegativeButton(getString(R.string.cancel), null)
             .show();
     }
     
     /**
+     * 启动批量上传：显示进度对话框，逐个上传图片
+     */
+    private void startUploadBatch(List<Uri> uris, List<String> paths, List<String> mimes) {
+        uploadTotal = uris.size();
+        uploadCompleted.set(0);
+        uploadSuccess.set(0);
+        uploadFailed.set(0);
+
+        // 显示进度对话框
+        showUploadDialog();
+
+        // 逐个启动上传
+        for (int i = 0; i < uris.size(); i++) {
+            performUpload(uris.get(i), paths.get(i), mimes.get(i));
+        }
+    }
+
+    /**
+     * 显示上传进度对话框（带进度条）
+     */
+    private void showUploadDialog() {
+        LinearLayout layout = new LinearLayout(this);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        int pad = (int) (getResources().getDisplayMetrics().density * 20);
+        layout.setPadding(pad, pad / 2, pad, pad / 2);
+
+        uploadProgressText = new TextView(this);
+        uploadProgressText.setGravity(Gravity.CENTER);
+        uploadProgressText.setText(getString(R.string.upload_progress_format, 0, uploadTotal));
+        uploadProgressText.setTextSize(14);
+
+        uploadProgressBar = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
+        uploadProgressBar.setMax(uploadTotal);
+        uploadProgressBar.setProgress(0);
+        LinearLayout.LayoutParams pbParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        pbParams.topMargin = pad / 2;
+
+        layout.addView(uploadProgressText);
+        layout.addView(uploadProgressBar, pbParams);
+
+        uploadDialog = new androidx.appcompat.app.AlertDialog.Builder(this)
+                .setTitle(R.string.upload_progress_title)
+                .setView(layout)
+                .setCancelable(false)
+                .create();
+        uploadDialog.show();
+    }
+
+    /**
+     * 单张图片上传完成回调：更新进度，全部完成时显示汇总
+     */
+    private void onSingleUploadComplete(boolean success) {
+        int completed = uploadCompleted.incrementAndGet();
+        if (success) {
+            uploadSuccess.incrementAndGet();
+        } else {
+            uploadFailed.incrementAndGet();
+        }
+
+        runOnUiThread(() -> {
+            if (uploadProgressBar != null) {
+                uploadProgressBar.setProgress(completed);
+            }
+            if (uploadProgressText != null) {
+                uploadProgressText.setText(getString(R.string.upload_progress_format, completed, uploadTotal));
+            }
+
+            if (completed >= uploadTotal) {
+                // 全部完成，关闭对话框
+                if (uploadDialog != null && uploadDialog.isShowing()) {
+                    uploadDialog.dismiss();
+                }
+                int sc = uploadSuccess.get();
+                int fc = uploadFailed.get();
+                if (fc == 0) {
+                    Toast.makeText(this, getString(R.string.upload_batch_success, sc), Toast.LENGTH_LONG).show();
+                } else if (sc > 0) {
+                    Toast.makeText(this, getString(R.string.upload_batch_partial, sc, fc), Toast.LENGTH_LONG).show();
+                } else {
+                    Toast.makeText(this, getString(R.string.upload_batch_all_failed), Toast.LENGTH_LONG).show();
+                }
+            }
+        });
+    }
+
+    /**
      * 执行实际上传操作：读取图片数据并调用 API
      */
     private void performUpload(Uri imageUri, String relativePath, String mimeType) {
-        Toast.makeText(this, getString(R.string.uploading_image), Toast.LENGTH_SHORT).show();
-        
         final String finalRelativePath = relativePath;
-        
+
         new Thread(() -> {
             try {
                 InputStream is = getContentResolver().openInputStream(imageUri);
                 if (is == null) {
-                    new Handler(Looper.getMainLooper()).post(() ->
-                        Toast.makeText(this, getString(R.string.upload_read_failed), Toast.LENGTH_SHORT).show());
+                    onSingleUploadComplete(false);
                     return;
                 }
-                
+
                 // 读取全部字节
                 java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
                 byte[] buffer = new byte[8192];
@@ -1976,30 +2084,24 @@ public class ChatActivity extends AppCompatActivity {
                 }
                 is.close();
                 byte[] fileData = baos.toByteArray();
-                
+
                 apiClient.uploadFile(currentSessionId, fileData, finalRelativePath, mimeType,
                     new ApiClient.UploadCallback() {
                         @Override
                         public void onSuccess(String path, String fullPath, long size) {
-                            double sizeKB = size / 1024.0;
-                            Toast.makeText(ChatActivity.this,
-                                getString(R.string.upload_success, path, sizeKB),
-                                Toast.LENGTH_LONG).show();
                             Log.i(TAG, "Image uploaded: " + fullPath + " (" + size + " bytes)");
+                            onSingleUploadComplete(true);
                         }
-                        
+
                         @Override
                         public void onError(String error) {
-                            Toast.makeText(ChatActivity.this,
-                                getString(R.string.upload_failed, error),
-                                Toast.LENGTH_LONG).show();
                             Log.e(TAG, "Image upload failed: " + error);
+                            onSingleUploadComplete(false);
                         }
                     });
             } catch (Exception e) {
                 Log.e(TAG, "Failed to read image from Uri", e);
-                new Handler(Looper.getMainLooper()).post(() ->
-                    Toast.makeText(this, getString(R.string.upload_read_failed), Toast.LENGTH_SHORT).show());
+                onSingleUploadComplete(false);
             }
         }).start();
     }

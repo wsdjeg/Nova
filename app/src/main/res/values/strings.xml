@@ -122,6 +122,11 @@
     <string name="upload_image_short">上传</string>
     <string name="upload_multiple_title">批量上传 %d 张图片</string>
     <string name="upload_multiple_hint">输入目录路径，图片保持原文件名</string>
+    <string name="upload_progress_title">上传图片</string>
+    <string name="upload_progress_format">上传中 (%1$d/%2$d)</string>
+    <string name="upload_batch_success">成功上传 %d 张图片</string>
+    <string name="upload_batch_partial">上传完成: 成功 %1$d 张, 失败 %2$d 张</string>
+    <string name="upload_batch_all_failed">全部上传失败</string>
 
     <!-- Message actions -->
     <string name="copy">复制</string>
