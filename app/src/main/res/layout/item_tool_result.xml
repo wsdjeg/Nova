@@ -3,7 +3,7 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:padding="8dp"
+    android:padding="6dp"
     android:gravity="start">
 
     <!-- Tool result card -->
@@ -12,7 +12,7 @@
         android:layout_height="wrap_content"
         android:orientation="vertical"
         android:background="@drawable/tool_result_bg"
-        android:padding="12dp">
+        android:padding="10dp">
 
         <!-- Tool result header -->
         <LinearLayout
@@ -74,7 +74,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:maxWidth="296dp"
-                    android:padding="8dp"
+                    android:padding="6dp"
                     android:background="@color/code_block_bg"
                     android:textColor="@color/text_secondary"
                     android:textSize="11sp"
@@ -92,8 +92,8 @@
         android:id="@+id/timeText"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="4dp"
-        android:layout_marginStart="8dp"
+        android:layout_marginTop="3dp"
+        android:layout_marginStart="6dp"
         android:textSize="12sp"
         android:textColor="@color/time_text" />
 
