@@ -17,6 +17,10 @@
                 android:title="@string/menu_refresh" />
             
             <item
+                android:id="@+id/action_upload_image"
+                android:title="@string/menu_upload_image" />
+            
+            <item
                 android:id="@+id/action_clear_session"
                 android:title="@string/menu_clear_session" />
             

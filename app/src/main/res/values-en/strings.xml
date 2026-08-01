@@ -64,6 +64,7 @@
     <string name="menu_clear_session">Clear Session</string>
     <string name="menu_delete_session">Delete Session</string>
     <string name="menu_preview">Preview</string>
+    <string name="menu_upload_image">Upload Image</string>
     <string name="menu_settings">Settings</string>
     <string name="menu_save">Save</string>
     <string name="menu_account_manager">Account Manager</string>
@@ -109,6 +110,13 @@
     <string name="delete">Delete</string>
     <string name="session_deleted">Session deleted</string>
     <string name="delete_failed">Delete failed: %s</string>
+
+    <!-- Upload image -->
+    <string name="uploading_image">Uploading image...</string>
+    <string name="upload_success">Upload success: %s (%.1f KB)</string>
+    <string name="upload_failed">Upload failed: %s</string>
+    <string name="upload_no_session">Unable to get session info</string>
+    <string name="upload_read_failed">Failed to read image</string>
 
     <!-- Message actions -->
     <string name="copy">Copy</string>

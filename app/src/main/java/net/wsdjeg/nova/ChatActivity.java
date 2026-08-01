@@ -4,6 +4,7 @@ import android.Manifest;
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.database.Cursor;
 import android.graphics.Color;
 import android.graphics.PorterDuff;
 import android.graphics.Rect;
@@ -12,6 +13,7 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.provider.OpenableColumns;
 import android.speech.RecognizerIntent;
 import android.util.Log;
 import android.view.Menu;
@@ -35,6 +37,7 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -91,6 +94,7 @@ public class ChatActivity extends AppCompatActivity {
     private static final int REQUEST_SESSION_SETTINGS = 1001;
     private static final int REQUEST_VOICE_INPUT = 1002;
     private static final int REQUEST_RECORD_AUDIO_PERMISSION = 1003;
+    private static final int REQUEST_PICK_IMAGE = 1004;
     
     // 加载更多防抖：最小触发间隔
     private static final long MIN_LOAD_INTERVAL_MS = 300;
@@ -642,6 +646,9 @@ public class ChatActivity extends AppCompatActivity {
             return true;
         } else if (id == R.id.action_refresh) {
             reloadMessages();
+            return true;
+        } else if (id == R.id.action_upload_image) {
+            pickImage();
             return true;
         } else if (id == R.id.action_clear_session) {
             clearSession();
@@ -1815,7 +1822,119 @@ public class ChatActivity extends AppCompatActivity {
                 etMessage.setSelection(etMessage.length());
                 etMessage.requestFocus();
             }
+        } else if (requestCode == REQUEST_PICK_IMAGE && resultCode == RESULT_OK && data != null) {
+            Uri imageUri = data.getData();
+            if (imageUri != null) {
+                uploadImage(imageUri);
+            }
         }
+    }
+    
+    /**
+     * 打开系统图片选择器
+     */
+    private void pickImage() {
+        Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
+        intent.setType("image/*");
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        try {
+            startActivityForResult(Intent.createChooser(intent, getString(R.string.menu_upload_image)),
+                    REQUEST_PICK_IMAGE);
+        } catch (ActivityNotFoundException e) {
+            Toast.makeText(this, "No image picker app found", Toast.LENGTH_LONG).show();
+        }
+    }
+    
+    /**
+     * 从 Uri 读取图片数据并上传到会话的工作目录
+     * 上传到 images/ 子目录，不是发送给 LLM
+     */
+    private void uploadImage(Uri imageUri) {
+        if (currentSessionId == null || currentSessionId.isEmpty()) {
+            Toast.makeText(this, getString(R.string.upload_no_session), Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        // 从 Uri 获取文件名
+        String fileName = getFileNameFromUri(imageUri);
+        if (fileName == null || fileName.isEmpty()) {
+            fileName = "image_" + System.currentTimeMillis() + ".png";
+        }
+        final String relativePath = "images/" + fileName;
+        
+        // 确定 Content-Type
+        String mime = getContentResolver().getType(imageUri);
+        final String mimeType = (mime == null || mime.isEmpty()) ? "image/png" : mime;
+        
+        Toast.makeText(this, getString(R.string.uploading_image), Toast.LENGTH_SHORT).show();
+        
+        new Thread(() -> {
+            try {
+                InputStream is = getContentResolver().openInputStream(imageUri);
+                if (is == null) {
+                    new Handler(Looper.getMainLooper()).post(() ->
+                        Toast.makeText(this, getString(R.string.upload_read_failed), Toast.LENGTH_SHORT).show());
+                    return;
+                }
+                
+                // 读取全部字节
+                java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
+                byte[] buffer = new byte[8192];
+                int bytesRead;
+                while ((bytesRead = is.read(buffer)) != -1) {
+                    baos.write(buffer, 0, bytesRead);
+                }
+                is.close();
+                byte[] fileData = baos.toByteArray();
+                
+                apiClient.uploadFile(currentSessionId, fileData, relativePath, mimeType,
+                    new ApiClient.UploadCallback() {
+                        @Override
+                        public void onSuccess(String path, String fullPath, long size) {
+                            double sizeKB = size / 1024.0;
+                            Toast.makeText(ChatActivity.this,
+                                getString(R.string.upload_success, path, sizeKB),
+                                Toast.LENGTH_LONG).show();
+                            Log.i(TAG, "Image uploaded: " + fullPath + " (" + size + " bytes)");
+                        }
+                        
+                        @Override
+                        public void onError(String error) {
+                            Toast.makeText(ChatActivity.this,
+                                getString(R.string.upload_failed, error),
+                                Toast.LENGTH_LONG).show();
+                            Log.e(TAG, "Image upload failed: " + error);
+                        }
+                    });
+            } catch (Exception e) {
+                Log.e(TAG, "Failed to read image from Uri", e);
+                new Handler(Looper.getMainLooper()).post(() ->
+                    Toast.makeText(this, getString(R.string.upload_read_failed), Toast.LENGTH_SHORT).show());
+            }
+        }).start();
+    }
+    
+    /**
+     * 从 Uri 查询文件名
+     */
+    private String getFileNameFromUri(Uri uri) {
+        String fileName = null;
+        if (uri.getScheme() != null && uri.getScheme().equals("content")) {
+            try (Cursor cursor = getContentResolver().query(uri, null, null, null, null)) {
+                if (cursor != null && cursor.moveToFirst()) {
+                    int nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME);
+                    if (nameIndex >= 0) {
+                        fileName = cursor.getString(nameIndex);
+                    }
+                }
+            } catch (Exception e) {
+                Log.w(TAG, "Failed to get filename from Uri", e);
+            }
+        }
+        if (fileName == null) {
+            fileName = uri.getLastPathSegment();
+        }
+        return fileName;
     }
     /**
      * 优先使用 Vosk 离线识别，不可用时回退到 Android 系统语音识别

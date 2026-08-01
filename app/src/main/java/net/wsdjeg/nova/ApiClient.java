@@ -8,6 +8,7 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
@@ -84,6 +85,15 @@ public class ApiClient {
      */
     public interface DeleteMessageCallback {
         void onSuccess();
+        void onError(String error);
+    }
+    
+    /**
+     * 文件上传的回调接口
+     * 用于 POST /session/:id/upload API
+     */
+    public interface UploadCallback {
+        void onSuccess(String path, String fullPath, long size);
         void onError(String error);
     }
     
@@ -973,6 +983,119 @@ public class ApiClient {
                 new Handler(Looper.getMainLooper()).post(() -> 
                     callback.onError("Network error: " + e.getMessage()));
             } finally {
+                if (conn != null) {
+                    conn.disconnect();
+                }
+            }
+        }).start();
+    }
+    
+    /**
+     * 上传文件到会话的工作目录
+     * API 端点: POST /session/:id/upload?path=relative/path
+     * 请求体: 原始二进制数据（binary-safe）
+     * 响应格式: { "path": "...", "full_path": "...", "size": 123 }
+     *
+     * @param sessionId    会话 ID
+     * @param fileData     文件二进制数据
+     * @param relativePath 相对路径（如 images/photo.png）
+     * @param contentType  Content-Type（如 image/png），可为 null
+     * @param callback     回调
+     */
+    public void uploadFile(String sessionId, byte[] fileData, String relativePath,
+                           String contentType, UploadCallback callback) {
+        String baseUrl = getBaseUrl();
+        String apiKey = getApiKey();
+        
+        if (baseUrl.isEmpty() || apiKey.isEmpty()) {
+            callback.onError("Please configure API settings");
+            return;
+        }
+        
+        if (sessionId == null || sessionId.isEmpty()) {
+            callback.onError("Session ID is required");
+            return;
+        }
+        
+        if (fileData == null || fileData.length == 0) {
+            callback.onError("File data is empty");
+            return;
+        }
+        
+        if (relativePath == null || relativePath.isEmpty()) {
+            callback.onError("Relative path is required");
+            return;
+        }
+        
+        new Thread(() -> {
+            HttpURLConnection conn = null;
+            BufferedReader br = null;
+            try {
+                String encodedPath = URLEncoder.encode(relativePath, "UTF-8");
+                URL url = new URL(baseUrl + "/session/" + sessionId + "/upload?path=" + encodedPath);
+                conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("POST");
+                conn.setRequestProperty("X-API-Key", apiKey);
+                conn.setRequestProperty("Connection", "close");
+                if (contentType != null && !contentType.isEmpty()) {
+                    conn.setRequestProperty("Content-Type", contentType);
+                } else {
+                    conn.setRequestProperty("Content-Type", "application/octet-stream");
+                }
+                conn.setDoOutput(true);
+                conn.setConnectTimeout(30000);
+                conn.setReadTimeout(60000);
+                conn.setUseCaches(false);
+                
+                try (OutputStream os = conn.getOutputStream()) {
+                    os.write(fileData, 0, fileData.length);
+                }
+                
+                int responseCode = conn.getResponseCode();
+                
+                if (responseCode == 200) {
+                    br = new BufferedReader(new InputStreamReader(conn.getInputStream(), "UTF-8"));
+                    StringBuilder response = new StringBuilder();
+                    String line;
+                    while ((line = br.readLine()) != null) {
+                        response.append(line);
+                    }
+                    
+                    JSONObject jsonResponse = new JSONObject(response.toString());
+                    String path = jsonResponse.optString("path", "");
+                    String fullPath = jsonResponse.optString("full_path", "");
+                    long size = jsonResponse.optLong("size", 0);
+                    
+                    new Handler(Looper.getMainLooper()).post(() ->
+                        callback.onSuccess(path, fullPath, size));
+                } else if (responseCode == 400) {
+                    new Handler(Looper.getMainLooper()).post(() ->
+                        callback.onError("Bad Request: Missing file path"));
+                } else if (responseCode == 403) {
+                    new Handler(Looper.getMainLooper()).post(() ->
+                        callback.onError("Forbidden: Path traversal or absolute path rejected"));
+                } else if (responseCode == 404) {
+                    new Handler(Looper.getMainLooper()).post(() ->
+                        callback.onError("Session not found"));
+                } else if (responseCode == 401) {
+                    new Handler(Looper.getMainLooper()).post(() ->
+                        callback.onError("Unauthorized: Invalid API Key"));
+                } else if (responseCode == 500) {
+                    new Handler(Looper.getMainLooper()).post(() ->
+                        callback.onError("Server error: Failed to write file"));
+                } else {
+                    final int code = responseCode;
+                    new Handler(Looper.getMainLooper()).post(() ->
+                        callback.onError("Error: " + code));
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "uploadFile failed", e);
+                new Handler(Looper.getMainLooper()).post(() ->
+                    callback.onError("Network error: " + e.getMessage()));
+            } finally {
+                if (br != null) {
+                    try { br.close(); } catch (Exception ignored) {}
+                }
                 if (conn != null) {
                     conn.disconnect();
                 }
