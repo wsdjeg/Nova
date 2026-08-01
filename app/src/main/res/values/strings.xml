@@ -113,7 +113,7 @@
 
     <!-- Upload image -->
     <string name="uploading_image">正在上传图片...</string>
-    <string name="upload_success">上传成功: %s (%.1f KB)</string>
+    <string name="upload_success">上传成功: %1$s (%2$.1f KB)</string>
     <string name="upload_failed">上传失败: %s</string>
     <string name="upload_no_session">无法获取会话信息</string>
     <string name="upload_read_failed">读取图片失败</string>

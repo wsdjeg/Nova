@@ -113,7 +113,7 @@
 
     <!-- Upload image -->
     <string name="uploading_image">Uploading image...</string>
-    <string name="upload_success">Upload success: %s (%.1f KB)</string>
+    <string name="upload_success">Upload success: %1$s (%2$.1f KB)</string>
     <string name="upload_failed">Upload failed: %s</string>
     <string name="upload_no_session">Unable to get session info</string>
     <string name="upload_read_failed">Failed to read image</string>

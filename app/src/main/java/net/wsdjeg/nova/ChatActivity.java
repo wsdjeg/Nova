@@ -1896,6 +1896,7 @@ public class ChatActivity extends AppCompatActivity {
         if (fileName == null || fileName.isEmpty()) {
             fileName = "image_" + System.currentTimeMillis() + ".png";
         }
+        final String finalFileName = fileName;
         
         // 确定 Content-Type
         String mime = getContentResolver().getType(imageUri);
@@ -1905,12 +1906,12 @@ public class ChatActivity extends AppCompatActivity {
         apiClient.getUploadDir(currentSessionId, new ApiClient.UploadDirCallback() {
             @Override
             public void onSuccess(String uploadDir) {
-                runOnUiThread(() -> showUploadImageDialog(imageUri, fileName, mimeType, uploadDir));
+                runOnUiThread(() -> showUploadImageDialog(imageUri, finalFileName, mimeType, uploadDir));
             }
             
             @Override
             public void onError(String error) {
-                runOnUiThread(() -> showUploadImageDialog(imageUri, fileName, mimeType, null));
+                runOnUiThread(() -> showUploadImageDialog(imageUri, finalFileName, mimeType, null));
             }
         });
     }
