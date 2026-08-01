@@ -120,6 +120,8 @@
     <string name="upload_path_title">Upload Path</string>
     <string name="upload_path_hint">Relative path to session working directory</string>
     <string name="upload_image_short">Upload</string>
+    <string name="upload_multiple_title">Upload %d images</string>
+    <string name="upload_multiple_hint">Enter directory path, images keep original filenames</string>
 
     <!-- Message actions -->
     <string name="copy">Copy</string>

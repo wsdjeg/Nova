@@ -1824,20 +1824,39 @@ public class ChatActivity extends AppCompatActivity {
                 etMessage.requestFocus();
             }
         } else if (requestCode == REQUEST_PICK_IMAGE && resultCode == RESULT_OK && data != null) {
-            Uri imageUri = data.getData();
-            if (imageUri != null) {
-                uploadImage(imageUri);
+            // 支持多选：ClipData 包含多个 Uri
+            android.content.ClipData clipData = data.getClipData();
+            if (clipData != null && clipData.getItemCount() > 0) {
+                java.util.List<Uri> uris = new java.util.ArrayList<>();
+                for (int i = 0; i < clipData.getItemCount(); i++) {
+                    Uri uri = clipData.getItemAt(i).getUri();
+                    if (uri != null) {
+                        uris.add(uri);
+                    }
+                }
+                if (uris.size() == 1) {
+                    uploadImage(uris.get(0));
+                } else if (uris.size() > 1) {
+                    uploadMultipleImages(uris);
+                }
+            } else {
+                // 单选
+                Uri imageUri = data.getData();
+                if (imageUri != null) {
+                    uploadImage(imageUri);
+                }
             }
         }
     }
     
     /**
-     * 打开系统图片选择器
+     * 打开系统图片选择器（支持多选）
      */
     private void pickImage() {
         Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
         intent.setType("image/*");
         intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
         try {
             startActivityForResult(Intent.createChooser(intent, getString(R.string.menu_upload_image)),
                     REQUEST_PICK_IMAGE);
@@ -1882,6 +1901,50 @@ public class ChatActivity extends AppCompatActivity {
                     return;
                 }
                 performUpload(imageUri, relativePath, mimeType);
+            })
+            .setNegativeButton(getString(R.string.cancel), null)
+            .show();
+    }
+    
+    /**
+     * 多张图片批量上传
+     * 弹出对话框让用户输入目录路径（相对于 session cwd），各图片保持原文件名
+     */
+    private void uploadMultipleImages(java.util.List<Uri> imageUris) {
+        if (currentSessionId == null || currentSessionId.isEmpty()) {
+            Toast.makeText(this, getString(R.string.upload_no_session), Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        // 弹出对话框让用户输入目录路径
+        final EditText etPath = new EditText(this);
+        etPath.setText("images/");
+        etPath.setInputType(InputType.TYPE_CLASS_TEXT);
+        etPath.setHint(getString(R.string.upload_multiple_hint));
+        
+        new androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle(getString(R.string.upload_multiple_title, imageUris.size()))
+            .setView(etPath)
+            .setPositiveButton(getString(R.string.upload_image_short), (dialog, which) -> {
+                String dir = etPath.getText().toString().trim();
+                if (dir.isEmpty()) {
+                    dir = "images/";
+                }
+                // 确保目录以 / 结尾
+                if (!dir.endsWith("/")) {
+                    dir = dir + "/";
+                }
+                // 逐个上传，保持原文件名
+                for (Uri uri : imageUris) {
+                    String fileName = getFileNameFromUri(uri);
+                    if (fileName == null || fileName.isEmpty()) {
+                        fileName = "image_" + System.currentTimeMillis() + ".png";
+                    }
+                    String mime = getContentResolver().getType(uri);
+                    String mimeType = (mime == null || mime.isEmpty()) ? "image/png" : mime;
+                    String relativePath = dir + fileName;
+                    performUpload(uri, relativePath, mimeType);
+                }
             })
             .setNegativeButton(getString(R.string.cancel), null)
             .show();
