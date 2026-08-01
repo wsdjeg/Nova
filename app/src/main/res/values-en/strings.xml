@@ -127,6 +127,11 @@
     <string name="upload_batch_success">Successfully uploaded %d images</string>
     <string name="upload_batch_partial">Upload complete: %1$d succeeded, %2$d failed</string>
     <string name="upload_batch_all_failed">All uploads failed</string>
+    <string name="upload_set_default_dir">Set as default upload path</string>
+    <string name="upload_default_dir_set">Default upload path set</string>
+    <string name="upload_default_dir_cleared">Default upload path cleared</string>
+    <string name="upload_default_dir_failed">Failed to set default upload path</string>
+    <string name="upload_current_default_dir">Current default: %s</string>
 
     <!-- Message actions -->
     <string name="copy">Copy</string>

@@ -23,6 +23,7 @@ import android.view.View;
 import android.view.Gravity;
 import android.view.ViewTreeObserver;
 import android.widget.Button;
+import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.LinearLayout;
@@ -155,6 +156,8 @@ public class ChatActivity extends AppCompatActivity {
     private final AtomicInteger uploadSuccess = new AtomicInteger(0);
     private final AtomicInteger uploadFailed = new AtomicInteger(0);
     private int uploadTotal = 0;
+    private String pendingUploadDir = null;
+    private boolean pendingClearUploadDir = false;
     
     private int buttonState = STATE_NORMAL;
     private boolean isInProgress = false;
@@ -1898,28 +1901,79 @@ public class ChatActivity extends AppCompatActivity {
         String mime = getContentResolver().getType(imageUri);
         final String mimeType = (mime == null || mime.isEmpty()) ? "image/png" : mime;
         
-        // 弹出对话框让用户编辑上传路径
+        // 获取当前默认上传目录
+        apiClient.getUploadDir(currentSessionId, new ApiClient.UploadDirCallback() {
+            @Override
+            public void onSuccess(String uploadDir) {
+                runOnUiThread(() -> showUploadImageDialog(imageUri, fileName, mimeType, uploadDir));
+            }
+            
+            @Override
+            public void onError(String error) {
+                runOnUiThread(() -> showUploadImageDialog(imageUri, fileName, mimeType, null));
+            }
+        });
+    }
+    
+    /**
+     * 显示单张图片上传对话框（带默认上传路径复选框）
+     */
+    private void showUploadImageDialog(Uri imageUri, String fileName, String mimeType, String currentUploadDir) {
         final EditText etPath = new EditText(this);
-        etPath.setText("images/" + fileName);
         etPath.setInputType(InputType.TYPE_CLASS_TEXT);
         etPath.setHint(getString(R.string.upload_path_hint));
         
+        final CheckBox cbDefault = new CheckBox(this);
+        
+        if (currentUploadDir != null && !currentUploadDir.isEmpty()) {
+            etPath.setText(fileName);
+            cbDefault.setChecked(true);
+            cbDefault.setText(getString(R.string.upload_current_default_dir, currentUploadDir));
+        } else {
+            etPath.setText("images/" + fileName);
+            cbDefault.setChecked(false);
+            cbDefault.setText(getString(R.string.upload_set_default_dir));
+        }
+        
+        int pad = (int) (getResources().getDisplayMetrics().density * 16);
+        LinearLayout layout = new LinearLayout(this);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setPadding(pad, pad, pad, pad);
+        layout.addView(etPath);
+        layout.addView(cbDefault);
+        
         new androidx.appcompat.app.AlertDialog.Builder(this)
             .setTitle(getString(R.string.upload_path_title))
-            .setView(etPath)
+            .setView(layout)
             .setPositiveButton(getString(R.string.upload_image_short), (dialog, which) -> {
                 String relativePath = etPath.getText().toString().trim();
                 if (relativePath.isEmpty()) {
                     Toast.makeText(this, getString(R.string.upload_path_hint), Toast.LENGTH_SHORT).show();
                     return;
                 }
+                
+                // 确定是否需要设置/清除默认上传目录
+                String uploadDirToSet = null;
+                boolean clearUploadDir = false;
+                
+                if (cbDefault.isChecked()) {
+                    // 从路径中提取目录部分
+                    int lastSlash = relativePath.lastIndexOf('/');
+                    if (lastSlash > 0) {
+                        uploadDirToSet = relativePath.substring(0, lastSlash);
+                    }
+                } else if (currentUploadDir != null && !currentUploadDir.isEmpty()) {
+                    // 复选框取消勾选但之前有默认目录 -> 清除
+                    clearUploadDir = true;
+                }
+                
                 List<Uri> uris = new ArrayList<>();
                 uris.add(imageUri);
                 List<String> paths = new ArrayList<>();
                 paths.add(relativePath);
                 List<String> mimes = new ArrayList<>();
                 mimes.add(mimeType);
-                startUploadBatch(uris, paths, mimes);
+                startUploadBatch(uris, paths, mimes, uploadDirToSet, clearUploadDir);
             })
             .setNegativeButton(getString(R.string.cancel), null)
             .show();
@@ -1935,15 +1989,50 @@ public class ChatActivity extends AppCompatActivity {
             return;
         }
         
-        // 弹出对话框让用户输入目录路径
+        // 获取当前默认上传目录
+        apiClient.getUploadDir(currentSessionId, new ApiClient.UploadDirCallback() {
+            @Override
+            public void onSuccess(String uploadDir) {
+                runOnUiThread(() -> showUploadMultipleDialog(imageUris, uploadDir));
+            }
+            
+            @Override
+            public void onError(String error) {
+                runOnUiThread(() -> showUploadMultipleDialog(imageUris, null));
+            }
+        });
+    }
+    
+    /**
+     * 显示多张图片上传对话框（带默认上传路径复选框）
+     */
+    private void showUploadMultipleDialog(java.util.List<Uri> imageUris, String currentUploadDir) {
         final EditText etPath = new EditText(this);
-        etPath.setText("images/");
         etPath.setInputType(InputType.TYPE_CLASS_TEXT);
         etPath.setHint(getString(R.string.upload_multiple_hint));
         
+        final CheckBox cbDefault = new CheckBox(this);
+        
+        if (currentUploadDir != null && !currentUploadDir.isEmpty()) {
+            etPath.setText(currentUploadDir + "/");
+            cbDefault.setChecked(true);
+            cbDefault.setText(getString(R.string.upload_current_default_dir, currentUploadDir));
+        } else {
+            etPath.setText("images/");
+            cbDefault.setChecked(false);
+            cbDefault.setText(getString(R.string.upload_set_default_dir));
+        }
+        
+        int pad = (int) (getResources().getDisplayMetrics().density * 16);
+        LinearLayout layout = new LinearLayout(this);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setPadding(pad, pad, pad, pad);
+        layout.addView(etPath);
+        layout.addView(cbDefault);
+        
         new androidx.appcompat.app.AlertDialog.Builder(this)
             .setTitle(getString(R.string.upload_multiple_title, imageUris.size()))
-            .setView(etPath)
+            .setView(layout)
             .setPositiveButton(getString(R.string.upload_image_short), (dialog, which) -> {
                 String dir = etPath.getText().toString().trim();
                 if (dir.isEmpty()) {
@@ -1953,6 +2042,22 @@ public class ChatActivity extends AppCompatActivity {
                 if (!dir.endsWith("/")) {
                     dir = dir + "/";
                 }
+                
+                // 确定是否需要设置/清除默认上传目录
+                String uploadDirToSet = null;
+                boolean clearUploadDir = false;
+                
+                if (cbDefault.isChecked()) {
+                    // 去掉末尾的 / 作为上传目录
+                    String dirName = dir.endsWith("/") ? dir.substring(0, dir.length() - 1) : dir;
+                    if (!dirName.isEmpty()) {
+                        uploadDirToSet = dirName;
+                    }
+                } else if (currentUploadDir != null && !currentUploadDir.isEmpty()) {
+                    // 复选框取消勾选但之前有默认目录 -> 清除
+                    clearUploadDir = true;
+                }
+                
                 // 收集所有图片信息，批量上传
                 List<Uri> uris = new ArrayList<>();
                 List<String> paths = new ArrayList<>();
@@ -1968,7 +2073,7 @@ public class ChatActivity extends AppCompatActivity {
                     paths.add(dir + fileName);
                     mimes.add(mimeType);
                 }
-                startUploadBatch(uris, paths, mimes);
+                startUploadBatch(uris, paths, mimes, uploadDirToSet, clearUploadDir);
             })
             .setNegativeButton(getString(R.string.cancel), null)
             .show();
@@ -1976,12 +2081,17 @@ public class ChatActivity extends AppCompatActivity {
     
     /**
      * 启动批量上传：显示进度对话框，逐个上传图片
+     * @param uploadDirToSet 上传完成后要设置的默认上传目录（null 表示不设置）
+     * @param clearUploadDir 是否清除已有的默认上传目录
      */
-    private void startUploadBatch(List<Uri> uris, List<String> paths, List<String> mimes) {
+    private void startUploadBatch(List<Uri> uris, List<String> paths, List<String> mimes,
+                                  String uploadDirToSet, boolean clearUploadDir) {
         uploadTotal = uris.size();
         uploadCompleted.set(0);
         uploadSuccess.set(0);
         uploadFailed.set(0);
+        pendingUploadDir = uploadDirToSet;
+        pendingClearUploadDir = clearUploadDir;
 
         // 显示进度对话框
         showUploadDialog();
@@ -2056,6 +2166,39 @@ public class ChatActivity extends AppCompatActivity {
                     Toast.makeText(this, getString(R.string.upload_batch_partial, sc, fc), Toast.LENGTH_LONG).show();
                 } else {
                     Toast.makeText(this, getString(R.string.upload_batch_all_failed), Toast.LENGTH_LONG).show();
+                }
+
+                // 上传完成后设置/清除默认上传目录
+                if (pendingUploadDir != null && !pendingUploadDir.isEmpty() && sc > 0) {
+                    final String dirToSet = pendingUploadDir;
+                    pendingUploadDir = null;
+                    apiClient.setUploadDir(currentSessionId, dirToSet, new ApiClient.UpdateSessionCallback() {
+                        @Override
+                        public void onSuccess() {
+                            runOnUiThread(() -> Toast.makeText(ChatActivity.this,
+                                getString(R.string.upload_default_dir_set), Toast.LENGTH_SHORT).show());
+                        }
+                        @Override
+                        public void onError(String error) {
+                            Log.e(TAG, "setUploadDir failed: " + error);
+                            runOnUiThread(() -> Toast.makeText(ChatActivity.this,
+                                getString(R.string.upload_default_dir_failed) + ": " + error,
+                                Toast.LENGTH_SHORT).show());
+                        }
+                    });
+                } else if (pendingClearUploadDir) {
+                    pendingClearUploadDir = false;
+                    apiClient.setUploadDir(currentSessionId, null, new ApiClient.UpdateSessionCallback() {
+                        @Override
+                        public void onSuccess() {
+                            runOnUiThread(() -> Toast.makeText(ChatActivity.this,
+                                getString(R.string.upload_default_dir_cleared), Toast.LENGTH_SHORT).show());
+                        }
+                        @Override
+                        public void onError(String error) {
+                            Log.e(TAG, "clearUploadDir failed: " + error);
+                        }
+                    });
                 }
             }
         });

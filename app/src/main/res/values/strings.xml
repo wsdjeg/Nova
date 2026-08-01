@@ -127,6 +127,11 @@
     <string name="upload_batch_success">成功上传 %d 张图片</string>
     <string name="upload_batch_partial">上传完成: 成功 %1$d 张, 失败 %2$d 张</string>
     <string name="upload_batch_all_failed">全部上传失败</string>
+    <string name="upload_set_default_dir">设为默认上传路径</string>
+    <string name="upload_default_dir_set">默认上传路径已设置</string>
+    <string name="upload_default_dir_cleared">默认上传路径已清除</string>
+    <string name="upload_default_dir_failed">设置默认上传路径失败</string>
+    <string name="upload_current_default_dir">当前默认: %s</string>
 
     <!-- Message actions -->
     <string name="copy">复制</string>
