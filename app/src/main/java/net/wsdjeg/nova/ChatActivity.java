@@ -15,6 +15,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.provider.OpenableColumns;
 import android.speech.RecognizerIntent;
+import android.text.InputType;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -1847,7 +1848,7 @@ public class ChatActivity extends AppCompatActivity {
     
     /**
      * 从 Uri 读取图片数据并上传到会话的工作目录
-     * 上传到 images/ 子目录，不是发送给 LLM
+     * 弹出对话框让用户编辑保存路径（相对于 session cwd），不是发送给 LLM
      */
     private void uploadImage(Uri imageUri) {
         if (currentSessionId == null || currentSessionId.isEmpty()) {
@@ -1860,13 +1861,39 @@ public class ChatActivity extends AppCompatActivity {
         if (fileName == null || fileName.isEmpty()) {
             fileName = "image_" + System.currentTimeMillis() + ".png";
         }
-        final String relativePath = "images/" + fileName;
         
         // 确定 Content-Type
         String mime = getContentResolver().getType(imageUri);
         final String mimeType = (mime == null || mime.isEmpty()) ? "image/png" : mime;
         
+        // 弹出对话框让用户编辑上传路径
+        final EditText etPath = new EditText(this);
+        etPath.setText("images/" + fileName);
+        etPath.setInputType(InputType.TYPE_CLASS_TEXT);
+        etPath.setHint(getString(R.string.upload_path_hint));
+        
+        new androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle(getString(R.string.upload_path_title))
+            .setView(etPath)
+            .setPositiveButton(getString(R.string.upload_image_short), (dialog, which) -> {
+                String relativePath = etPath.getText().toString().trim();
+                if (relativePath.isEmpty()) {
+                    Toast.makeText(this, getString(R.string.upload_path_hint), Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                performUpload(imageUri, relativePath, mimeType);
+            })
+            .setNegativeButton(getString(R.string.cancel), null)
+            .show();
+    }
+    
+    /**
+     * 执行实际上传操作：读取图片数据并调用 API
+     */
+    private void performUpload(Uri imageUri, String relativePath, String mimeType) {
         Toast.makeText(this, getString(R.string.uploading_image), Toast.LENGTH_SHORT).show();
+        
+        final String finalRelativePath = relativePath;
         
         new Thread(() -> {
             try {
@@ -1887,7 +1914,7 @@ public class ChatActivity extends AppCompatActivity {
                 is.close();
                 byte[] fileData = baos.toByteArray();
                 
-                apiClient.uploadFile(currentSessionId, fileData, relativePath, mimeType,
+                apiClient.uploadFile(currentSessionId, fileData, finalRelativePath, mimeType,
                     new ApiClient.UploadCallback() {
                         @Override
                         public void onSuccess(String path, String fullPath, long size) {
