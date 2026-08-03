@@ -15,7 +15,6 @@ import android.os.Handler;
 import android.os.Looper;
 import android.provider.OpenableColumns;
 import android.speech.RecognizerIntent;
-import android.text.InputType;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -23,7 +22,6 @@ import android.view.View;
 import android.view.Gravity;
 import android.view.ViewTreeObserver;
 import android.widget.Button;
-import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.LinearLayout;
@@ -1881,7 +1879,7 @@ public class ChatActivity extends AppCompatActivity {
     
     /**
      * 从 Uri 读取图片数据并上传到会话的工作目录
-     * 弹出对话框让用户编辑保存路径（相对于 session cwd），不是发送给 LLM
+     * 直接使用会话设置中配置的上传路径，不弹窗
      */
     private void uploadImage(Uri imageUri) {
         if (currentSessionId == null || currentSessionId.isEmpty()) {
@@ -1894,84 +1892,34 @@ public class ChatActivity extends AppCompatActivity {
         if (fileName == null || fileName.isEmpty()) {
             fileName = "image_" + System.currentTimeMillis() + ".png";
         }
-        final String finalFileName = fileName;
         
         // 确定 Content-Type
         String mime = getContentResolver().getType(imageUri);
-        final String mimeType = (mime == null || mime.isEmpty()) ? "image/png" : mime;
+        String mimeType = (mime == null || mime.isEmpty()) ? "image/png" : mime;
         
-        // 从本地获取默认上传路径
-        String defaultPath = settingsManager.getDefaultUploadPath(currentSessionId);
-        showUploadImageDialog(imageUri, finalFileName, mimeType, defaultPath);
-    }
-    
-    /**
-     * 显示单张图片上传对话框（带默认上传路径复选框）
-     * @param defaultPath 本地存储的默认上传路径（如 "images/"），空字符串表示未设置
-     */
-    private void showUploadImageDialog(Uri imageUri, String fileName, String mimeType, String defaultPath) {
-        final EditText etPath = new EditText(this);
-        etPath.setInputType(InputType.TYPE_CLASS_TEXT);
-        etPath.setHint(getString(R.string.upload_path_hint));
-        
-        final CheckBox cbDefault = new CheckBox(this);
-        
-        if (defaultPath != null && !defaultPath.isEmpty()) {
-            // 有默认路径：显示 默认路径/文件名
-            etPath.setText(defaultPath + fileName);
-            cbDefault.setChecked(true);
-            cbDefault.setText(getString(R.string.upload_current_default_dir, defaultPath));
-        } else {
-            etPath.setText("images/" + fileName);
-            cbDefault.setChecked(false);
-            cbDefault.setText(getString(R.string.upload_set_default_dir));
+        // 从本地获取上传路径，未设置则使用默认 images/
+        String uploadDir = settingsManager.getDefaultUploadPath(currentSessionId);
+        if (uploadDir == null || uploadDir.isEmpty()) {
+            uploadDir = "images/";
+        }
+        if (!uploadDir.endsWith("/")) {
+            uploadDir = uploadDir + "/";
         }
         
-        int pad = (int) (getResources().getDisplayMetrics().density * 16);
-        LinearLayout layout = new LinearLayout(this);
-        layout.setOrientation(LinearLayout.VERTICAL);
-        layout.setPadding(pad, pad, pad, pad);
-        layout.addView(etPath);
-        layout.addView(cbDefault);
+        String relativePath = uploadDir + fileName;
         
-        new androidx.appcompat.app.AlertDialog.Builder(this)
-            .setTitle(getString(R.string.upload_path_title))
-            .setView(layout)
-            .setPositiveButton(getString(R.string.upload_image_short), (dialog, which) -> {
-                String relativePath = etPath.getText().toString().trim();
-                if (relativePath.isEmpty()) {
-                    Toast.makeText(this, getString(R.string.upload_path_hint), Toast.LENGTH_SHORT).show();
-                    return;
-                }
-                
-                // 立即设置/清除默认上传路径（本地存储）
-                if (cbDefault.isChecked()) {
-                    int lastSlash = relativePath.lastIndexOf('/');
-                    if (lastSlash > 0) {
-                        String dir = relativePath.substring(0, lastSlash);
-                        settingsManager.setDefaultUploadPath(currentSessionId, dir);
-                        Toast.makeText(this, getString(R.string.upload_default_dir_set), Toast.LENGTH_SHORT).show();
-                    }
-                } else if (defaultPath != null && !defaultPath.isEmpty()) {
-                    settingsManager.clearDefaultUploadPath(currentSessionId);
-                    Toast.makeText(this, getString(R.string.upload_default_dir_cleared), Toast.LENGTH_SHORT).show();
-                }
-                
-                List<Uri> uris = new ArrayList<>();
-                uris.add(imageUri);
-                List<String> paths = new ArrayList<>();
-                paths.add(relativePath);
-                List<String> mimes = new ArrayList<>();
-                mimes.add(mimeType);
-                startUploadBatch(uris, paths, mimes);
-            })
-            .setNegativeButton(getString(R.string.cancel), null)
-            .show();
+        List<Uri> uris = new ArrayList<>();
+        uris.add(imageUri);
+        List<String> paths = new ArrayList<>();
+        paths.add(relativePath);
+        List<String> mimes = new ArrayList<>();
+        mimes.add(mimeType);
+        startUploadBatch(uris, paths, mimes);
     }
     
     /**
      * 多张图片批量上传
-     * 弹出对话框让用户输入目录路径（相对于 session cwd），各图片保持原文件名
+     * 直接使用会话设置中配置的上传路径，不弹窗
      */
     private void uploadMultipleImages(java.util.List<Uri> imageUris) {
         if (currentSessionId == null || currentSessionId.isEmpty()) {
@@ -1979,83 +1927,31 @@ public class ChatActivity extends AppCompatActivity {
             return;
         }
         
-        // 从本地获取默认上传路径
-        String defaultPath = settingsManager.getDefaultUploadPath(currentSessionId);
-        showUploadMultipleDialog(imageUris, defaultPath);
-    }
-    
-    /**
-     * 显示多张图片上传对话框（带默认上传路径复选框）
-     * @param defaultPath 本地存储的默认上传路径（如 "images/"），空字符串表示未设置
-     */
-    private void showUploadMultipleDialog(java.util.List<Uri> imageUris, String defaultPath) {
-        final EditText etPath = new EditText(this);
-        etPath.setInputType(InputType.TYPE_CLASS_TEXT);
-        etPath.setHint(getString(R.string.upload_multiple_hint));
-        
-        final CheckBox cbDefault = new CheckBox(this);
-        
-        if (defaultPath != null && !defaultPath.isEmpty()) {
-            etPath.setText(defaultPath);
-            cbDefault.setChecked(true);
-            cbDefault.setText(getString(R.string.upload_current_default_dir, defaultPath));
-        } else {
-            etPath.setText("images/");
-            cbDefault.setChecked(false);
-            cbDefault.setText(getString(R.string.upload_set_default_dir));
+        // 从本地获取上传路径，未设置则使用默认 images/
+        String uploadDir = settingsManager.getDefaultUploadPath(currentSessionId);
+        if (uploadDir == null || uploadDir.isEmpty()) {
+            uploadDir = "images/";
+        }
+        if (!uploadDir.endsWith("/")) {
+            uploadDir = uploadDir + "/";
         }
         
-        int pad = (int) (getResources().getDisplayMetrics().density * 16);
-        LinearLayout layout = new LinearLayout(this);
-        layout.setOrientation(LinearLayout.VERTICAL);
-        layout.setPadding(pad, pad, pad, pad);
-        layout.addView(etPath);
-        layout.addView(cbDefault);
-        
-        new androidx.appcompat.app.AlertDialog.Builder(this)
-            .setTitle(getString(R.string.upload_multiple_title, imageUris.size()))
-            .setView(layout)
-            .setPositiveButton(getString(R.string.upload_image_short), (dialog, which) -> {
-                String dir = etPath.getText().toString().trim();
-                if (dir.isEmpty()) {
-                    dir = "images/";
-                }
-                // 确保目录以 / 结尾
-                if (!dir.endsWith("/")) {
-                    dir = dir + "/";
-                }
-                
-                // 立即设置/清除默认上传路径（本地存储）
-                if (cbDefault.isChecked()) {
-                    String dirName = dir.endsWith("/") ? dir.substring(0, dir.length() - 1) : dir;
-                    if (!dirName.isEmpty()) {
-                        settingsManager.setDefaultUploadPath(currentSessionId, dirName);
-                        Toast.makeText(this, getString(R.string.upload_default_dir_set), Toast.LENGTH_SHORT).show();
-                    }
-                } else if (defaultPath != null && !defaultPath.isEmpty()) {
-                    settingsManager.clearDefaultUploadPath(currentSessionId);
-                    Toast.makeText(this, getString(R.string.upload_default_dir_cleared), Toast.LENGTH_SHORT).show();
-                }
-                
-                // 收集所有图片信息，批量上传
-                List<Uri> uris = new ArrayList<>();
-                List<String> paths = new ArrayList<>();
-                List<String> mimes = new ArrayList<>();
-                for (Uri uri : imageUris) {
-                    String fileName = getFileNameFromUri(uri);
-                    if (fileName == null || fileName.isEmpty()) {
-                        fileName = "image_" + System.currentTimeMillis() + ".png";
-                    }
-                    String mime = getContentResolver().getType(uri);
-                    String mimeType = (mime == null || mime.isEmpty()) ? "image/png" : mime;
-                    uris.add(uri);
-                    paths.add(dir + fileName);
-                    mimes.add(mimeType);
-                }
-                startUploadBatch(uris, paths, mimes);
-            })
-            .setNegativeButton(getString(R.string.cancel), null)
-            .show();
+        // 收集所有图片信息，批量上传
+        List<Uri> uris = new ArrayList<>();
+        List<String> paths = new ArrayList<>();
+        List<String> mimes = new ArrayList<>();
+        for (Uri uri : imageUris) {
+            String fileName = getFileNameFromUri(uri);
+            if (fileName == null || fileName.isEmpty()) {
+                fileName = "image_" + System.currentTimeMillis() + ".png";
+            }
+            String mime = getContentResolver().getType(uri);
+            String mimeType = (mime == null || mime.isEmpty()) ? "image/png" : mime;
+            uris.add(uri);
+            paths.add(uploadDir + fileName);
+            mimes.add(mimeType);
+        }
+        startUploadBatch(uris, paths, mimes);
     }
     
     /**

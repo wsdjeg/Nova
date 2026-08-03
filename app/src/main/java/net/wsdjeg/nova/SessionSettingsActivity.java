@@ -22,7 +22,7 @@ import java.util.Map;
 
 /**
  * 会话设置页面
- * 显示当前会话的 title、provider、model 和 cwd，并允许从服务器获取可用的 provider/model 列表
+ * 显示当前会话的 title、provider、model、cwd 和上传路径，并允许从服务器获取可用的 provider/model 列表
  * 支持修改会话配置并调用 API 更新
  */
 public class SessionSettingsActivity extends AppCompatActivity {
@@ -41,11 +41,13 @@ public class SessionSettingsActivity extends AppCompatActivity {
     public static final String RESULT_MODEL = "result_model";
     public static final String RESULT_CWD = "result_cwd";
     public static final String RESULT_TITLE = "result_title";
+    public static final String RESULT_UPLOAD_PATH = "result_upload_path";
     
     private Toolbar toolbar;
     private TextView tvSessionId;
     private EditText etTitle;
     private EditText etCwd;
+    private EditText etUploadPath;
     private Spinner spinnerProvider;
     private Spinner spinnerModel;
     private ProgressBar progressBar;
@@ -59,6 +61,7 @@ public class SessionSettingsActivity extends AppCompatActivity {
     private String title;
     private String originalCwd;  // 保存原始 cwd 用于比较
     private String originalTitle;  // 保存原始 title 用于比较
+    private String originalUploadPath;  // 保存原始上传路径用于比较
     
     private ApiClient apiClient;
     private SettingsManager settingsManager;
@@ -116,6 +119,7 @@ public class SessionSettingsActivity extends AppCompatActivity {
         tvSessionId = findViewById(R.id.tv_session_id);
         etTitle = findViewById(R.id.et_title);
         etCwd = findViewById(R.id.et_cwd);
+        etUploadPath = findViewById(R.id.et_upload_path);
         spinnerProvider = findViewById(R.id.spinner_provider);
         spinnerModel = findViewById(R.id.spinner_model);
         progressBar = findViewById(R.id.progress_bar);
@@ -187,6 +191,11 @@ public class SessionSettingsActivity extends AppCompatActivity {
         etTitle.setText(title != null ? title : "");
         originalCwd = cwd;
         originalTitle = title;
+        
+        // 加载本地保存的上传路径
+        String uploadPath = settingsManager.getDefaultUploadPath(sessionId);
+        etUploadPath.setText(uploadPath != null ? uploadPath : "");
+        originalUploadPath = uploadPath != null ? uploadPath : "";
         
         // 获取账号信息并创建 ApiClient
         Account account = null;
@@ -457,14 +466,34 @@ public class SessionSettingsActivity extends AppCompatActivity {
         String newModel = currentModels.get(selectedModelIndex);
         String newCwd = etCwd.getText().toString().trim();
         String newTitle = etTitle.getText().toString().trim();
+        String newUploadPath = etUploadPath.getText().toString().trim();
         
         // 检查是否有变化
         boolean providerChanged = !newProvider.equals(currentProvider);
         boolean modelChanged = !newModel.equals(currentModel);
         boolean cwdChanged = !newCwd.equals(originalCwd != null ? originalCwd : "");
         boolean titleChanged = !newTitle.equals(originalTitle != null ? originalTitle : "");
+        boolean uploadPathChanged = !newUploadPath.equals(originalUploadPath != null ? originalUploadPath : "");
+        
+        // 上传路径是本地存储，立即保存
+        if (uploadPathChanged) {
+            if (newUploadPath.isEmpty()) {
+                settingsManager.clearDefaultUploadPath(sessionId);
+            } else {
+                settingsManager.setDefaultUploadPath(sessionId, newUploadPath);
+            }
+        }
         
         if (!providerChanged && !modelChanged && !cwdChanged && !titleChanged) {
+            if (uploadPathChanged) {
+                // 只有上传路径变化，无需调用服务器 API
+                Toast.makeText(this, getString(R.string.settings_saved), Toast.LENGTH_SHORT).show();
+                Intent result = new Intent();
+                result.putExtra(RESULT_UPLOAD_PATH, newUploadPath);
+                setResult(RESULT_OK, result);
+                finish();
+                return;
+            }
             Toast.makeText(this, getString(R.string.config_unchanged), Toast.LENGTH_SHORT).show();
             return;
         }
@@ -484,7 +513,7 @@ public class SessionSettingsActivity extends AppCompatActivity {
         
         if (apiCallsNeeded == 0) {
             // 没有需要调用的 API，直接保存到本地
-            finishSave(newProvider, newModel, newCwd, newTitle);
+            finishSave(newProvider, newModel, newCwd, newTitle, newUploadPath);
             return;
         }
         
@@ -498,7 +527,7 @@ public class SessionSettingsActivity extends AppCompatActivity {
                     runOnUiThread(() -> {
                         pendingCalls[0]--;
                         if (pendingCalls[0] == 0 && !hasError[0]) {
-                            finishSave(newProvider, newModel, newCwd, newTitle);
+                            finishSave(newProvider, newModel, newCwd, newTitle, newUploadPath);
                         }
                     });
                 }
@@ -510,7 +539,7 @@ public class SessionSettingsActivity extends AppCompatActivity {
                         // 如果 API 不支持，允许继续（后续会保存到本地）
                         if (error.contains("PATCH") || error.contains("not supported") || error.contains("404")) {
                             if (pendingCalls[0] == 0) {
-                                finishSave(newProvider, newModel, newCwd, newTitle);
+                                finishSave(newProvider, newModel, newCwd, newTitle, newUploadPath);
                             }
                         } else {
                             hasError[0] = true;
@@ -532,7 +561,7 @@ public class SessionSettingsActivity extends AppCompatActivity {
                     runOnUiThread(() -> {
                         pendingCalls[0]--;
                         if (pendingCalls[0] == 0 && !hasError[0]) {
-                            finishSave(newProvider, newModel, newCwd, newTitle);
+                            finishSave(newProvider, newModel, newCwd, newTitle, newUploadPath);
                         }
                     });
                 }
@@ -544,7 +573,7 @@ public class SessionSettingsActivity extends AppCompatActivity {
                         // 如果 API 不支持，允许继续（后续会保存到本地）
                         if (error.contains("404") || error.contains("not supported")) {
                             if (pendingCalls[0] == 0) {
-                                finishSave(newProvider, newModel, newCwd, newTitle);
+                                finishSave(newProvider, newModel, newCwd, newTitle, newUploadPath);
                             }
                         } else {
                             hasError[0] = true;
@@ -566,7 +595,7 @@ public class SessionSettingsActivity extends AppCompatActivity {
                     runOnUiThread(() -> {
                         pendingCalls[0]--;
                         if (pendingCalls[0] == 0 && !hasError[0]) {
-                            finishSave(newProvider, newModel, newCwd, newTitle);
+                            finishSave(newProvider, newModel, newCwd, newTitle, newUploadPath);
                         }
                     });
                 }
@@ -578,7 +607,7 @@ public class SessionSettingsActivity extends AppCompatActivity {
                         // 如果 API 不支持，允许继续（后续会保存到本地）
                         if (error.contains("404") || error.contains("not supported")) {
                             if (pendingCalls[0] == 0) {
-                                finishSave(newProvider, newModel, newCwd, newTitle);
+                                finishSave(newProvider, newModel, newCwd, newTitle, newUploadPath);
                             }
                         } else {
                             hasError[0] = true;
@@ -596,7 +625,7 @@ public class SessionSettingsActivity extends AppCompatActivity {
     /**
      * 完成保存操作
      */
-    private void finishSave(String newProvider, String newModel, String newCwd, String newTitle) {
+    private void finishSave(String newProvider, String newModel, String newCwd, String newTitle, String newUploadPath) {
         progressBar.setVisibility(View.GONE);
         tvStatus.setText("");
         
@@ -616,9 +645,11 @@ public class SessionSettingsActivity extends AppCompatActivity {
         result.putExtra(RESULT_MODEL, newModel);
         result.putExtra(RESULT_CWD, newCwd);
         result.putExtra(RESULT_TITLE, newTitle);
+        result.putExtra(RESULT_UPLOAD_PATH, newUploadPath);
         setResult(RESULT_OK, result);
         
         Toast.makeText(SessionSettingsActivity.this, getString(R.string.settings_saved), Toast.LENGTH_SHORT).show();
         finish();
     }
 }
+

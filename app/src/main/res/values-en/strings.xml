@@ -117,6 +117,8 @@
     <string name="upload_failed">Upload failed: %s</string>
     <string name="upload_no_session">Unable to get session info</string>
     <string name="upload_read_failed">Failed to read image</string>
+    <string name="session_upload_path">Upload Path</string>
+    <string name="session_upload_path_hint">Default directory for image uploads (e.g. images/)</string>
     <string name="upload_path_title">Upload Path</string>
     <string name="upload_path_hint">Relative path to session working directory</string>
     <string name="upload_image_short">Upload</string>

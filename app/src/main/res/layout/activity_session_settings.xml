@@ -95,6 +95,29 @@
                 android:layout_marginBottom="16dp"
                 android:importantForAutofill="no" />
             
+            <!-- Upload path edit -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/session_upload_path"
+                android:textSize="14sp"
+                android:textColor="?android:attr/textColorSecondary"
+                android:layout_marginBottom="4dp" />
+            
+            <EditText
+                android:id="@+id/et_upload_path"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:hint="@string/session_upload_path_hint"
+                android:textSize="14sp"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:background="@android:drawable/edit_text"
+                android:inputType="text"
+                android:layout_marginBottom="16dp"
+                android:importantForAutofill="no"
+                android:maxLines="1" />
+            
             <!-- Divider -->
             <View
                 android:layout_width="match_parent"
