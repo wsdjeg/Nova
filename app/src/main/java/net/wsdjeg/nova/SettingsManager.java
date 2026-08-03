@@ -17,7 +17,6 @@ public class SettingsManager {
     private static final String KEY_ACCOUNT_TAG_COLOR_INDEX = "account_tag_color_index";
     private static final String KEY_DEFAULT_PROVIDER = "default_provider";
     private static final String KEY_DEFAULT_MODEL = "default_model";
-    private static final String KEY_UPLOAD_PATH_PREFIX = "upload_path_";
     
     // 主题模式常量
     public static final int THEME_SYSTEM = 0;
@@ -98,41 +97,6 @@ public class SettingsManager {
      */
     public String getDefaultModel() {
         return prefs.getString(KEY_DEFAULT_MODEL, "");
-    }
-    
-    /**
-     * 设置会话的默认上传路径（相对路径，如 "images/"）
-     * @param sessionId 会话ID
-     * @param path 默认上传路径（相对路径），null 或空字符串表示清除
-     */
-    public void setDefaultUploadPath(String sessionId, String path) {
-        String key = KEY_UPLOAD_PATH_PREFIX + sessionId;
-        if (path == null || path.isEmpty()) {
-            prefs.edit().remove(key).apply();
-        } else {
-            // 确保以 / 结尾
-            if (!path.endsWith("/")) {
-                path = path + "/";
-            }
-            prefs.edit().putString(key, path).apply();
-        }
-    }
-    
-    /**
-     * 获取会话的默认上传路径
-     * @param sessionId 会话ID
-     * @return 默认上传路径（如 "images/"），未设置返回空字符串
-     */
-    public String getDefaultUploadPath(String sessionId) {
-        return prefs.getString(KEY_UPLOAD_PATH_PREFIX + sessionId, "");
-    }
-    
-    /**
-     * 清除会话的默认上传路径
-     * @param sessionId 会话ID
-     */
-    public void clearDefaultUploadPath(String sessionId) {
-        prefs.edit().remove(KEY_UPLOAD_PATH_PREFIX + sessionId).apply();
     }
     
     /**
@@ -303,3 +267,4 @@ public class SettingsManager {
         return session != null && !session.isEmpty();
     }
 }
+
