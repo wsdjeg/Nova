@@ -8,4 +8,14 @@
     </style>
 
     <style name="Theme.MyAndroidApp" parent="Base.Theme.MyAndroidApp" />
+
+    <!-- 透明主题：用于 ShareActivity（仅显示 Dialog） -->
+    <style name="Theme.MyAndroidApp.Translucent" parent="Theme.Material3.DayNight.Dialog">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowIsFloating">true</item>
+        <item name="android:backgroundDimEnabled">false</item>
+    </style>
 </resources>

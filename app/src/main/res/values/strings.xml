@@ -317,5 +317,15 @@
 
     <!-- Time -->
     <string name="yesterday">昨天</string>
+
+    <!-- Share -->
+    <string name="share_title">分享到 Nova</string>
+    <string name="share_select_session">选择会话</string>
+    <string name="share_files_to_upload">待上传文件 (%d)</string>
+    <string name="share_upload">上传</string>
+    <string name="share_uploading">正在上传</string>
+    <string name="share_empty_text">分享内容为空</string>
+    <string name="share_no_files">没有可分享的文件</string>
+    <string name="share_no_sessions">暂无可用会话</string>
 </resources>
 

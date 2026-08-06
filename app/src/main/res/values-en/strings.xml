@@ -317,5 +317,15 @@
 
     <!-- Time -->
     <string name="yesterday">Yesterday</string>
+
+    <!-- Share -->
+    <string name="share_title">Share to Nova</string>
+    <string name="share_select_session">Select Session</string>
+    <string name="share_files_to_upload">Files to upload (%d)</string>
+    <string name="share_upload">Upload</string>
+    <string name="share_uploading">Uploading</string>
+    <string name="share_empty_text">Shared content is empty</string>
+    <string name="share_no_files">No files to share</string>
+    <string name="share_no_sessions">No sessions available</string>
 </resources>
 
