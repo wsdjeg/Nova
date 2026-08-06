@@ -72,7 +72,7 @@ public class ShareActivity extends AppCompatActivity {
 
         sessionManager = new SessionManager(this);
         settingsManager = new SettingsManager(this);
-        apiClient = new ApiClient(this);
+        apiClient = new ApiClient(settingsManager);
 
         // 解析 Intent
         Intent intent = getIntent();
