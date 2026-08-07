@@ -1,9 +1,6 @@
 package net.wsdjeg.nova;
 
-import android.Manifest;
-import android.content.ActivityNotFoundException;
 import android.content.Intent;
-import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.graphics.PorterDuff;
 import android.graphics.Rect;
@@ -26,7 +23,6 @@ import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
-import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
@@ -39,7 +35,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
@@ -177,11 +172,8 @@ public class ChatActivity extends AppCompatActivity {
     private long lastKeyboardScrollTime = 0;
     private int accumulatedHeightDelta = 0;
 
-    // Vosk 离线语音识别
-    private VoskSpeechRecognizer voskRecognizer;
-    private boolean isVoskListening = false;
-    private String voskBaseText = "";
-    private android.animation.ObjectAnimator pulseAnimator;
+    // 语音识别辅助
+    private ChatVoiceHelper voiceHelper;
 
     
     @Override
@@ -316,11 +308,11 @@ public class ChatActivity extends AppCompatActivity {
             if (buttonState == STATE_SENDING) {
                 stopSession();
             } else if (buttonState == STATE_LISTENING) {
-                stopVoskListening();
+                voiceHelper.stopListening();
             } else {
                 String content = etMessage.getText().toString().trim();
                 if (content.isEmpty()) {
-                    startVoiceInput();
+                    voiceHelper.startVoiceInput(REQUEST_VOICE_INPUT, REQUEST_RECORD_AUDIO_PERMISSION);
                 } else {
                     sendMessage();
                 }
@@ -343,8 +335,20 @@ public class ChatActivity extends AppCompatActivity {
         tvSessionTitle.setText(currentSessionTitle != null ? currentSessionTitle : currentSessionId);
         updateSessionInfo(intentProvider, intentModel, intentCwd);
         
-        // 初始化 Vosk 离线语音识别
-        initVoskRecognizer();
+        // 初始化语音识别辅助
+        voiceHelper = new ChatVoiceHelper(this, new ChatVoiceHelper.VoiceCallback() {
+            @Override
+            public EditText getEditText() { return etMessage; }
+            @Override
+            public ImageButton getSendButton() { return btnSend; }
+            @Override
+            public boolean isInProgress() { return isInProgress; }
+            @Override
+            public void onButtonStateChanged(int state) { buttonState = state; }
+            @Override
+            public void onUpdateButtonAppearance() { updateButtonAppearance(); }
+        });
+        voiceHelper.init();
         
         messages.add(new Message(getString(R.string.loading_messages), false));
         adapter.notifyDataSetChangedWithUpdate();
@@ -1704,13 +1708,13 @@ public class ChatActivity extends AppCompatActivity {
     }
     
     private void setButtonStateSending() {
-        if (isVoskListening) return;
+        if (voiceHelper != null && voiceHelper.isListening()) return;
         buttonState = STATE_SENDING;
         updateButtonAppearance();
     }
     
     private void setButtonStateNormal() {
-        if (isVoskListening) return;
+        if (voiceHelper != null && voiceHelper.isListening()) return;
         buttonState = STATE_NORMAL;
         updateButtonAppearance();
     }
@@ -1829,211 +1833,23 @@ public class ChatActivity extends AppCompatActivity {
             uploadHelper.handleImageResult(resultCode, data);
         }
     }
-    
-    /**
-     * 优先使用 Vosk 离线识别，不可用时回退到 Android 系统语音识别
-     */
-    private void startVoiceInput() {
-        // 1. 检查 RECORD_AUDIO 运行时权限
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
-                != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this,
-                    new String[]{Manifest.permission.RECORD_AUDIO},
-                    REQUEST_RECORD_AUDIO_PERMISSION);
-            return;
-        }
-
-        // 2. 优先尝试 Vosk 离线识别
-        if (voskRecognizer != null && voskRecognizer.isModelReady()) {
-            startVoskListening();
-            return;
-        }
-
-        // 2.5 Vosk 模型状态检查
-        if (voskRecognizer != null && !voskRecognizer.isModelReady()) {
-            if (voskRecognizer.hasModelError()) {
-                // 模型加载已失败，显示具体原因
-                String errMsg = voskRecognizer.getModelError();
-                Toast.makeText(this, errMsg, Toast.LENGTH_LONG).show();
-                voskRecognizer.clearModelError();
-                Log.w(TAG, "Vosk model error shown to user: " + errMsg);
-            } else {
-                // 模型还在后台加载中
-                Toast.makeText(this, getString(R.string.voice_model_loading), Toast.LENGTH_SHORT).show();
-            }
-            return;
-        }
-
-        // 3. 回退到 Android 系统语音识别
-        Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
-        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
-        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault());
-        intent.putExtra(RecognizerIntent.EXTRA_PROMPT, getString(R.string.speak));
-        try {
-            startActivityForResult(intent, REQUEST_VOICE_INPUT);
-        } catch (ActivityNotFoundException e) {
-            Toast.makeText(this, getString(R.string.no_speech_engine), Toast.LENGTH_LONG).show();
-        } catch (Exception e) {
-            Toast.makeText(this, getString(R.string.voice_start_failed, e.getMessage()), Toast.LENGTH_SHORT).show();
-        }
-    }
 
     @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == REQUEST_RECORD_AUDIO_PERMISSION) {
-            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                startVoiceInput();
-            } else {
-                Toast.makeText(this, getString(R.string.need_mic_permission), Toast.LENGTH_SHORT).show();
-            }
-        }
-    }
-
-    private void initVoskRecognizer() {
-        try {
-            voskRecognizer = new VoskSpeechRecognizer(this);
-            voskRecognizer.setListener(new VoskSpeechRecognizer.RecognitionListener() {
-                @Override
-                public void onModelReady() {
-                    Log.i(TAG, "Vosk model ready");
-                }
-
-                @Override
-                public void onModelError(String error) {
-                    Log.w(TAG, "Vosk model error: " + error);
-                    if (voskRecognizer != null) {
-                        voskRecognizer.setModelError(error);
-                    }
-                }
-
-                @Override
-                public void onFinalResult(String text) {
-                    if (text != null && !text.trim().isEmpty()) {
-                        runOnUiThread(() -> {
-                            voskBaseText += text.trim();
-                            etMessage.setText(voskBaseText);
-                            etMessage.setSelection(etMessage.length());
-                        });
-                    }
-                }
-
-                @Override
-                public void onPartialResult(String text) {
-                    if (text != null && !text.trim().isEmpty()) {
-                        runOnUiThread(() -> {
-                            etMessage.setText(voskBaseText + text.trim());
-                            etMessage.setSelection(etMessage.length());
-                        });
-                    }
-                }
-
-                @Override
-                public void onError(String error) {
-                    runOnUiThread(() -> {
-                        isVoskListening = false;
-                        voskBaseText = "";
-                        buttonState = STATE_NORMAL;
-                        updateButtonAppearance();
-                        stopListeningPulse();
-                        Toast.makeText(ChatActivity.this, getString(R.string.voice_recognize_failed, error), Toast.LENGTH_LONG).show();
-                    });
-                }
-
-                @Override
-                public void onTimeout() {
-                    runOnUiThread(() -> {
-                        isVoskListening = false;
-                        voskBaseText = "";
-                        buttonState = STATE_NORMAL;
-                        updateButtonAppearance();
-                        stopListeningPulse();
-                        String currentText = etMessage.getText().toString().trim();
-                        if (!currentText.isEmpty()) {
-                            Toast.makeText(ChatActivity.this, getString(R.string.voice_recognize_ended), Toast.LENGTH_SHORT).show();
-                        }
-                    });
-                }
-            });
-            // 异步加载模型
-            voskRecognizer.initModel();
-        } catch (Exception e) {
-            Log.e(TAG, "Failed to create VoskSpeechRecognizer", e);
-            voskRecognizer = null;
-        }
-    }
-
-    private void startVoskListening() {
-        if (voskRecognizer == null || isVoskListening) return;
-        if (!voskRecognizer.isModelReady()) {
-            Toast.makeText(this, getString(R.string.voice_model_loading_start), Toast.LENGTH_SHORT).show();
-            return;
-        }
-        try {
-            voskBaseText = etMessage.getText().toString().trim();
-            if (!voskBaseText.isEmpty()) {
-                voskBaseText += " ";
-            }
-            voskRecognizer.startListening();
-            isVoskListening = true;
-            buttonState = STATE_LISTENING;
-            updateButtonAppearance();
-            startListeningPulse();
-        } catch (Exception e) {
-            isVoskListening = false;
-            Toast.makeText(this, getString(R.string.voice_start_error, e.getMessage()), Toast.LENGTH_SHORT).show();
-        }
-    }
-    private void stopVoskListening() {
-        if (voskRecognizer == null || !isVoskListening) return;
-        try {
-            voskRecognizer.stopListening();
-        } catch (Exception e) {
-            // ignore
-        } finally {
-            isVoskListening = false;
-            voskBaseText = "";
-            if (isInProgress) {
-                buttonState = STATE_SENDING;
-            } else {
-                buttonState = STATE_NORMAL;
-            }
-            updateButtonAppearance();
-            stopListeningPulse();
-        }
-    }
-
-    private void startListeningPulse() {
-        stopListeningPulse();
-        pulseAnimator = android.animation.ObjectAnimator.ofFloat(btnSend, "alpha", 1f, 0.4f);
-        pulseAnimator.setDuration(600);
-        pulseAnimator.setRepeatCount(android.animation.ValueAnimator.INFINITE);
-        pulseAnimator.setRepeatMode(android.animation.ValueAnimator.REVERSE);
-        pulseAnimator.start();
-    }
-
-    private void stopListeningPulse() {
-        if (pulseAnimator != null) {
-            pulseAnimator.cancel();
-            pulseAnimator = null;
-        }
-        if (btnSend != null) {
-            btnSend.setAlpha(1f);
-        }
+        voiceHelper.handlePermissionResult(requestCode, grantResults,
+                REQUEST_RECORD_AUDIO_PERMISSION, REQUEST_VOICE_INPUT, REQUEST_RECORD_AUDIO_PERMISSION);
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        stopListeningPulse();
-        stopVoskListening();
+        if (voiceHelper != null) {
+            voiceHelper.destroy();
+        }
         // 取消初始加载超时定时器
         if (initialLoadTimeoutHandler != null && initialLoadTimeoutRunnable != null) {
             initialLoadTimeoutHandler.removeCallbacks(initialLoadTimeoutRunnable);
-        }
-        if (voskRecognizer != null) {
-            voskRecognizer.destroy();
-            voskRecognizer = null;
         }
     }
 }
