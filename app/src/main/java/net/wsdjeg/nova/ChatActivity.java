@@ -79,9 +79,9 @@ public class ChatActivity extends AppCompatActivity {
     private static final String TAG = "ChatActivity";
     private static final int REFRESH_INTERVAL_MS = 3000;
     private static final int PAGE_SIZE = 50;
-    private static final int STATE_NORMAL = 0;
-    private static final int STATE_SENDING = 1;
-    private static final int STATE_LISTENING = 2;
+    static final int STATE_NORMAL = 0;
+    static final int STATE_SENDING = 1;
+    static final int STATE_LISTENING = 2;
     private static final int BOTTOM_THRESHOLD = 3;
     private static final int REQUEST_SESSION_SETTINGS = 1001;
     private static final int REQUEST_VOICE_INPUT = 1002;
