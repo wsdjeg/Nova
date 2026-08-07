@@ -125,6 +125,7 @@
             android:maxHeight="100dp"
             android:background="@drawable/input_bg"
             android:hint="@string/type_message"
+            android:textSize="14sp"
             android:inputType="textMultiLine|textCapSentences"
             android:maxLines="4"
             android:paddingStart="12dp"
