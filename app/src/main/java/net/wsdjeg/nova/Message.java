@@ -29,7 +29,7 @@ public class Message {
     private int serverIndex = -1; // 服务端 1-indexed 索引（来自 /messages 数组的位置）
     
     // Tool calls 支持
-    private List<ApiClient.ToolCall> toolCalls;  // assistant 消息中的工具调用请求
+    private List<ToolCall> toolCalls;  // assistant 消息中的工具调用请求
     private String toolCallId;                   // tool 消息关联的工具调用 ID
     private String toolName;                     // tool 消息的工具名称
     private String toolError;                    // tool 消息的错误信息
@@ -162,14 +162,14 @@ public class Message {
     /**
      * 获取 tool_calls
      */
-    public List<ApiClient.ToolCall> getToolCalls() {
+    public List<ToolCall> getToolCalls() {
         return toolCalls;
     }
     
     /**
      * 设置 tool_calls
      */
-    public void setToolCalls(List<ApiClient.ToolCall> toolCalls) {
+    public void setToolCalls(List<ToolCall> toolCalls) {
         this.toolCalls = toolCalls;
     }
     

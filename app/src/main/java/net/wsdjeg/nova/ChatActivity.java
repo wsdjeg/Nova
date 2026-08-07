@@ -387,7 +387,7 @@ public class ChatActivity extends AppCompatActivity {
     /**
      * 从 ChatMessage 创建 Message 对象
      */
-    private Message createMessageFromChatMessage(ApiClient.ChatMessage msg, int serverIndex) {
+    private Message createMessageFromChatMessage(ChatMessage msg, int serverIndex) {
         Message message;
         
         if (msg.error != null && !msg.error.isEmpty()) {
@@ -417,11 +417,11 @@ public class ChatActivity extends AppCompatActivity {
         return message;
     }
     
-    private Message createMessageFromChatMessage(ApiClient.ChatMessage msg) {
+    private Message createMessageFromChatMessage(ChatMessage msg) {
         return createMessageFromChatMessage(msg, -1);
     }
     
-    private String getMessageFingerprint(ApiClient.ChatMessage msg) {
+    private String getMessageFingerprint(ChatMessage msg) {
         String toolCallId = "";
         if (msg.toolCalls != null && !msg.toolCalls.isEmpty()) {
             toolCallId = msg.toolCalls.get(0).id != null ? msg.toolCalls.get(0).id : "";
@@ -866,7 +866,7 @@ public class ChatActivity extends AppCompatActivity {
         
         apiClient.getNewMessages(currentSessionId, sinceIndex, new ApiClient.MessagesCallback() {
             @Override
-            public void onSuccess(List<ApiClient.ChatMessage> chatMessages) {
+            public void onSuccess(List<ChatMessage> chatMessages) {
                 runOnUiThread(() -> {
                     if (chatMessages.isEmpty()) return;
                     
@@ -880,7 +880,7 @@ public class ChatActivity extends AppCompatActivity {
                     Log.d(TAG, "=== FETCH: received " + chatMessages.size() + " messages ===");
                     boolean addedNew = false;
                     for (int i = 0; i < chatMessages.size(); i++) {
-                        ApiClient.ChatMessage msg = chatMessages.get(i);
+                        ChatMessage msg = chatMessages.get(i);
                         int serverIndex = sinceIndex + msg.rawIndex;
                         
                         boolean hasToolCalls = msg.toolCalls != null && !msg.toolCalls.isEmpty();
@@ -889,7 +889,7 @@ public class ChatActivity extends AppCompatActivity {
                         StringBuilder tcInfo = new StringBuilder();
                         if (hasToolCalls) {
                             tcInfo.append("tool_calls[").append(msg.toolCalls.size()).append("]:");
-                            for (ApiClient.ToolCall tc : msg.toolCalls) {
+                            for (ToolCall tc : msg.toolCalls) {
                                 tcInfo.append(tc.function.name).append(",");
                             }
                         }
@@ -1081,7 +1081,7 @@ public class ChatActivity extends AppCompatActivity {
         currentSince = since;
         apiClient.getNewMessages(currentSessionId, since, new ApiClient.MessagesCallback() {
             @Override
-            public void onSuccess(List<ApiClient.ChatMessage> chatMessages) {
+            public void onSuccess(List<ChatMessage> chatMessages) {
                 runOnUiThread(() -> {
                     try {
                         messages.clear();
@@ -1099,7 +1099,7 @@ public class ChatActivity extends AppCompatActivity {
                         }
                         
                         for (int i = 0; i < chatMessages.size(); i++) {
-                            ApiClient.ChatMessage msg = chatMessages.get(i);
+                            ChatMessage msg = chatMessages.get(i);
                             int serverIndex = since + msg.rawIndex;
                             messages.add(createMessageFromChatMessage(msg, serverIndex));
                             messageFingerprints.add(getMessageFingerprint(msg));
@@ -1161,7 +1161,7 @@ public class ChatActivity extends AppCompatActivity {
         
         apiClient.getNewMessages(currentSessionId, newSince, new ApiClient.MessagesCallback() {
             @Override
-            public void onSuccess(List<ApiClient.ChatMessage> chatMessages) {
+            public void onSuccess(List<ChatMessage> chatMessages) {
                 runOnUiThread(() -> {
                     if (chatMessages.isEmpty()) {
                         currentSince = 1;
@@ -1176,7 +1176,7 @@ public class ChatActivity extends AppCompatActivity {
                     int newVisibleCount = 0;
                     
                     for (int i = chatMessages.size() - 1; i >= 0; i--) {
-                        ApiClient.ChatMessage msg = chatMessages.get(i);
+                        ChatMessage msg = chatMessages.get(i);
                         int serverIndex = newSince + msg.rawIndex;
                         if (!messageFingerprints.contains(getMessageFingerprint(msg))) {
                             Message message = createMessageFromChatMessage(msg, serverIndex);
@@ -1275,15 +1275,15 @@ public class ChatActivity extends AppCompatActivity {
         
         apiClient.getNewMessages(currentSessionId, sinceIndex, new ApiClient.MessagesCallback() {
             @Override
-            public void onSuccess(List<ApiClient.ChatMessage> chatMessages) {
+            public void onSuccess(List<ChatMessage> chatMessages) {
                 runOnUiThread(() -> {
                     if (!userAtBottom) return;
                     if (chatMessages.isEmpty()) return;
 
-                    ApiClient.ChatMessage latestFiltered = null;
+                    ChatMessage latestFiltered = null;
                     int latestSvrIdx = -1;
                     for (int i = chatMessages.size() - 1; i >= 0; i--) {
-                        ApiClient.ChatMessage msg = chatMessages.get(i);
+                        ChatMessage msg = chatMessages.get(i);
                         if (msg.error != null && !msg.error.isEmpty()) {
                             latestFiltered = msg;
                             latestSvrIdx = sinceIndex + msg.rawIndex;

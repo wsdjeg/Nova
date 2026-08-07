@@ -69,7 +69,7 @@ public class SessionSettingsActivity extends AppCompatActivity {
     private SessionManager sessionManager;
     
     // Provider 和 Model 数据
-    private List<ApiClient.Provider> providers;
+    private List<Provider> providers;
     private Map<String, List<String>> providerModelsMap;  // provider -> models
     private List<String> providerNames;
     private List<String> currentModels;
@@ -291,7 +291,7 @@ public class SessionSettingsActivity extends AppCompatActivity {
         
         apiClient.getProviders(new ApiClient.ProvidersCallback() {
             @Override
-            public void onSuccess(List<ApiClient.Provider> providersList) {
+            public void onSuccess(List<Provider> providersList) {
                 runOnUiThread(() -> {
                     progressBar.setVisibility(View.GONE);
                     tvStatus.setText("");
@@ -300,7 +300,7 @@ public class SessionSettingsActivity extends AppCompatActivity {
                     providerNames.clear();
                     providerModelsMap.clear();
                     
-                    for (ApiClient.Provider provider : providers) {
+                    for (Provider provider : providers) {
                         providerNames.add(provider.name);
                         providerModelsMap.put(provider.name, provider.models);
                     }

@@ -93,10 +93,10 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
      */
     public static class ToolCallItem {
         public Message parentMessage;
-        public ApiClient.ToolCall toolCall;
+        public ToolCall toolCall;
         public int index;
         
-        public ToolCallItem(Message parentMessage, ApiClient.ToolCall toolCall, int index) {
+        public ToolCallItem(Message parentMessage, ToolCall toolCall, int index) {
             this.parentMessage = parentMessage;
             this.toolCall = toolCall;
             this.index = index;
@@ -277,7 +277,7 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
                 if (msg.getContent() != null && !msg.getContent().trim().isEmpty()) {
                     addItemWithKey(outItems, outKeys, usedKeys, msg);
                 }
-                List<ApiClient.ToolCall> toolCalls = msg.getToolCalls();
+                List<ToolCall> toolCalls = msg.getToolCalls();
                 for (int i = 0; i < toolCalls.size(); i++) {
                     ToolCallItem item = new ToolCallItem(msg, toolCalls.get(i), i);
                     addItemWithKey(outItems, outKeys, usedKeys, item);
