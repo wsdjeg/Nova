@@ -4,7 +4,6 @@ import android.Manifest;
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.database.Cursor;
 import android.graphics.Color;
 import android.graphics.PorterDuff;
 import android.graphics.Rect;
@@ -13,19 +12,15 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
-import android.provider.OpenableColumns;
 import android.speech.RecognizerIntent;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
-import android.view.Gravity;
 import android.view.ViewTreeObserver;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageButton;
-import android.widget.LinearLayout;
-import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -40,7 +35,6 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
-import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -48,7 +42,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * 聊天界面 Activity
@@ -146,14 +139,8 @@ public class ChatActivity extends AppCompatActivity {
     // 首次加载完成标志：确保在首次加载完成前不显示"下拉加载更多"提示
     private boolean isInitialLoadComplete = false;
 
-    // 图片上传进度跟踪
-    private androidx.appcompat.app.AlertDialog uploadDialog;
-    private ProgressBar uploadProgressBar;
-    private TextView uploadProgressText;
-    private final AtomicInteger uploadCompleted = new AtomicInteger(0);
-    private final AtomicInteger uploadSuccess = new AtomicInteger(0);
-    private final AtomicInteger uploadFailed = new AtomicInteger(0);
-    private int uploadTotal = 0;
+    // 图片上传辅助
+    private ChatUploadHelper uploadHelper;
     
     private int buttonState = STATE_NORMAL;
     private boolean isInProgress = false;
@@ -280,6 +267,9 @@ public class ChatActivity extends AppCompatActivity {
         
         apiClient = new ApiClient(baseUrl, apiKey);
         apiClient.setSession(currentSessionId);
+        
+        uploadHelper = new ChatUploadHelper(this, apiClient, settingsManager);
+        uploadHelper.setSessionId(currentSessionId);
         
         rvMessages = findViewById(R.id.rv_messages);
         etMessage = findViewById(R.id.et_message);
@@ -661,7 +651,7 @@ public class ChatActivity extends AppCompatActivity {
             reloadMessages();
             return true;
         } else if (id == R.id.action_upload_image) {
-            pickImage();
+            uploadHelper.pickImage(REQUEST_PICK_IMAGE);
             return true;
         } else if (id == R.id.action_clear_session) {
             clearSession();
@@ -1835,279 +1825,11 @@ public class ChatActivity extends AppCompatActivity {
                 etMessage.setSelection(etMessage.length());
                 etMessage.requestFocus();
             }
-        } else if (requestCode == REQUEST_PICK_IMAGE && resultCode == RESULT_OK && data != null) {
-            // 支持多选：ClipData 包含多个 Uri
-            android.content.ClipData clipData = data.getClipData();
-            if (clipData != null && clipData.getItemCount() > 0) {
-                java.util.List<Uri> uris = new java.util.ArrayList<>();
-                for (int i = 0; i < clipData.getItemCount(); i++) {
-                    Uri uri = clipData.getItemAt(i).getUri();
-                    if (uri != null) {
-                        uris.add(uri);
-                    }
-                }
-                if (uris.size() == 1) {
-                    uploadImage(uris.get(0));
-                } else if (uris.size() > 1) {
-                    uploadMultipleImages(uris);
-                }
-            } else {
-                // 单选
-                Uri imageUri = data.getData();
-                if (imageUri != null) {
-                    uploadImage(imageUri);
-                }
-            }
+        } else if (requestCode == REQUEST_PICK_IMAGE) {
+            uploadHelper.handleImageResult(resultCode, data);
         }
     }
     
-    /**
-     * 打开系统图片选择器（支持多选）
-     */
-    private void pickImage() {
-        Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
-        intent.setType("image/*");
-        intent.addCategory(Intent.CATEGORY_OPENABLE);
-        intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
-        try {
-            startActivityForResult(Intent.createChooser(intent, getString(R.string.menu_upload_image)),
-                    REQUEST_PICK_IMAGE);
-        } catch (ActivityNotFoundException e) {
-            Toast.makeText(this, "No image picker app found", Toast.LENGTH_LONG).show();
-        }
-    }
-    
-    /**
-     * 从 Uri 读取图片数据并上传到会话的工作目录
-     * 直接使用会话设置中配置的上传路径，不弹窗
-     */
-    private void uploadImage(Uri imageUri) {
-        if (currentSessionId == null || currentSessionId.isEmpty()) {
-            Toast.makeText(this, getString(R.string.upload_no_session), Toast.LENGTH_SHORT).show();
-            return;
-        }
-        
-        // 从 Uri 获取文件名
-        String fileName = getFileNameFromUri(imageUri);
-        if (fileName == null || fileName.isEmpty()) {
-            fileName = "image_" + System.currentTimeMillis() + ".png";
-        }
-        
-        // 确定 Content-Type
-        String mime = getContentResolver().getType(imageUri);
-        String mimeType = (mime == null || mime.isEmpty()) ? "image/png" : mime;
-        
-        // 从本地获取上传路径，未设置则使用默认 images/
-        String uploadDir = settingsManager.getDefaultUploadPath(currentSessionId);
-        if (uploadDir == null || uploadDir.isEmpty()) {
-            uploadDir = "images/";
-        }
-        if (!uploadDir.endsWith("/")) {
-            uploadDir = uploadDir + "/";
-        }
-        
-        String relativePath = uploadDir + fileName;
-        
-        List<Uri> uris = new ArrayList<>();
-        uris.add(imageUri);
-        List<String> paths = new ArrayList<>();
-        paths.add(relativePath);
-        List<String> mimes = new ArrayList<>();
-        mimes.add(mimeType);
-        startUploadBatch(uris, paths, mimes);
-    }
-    
-    /**
-     * 多张图片批量上传
-     * 直接使用会话设置中配置的上传路径，不弹窗
-     */
-    private void uploadMultipleImages(java.util.List<Uri> imageUris) {
-        if (currentSessionId == null || currentSessionId.isEmpty()) {
-            Toast.makeText(this, getString(R.string.upload_no_session), Toast.LENGTH_SHORT).show();
-            return;
-        }
-        
-        // 从本地获取上传路径，未设置则使用默认 images/
-        String uploadDir = settingsManager.getDefaultUploadPath(currentSessionId);
-        if (uploadDir == null || uploadDir.isEmpty()) {
-            uploadDir = "images/";
-        }
-        if (!uploadDir.endsWith("/")) {
-            uploadDir = uploadDir + "/";
-        }
-        
-        // 收集所有图片信息，批量上传
-        List<Uri> uris = new ArrayList<>();
-        List<String> paths = new ArrayList<>();
-        List<String> mimes = new ArrayList<>();
-        for (Uri uri : imageUris) {
-            String fileName = getFileNameFromUri(uri);
-            if (fileName == null || fileName.isEmpty()) {
-                fileName = "image_" + System.currentTimeMillis() + ".png";
-            }
-            String mime = getContentResolver().getType(uri);
-            String mimeType = (mime == null || mime.isEmpty()) ? "image/png" : mime;
-            uris.add(uri);
-            paths.add(uploadDir + fileName);
-            mimes.add(mimeType);
-        }
-        startUploadBatch(uris, paths, mimes);
-    }
-    
-    /**
-     * 启动批量上传：显示进度对话框，逐个上传图片
-     */
-    private void startUploadBatch(List<Uri> uris, List<String> paths, List<String> mimes) {
-        uploadTotal = uris.size();
-        uploadCompleted.set(0);
-        uploadSuccess.set(0);
-        uploadFailed.set(0);
-
-        // 显示进度对话框
-        showUploadDialog();
-
-        // 逐个启动上传
-        for (int i = 0; i < uris.size(); i++) {
-            performUpload(uris.get(i), paths.get(i), mimes.get(i));
-        }
-    }
-
-    /**
-     * 显示上传进度对话框（带进度条）
-     */
-    private void showUploadDialog() {
-        LinearLayout layout = new LinearLayout(this);
-        layout.setOrientation(LinearLayout.VERTICAL);
-        int pad = (int) (getResources().getDisplayMetrics().density * 20);
-        layout.setPadding(pad, pad / 2, pad, pad / 2);
-
-        uploadProgressText = new TextView(this);
-        uploadProgressText.setGravity(Gravity.CENTER);
-        uploadProgressText.setText(getString(R.string.upload_progress_format, 0, uploadTotal));
-        uploadProgressText.setTextSize(14);
-
-        uploadProgressBar = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
-        uploadProgressBar.setMax(uploadTotal);
-        uploadProgressBar.setProgress(0);
-        LinearLayout.LayoutParams pbParams = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        pbParams.topMargin = pad / 2;
-
-        layout.addView(uploadProgressText);
-        layout.addView(uploadProgressBar, pbParams);
-
-        uploadDialog = new androidx.appcompat.app.AlertDialog.Builder(this)
-                .setTitle(R.string.upload_progress_title)
-                .setView(layout)
-                .setCancelable(false)
-                .create();
-        uploadDialog.show();
-    }
-
-    /**
-     * 单张图片上传完成回调：更新进度，全部完成时显示汇总
-     */
-    private void onSingleUploadComplete(boolean success) {
-        int completed = uploadCompleted.incrementAndGet();
-        if (success) {
-            uploadSuccess.incrementAndGet();
-        } else {
-            uploadFailed.incrementAndGet();
-        }
-
-        runOnUiThread(() -> {
-            if (uploadProgressBar != null) {
-                uploadProgressBar.setProgress(completed);
-            }
-            if (uploadProgressText != null) {
-                uploadProgressText.setText(getString(R.string.upload_progress_format, completed, uploadTotal));
-            }
-
-            if (completed >= uploadTotal) {
-                // 全部完成，关闭对话框
-                if (uploadDialog != null && uploadDialog.isShowing()) {
-                    uploadDialog.dismiss();
-                }
-                int sc = uploadSuccess.get();
-                int fc = uploadFailed.get();
-                if (fc == 0) {
-                    Toast.makeText(this, getString(R.string.upload_batch_success, sc), Toast.LENGTH_LONG).show();
-                } else if (sc > 0) {
-                    Toast.makeText(this, getString(R.string.upload_batch_partial, sc, fc), Toast.LENGTH_LONG).show();
-                } else {
-                    Toast.makeText(this, getString(R.string.upload_batch_all_failed), Toast.LENGTH_LONG).show();
-                }
-            }
-        });
-    }
-
-    /**
-     * 执行实际上传操作：读取图片数据并调用 API
-     */
-    private void performUpload(Uri imageUri, String relativePath, String mimeType) {
-        final String finalRelativePath = relativePath;
-
-        new Thread(() -> {
-            try {
-                InputStream is = getContentResolver().openInputStream(imageUri);
-                if (is == null) {
-                    onSingleUploadComplete(false);
-                    return;
-                }
-
-                // 读取全部字节
-                java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
-                byte[] buffer = new byte[8192];
-                int bytesRead;
-                while ((bytesRead = is.read(buffer)) != -1) {
-                    baos.write(buffer, 0, bytesRead);
-                }
-                is.close();
-                byte[] fileData = baos.toByteArray();
-
-                apiClient.uploadFile(currentSessionId, fileData, finalRelativePath, mimeType,
-                    new ApiClient.UploadCallback() {
-                        @Override
-                        public void onSuccess(String path, String fullPath, long size) {
-                            Log.i(TAG, "Image uploaded: " + fullPath + " (" + size + " bytes)");
-                            onSingleUploadComplete(true);
-                        }
-
-                        @Override
-                        public void onError(String error) {
-                            Log.e(TAG, "Image upload failed: " + error);
-                            onSingleUploadComplete(false);
-                        }
-                    });
-            } catch (Exception e) {
-                Log.e(TAG, "Failed to read image from Uri", e);
-                onSingleUploadComplete(false);
-            }
-        }).start();
-    }
-    
-    /**
-     * 从 Uri 查询文件名
-     */
-    private String getFileNameFromUri(Uri uri) {
-        String fileName = null;
-        if (uri.getScheme() != null && uri.getScheme().equals("content")) {
-            try (Cursor cursor = getContentResolver().query(uri, null, null, null, null)) {
-                if (cursor != null && cursor.moveToFirst()) {
-                    int nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME);
-                    if (nameIndex >= 0) {
-                        fileName = cursor.getString(nameIndex);
-                    }
-                }
-            } catch (Exception e) {
-                Log.w(TAG, "Failed to get filename from Uri", e);
-            }
-        }
-        if (fileName == null) {
-            fileName = uri.getLastPathSegment();
-        }
-        return fileName;
-    }
     /**
      * 优先使用 Vosk 离线识别，不可用时回退到 Android 系统语音识别
      */
