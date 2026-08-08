@@ -258,6 +258,22 @@
     <string name="cwd_update_failed">CWD 更新失败: %s</string>
     <string name="title_update_failed">标题更新失败: %s</string>
 
+    <!-- Bridge settings -->
+    <string name="bridge_settings">Bridge 集成</string>
+    <string name="bridge_hint">将 IM 集成绑定到当前会话，绑定后会话的 AI 回复将同步到对应平台</string>
+    <string name="bridge_add">添加</string>
+    <string name="bridge_adding">添加中...</string>
+    <string name="bridge_remove">移除</string>
+    <string name="bridge_none">暂无绑定的集成</string>
+    <string name="bridge_unbridge_all">全部解绑</string>
+    <string name="bridge_unbridging">解绑中...</string>
+    <string name="bridge_already_bound">%s 已绑定</string>
+    <string name="bridge_bound">已绑定 %s</string>
+    <string name="bridge_unbound">已解绑 %s</string>
+    <string name="bridge_all_unbound">已解绑所有集成</string>
+    <string name="bridge_bind_failed">绑定失败: %s</string>
+    <string name="bridge_unbind_failed">解绑失败: %s</string>
+
     <!-- Settings -->
     <string name="new_session_defaults">新建会话默认设置</string>
     <string name="appearance_settings">外观设置</string>

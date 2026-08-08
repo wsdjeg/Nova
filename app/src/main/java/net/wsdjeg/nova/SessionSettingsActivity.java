@@ -8,7 +8,9 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
+import android.widget.Button;
 import android.widget.EditText;
+import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.Spinner;
 import android.widget.TextView;
@@ -16,6 +18,7 @@ import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -76,6 +79,18 @@ public class SessionSettingsActivity extends AppCompatActivity {
     
     private ArrayAdapter<String> providerAdapter;
     private ArrayAdapter<String> modelAdapter;
+    
+    // Bridge 相关
+    private static final String[] AVAILABLE_PLATFORMS = {
+        "discord", "dingtalk", "lark", "slack", "telegram", "wecom", "weixin"
+    };
+    private Spinner spinnerBridgePlatform;
+    private Button btnBridgeAdd;
+    private LinearLayout llBridgeList;
+    private TextView tvNoBridges;
+    private Button btnUnbridgeAll;
+    private List<String> currentBridges;
+    private ArrayAdapter<String> bridgePlatformAdapter;
     
     private boolean isProviderLoaded = false;
     private boolean isInitializingSpinner = false;  // 标记正在初始化 spinner
@@ -176,6 +191,39 @@ public class SessionSettingsActivity extends AppCompatActivity {
             public void onNothingSelected(AdapterView<?> parent) {
             }
         });
+        
+        // Bridge 平台选择 Spinner
+        spinnerBridgePlatform = findViewById(R.id.spinner_bridge_platform);
+        btnBridgeAdd = findViewById(R.id.btn_bridge_add);
+        llBridgeList = findViewById(R.id.ll_bridge_list);
+        tvNoBridges = findViewById(R.id.tv_no_bridges);
+        btnUnbridgeAll = findViewById(R.id.btn_unbridge_all);
+        
+        currentBridges = new ArrayList<>();
+        bridgePlatformAdapter = new ArrayAdapter<>(this,
+            android.R.layout.simple_spinner_item,
+            new ArrayList<>(Arrays.asList(AVAILABLE_PLATFORMS)));
+        bridgePlatformAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spinnerBridgePlatform.setAdapter(bridgePlatformAdapter);
+        
+        btnBridgeAdd.setOnClickListener(v -> {
+            int pos = spinnerBridgePlatform.getSelectedItemPosition();
+            if (pos >= 0 && pos < AVAILABLE_PLATFORMS.length) {
+                String platform = AVAILABLE_PLATFORMS[pos];
+                if (currentBridges.contains(platform)) {
+                    Toast.makeText(this, getString(R.string.bridge_already_bound, platform), Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                doBridge(platform);
+            }
+        });
+        
+        btnUnbridgeAll.setOnClickListener(v -> {
+            if (currentBridges.isEmpty()) {
+                return;
+            }
+            doUnbridgeAll();
+        });
     }
     
     @Override
@@ -255,6 +303,8 @@ public class SessionSettingsActivity extends AppCompatActivity {
                     
                     // 加载 providers 列表
                     loadProviders();
+                    // 加载 bridge 列表
+                    loadBridges();
                 });
             }
             
@@ -276,6 +326,7 @@ public class SessionSettingsActivity extends AppCompatActivity {
                         etCwd.setText(cwd != null ? cwd : "");
                         etTitle.setText(title != null ? title : "");
                         loadProviders();
+                        loadBridges();
                     }
                 });
             }
@@ -650,6 +701,155 @@ public class SessionSettingsActivity extends AppCompatActivity {
         
         Toast.makeText(SessionSettingsActivity.this, getString(R.string.settings_saved), Toast.LENGTH_SHORT).show();
         finish();
+    }
+    
+    // ==================== Bridge 相关方法 ====================
+    
+    /**
+     * 从服务器加载当前会话已绑定的集成列表
+     */
+    private void loadBridges() {
+        if (apiClient == null) {
+            updateBridgeUI();
+            return;
+        }
+        
+        apiClient.getBridges(sessionId, new ApiClient.BridgesCallback() {
+            @Override
+            public void onSuccess(List<String> bridges) {
+                runOnUiThread(() -> {
+                    currentBridges.clear();
+                    currentBridges.addAll(bridges);
+                    updateBridgeUI();
+                    Log.d(TAG, "Loaded bridges: " + bridges);
+                });
+            }
+            
+            @Override
+            public void onError(String error) {
+                runOnUiThread(() -> {
+                    Log.w(TAG, "Failed to load bridges: " + error);
+                    updateBridgeUI();
+                });
+            }
+        });
+    }
+    
+    /**
+     * 更新 Bridge UI 显示
+     */
+    private void updateBridgeUI() {
+        llBridgeList.removeAllViews();
+        
+        if (currentBridges.isEmpty()) {
+            tvNoBridges.setVisibility(View.VISIBLE);
+            btnUnbridgeAll.setVisibility(View.GONE);
+        } else {
+            tvNoBridges.setVisibility(View.GONE);
+            btnUnbridgeAll.setVisibility(View.VISIBLE);
+            
+            for (String platform : currentBridges) {
+                View itemView = getLayoutInflater().inflate(R.layout.item_bridge, llBridgeList, false);
+                TextView tvName = itemView.findViewById(R.id.tv_bridge_name);
+                Button btnRemove = itemView.findViewById(R.id.btn_bridge_remove);
+                
+                tvName.setText(platform);
+                btnRemove.setOnClickListener(v -> doUnbridge(platform));
+                
+                llBridgeList.addView(itemView);
+            }
+        }
+    }
+    
+    /**
+     * 绑定集成到会话
+     */
+    private void doBridge(String platform) {
+        btnBridgeAdd.setEnabled(false);
+        btnBridgeAdd.setText(getString(R.string.bridge_adding));
+        
+        apiClient.bridgeIntegration(sessionId, platform, new ApiClient.BridgeCallback() {
+            @Override
+            public void onSuccess(String resultPlatform) {
+                runOnUiThread(() -> {
+                    btnBridgeAdd.setEnabled(true);
+                    btnBridgeAdd.setText(getString(R.string.bridge_add));
+                    if (!currentBridges.contains(resultPlatform)) {
+                        currentBridges.add(resultPlatform);
+                    }
+                    updateBridgeUI();
+                    Toast.makeText(SessionSettingsActivity.this,
+                        getString(R.string.bridge_bound, resultPlatform), Toast.LENGTH_SHORT).show();
+                });
+            }
+            
+            @Override
+            public void onError(String error) {
+                runOnUiThread(() -> {
+                    btnBridgeAdd.setEnabled(true);
+                    btnBridgeAdd.setText(getString(R.string.bridge_add));
+                    Toast.makeText(SessionSettingsActivity.this,
+                        getString(R.string.bridge_bind_failed, error), Toast.LENGTH_SHORT).show();
+                });
+            }
+        });
+    }
+    
+    /**
+     * 解绑指定集成
+     */
+    private void doUnbridge(String platform) {
+        apiClient.unbridgeIntegration(sessionId, platform, new ApiClient.UpdateSessionCallback() {
+            @Override
+            public void onSuccess() {
+                runOnUiThread(() -> {
+                    currentBridges.remove(platform);
+                    updateBridgeUI();
+                    Toast.makeText(SessionSettingsActivity.this,
+                        getString(R.string.bridge_unbound, platform), Toast.LENGTH_SHORT).show();
+                });
+            }
+            
+            @Override
+            public void onError(String error) {
+                runOnUiThread(() -> {
+                    Toast.makeText(SessionSettingsActivity.this,
+                        getString(R.string.bridge_unbind_failed, error), Toast.LENGTH_SHORT).show();
+                });
+            }
+        });
+    }
+    
+    /**
+     * 解绑所有集成
+     */
+    private void doUnbridgeAll() {
+        btnUnbridgeAll.setEnabled(false);
+        btnUnbridgeAll.setText(getString(R.string.bridge_unbridging));
+        
+        apiClient.unbridgeAll(sessionId, new ApiClient.UpdateSessionCallback() {
+            @Override
+            public void onSuccess() {
+                runOnUiThread(() -> {
+                    btnUnbridgeAll.setEnabled(true);
+                    btnUnbridgeAll.setText(getString(R.string.bridge_unbridge_all));
+                    currentBridges.clear();
+                    updateBridgeUI();
+                    Toast.makeText(SessionSettingsActivity.this,
+                        getString(R.string.bridge_all_unbound), Toast.LENGTH_SHORT).show();
+                });
+            }
+            
+            @Override
+            public void onError(String error) {
+                runOnUiThread(() -> {
+                    btnUnbridgeAll.setEnabled(true);
+                    btnUnbridgeAll.setText(getString(R.string.bridge_unbridge_all));
+                    Toast.makeText(SessionSettingsActivity.this,
+                        getString(R.string.bridge_unbind_failed, error), Toast.LENGTH_SHORT).show();
+                });
+            }
+        });
     }
 }
 

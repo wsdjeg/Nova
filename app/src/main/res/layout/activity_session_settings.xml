@@ -190,6 +190,86 @@
                 android:background="?android:attr/listDivider"
                 android:layout_marginBottom="16dp" />
             
+            <!-- Bridge settings section -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/bridge_settings"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:textColor="?android:attr/textColorPrimary"
+                android:layout_marginBottom="4dp" />
+            
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/bridge_hint"
+                android:textSize="12sp"
+                android:textColor="?android:attr/textColorSecondary"
+                android:layout_marginBottom="12dp" />
+            
+            <!-- Platform selection row -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="8dp">
+                
+                <Spinner
+                    android:id="@+id/spinner_bridge_platform"
+                    android:layout_width="0dp"
+                    android:layout_height="48dp"
+                    android:layout_weight="1" />
+                
+                <Button
+                    android:id="@+id/btn_bridge_add"
+                    android:layout_width="wrap_content"
+                    android:layout_height="40dp"
+                    android:text="@string/bridge_add"
+                    android:textSize="14sp"
+                    android:minWidth="0dp"
+                    android:layout_marginStart="8dp" />
+            </LinearLayout>
+            
+            <!-- Bridged integrations list container -->
+            <LinearLayout
+                android:id="@+id/ll_bridge_list"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:layout_marginBottom="8dp" />
+            
+            <!-- No bridges hint -->
+            <TextView
+                android:id="@+id/tv_no_bridges"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/bridge_none"
+                android:textSize="14sp"
+                android:textColor="?android:attr/textColorSecondary"
+                android:gravity="center"
+                android:padding="8dp"
+                android:visibility="gone"
+                android:layout_marginBottom="8dp" />
+            
+            <!-- Unbridge all button -->
+            <Button
+                android:id="@+id/btn_unbridge_all"
+                android:layout_width="match_parent"
+                android:layout_height="40dp"
+                android:text="@string/bridge_unbridge_all"
+                android:textSize="14sp"
+                android:visibility="gone"
+                android:layout_marginBottom="16dp" />
+            
+            <!-- Divider -->
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="?android:attr/listDivider"
+                android:layout_marginBottom="16dp" />
+            
             <!-- Hint -->
             <TextView
                 android:layout_width="match_parent"
