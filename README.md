@@ -4,7 +4,8 @@ Nova is the Android client for [chat.nvim](https://nvim.chat),
 the Neovim AI chat plugin.
 It connects to a chat.nvim HTTP Server and lets you continue
 your AI conversations on the go - manage sessions, send messages,
-browse tool-call results, and more, all from your phone.
+browse tool-call results, upload images, share content, and more,
+all from your phone.
 
 > Nova does **not** talk to LLM APIs directly.
 > A running chat.nvim HTTP Server is required as the backend.
@@ -47,7 +48,10 @@ browse tool-call results, and more, all from your phone.
     - [Account management](#account-management)
     - [Session management](#session-management)
     - [Chat](#chat)
+    - [Image upload](#image-upload)
+    - [Share](#share)
     - [Voice input](#voice-input)
+    - [WeChat login](#wechat-login)
     - [App settings](#app-settings)
 - [API](#api)
 - [Project structure](#project-structure)
@@ -65,17 +69,22 @@ browse tool-call results, and more, all from your phone.
 - Multi-account management with per-account color tags and connection testing
 - Account import / export in JSON for easy migration across devices
 - Session list with search, pin/unpin, swipe actions, and live session count
-- Session settings - edit title, provider, model, and cwd on the fly
+- Session settings - edit title, provider, model, cwd, and bridge integrations on the fly
 - Paginated history loading with DiffUtil incremental updates
 - Stop and retry AI generation at any time
 - Tool-call and tool-result message cards with collapsible JSON
 - Error messages rendered as distinct cards
 - Clear session messages (smart `cleared_at` sorting)
 - Offline voice input via Vosk with automatic fallback to system speech recognition
+- Image upload to session working directory with multi-image batch selection and progress dialog
+- Share content from other apps (images / text) with upload confirmation
+- WeChat login - scan QR code in-app to connect your WeChat account
+- Bridge (integration) settings per session
 - Markdown rendering with syntax highlighting, tables, task lists, and strikethrough
 - Separate Markwon instances for user (blue-tinted code) and AI messages
 - Slash commands (`/help`, `/sessions`, `/session`, `/set`, `/clear`, `/title`)
 - Long-press message for copy / delete with popup at touch point
+- Text selection dialog with Markdown rendering for long-press content
 - Draft auto-save for unsent messages
 - Browser session preview
 - Smart scroll - pause auto-refresh while reading, restore position via stable-key anchors
@@ -149,7 +158,7 @@ No configuration file is needed - everything is set up inside the app.
 | View sessions | Open the app - sessions are sorted by last message time, pinned first |
 | Search | Tap the search icon in the session list toolbar |
 | Create session | FAB button in the session list |
-| Session settings | Chat -> menu -> **Settings** (edit title / provider / model / cwd) |
+| Session settings | Chat -> menu -> **Settings** (edit title / provider / model / cwd / bridge) |
 | Pin / Unpin | Swipe right to pin, swipe left to unpin (or use session settings) |
 | Delete session | Chat -> menu -> **Delete session** (or long-press in the list) |
 | Clear session | Chat -> menu -> **Clear session** |
@@ -166,7 +175,30 @@ No configuration file is needed - everything is set up inside the app.
 | Preview in browser | Chat -> menu -> **Preview** |
 | Copy message | Long-press a message -> **Copy** |
 | Delete message | Long-press a message -> **Delete** |
+| Select text | Long-press a message -> **Select text** (renders Markdown) |
 | Slash commands | Type `/help` in the input box for available commands |
+
+### Image upload
+
+| Action | How |
+| ------ | --- |
+| Upload image | Chat -> attach button -> select images -> confirm upload path -> upload |
+| Batch upload | Select multiple images in the picker, all are uploaded with a progress dialog |
+| Set upload directory | Session settings -> **Upload directory** (defaults to session cwd) |
+
+Images are uploaded to the session's working directory on the server. The upload path can be
+configured per session in session settings.
+
+### Share
+
+Nova registers as a share target. From other apps:
+
+| Action | How |
+| ------ | --- |
+| Share image(s) | Gallery / Files -> Share -> select Nova -> confirm upload |
+| Share text | Any app -> Share -> select Nova -> text is sent as a chat message |
+
+The share screen shows a preview and confirmation dialog before sending.
 
 ### Voice input
 
@@ -181,6 +213,17 @@ When the input box is empty, the send button switches to a microphone icon.
 - Tap the wave icon to stop listening.
 - Recognized text is appended to any existing input (supports continued dictation).
 
+### WeChat login
+
+Nova supports WeChat integration via in-app QR code login.
+
+| Action | How |
+| ------ | --- |
+| Start WeChat login | App settings -> **WeChat login** |
+| Scan QR code | The QR code is generated locally (ZXing) and displayed in-app |
+| Check status | The app polls the server for login status automatically |
+| Re-login | App settings -> **WeChat login** -> **Disconnect** to clear credentials, then reconnect |
+
 ### App settings
 
 | Setting | Options |
@@ -190,6 +233,7 @@ When the input box is empty, the send button switches to a microphone icon.
 | Default provider | Fetched from the server |
 | Default model | Depends on the selected provider |
 | Account tag color | Auto (by account ID) or a fixed color (0-8) |
+| WeChat login | Connect / disconnect WeChat account |
 
 ## API
 
@@ -214,6 +258,10 @@ All requests are authenticated via the `X-API-Key` header.
 | `/messages?session={id}` | GET | Get messages (supports `since` / `limit` / `last`) |
 | `/` | POST | Send a message |
 | `/providers` | GET | List available providers |
+| `/upload?session={id}&path={dir}` | POST | Upload image to session working directory |
+| `/session/:id/bridges` | GET / PUT | Get / set bridge (integration) settings for a session |
+| `/weixin/credentials` | GET | Get WeChat login QR code and status |
+| `/weixin/credentials` | DELETE | Disconnect WeChat (clear credentials) |
 
 ## Project structure
 
@@ -222,19 +270,28 @@ Nova/
 ├── app/src/main/java/net/wsdjeg/nova/
 │   ├── SessionListActivity.java       # Session list (launcher, search, swipe actions)
 │   ├── ChatActivity.java              # Chat screen
-│   ├── SessionSettingsActivity.java   # Session settings
-│   ├── SettingsActivity.java          # App settings
+│   ├── ChatUploadHelper.java          # Image upload helper (batch upload, progress)
+│   ├── ChatVoiceHelper.java           # Voice recognition helper (Vosk + system fallback)
+│   ├── SessionSettingsActivity.java   # Session settings (title / provider / model / cwd / bridge)
+│   ├── SettingsActivity.java          # App settings (theme / language / WeChat login)
 │   ├── AccountManagerActivity.java    # Account list
 │   ├── AccountEditActivity.java       # Account editor
 │   ├── AboutActivity.java             # About + in-app update checker
 │   ├── LogViewerActivity.java         # Log viewer
-│   ├── ApiClient.java                 # HTTP client (ChatMessage, ToolCall, etc.)
+│   ├── ShareActivity.java             # Share target (image upload / text send)
+│   ├── WeChatLoginActivity.java       # WeChat QR code login screen
+│   ├── ApiClient.java                 # HTTP client (all API endpoints)
 │   ├── SessionManager.java            # Session persistence & drafts
 │   ├── AccountManager.java            # Account persistence & import/export
 │   ├── SettingsManager.java           # Settings & theme management
 │   ├── Session.java                   # Session model
 │   ├── Message.java                   # Message model
+│   ├── ChatMessage.java               # Chat message DTO (top-level)
+│   ├── ToolCall.java                  # Tool call DTO (top-level)
+│   ├── Provider.java                  # Provider DTO (top-level)
 │   ├── Account.java                   # Account model
+│   ├── WeChatLoginResult.java         # WeChat login result model
+│   ├── QRCodeUtils.java               # QR code generation (ZXing)
 │   ├── SessionAdapter.java            # Session list adapter (swipe, pin)
 │   ├── MessageAdapter.java            # Message adapter (DiffUtil, fingerprints)
 │   ├── AccountAdapter.java            # Account list adapter
@@ -246,7 +303,7 @@ Nova/
 │   ├── TimeUtils.java                 # Time formatting
 │   └── NovaApplication.java           # Application entry
 ├── app/src/main/res/
-│   ├── layout/                        # 20 layout XMLs
+│   ├── layout/                        # 22 layout XMLs
 │   ├── menu/                          # 8 menu XMLs
 │   ├── drawable/                      # 38 drawable resources
 │   ├── values/                        # colors, strings, themes
@@ -272,6 +329,7 @@ Nova/
 | Networking | OkHttp 4.12.0 |
 | Markdown | Markwon 4.6.2 (syntax-highlight, tables, tasklist, strikethrough, html) |
 | Speech | Vosk Android 0.3.47 + JNA 5.13.0 |
+| QR Code | ZXing Core 3.5.3 (local QR code generation) |
 | JSON | org.json |
 | NDK ABI | armeabi-v7a, arm64-v8a, x86_64, x86 |
 
@@ -279,7 +337,7 @@ Nova/
 
 - [x] Multi-session management
 - [x] Multi-account with import / export
-- [x] Session settings (provider / model / cwd / title)
+- [x] Session settings (provider / model / cwd / title / bridge)
 - [x] Dark / light / system themes
 - [x] Color tags for accounts
 - [x] Paginated history loading
@@ -296,11 +354,15 @@ Nova/
 - [x] Session search
 - [x] Slash commands
 - [x] Long-press message for copy / delete
+- [x] Text selection dialog with Markdown rendering
+- [x] Image upload to session working directory
+- [x] Share from other apps (images / text)
+- [x] WeChat login (in-app QR code)
+- [x] Bridge (integration) settings
 - [x] In-app update checker
 - [x] Multi-language support (Chinese / English)
 - [x] Log viewer
 - [ ] Streaming responses (SSE)
-- [ ] Image sending
 - [ ] Message search
 - [ ] Enhanced table rendering
 
@@ -324,6 +386,7 @@ If you encounter any bugs or have suggestions, please file an issue in the
 - [chat.nvim](https://github.com/wsdjeg/chat.nvim) - the Neovim AI chat plugin
 - [Vosk](https://alphacephei.com/vosk/) - offline speech recognition
 - [Markwon](https://github.com/noties/markwon) - Android Markdown library
+- [ZXing](https://github.com/zxing/zxing) - QR code generation
 
 ## License
 

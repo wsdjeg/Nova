@@ -9,27 +9,45 @@
 | Target SDK | 34 (Android 14) |
 | Build Tool | Gradle 8.0 |
 | Network Library | OkHttp 4.12.0 |
+| QR Code | ZXing Core 3.5.3 |
 | Package Name | net.wsdjeg.nova |
 
 ## Core Modules
 
 ```
 app/src/main/java/net/wsdjeg/nova/
-├── ChatActivity.java          # Chat screen
-├── SessionListActivity.java   # Session list
-├── SessionSettingsActivity.java
-├── SettingsActivity.java
-├── AccountManagerActivity.java
-├── AccountEditActivity.java
-├── AboutActivity.java
-├── ApiClient.java             # HTTP API client
-├── SettingsManager.java       # Settings management
-├── SessionManager.java        # Session management
-├── AccountManager.java        # Account management
-├── Message/Session/Account    # Data models
-├── *Adapter.java              # RecyclerView adapters
-├── TimeUtils.java
-└── NovaApplication.java
+├── ChatActivity.java              # Chat screen
+├── ChatUploadHelper.java          # Image upload helper (batch, progress)
+├── ChatVoiceHelper.java           # Voice recognition helper
+├── SessionListActivity.java       # Session list (launcher)
+├── SessionSettingsActivity.java   # Session settings (incl. bridge)
+├── SettingsActivity.java          # App settings (incl. WeChat login)
+├── AccountManagerActivity.java    # Account list
+├── AccountEditActivity.java       # Account editor
+├── AboutActivity.java             # About + update checker
+├── LogViewerActivity.java         # Log viewer
+├── ShareActivity.java             # Share target (image/text)
+├── WeChatLoginActivity.java       # WeChat QR code login
+├── ApiClient.java                 # HTTP API client
+├── SettingsManager.java           # Settings management
+├── SessionManager.java            # Session management
+├── AccountManager.java            # Account management
+├── Session.java                   # Session model
+├── Message.java                   # Message model
+├── ChatMessage.java               # Chat message DTO
+├── ToolCall.java                  # Tool call DTO
+├── Provider.java                  # Provider DTO
+├── Account.java                   # Account model
+├── WeChatLoginResult.java         # WeChat login result model
+├── QRCodeUtils.java               # QR code generation (ZXing)
+├── *Adapter.java                  # RecyclerView adapters
+├── VoskSpeechRecognizer.java      # Offline speech recognition
+├── MarkdownUtils.java             # Markdown preprocessing
+├── InlineCodeSpan.java            # Inline code styling
+├── PopupHelper.java               # Popup menu helper
+├── ToolContentScrollView.java     # Scrollable tool-call content
+├── TimeUtils.java                 # Time formatting
+└── NovaApplication.java           # Application entry
 ```
 
 ---
@@ -69,9 +87,9 @@ Modify File -> Verify -> git add -> git commit -> git push
 ```
 1. Modify file (using @write_file or other tools)
 2. Verify modification (use @read_file to confirm correctness)
-3. @git_add path="modified_file" — wait for result
-4. @git_commit message="feat: description" — wait for result
-5. @git_push — wait for result
+3. @git_add path="modified_file" - wait for result
+4. @git_commit message="feat: description" - wait for result
+5. @git_push - wait for result
 6. Done! Inform the user that changes have been pushed.
 ```
 
@@ -231,16 +249,27 @@ When starting a new development cycle:
 ### Layouts (res/layout/)
 - activity_chat.xml, activity_session_list.xml, activity_session_settings.xml
 - activity_settings.xml, activity_account_manager.xml, activity_account_edit.xml
-- activity_about.xml, item_*.xml
+- activity_about.xml, activity_weixin_login.xml, activity_log_viewer.xml
+- item_message.xml, item_message_bot.xml, item_message_user.xml, item_message_error.xml
+- item_session.xml, item_account.xml, item_tool_call.xml, item_tool_result.xml
+- item_bridge.xml
+- dialog_account.xml, dialog_download_progress.xml, dialog_update_info.xml
+- dialog_voice_input.xml
 
 ### Menus (res/menu/)
 - chat_menu.xml, main_menu.xml, session_list_menu.xml
-- session_settings_menu.xml, account_manager_menu.xml
+- session_settings_menu.xml, account_manager_menu.xml, account_edit_menu.xml
+- settings_menu.xml, log_viewer_menu.xml
 
 ### Drawables
 - ai_message_bg.xml, user_message_bg.xml, send_button_bg.xml
-- ic_launcher*.xml, ic_arrow_down.xml, ic_more_vert_white.xml
-- color_circle_0~7.xml
+- error_message_bg.xml, tool_call_bg.xml, tool_result_bg.xml
+- input_bg.xml, btn_stop_bg.xml, listening_button_bg.xml, mic_button_bg.xml
+- ic_launcher*.xml, ic_arrow_back.xml, ic_arrow_down.xml, ic_more_vert_white.xml
+- ic_mic.xml, ic_voice_wave.xml, ic_send.xml, ic_stop.xml, ic_search_white.xml
+- ic_save_white.xml, ic_pin.xml
+- color_circle_0~8.xml, color_selector_bg.xml
+- account_tag_bg.xml, provider_tag_bg.xml, session_count_bg.xml, session_icon_bg.xml
 
 ---
 
