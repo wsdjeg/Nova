@@ -284,6 +284,7 @@ public class WeChatLoginActivity extends AppCompatActivity {
     private void loadQrCodeImage(String qrUrl) {
         new Thread(() -> {
             int size = 600;
+            Log.d(TAG, "Generating QR code, content length: " + qrUrl.length());
             Bitmap bitmap = QRCodeUtils.generateQRCode(qrUrl, size);
             runOnUiThread(() -> {
                 if (bitmap != null) {
@@ -291,7 +292,7 @@ public class WeChatLoginActivity extends AppCompatActivity {
                     ivQrCode.setVisibility(View.VISIBLE);
                     progressBar.setVisibility(View.GONE);
                 } else {
-                    Log.e(TAG, "Failed to generate QR code bitmap");
+                    Log.e(TAG, "Failed to generate QR code bitmap, content length: " + qrUrl.length());
                     tvSubStatus.setText(R.string.weixin_qr_load_failed);
                 }
             });
