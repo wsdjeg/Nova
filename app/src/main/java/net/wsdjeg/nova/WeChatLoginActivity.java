@@ -1,7 +1,6 @@
 package net.wsdjeg.nova;
 
 import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -17,9 +16,6 @@ import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 
-import java.io.InputStream;
-import java.net.HttpURLConnection;
-import java.net.URL;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -282,55 +278,23 @@ public class WeChatLoginActivity extends AppCompatActivity {
     }
 
     /**
-     * 异步加载二维码图片，直接在应用内显示
+     * 本地生成二维码图片
+     * 使用 ZXing 库将 qrcodeUrl 字符串直接生成为二维码 Bitmap，无需网络下载
      */
     private void loadQrCodeImage(String qrUrl) {
         new Thread(() -> {
-            HttpURLConnection conn = null;
-            InputStream is = null;
-            try {
-                URL url = new URL(qrUrl);
-                conn = (HttpURLConnection) url.openConnection();
-                conn.setRequestMethod("GET");
-                conn.setConnectTimeout(15000);
-                conn.setReadTimeout(15000);
-                conn.setUseCaches(false);
-
-                int responseCode = conn.getResponseCode();
-                if (responseCode == 200) {
-                    is = conn.getInputStream();
-                    Bitmap bitmap = BitmapFactory.decodeStream(is);
-                    if (bitmap != null) {
-                        runOnUiThread(() -> {
-                            ivQrCode.setImageBitmap(bitmap);
-                            ivQrCode.setVisibility(View.VISIBLE);
-                            progressBar.setVisibility(View.GONE);
-                        });
-                    } else {
-                        Log.e(TAG, "Failed to decode QR code bitmap");
-                        runOnUiThread(() -> {
-                            tvSubStatus.setText(R.string.weixin_qr_load_failed);
-                        });
-                    }
+            int size = 600;
+            Bitmap bitmap = QRCodeUtils.generateQRCode(qrUrl, size);
+            runOnUiThread(() -> {
+                if (bitmap != null) {
+                    ivQrCode.setImageBitmap(bitmap);
+                    ivQrCode.setVisibility(View.VISIBLE);
+                    progressBar.setVisibility(View.GONE);
                 } else {
-                    Log.e(TAG, "QR code HTTP error: " + responseCode);
-                    runOnUiThread(() -> {
-                        tvSubStatus.setText(R.string.weixin_qr_load_failed);
-                    });
-                }
-            } catch (Exception e) {
-                Log.e(TAG, "Failed to load QR code image", e);
-                runOnUiThread(() -> {
+                    Log.e(TAG, "Failed to generate QR code bitmap");
                     tvSubStatus.setText(R.string.weixin_qr_load_failed);
-                });
-            } finally {
-                if (is != null) {
-                    try { is.close(); } catch (Exception ignored) {}
                 }
-                if (conn != null) {
-                    conn.disconnect();
-                }
-            }
+            });
         }).start();
     }
 
