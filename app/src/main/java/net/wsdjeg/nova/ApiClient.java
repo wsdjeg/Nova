@@ -2206,6 +2206,7 @@ public class ApiClient {
                     result.accountId = json.optString("account_id", "");
                     result.baseUrl = json.optString("base_url", "");
                     result.userId = json.optString("user_id", "");
+                    result.isRunning = json.optBoolean("is_running", false);
                     
                     new Handler(Looper.getMainLooper()).post(() -> 
                         callback.onSuccess(result));

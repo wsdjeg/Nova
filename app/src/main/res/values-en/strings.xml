@@ -335,7 +335,6 @@
     <string name="weixin_qr_code">WeChat QR Code</string>
     <string name="weixin_start_login">Start QR Login</string>
     <string name="weixin_stop_polling">Stop Polling</string>
-    <string name="weixin_open_qr_browser">Open QR Code in Browser</string>
     <string name="weixin_starting">Starting login flow...</string>
     <string name="weixin_status_init">Login flow started, fetching QR code...</string>
     <string name="weixin_status_wait">Scan the QR code with WeChat</string>
@@ -345,6 +344,9 @@
     <string name="weixin_status_expired">QR code expired, auto-refreshing...</string>
     <string name="weixin_expired_hint">Please wait, server is refreshing the QR code</string>
     <string name="weixin_login_success">✅ WeChat login successful!</string>
+    <string name="weixin_already_connected">✅ WeChat already logged in</string>
+    <string name="weixin_connected_account">Connected account: %s</string>
+    <string name="weixin_qr_load_failed">Failed to load QR code, please retry</string>
     <string name="weixin_status_unknown">Unknown status: %s</string>
     <string name="weixin_poll_error">Poll error: %s</string>
     <string name="weixin_poll_timeout">Polling timed out, please restart</string>

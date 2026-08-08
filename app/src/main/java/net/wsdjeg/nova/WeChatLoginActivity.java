@@ -1,9 +1,7 @@
 package net.wsdjeg.nova;
 
-import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -28,6 +26,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * 微信登录 Activity
  *
  * 扫码登录：调用 GET /weixin/login/status 轮询状态，显示二维码图片
+ * 二维码直接在应用内显示，无需跳转浏览器。
+ * API 支持自动检测已登录状态（connected），避免重复扫码。
  */
 public class WeChatLoginActivity extends AppCompatActivity {
 
@@ -40,7 +40,6 @@ public class WeChatLoginActivity extends AppCompatActivity {
     private TextView tvStatus;
     private TextView tvSubStatus;
     private Button btnStartLogin;
-    private Button btnOpenQrBrowser;
 
     private ApiClient apiClient;
     private AccountManager accountManager;
@@ -67,6 +66,8 @@ public class WeChatLoginActivity extends AppCompatActivity {
         Account account = accountManager.getActiveAccount();
         if (account != null) {
             apiClient = new ApiClient(account.getUrl(), account.getApiKey());
+            // 自动开始登录流程，API 会检测是否已登录
+            startLoginFlow();
         } else {
             tvStatus.setText(R.string.please_add_account);
             btnStartLogin.setEnabled(false);
@@ -79,7 +80,6 @@ public class WeChatLoginActivity extends AppCompatActivity {
         tvStatus = findViewById(R.id.tv_status);
         tvSubStatus = findViewById(R.id.tv_sub_status);
         btnStartLogin = findViewById(R.id.btn_start_login);
-        btnOpenQrBrowser = findViewById(R.id.btn_open_qr_browser);
 
         btnStartLogin.setOnClickListener(v -> {
             if (isPolling.get()) {
@@ -89,17 +89,12 @@ public class WeChatLoginActivity extends AppCompatActivity {
                 startLoginFlow();
             }
         });
-
-        btnOpenQrBrowser.setOnClickListener(v -> {
-            if (!currentQrUrl.isEmpty()) {
-                Intent browserIntent = new Intent(Intent.ACTION_VIEW, Uri.parse(currentQrUrl));
-                startActivity(browserIntent);
-            }
-        });
     }
 
     /**
      * 启动微信扫码登录流程
+     * 第一次调用 GET /weixin/login/status 会自动启动登录流程
+     * 如果已登录，API 返回 connected 状态
      */
     private void startLoginFlow() {
         if (apiClient == null) {
@@ -113,7 +108,6 @@ public class WeChatLoginActivity extends AppCompatActivity {
         btnStartLogin.setText(R.string.weixin_stop_polling);
         progressBar.setVisibility(View.VISIBLE);
         ivQrCode.setVisibility(View.GONE);
-        btnOpenQrBrowser.setVisibility(View.GONE);
         tvStatus.setText(R.string.weixin_starting);
         tvSubStatus.setText("");
 
@@ -176,7 +170,16 @@ public class WeChatLoginActivity extends AppCompatActivity {
      * 处理登录状态
      */
     private void handleLoginStatus(WeChatLoginResult result) {
-        if (result.isInit()) {
+        if (result.isConnected()) {
+            // 已登录，无需扫码
+            isPolling.set(false);
+            progressBar.setVisibility(View.GONE);
+            btnStartLogin.setText(R.string.weixin_start_login);
+            tvStatus.setText(R.string.weixin_already_connected);
+            tvSubStatus.setText(getString(R.string.weixin_connected_account, result.accountId));
+            ivQrCode.setVisibility(View.GONE);
+
+        } else if (result.isInit()) {
             // 登录流程已启动，继续轮询获取二维码
             tvStatus.setText(R.string.weixin_status_init);
             tvSubStatus.setText(result.message);
@@ -191,7 +194,6 @@ public class WeChatLoginActivity extends AppCompatActivity {
             if (!result.qrcodeUrl.isEmpty() && !result.qrcodeUrl.equals(currentQrUrl)) {
                 currentQrUrl = result.qrcodeUrl;
                 loadQrCodeImage(result.qrcodeUrl);
-                btnOpenQrBrowser.setVisibility(View.VISIBLE);
             }
 
             progressBar.setVisibility(View.GONE);
@@ -211,6 +213,7 @@ public class WeChatLoginActivity extends AppCompatActivity {
             btnStartLogin.setText(R.string.weixin_start_login);
             tvStatus.setText(R.string.weixin_login_success);
             tvSubStatus.setText(result.message);
+            ivQrCode.setVisibility(View.GONE);
 
             // 显示返回的凭证信息
             String credInfo = "Account ID: " + result.accountId + "\n"
@@ -227,7 +230,7 @@ public class WeChatLoginActivity extends AppCompatActivity {
             tvSubStatus.setText(R.string.weixin_expired_hint);
             progressBar.setVisibility(View.VISIBLE);
             ivQrCode.setVisibility(View.GONE);
-            btnOpenQrBrowser.setVisibility(View.GONE);
+            currentQrUrl = ""; // 重置二维码 URL，以便重新加载新的二维码
             pollHandler.postDelayed(() -> pollLoginStatus(), POLL_INTERVAL_MS);
 
         } else {
@@ -238,7 +241,7 @@ public class WeChatLoginActivity extends AppCompatActivity {
     }
 
     /**
-     * 异步加载二维码图片
+     * 异步加载二维码图片，直接在应用内显示
      */
     private void loadQrCodeImage(String qrUrl) {
         new Thread(() -> {
@@ -265,19 +268,19 @@ public class WeChatLoginActivity extends AppCompatActivity {
                     } else {
                         Log.e(TAG, "Failed to decode QR code bitmap");
                         runOnUiThread(() -> {
-                            btnOpenQrBrowser.setVisibility(View.VISIBLE);
+                            tvSubStatus.setText(R.string.weixin_qr_load_failed);
                         });
                     }
                 } else {
                     Log.e(TAG, "QR code HTTP error: " + responseCode);
                     runOnUiThread(() -> {
-                        btnOpenQrBrowser.setVisibility(View.VISIBLE);
+                        tvSubStatus.setText(R.string.weixin_qr_load_failed);
                     });
                 }
             } catch (Exception e) {
                 Log.e(TAG, "Failed to load QR code image", e);
                 runOnUiThread(() -> {
-                    btnOpenQrBrowser.setVisibility(View.VISIBLE);
+                    tvSubStatus.setText(R.string.weixin_qr_load_failed);
                 });
             } finally {
                 if (is != null) {

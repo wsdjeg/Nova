@@ -89,15 +89,6 @@
                 android:layout_width="match_parent"
                 android:layout_height="48dp"
                 android:text="@string/weixin_start_login"
-                android:layout_marginBottom="8dp" />
-
-            <!-- Open QR in browser -->
-            <Button
-                android:id="@+id/btn_open_qr_browser"
-                android:layout_width="match_parent"
-                android:layout_height="48dp"
-                android:text="@string/weixin_open_qr_browser"
-                android:visibility="gone"
                 android:layout_marginBottom="24dp" />
 
         </LinearLayout>

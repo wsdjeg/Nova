@@ -5,7 +5,7 @@ package net.wsdjeg.nova;
  * 对应 GET /weixin/login/status 返回的 JSON
  */
 public class WeChatLoginResult {
-    /** 状态：init, wait, scaned, confirmed, expired */
+    /** 状态：init, wait, scaned, confirmed, expired, connected */
     public String status = "";
     /** 消息 */
     public String message = "";
@@ -17,12 +17,14 @@ public class WeChatLoginResult {
     public boolean isFresh = false;
     /** Bot Token（confirmed 时返回） */
     public String botToken = "";
-    /** Account ID（confirmed 时返回） */
+    /** Account ID（confirmed / connected 时返回） */
     public String accountId = "";
     /** Base URL（confirmed 时返回） */
     public String baseUrl = "";
     /** User ID（confirmed 时返回） */
     public String userId = "";
+    /** 是否正在运行（connected 时返回） */
+    public boolean isRunning = false;
 
     public boolean isConfirmed() {
         return "confirmed".equals(status);
@@ -42,6 +44,10 @@ public class WeChatLoginResult {
 
     public boolean isInit() {
         return "init".equals(status);
+    }
+
+    public boolean isConnected() {
+        return "connected".equals(status);
     }
 }
 
