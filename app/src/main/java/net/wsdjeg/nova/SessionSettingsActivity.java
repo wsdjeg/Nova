@@ -545,7 +545,8 @@ public class SessionSettingsActivity extends AppCompatActivity {
                 finish();
                 return;
             }
-            Toast.makeText(this, getString(R.string.config_unchanged), Toast.LENGTH_SHORT).show();
+            // 配置未改变，直接关闭
+            finish();
             return;
         }
         
