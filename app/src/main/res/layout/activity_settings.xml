@@ -179,6 +179,22 @@
 
             </RadioGroup>
 
+            <!-- WeChat Integration -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/weixin_integration"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="16dp" />
+
+            <Button
+                android:id="@+id/btn_weixin_login"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:text="@string/weixin_login"
+                android:layout_marginBottom="24dp" />
+
             <!-- Session list settings -->
             <TextView
                 android:layout_width="match_parent"

@@ -10,6 +10,7 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
+import android.widget.Button;
 import android.widget.ProgressBar;
 import android.widget.RadioGroup;
 import android.widget.RadioButton;
@@ -47,6 +48,7 @@ public class SettingsActivity extends AppCompatActivity {
     private Spinner spinnerProvider, spinnerModel;
     private ProgressBar progressBar;
     private TextView tvProviderStatus;
+    private Button btnWeChatLogin;
     private SettingsManager settingsManager;
     private AccountManager accountManager;
     private ApiClient apiClient;
@@ -104,6 +106,13 @@ public class SettingsActivity extends AppCompatActivity {
         spinnerModel = findViewById(R.id.spinner_model);
         progressBar = findViewById(R.id.progress_bar);
         tvProviderStatus = findViewById(R.id.tv_provider_status);
+        btnWeChatLogin = findViewById(R.id.btn_weixin_login);
+
+        // 微信登录按钮
+        btnWeChatLogin.setOnClickListener(v -> {
+            Intent intent = new Intent(this, WeChatLoginActivity.class);
+            startActivity(intent);
+        });
         
         // 主题选择监听
         rgTheme.setOnCheckedChangeListener((group, checkedId) -> {

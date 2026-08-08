@@ -57,6 +57,12 @@
             android:exported="false"
             android:label="@string/title_settings" />
 
+        <!-- WeChatLoginActivity -->
+        <activity
+            android:name=".WeChatLoginActivity"
+            android:exported="false"
+            android:label="@string/weixin_login" />
+
         <!-- AboutActivity -->
         <activity
             android:name=".AboutActivity"

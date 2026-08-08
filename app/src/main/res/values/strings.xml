@@ -327,5 +327,36 @@
     <string name="share_empty_text">分享内容为空</string>
     <string name="share_no_files">没有可分享的文件</string>
     <string name="share_no_sessions">暂无可用会话</string>
+
+    <!-- WeChat Login -->
+    <string name="weixin_integration">微信集成</string>
+    <string name="weixin_login">微信登录</string>
+    <string name="weixin_scan_qr">扫码登录微信</string>
+    <string name="weixin_qr_code">微信二维码</string>
+    <string name="weixin_start_login">开始扫码登录</string>
+    <string name="weixin_stop_polling">停止轮询</string>
+    <string name="weixin_open_qr_browser">在浏览器中打开二维码</string>
+    <string name="weixin_starting">正在启动登录流程...</string>
+    <string name="weixin_status_init">登录流程已启动，正在获取二维码...</string>
+    <string name="weixin_status_wait">请使用微信扫码</string>
+    <string name="weixin_scan_hint">打开微信，扫描上方二维码</string>
+    <string name="weixin_status_scanned">已扫码，请在手机上确认</string>
+    <string name="weixin_confirm_hint">等待手机确认登录...</string>
+    <string name="weixin_status_expired">二维码已过期，正在自动刷新...</string>
+    <string name="weixin_expired_hint">请稍候，服务器正在刷新二维码</string>
+    <string name="weixin_login_success">✅ 微信登录成功！</string>
+    <string name="weixin_status_unknown">未知状态: %s</string>
+    <string name="weixin_poll_error">轮询出错: %s</string>
+    <string name="weixin_poll_timeout">轮询超时，请重新开始</string>
+    <string name="weixin_manual_credentials">手动输入凭证</string>
+    <string name="weixin_manual_hint">如果已有 bot_token 和 account_id，可直接写入凭证跳过扫码。</string>
+    <string name="weixin_account_id">Account ID (Bot ID)</string>
+    <string name="weixin_bot_token">Bot Token</string>
+    <string name="weixin_base_url">Base URL（可选）</string>
+    <string name="weixin_user_id">User ID（可选）</string>
+    <string name="weixin_save_credentials">保存凭证</string>
+    <string name="weixin_credentials_required">Account ID 和 Bot Token 不能为空</string>
+    <string name="weixin_credentials_saved">凭证已保存</string>
+    <string name="weixin_credentials_save_failed">凭证保存失败: %s</string>
 </resources>
 

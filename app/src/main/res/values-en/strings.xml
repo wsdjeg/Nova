@@ -327,5 +327,36 @@
     <string name="share_empty_text">Shared content is empty</string>
     <string name="share_no_files">No files to share</string>
     <string name="share_no_sessions">No sessions available</string>
+
+    <!-- WeChat Login -->
+    <string name="weixin_integration">WeChat Integration</string>
+    <string name="weixin_login">WeChat Login</string>
+    <string name="weixin_scan_qr">Scan QR Code to Login</string>
+    <string name="weixin_qr_code">WeChat QR Code</string>
+    <string name="weixin_start_login">Start QR Login</string>
+    <string name="weixin_stop_polling">Stop Polling</string>
+    <string name="weixin_open_qr_browser">Open QR Code in Browser</string>
+    <string name="weixin_starting">Starting login flow...</string>
+    <string name="weixin_status_init">Login flow started, fetching QR code...</string>
+    <string name="weixin_status_wait">Scan the QR code with WeChat</string>
+    <string name="weixin_scan_hint">Open WeChat and scan the QR code above</string>
+    <string name="weixin_status_scanned">Scanned, please confirm on your phone</string>
+    <string name="weixin_confirm_hint">Waiting for phone confirmation...</string>
+    <string name="weixin_status_expired">QR code expired, auto-refreshing...</string>
+    <string name="weixin_expired_hint">Please wait, server is refreshing the QR code</string>
+    <string name="weixin_login_success">✅ WeChat login successful!</string>
+    <string name="weixin_status_unknown">Unknown status: %s</string>
+    <string name="weixin_poll_error">Poll error: %s</string>
+    <string name="weixin_poll_timeout">Polling timed out, please restart</string>
+    <string name="weixin_manual_credentials">Manual Credentials</string>
+    <string name="weixin_manual_hint">If you already have bot_token and account_id, you can write credentials directly without scanning.</string>
+    <string name="weixin_account_id">Account ID (Bot ID)</string>
+    <string name="weixin_bot_token">Bot Token</string>
+    <string name="weixin_base_url">Base URL (optional)</string>
+    <string name="weixin_user_id">User ID (optional)</string>
+    <string name="weixin_save_credentials">Save Credentials</string>
+    <string name="weixin_credentials_required">Account ID and Bot Token are required</string>
+    <string name="weixin_credentials_saved">Credentials saved</string>
+    <string name="weixin_credentials_save_failed">Failed to save credentials: %s</string>
 </resources>
 

@@ -120,6 +120,24 @@ public class ApiClient {
         void onError(String error);
     }
 
+    /**
+     * 微信登录状态轮询的回调接口
+     * 用于 GET /weixin/login/status API
+     */
+    public interface WeChatLoginCallback {
+        void onSuccess(WeChatLoginResult result);
+        void onError(String error);
+    }
+
+    /**
+     * 微信凭证写入的回调接口
+     * 用于 POST /weixin/credentials API
+     */
+    public interface WeChatCredentialsCallback {
+        void onSuccess(String message);
+        void onError(String error);
+    }
+
     public ApiClient(SettingsManager settingsManager) {
         this.settingsManager = settingsManager;
         this.overrideBaseUrl = null;
@@ -2106,6 +2124,182 @@ public class ApiClient {
                 }
             } catch (Exception e) {
                 Log.e(TAG, "getProviders static failed", e);
+                new Handler(Looper.getMainLooper()).post(() -> 
+                    callback.onError("Network error: " + e.getMessage()));
+            } finally {
+                if (br != null) {
+                    try { br.close(); } catch (Exception ignored) {}
+                }
+                if (conn != null) {
+                    conn.disconnect();
+                }
+            }
+        }).start();
+    }
+    
+    /**
+     * 轮询微信登录状态
+     * API 端点: GET /weixin/login/status
+     * 第一次调用自动启动登录流程，后续调用返回当前状态。
+     *
+     * @param callback 回调
+     */
+    public void getWeChatLoginStatus(WeChatLoginCallback callback) {
+        String baseUrl = getBaseUrl();
+        String apiKey = getApiKey();
+        
+        if (baseUrl.isEmpty() || apiKey.isEmpty()) {
+            callback.onError("Please configure API settings");
+            return;
+        }
+        
+        new Thread(() -> {
+            HttpURLConnection conn = null;
+            BufferedReader br = null;
+            try {
+                URL url = new URL(baseUrl + "/weixin/login/status");
+                conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("GET");
+                conn.setRequestProperty("X-API-Key", apiKey);
+                conn.setRequestProperty("Connection", "close");
+                conn.setRequestProperty("Accept", "application/json");
+                conn.setConnectTimeout(15000);
+                conn.setReadTimeout(60000); // 长轮询可能需要较长时间
+                conn.setUseCaches(false);
+                
+                int responseCode = conn.getResponseCode();
+                
+                if (responseCode == 200) {
+                    br = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
+                    StringBuilder response = new StringBuilder();
+                    String line;
+                    while ((line = br.readLine()) != null) {
+                        response.append(line);
+                    }
+                    
+                    JSONObject json = new JSONObject(response.toString());
+                    WeChatLoginResult result = new WeChatLoginResult();
+                    result.status = json.optString("status", "");
+                    result.message = json.optString("message", "");
+                    result.qrcodeUrl = json.optString("qrcode_url", "");
+                    result.sessionKey = json.optString("session_key", "");
+                    result.isFresh = json.optBoolean("is_fresh", false);
+                    result.botToken = json.optString("bot_token", "");
+                    result.accountId = json.optString("account_id", "");
+                    result.baseUrl = json.optString("base_url", "");
+                    result.userId = json.optString("user_id", "");
+                    
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onSuccess(result));
+                } else if (responseCode == 401) {
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onError("Unauthorized: Invalid API Key"));
+                } else if (responseCode == 500) {
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onError("Server error: Failed to start login flow"));
+                } else {
+                    final int code = responseCode;
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onError("Error: " + code));
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "getWeChatLoginStatus failed", e);
+                new Handler(Looper.getMainLooper()).post(() -> 
+                    callback.onError("Network error: " + e.getMessage()));
+            } finally {
+                if (br != null) {
+                    try { br.close(); } catch (Exception ignored) {}
+                }
+                if (conn != null) {
+                    conn.disconnect();
+                }
+            }
+        }).start();
+    }
+    
+    /**
+     * 手动写入微信凭证
+     * API 端点: POST /weixin/credentials
+     *
+     * @param id      Account ID (bot ID)
+     * @param key     Bot token
+     * @param baseUrl API base URL (optional)
+     * @param userId  User ID (optional)
+     * @param callback 回调
+     */
+    public void writeWeChatCredentials(String id, String key, String baseUrl,
+                                        String userId, WeChatCredentialsCallback callback) {
+        String apiBaseUrl = getBaseUrl();
+        String apiKey = getApiKey();
+        
+        if (apiBaseUrl.isEmpty() || apiKey.isEmpty()) {
+            callback.onError("Please configure API settings");
+            return;
+        }
+        
+        if (id == null || id.isEmpty() || key == null || key.isEmpty()) {
+            callback.onError("Account ID and Bot Token are required");
+            return;
+        }
+        
+        new Thread(() -> {
+            HttpURLConnection conn = null;
+            BufferedReader br = null;
+            try {
+                URL url = new URL(apiBaseUrl + "/weixin/credentials");
+                conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("POST");
+                conn.setRequestProperty("Content-Type", "application/json");
+                conn.setRequestProperty("X-API-Key", apiKey);
+                conn.setRequestProperty("Connection", "close");
+                conn.setDoOutput(true);
+                conn.setConnectTimeout(15000);
+                conn.setReadTimeout(30000);
+                conn.setUseCaches(false);
+                
+                JSONObject requestBody = new JSONObject();
+                requestBody.put("id", id);
+                requestBody.put("key", key);
+                if (baseUrl != null && !baseUrl.isEmpty()) {
+                    requestBody.put("base_url", baseUrl);
+                }
+                if (userId != null && !userId.isEmpty()) {
+                    requestBody.put("user_id", userId);
+                }
+                
+                try (OutputStream os = conn.getOutputStream()) {
+                    byte[] input = requestBody.toString().getBytes(StandardCharsets.UTF_8);
+                    os.write(input, 0, input.length);
+                }
+                
+                int responseCode = conn.getResponseCode();
+                
+                if (responseCode == 200) {
+                    br = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
+                    StringBuilder response = new StringBuilder();
+                    String line;
+                    while ((line = br.readLine()) != null) {
+                        response.append(line);
+                    }
+                    
+                    JSONObject json = new JSONObject(response.toString());
+                    String message = json.optString("message", "Credentials saved");
+                    
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onSuccess(message));
+                } else if (responseCode == 400) {
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onError("Bad Request: Invalid JSON or missing required fields"));
+                } else if (responseCode == 401) {
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onError("Unauthorized: Invalid API Key"));
+                } else {
+                    final int code = responseCode;
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onError("Error: " + code));
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "writeWeChatCredentials failed", e);
                 new Handler(Looper.getMainLooper()).post(() -> 
                     callback.onError("Network error: " + e.getMessage()));
             } finally {
