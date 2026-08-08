@@ -362,6 +362,10 @@
     <string name="weixin_login_success">✅ 微信登录成功！</string>
     <string name="weixin_already_connected">✅ 微信已登录</string>
     <string name="weixin_connected_account">已绑定账号: %s</string>
+    <string name="weixin_relogin">重新登录</string>
+    <string name="weixin_deleting_credentials">正在清除凭证...</string>
+    <string name="weixin_delete_credentials_failed">清除凭证失败: %s</string>
+    <string name="weixin_delete_credentials_success">凭证已清除，正在重新登录...</string>
     <string name="weixin_qr_load_failed">二维码加载失败，请稍后重试</string>
     <string name="weixin_status_unknown">未知状态: %s</string>
     <string name="weixin_poll_error">轮询出错: %s</string>

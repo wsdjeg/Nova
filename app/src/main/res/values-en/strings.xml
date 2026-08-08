@@ -346,6 +346,10 @@
     <string name="weixin_login_success">✅ WeChat login successful!</string>
     <string name="weixin_already_connected">✅ WeChat already logged in</string>
     <string name="weixin_connected_account">Connected account: %s</string>
+    <string name="weixin_relogin">Re-login</string>
+    <string name="weixin_deleting_credentials">Deleting credentials...</string>
+    <string name="weixin_delete_credentials_failed">Failed to delete credentials: %s</string>
+    <string name="weixin_delete_credentials_success">Credentials deleted, restarting login...</string>
     <string name="weixin_qr_load_failed">Failed to load QR code, please retry</string>
     <string name="weixin_status_unknown">Unknown status: %s</string>
     <string name="weixin_poll_error">Poll error: %s</string>

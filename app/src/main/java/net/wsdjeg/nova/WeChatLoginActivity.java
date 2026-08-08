@@ -47,6 +47,7 @@ public class WeChatLoginActivity extends AppCompatActivity {
     private final AtomicBoolean isPolling = new AtomicBoolean(false);
     private int pollCount = 0;
     private String currentQrUrl = "";
+    private boolean isConnected = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -84,7 +85,10 @@ public class WeChatLoginActivity extends AppCompatActivity {
         btnStartLogin.setOnClickListener(v -> {
             if (isPolling.get()) {
                 stopPolling();
-                btnStartLogin.setText(R.string.weixin_start_login);
+                btnStartLogin.setText(isConnected ? R.string.weixin_relogin : R.string.weixin_start_login);
+            } else if (isConnected) {
+                // 已登录状态下点击"重新登录"，先清除凭证再重新登录
+                reloginWeChat();
             } else {
                 startLoginFlow();
             }
@@ -105,6 +109,7 @@ public class WeChatLoginActivity extends AppCompatActivity {
         pollCount = 0;
         currentQrUrl = "";
         isPolling.set(true);
+        isConnected = false;
         btnStartLogin.setText(R.string.weixin_stop_polling);
         progressBar.setVisibility(View.VISIBLE);
         ivQrCode.setVisibility(View.GONE);
@@ -121,7 +126,41 @@ public class WeChatLoginActivity extends AppCompatActivity {
         isPolling.set(false);
         pollHandler.removeCallbacksAndMessages(null);
         progressBar.setVisibility(View.GONE);
-        btnStartLogin.setText(R.string.weixin_start_login);
+        btnStartLogin.setText(isConnected ? R.string.weixin_relogin : R.string.weixin_start_login);
+    }
+
+    /**
+     * 重新登录微信
+     * 先调用 DELETE /weixin/credentials 清除凭证，再启动新的登录流程
+     */
+    private void reloginWeChat() {
+        if (apiClient == null) {
+            Toast.makeText(this, R.string.please_add_account, Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        btnStartLogin.setEnabled(false);
+        progressBar.setVisibility(View.VISIBLE);
+        tvStatus.setText(R.string.weixin_deleting_credentials);
+        tvSubStatus.setText("");
+
+        apiClient.deleteWeChatCredentials(new ApiClient.WeChatCredentialsCallback() {
+            @Override
+            public void onSuccess(String message) {
+                btnStartLogin.setEnabled(true);
+                Toast.makeText(WeChatLoginActivity.this,
+                    R.string.weixin_delete_credentials_success, Toast.LENGTH_SHORT).show();
+                startLoginFlow();
+            }
+
+            @Override
+            public void onError(String error) {
+                btnStartLogin.setEnabled(true);
+                progressBar.setVisibility(View.GONE);
+                tvStatus.setText(getString(R.string.weixin_delete_credentials_failed, error));
+                btnStartLogin.setText(R.string.weixin_relogin);
+            }
+        });
     }
 
     /**
@@ -173,8 +212,9 @@ public class WeChatLoginActivity extends AppCompatActivity {
         if (result.isConnected()) {
             // 已登录，无需扫码
             isPolling.set(false);
+            isConnected = true;
             progressBar.setVisibility(View.GONE);
-            btnStartLogin.setText(R.string.weixin_start_login);
+            btnStartLogin.setText(R.string.weixin_relogin);
             tvStatus.setText(R.string.weixin_already_connected);
             tvSubStatus.setText(getString(R.string.weixin_connected_account, result.accountId));
             ivQrCode.setVisibility(View.GONE);
@@ -209,8 +249,9 @@ public class WeChatLoginActivity extends AppCompatActivity {
         } else if (result.isConfirmed()) {
             // 登录成功
             isPolling.set(false);
+            isConnected = true;
             progressBar.setVisibility(View.GONE);
-            btnStartLogin.setText(R.string.weixin_start_login);
+            btnStartLogin.setText(R.string.weixin_relogin);
             tvStatus.setText(R.string.weixin_login_success);
             tvSubStatus.setText(result.message);
             ivQrCode.setVisibility(View.GONE);

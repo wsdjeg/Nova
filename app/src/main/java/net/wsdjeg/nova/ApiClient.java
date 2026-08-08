@@ -2333,6 +2333,59 @@ public class ApiClient {
     }
     
     /**
+     * 清除微信凭证（退出登录）
+     * API 端点: DELETE /weixin/credentials
+     * 清除后可重新启动登录流程
+     *
+     * @param callback 回调
+     */
+    public void deleteWeChatCredentials(WeChatCredentialsCallback callback) {
+        String apiBaseUrl = getBaseUrl();
+        String apiKey = getApiKey();
+
+        if (apiBaseUrl.isEmpty() || apiKey.isEmpty()) {
+            callback.onError("Please configure API settings");
+            return;
+        }
+
+        new Thread(() -> {
+            HttpURLConnection conn = null;
+            try {
+                URL url = new URL(apiBaseUrl + "/weixin/credentials");
+                conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("DELETE");
+                conn.setRequestProperty("X-API-Key", apiKey);
+                conn.setRequestProperty("Connection", "close");
+                conn.setConnectTimeout(15000);
+                conn.setReadTimeout(30000);
+                conn.setUseCaches(false);
+
+                int responseCode = conn.getResponseCode();
+
+                if (responseCode == 200 || responseCode == 204) {
+                    new Handler(Looper.getMainLooper()).post(() ->
+                        callback.onSuccess("Credentials deleted"));
+                } else if (responseCode == 401) {
+                    new Handler(Looper.getMainLooper()).post(() ->
+                        callback.onError("Unauthorized: Invalid API Key"));
+                } else {
+                    final int code = responseCode;
+                    new Handler(Looper.getMainLooper()).post(() ->
+                        callback.onError("Error: " + code));
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "deleteWeChatCredentials failed", e);
+                new Handler(Looper.getMainLooper()).post(() ->
+                    callback.onError("Network error: " + e.getMessage()));
+            } finally {
+                if (conn != null) {
+                    conn.disconnect();
+                }
+            }
+        }).start();
+    }
+
+    /**
      * 获取会话已绑定的集成列表
      * API 端点: GET /session/:id/bridge
      * 响应格式: { "bridges": ["discord", "lark"] }
