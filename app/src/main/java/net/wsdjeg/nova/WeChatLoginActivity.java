@@ -19,8 +19,6 @@ import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 
-import com.google.android.material.textfield.TextInputEditText;
-
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
@@ -28,10 +26,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * 微信登录 Activity
- * 
- * 支持两种登录方式：
- * 1. 扫码登录：调用 GET /weixin/login/status 轮询状态，显示二维码图片
- * 2. 手动输入凭证：调用 POST /weixin/credentials 直接写入 bot_token 和 account_id
+ *
+ * 扫码登录：调用 GET /weixin/login/status 轮询状态，显示二维码图片
  */
 public class WeChatLoginActivity extends AppCompatActivity {
 
@@ -45,11 +41,6 @@ public class WeChatLoginActivity extends AppCompatActivity {
     private TextView tvSubStatus;
     private Button btnStartLogin;
     private Button btnOpenQrBrowser;
-    private Button btnSaveCredentials;
-    private TextInputEditText etAccountId;
-    private TextInputEditText etBotToken;
-    private TextInputEditText etBaseUrl;
-    private TextInputEditText etUserId;
 
     private ApiClient apiClient;
     private AccountManager accountManager;
@@ -79,7 +70,6 @@ public class WeChatLoginActivity extends AppCompatActivity {
         } else {
             tvStatus.setText(R.string.please_add_account);
             btnStartLogin.setEnabled(false);
-            btnSaveCredentials.setEnabled(false);
         }
     }
 
@@ -90,11 +80,6 @@ public class WeChatLoginActivity extends AppCompatActivity {
         tvSubStatus = findViewById(R.id.tv_sub_status);
         btnStartLogin = findViewById(R.id.btn_start_login);
         btnOpenQrBrowser = findViewById(R.id.btn_open_qr_browser);
-        btnSaveCredentials = findViewById(R.id.btn_save_credentials);
-        etAccountId = findViewById(R.id.et_account_id);
-        etBotToken = findViewById(R.id.et_bot_token);
-        etBaseUrl = findViewById(R.id.et_base_url);
-        etUserId = findViewById(R.id.et_user_id);
 
         btnStartLogin.setOnClickListener(v -> {
             if (isPolling.get()) {
@@ -111,8 +96,6 @@ public class WeChatLoginActivity extends AppCompatActivity {
                 startActivity(browserIntent);
             }
         });
-
-        btnSaveCredentials.setOnClickListener(v -> saveCredentials());
     }
 
     /**
@@ -238,12 +221,6 @@ public class WeChatLoginActivity extends AppCompatActivity {
             Toast.makeText(this, getString(R.string.weixin_login_success) + "\n" + credInfo,
                     Toast.LENGTH_LONG).show();
 
-            // 可以在这里自动填充手动凭证区域，方便用户查看
-            etAccountId.setText(result.accountId);
-            etBotToken.setText(result.botToken);
-            etBaseUrl.setText(result.baseUrl);
-            etUserId.setText(result.userId);
-
         } else if (result.isExpired()) {
             // 二维码过期，服务器会自动刷新（最多3次），继续轮询
             tvStatus.setText(R.string.weixin_status_expired);
@@ -288,7 +265,6 @@ public class WeChatLoginActivity extends AppCompatActivity {
                     } else {
                         Log.e(TAG, "Failed to decode QR code bitmap");
                         runOnUiThread(() -> {
-                            // 图片加载失败，显示浏览器打开按钮
                             btnOpenQrBrowser.setVisibility(View.VISIBLE);
                         });
                     }
@@ -312,54 +288,6 @@ public class WeChatLoginActivity extends AppCompatActivity {
                 }
             }
         }).start();
-    }
-
-    /**
-     * 手动保存微信凭证
-     */
-    private void saveCredentials() {
-        if (apiClient == null) {
-            Toast.makeText(this, R.string.please_add_account, Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        String accountId = etAccountId.getText() != null ? etAccountId.getText().toString().trim() : "";
-        String botToken = etBotToken.getText() != null ? etBotToken.getText().toString().trim() : "";
-        String baseUrl = etBaseUrl.getText() != null ? etBaseUrl.getText().toString().trim() : "";
-        String userId = etUserId.getText() != null ? etUserId.getText().toString().trim() : "";
-
-        if (accountId.isEmpty() || botToken.isEmpty()) {
-            Toast.makeText(this, R.string.weixin_credentials_required, Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        btnSaveCredentials.setEnabled(false);
-        btnSaveCredentials.setText(R.string.saving);
-
-        apiClient.writeWeChatCredentials(accountId, botToken, baseUrl, userId,
-                new ApiClient.WeChatCredentialsCallback() {
-                    @Override
-                    public void onSuccess(String message) {
-                        runOnUiThread(() -> {
-                            btnSaveCredentials.setEnabled(true);
-                            btnSaveCredentials.setText(R.string.weixin_save_credentials);
-                            Toast.makeText(WeChatLoginActivity.this,
-                                    getString(R.string.weixin_credentials_saved) + ": " + message,
-                                    Toast.LENGTH_LONG).show();
-                        });
-                    }
-
-                    @Override
-                    public void onError(String error) {
-                        runOnUiThread(() -> {
-                            btnSaveCredentials.setEnabled(true);
-                            btnSaveCredentials.setText(R.string.weixin_save_credentials);
-                            Toast.makeText(WeChatLoginActivity.this,
-                                    getString(R.string.weixin_credentials_save_failed, error),
-                                    Toast.LENGTH_LONG).show();
-                        });
-                    }
-                });
     }
 
     @Override
