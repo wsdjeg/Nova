@@ -20,3 +20,6 @@ local.properties
 # Fetched reference files (not part of project)
 chat_server.lua
 markwon_theme_full.txt
+
+# Uploads (temporary files)
+uploads/
