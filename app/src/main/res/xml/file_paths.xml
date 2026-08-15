@@ -2,5 +2,6 @@
 <paths>
     <external-files-path name="apk_updates" path="." />
     <files-path name="internal_files" path="." />
+    <cache-path name="shared_logs" path="logs/" />
 </paths>
 

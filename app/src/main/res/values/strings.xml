@@ -337,6 +337,22 @@
 
     <!-- Log viewer -->
     <string name="read_log_failed">读取日志失败: %s</string>
+    <string name="log_search_hint">搜索日志（标签/内容/堆栈）</string>
+    <string name="log_stats_format">共 %1$d 条 · 显示 %2$d 条</string>
+    <string name="log_empty">暂无日志</string>
+    <string name="log_follow">自动滚动</string>
+    <string name="log_copy_filtered">复制筛选结果</string>
+    <string name="log_export">导出日志</string>
+    <string name="log_export_failed">导出失败: %s</string>
+    <string name="log_export_success">已导出: %s</string>
+    <string name="log_detail_title">日志详情</string>
+    <string name="log_copy_entry">复制此条</string>
+    <string name="log_share_via">分享日志</string>
+    <string name="log_level_verbose">V</string>
+    <string name="log_level_debug">D</string>
+    <string name="log_level_info">I</string>
+    <string name="log_level_warn">W</string>
+    <string name="log_level_error">E</string>
 
     <!-- Time -->
     <string name="yesterday">昨天</string>

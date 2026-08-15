@@ -1,12 +1,29 @@
 <?xml version="1.0" encoding="utf-8"?>
 <menu xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
-    
+
+    <item
+        android:id="@+id/action_follow"
+        android:checkable="true"
+        android:checked="true"
+        android:title="@string/log_follow"
+        app:showAsAction="never" />
+
     <item
         android:id="@+id/action_refresh"
         android:title="@string/menu_refresh"
         app:showAsAction="never" />
-    
+
+    <item
+        android:id="@+id/action_copy_filtered"
+        android:title="@string/log_copy_filtered"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_export"
+        android:title="@string/log_export"
+        app:showAsAction="never" />
+
     <item
         android:id="@+id/action_clear"
         android:title="@string/menu_clear_log"

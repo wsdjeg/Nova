@@ -265,6 +265,22 @@
     <string name="cwd_update_failed">CWD update failed: %s</string>
     <string name="title_update_failed">Title update failed: %s</string>
 
+    <!-- Bridge settings -->
+    <string name="bridge_settings">Bridge Integrations</string>
+    <string name="bridge_hint">Bind an IM integration to the current session. After binding, AI replies will be synced to the platform</string>
+    <string name="bridge_add">Add</string>
+    <string name="bridge_adding">Adding...</string>
+    <string name="bridge_remove">Remove</string>
+    <string name="bridge_none">No integrations bound</string>
+    <string name="bridge_unbridge_all">Unbind All</string>
+    <string name="bridge_unbridging">Unbinding...</string>
+    <string name="bridge_already_bound">%s already bound</string>
+    <string name="bridge_bound">Bound %s</string>
+    <string name="bridge_unbound">Unbound %s</string>
+    <string name="bridge_all_unbound">All integrations unbound</string>
+    <string name="bridge_bind_failed">Bind failed: %s</string>
+    <string name="bridge_unbind_failed">Unbind failed: %s</string>
+
     <!-- Settings -->
     <string name="new_session_defaults">New Session Defaults</string>
     <string name="appearance_settings">Appearance</string>
@@ -321,6 +337,22 @@
 
     <!-- Log viewer -->
     <string name="read_log_failed">Failed to read logs: %s</string>
+    <string name="log_search_hint">Search logs (tag/content/stack)</string>
+    <string name="log_stats_format">%1$d total · %2$d shown</string>
+    <string name="log_empty">No logs</string>
+    <string name="log_follow">Auto scroll</string>
+    <string name="log_copy_filtered">Copy filtered</string>
+    <string name="log_export">Export logs</string>
+    <string name="log_export_failed">Export failed: %s</string>
+    <string name="log_export_success">Exported: %s</string>
+    <string name="log_detail_title">Log detail</string>
+    <string name="log_copy_entry">Copy this entry</string>
+    <string name="log_share_via">Share logs</string>
+    <string name="log_level_verbose">V</string>
+    <string name="log_level_debug">D</string>
+    <string name="log_level_info">I</string>
+    <string name="log_level_warn">W</string>
+    <string name="log_level_error">E</string>
 
     <!-- Time -->
     <string name="yesterday">Yesterday</string>
