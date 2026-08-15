@@ -150,11 +150,13 @@
             app:backgroundTint="@null" />
 
         <!-- Skills Autocomplete Popup (above input, shown when typing /)
+             minHeight guarantees visibility of loading/error/empty status
              Height is capped dynamically in ChatActivity (~220dp max) -->
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/rv_skills"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:minHeight="48dp"
             android:layout_above="@id/et_message"
             android:layout_marginBottom="4dp"
             android:background="@drawable/skills_popup_bg"

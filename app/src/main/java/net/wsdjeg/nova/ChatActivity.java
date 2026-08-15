@@ -81,6 +81,8 @@ import java.util.Set;
  * - 继续输入时按 name/description 实时过滤
  * - 点击条目补全为 "/name " 并保留焦点
  * - 弹窗高度动态限制（最多约 220dp），条目少时自适应收缩
+ * - 状态反馈：数据未到/加载中/加载失败/无匹配时显示状态行，
+ *   保证弹窗始终可见（避免空列表高度为 0 导致"看不见"）
  */
 public class ChatActivity extends AppCompatActivity {
     
@@ -194,6 +196,9 @@ public class ChatActivity extends AppCompatActivity {
     private SkillAdapter skillAdapter;
     private boolean skillsLoaded = false;
     private boolean isSkillsLoading = false;
+    private boolean skillsLoadFailed = false;
+    private String lastSkillsError = "";
+    private boolean skillsErrorToasted = false;
     private long lastSkillsLoadTime = 0;
 
     
@@ -432,6 +437,7 @@ public class ChatActivity extends AppCompatActivity {
             String keyword = text.substring(1);
             ensureSkillsLoaded();
             skillAdapter.filter(keyword);
+            updateSkillsStatus();
             rvSkills.setVisibility(View.VISIBLE);
         } else {
             hideSkillsPopup();
@@ -444,6 +450,38 @@ public class ChatActivity extends AppCompatActivity {
     private void hideSkillsPopup() {
         if (rvSkills != null && rvSkills.getVisibility() == View.VISIBLE) {
             rvSkills.setVisibility(View.GONE);
+        }
+    }
+    
+    /**
+     * 根据加载状态更新弹窗状态行：
+     * - 有匹配项 -> 清除状态，显示列表
+     * - 数据未就绪 -> "正在加载 skills..."
+     * - 加载失败 -> 错误信息（旧版服务端无 /skills 端点时提示升级）
+     * - 服务端无 skills / 过滤无匹配 -> 相应提示
+     */
+    private void updateSkillsStatus() {
+        if (skillAdapter == null) return;
+        
+        if (skillAdapter.hasMatch()) {
+            skillAdapter.clearStatus();
+            return;
+        }
+        
+        // 无匹配项：根据数据状态显示提示
+        if (!skillAdapter.hasSkills()) {
+            if (isSkillsLoading) {
+                skillAdapter.setStatus(getString(R.string.skills_loading));
+            } else if (skillsLoadFailed) {
+                skillAdapter.setStatus(getString(R.string.skills_load_failed, lastSkillsError));
+            } else if (skillsLoaded) {
+                skillAdapter.setStatus(getString(R.string.skills_empty));
+            } else {
+                // 尚未发起请求（理论上不会走到，ensureSkillsLoaded 已触发）
+                skillAdapter.setStatus(getString(R.string.skills_loading));
+            }
+        } else {
+            skillAdapter.setStatus(getString(R.string.skills_no_match));
         }
     }
     
@@ -479,23 +517,30 @@ public class ChatActivity extends AppCompatActivity {
      * 缓存有效期 5 分钟，过期后自动刷新
      */
     private void ensureSkillsLoaded() {
-        if (skillsLoaded && System.currentTimeMillis() - lastSkillsLoadTime < SKILLS_CACHE_TTL_MS) {
+        if (skillsLoaded && !skillsLoadFailed
+                && System.currentTimeMillis() - lastSkillsLoadTime < SKILLS_CACHE_TTL_MS) {
             return;
         }
         if (isSkillsLoading || apiClient == null) return;
         
         isSkillsLoading = true;
+        skillsLoadFailed = false;
         Log.d(TAG, "Loading skills from server...");
+        if (skillAdapter != null && !skillAdapter.hasSkills()) {
+            skillAdapter.setStatus(getString(R.string.skills_loading));
+        }
         apiClient.getSkills(new ApiClient.SkillsCallback() {
             @Override
             public void onSuccess(List<Skill> skills) {
                 runOnUiThread(() -> {
                     isSkillsLoading = false;
                     skillsLoaded = true;
+                    skillsLoadFailed = false;
                     lastSkillsLoadTime = System.currentTimeMillis();
                     if (skillAdapter != null) {
                         skillAdapter.setSkills(skills);
                         Log.d(TAG, "Loaded " + skills.size() + " skills");
+                        updateSkillsStatus();
                     }
                 });
             }
@@ -504,7 +549,17 @@ public class ChatActivity extends AppCompatActivity {
             public void onError(String error) {
                 runOnUiThread(() -> {
                     isSkillsLoading = false;
+                    skillsLoadFailed = true;
+                    lastSkillsError = error != null ? error : "unknown";
                     Log.d(TAG, "Skills load failed: " + error);
+                    updateSkillsStatus();
+                    // 只提示一次，避免每次输入 / 都弹 Toast
+                    if (!skillsErrorToasted) {
+                        skillsErrorToasted = true;
+                        Toast.makeText(ChatActivity.this,
+                                getString(R.string.skills_load_failed, lastSkillsError),
+                                Toast.LENGTH_LONG).show();
+                    }
                 });
             }
         });

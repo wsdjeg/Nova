@@ -116,6 +116,7 @@
     <string name="skills_loading">正在加载 skills...</string>
     <string name="skills_load_failed">Skills 加载失败: %s</string>
     <string name="skills_no_match">无匹配的 skill</string>
+    <string name="skills_empty">服务端没有可用的 skill</string>
 
     <!-- Upload image -->
     <string name="uploading_image">正在上传图片...</string>

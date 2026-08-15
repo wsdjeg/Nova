@@ -111,6 +111,13 @@
     <string name="session_deleted">Session deleted</string>
     <string name="delete_failed">Delete failed: %s</string>
 
+    <!-- Skills autocomplete -->
+    <string name="builtin">built-in</string>
+    <string name="skills_loading">Loading skills...</string>
+    <string name="skills_load_failed">Failed to load skills: %s</string>
+    <string name="skills_no_match">No matching skill</string>
+    <string name="skills_empty">No skills available on server</string>
+
     <!-- Upload image -->
     <string name="uploading_image">Uploading image...</string>
     <string name="upload_success">Upload success: %1$s (%2$.1f KB)</string>
