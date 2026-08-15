@@ -433,8 +433,12 @@ public class ChatActivity extends AppCompatActivity {
     private void handleSkillsAutocomplete(String text) {
         if (rvSkills == null || skillAdapter == null) return;
         
-        if (text != null && text.startsWith("/") && !text.contains(" ")) {
-            String keyword = text.substring(1);
+        // Fix: 中文输入法在全角标点模式下 "/" 键输出全角斜杠 ／(U+FF0F)，
+        // 统一规范化为半角 "/" 后再匹配，避免补全弹窗无法触发
+        String normalized = text != null ? text.replace('／', '/') : null;
+        
+        if (normalized != null && normalized.startsWith("/") && !normalized.contains(" ")) {
+            String keyword = normalized.substring(1);
             ensureSkillsLoaded();
             skillAdapter.filter(keyword);
             updateSkillsStatus();
@@ -1801,6 +1805,10 @@ public class ChatActivity extends AppCompatActivity {
     
     private void sendMessage() {
         String content = etMessage.getText().toString().trim();
+        // Fix: 全角斜杠开头时规范化为半角，确保 /clear 等命令在中文输入法下生效
+        if (content.startsWith("／")) {
+            content = '/' + content.substring(1);
+        }
         if (content.isEmpty()) return;
         hideSkillsPopup();
         etMessage.setText("");
