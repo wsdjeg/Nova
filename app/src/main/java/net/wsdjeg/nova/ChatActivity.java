@@ -1804,11 +1804,10 @@ public class ChatActivity extends AppCompatActivity {
     }
     
     private void sendMessage() {
-        String content = etMessage.getText().toString().trim();
+        String raw = etMessage.getText().toString().trim();
         // Fix: 全角斜杠开头时规范化为半角，确保 /clear 等命令在中文输入法下生效
-        if (content.startsWith("／")) {
-            content = '/' + content.substring(1);
-        }
+        // 注意声明为 final：后续 lambda 回调需要引用该变量
+        final String content = raw.startsWith("／") ? '/' + raw.substring(1) : raw;
         if (content.isEmpty()) return;
         hideSkillsPopup();
         etMessage.setText("");
