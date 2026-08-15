@@ -202,8 +202,6 @@ public class ChatActivity extends AppCompatActivity {
     private String lastSkillsError = "";
     private boolean skillsErrorToasted = false;
     private long lastSkillsLoadTime = 0;
-    // 一次性诊断提示：首次触发弹窗时反馈，便于用户确认链路是否生效（后续版本移除）
-    private boolean skillsPopupDebugToasted = false;
 
     
     @Override
@@ -480,13 +478,6 @@ public class ChatActivity extends AppCompatActivity {
             skillAdapter.filter(keyword);
             updateSkillsStatus();
             rvSkills.setVisibility(View.VISIBLE);
-            // 一次性诊断提示（仅首次触发弹出，用于现场定位显示链路，后续版本移除）
-            if (!skillsPopupDebugToasted) {
-                skillsPopupDebugToasted = true;
-                Toast.makeText(this,
-                        "调试: skills 补全已触发 (kw=\"" + keyword + "\")",
-                        Toast.LENGTH_SHORT).show();
-            }
         } else {
             hideSkillsPopup();
         }
