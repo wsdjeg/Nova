@@ -294,6 +294,26 @@ public class ChatActivity extends AppCompatActivity {
         btnSend = findViewById(R.id.btn_send);
         fabScrollBottom = findViewById(R.id.fab_scroll_bottom);
         
+        // 输入层面即时规范化：输入法输出的斜杠变体（全角／分数⁄除号∕）
+        // 直接转为半角 /，确保输入 / 立即触发 skills 补全，所见即所得
+        etMessage.setFilters(new android.text.InputFilter[] {
+            (source, start, end, dest, dstart, dend) -> {
+                if (source == null) return null;
+                boolean changed = false;
+                StringBuilder sb = new StringBuilder(end - start);
+                for (int i = start; i < end; i++) {
+                    char c = source.charAt(i);
+                    if (c == '\uFF0F' || c == '\u2044' || c == '\u2215') {
+                        sb.append('/');
+                        changed = true;
+                    } else {
+                        sb.append(c);
+                    }
+                }
+                return changed ? sb : null;
+            }
+        });
+        
         // 初始化 Skills 自动补全弹窗
         rvSkills = findViewById(R.id.rv_skills);
         skillAdapter = new SkillAdapter(skill -> {
@@ -430,12 +450,25 @@ public class ChatActivity extends AppCompatActivity {
      * - 关键词取 / 之后的部分，实时过滤 name/description
      * - 其他情况隐藏弹窗
      */
+    /**
+     * 将各种 Unicode 斜杠变体统一规范化为半角 '/' (U+002F)：
+     * - 全角斜杠 ／ (U+FF0F)：中文输入法全角标点模式
+     * - 分数斜杠 ⁄ (U+2044)：部分输入法符号面板
+     * - 除号斜杠 ∕ (U+2215)：部分输入法符号面板
+     */
+    private static String normalizeSlashVariants(String text) {
+        if (text == null) return null;
+        return text
+            .replace('\uFF0F', '/')
+            .replace('\u2044', '/')
+            .replace('\u2215', '/');
+    }
+
     private void handleSkillsAutocomplete(String text) {
         if (rvSkills == null || skillAdapter == null) return;
         
-        // Fix: 中文输入法在全角标点模式下 "/" 键输出全角斜杠 ／(U+FF0F)，
-        // 统一规范化为半角 "/" 后再匹配，避免补全弹窗无法触发
-        String normalized = text != null ? text.replace('／', '/') : null;
+        // Fix: 输入法可能输出各种 Unicode 斜杠变体，统一规范化为半角 "/" 再匹配
+        String normalized = normalizeSlashVariants(text);
         
         if (normalized != null && normalized.startsWith("/") && !normalized.contains(" ")) {
             String keyword = normalized.substring(1);
@@ -1805,9 +1838,9 @@ public class ChatActivity extends AppCompatActivity {
     
     private void sendMessage() {
         String raw = etMessage.getText().toString().trim();
-        // Fix: 全角斜杠开头时规范化为半角，确保 /clear 等命令在中文输入法下生效
+        // Fix: 各种 Unicode 斜杠变体统一规范化为半角，确保 /clear 等命令在中文输入法下生效
         // 注意声明为 final：后续 lambda 回调需要引用该变量
-        final String content = raw.startsWith("／") ? '/' + raw.substring(1) : raw;
+        final String content = normalizeSlashVariants(raw);
         if (content.isEmpty()) return;
         hideSkillsPopup();
         etMessage.setText("");
