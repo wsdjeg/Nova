@@ -83,6 +83,8 @@ import java.util.Set;
  * - 弹窗高度动态限制（最多约 220dp），条目少时自适应收缩
  * - 状态反馈：数据未到/加载中/加载失败/无匹配时显示状态行，
  *   保证弹窗始终可见（避免空列表高度为 0 导致"看不见"）
+ * - 弹窗位于根布局层级（layout_above inputArea）：
+ *   显示/隐藏不再改变 inputArea 高度，避免键盘 insets 连锁重排
  */
 public class ChatActivity extends AppCompatActivity {
     
@@ -200,6 +202,8 @@ public class ChatActivity extends AppCompatActivity {
     private String lastSkillsError = "";
     private boolean skillsErrorToasted = false;
     private long lastSkillsLoadTime = 0;
+    // 一次性诊断提示：首次触发弹窗时反馈，便于用户确认链路是否生效（后续版本移除）
+    private boolean skillsPopupDebugToasted = false;
 
     
     @Override
@@ -476,6 +480,13 @@ public class ChatActivity extends AppCompatActivity {
             skillAdapter.filter(keyword);
             updateSkillsStatus();
             rvSkills.setVisibility(View.VISIBLE);
+            // 一次性诊断提示（仅首次触发弹出，用于现场定位显示链路，后续版本移除）
+            if (!skillsPopupDebugToasted) {
+                skillsPopupDebugToasted = true;
+                Toast.makeText(this,
+                        "调试: skills 补全已触发 (kw=\"" + keyword + "\")",
+                        Toast.LENGTH_SHORT).show();
+            }
         } else {
             hideSkillsPopup();
         }
@@ -541,6 +552,16 @@ public class ChatActivity extends AppCompatActivity {
             float density = getResources().getDisplayMetrics().density;
             int maxPx = (int) (SKILLS_POPUP_MAX_HEIGHT_DP * density);
             int itemHeight = rvSkills.getChildAt(0).getHeight();
+            // Fix: 弹窗刚 VISIBLE、尚未完成 layout 时 child 高度可能为 0，
+            // 此时按 0 计算 desired 会把弹窗高度锁死为 0（不可见）。
+            // 回退到 WRAP_CONTENT，等下一轮数据变化再精确收缩。
+            if (itemHeight <= 0) {
+                if (lp.height != ViewGroup.LayoutParams.WRAP_CONTENT) {
+                    lp.height = ViewGroup.LayoutParams.WRAP_CONTENT;
+                    rvSkills.setLayoutParams(lp);
+                }
+                return;
+            }
             int desired = Math.min(count * itemHeight, maxPx);
             if (lp.height != desired) {
                 lp.height = desired;
