@@ -148,6 +148,19 @@
             android:contentDescription="@string/send"
             android:scaleType="centerInside"
             app:backgroundTint="@null" />
+
+        <!-- Skills Autocomplete Popup (above input, shown when typing /)
+             Height is capped dynamically in ChatActivity (~220dp max) -->
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rv_skills"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_above="@id/et_message"
+            android:layout_marginBottom="4dp"
+            android:background="@drawable/skills_popup_bg"
+            android:elevation="8dp"
+            android:visibility="gone"
+            android:overScrollMode="always" />
     </RelativeLayout>
 </RelativeLayout>
 

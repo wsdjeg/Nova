@@ -14,6 +14,7 @@ import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.ViewTreeObserver;
 import android.widget.Button;
 import android.widget.EditText;
@@ -73,6 +74,13 @@ import java.util.Set;
  * - 键盘弹出/关闭时，RecyclerView 高度变化
  * - 使用 scrollBy 补偿，保持消息相对于输入框的位置不变
  * - 使用防抖机制避免 GlobalLayoutListener 多次触发导致的重复滚动
+ * 
+ * Skills 自动补全：
+ * - 输入以 / 开头且不含空格时，在输入框上方弹出 skill 列表
+ * - 数据来源 GET /skills，懒加载并缓存（5 分钟 TTL）
+ * - 继续输入时按 name/description 实时过滤
+ * - 点击条目补全为 "/name " 并保留焦点
+ * - 弹窗高度动态限制（最多约 220dp），条目少时自适应收缩
  */
 public class ChatActivity extends AppCompatActivity {
     
@@ -93,6 +101,12 @@ public class ChatActivity extends AppCompatActivity {
     
     // 键盘防抖：最小触发间隔
     private static final long MIN_KEYBOARD_SCROLL_INTERVAL_MS = 50;
+
+    // Skills 缓存有效期
+    private static final long SKILLS_CACHE_TTL_MS = 5 * 60 * 1000;
+
+    // Skills 弹窗最大高度（dp）
+    private static final int SKILLS_POPUP_MAX_HEIGHT_DP = 220;
     
     public static final String EXTRA_SESSION_ID = "session_id";
     public static final String EXTRA_SESSION_TITLE = "session_title";
@@ -174,6 +188,13 @@ public class ChatActivity extends AppCompatActivity {
 
     // 语音识别辅助
     private ChatVoiceHelper voiceHelper;
+
+    // Skills 自动补全
+    private RecyclerView rvSkills;
+    private SkillAdapter skillAdapter;
+    private boolean skillsLoaded = false;
+    private boolean isSkillsLoading = false;
+    private long lastSkillsLoadTime = 0;
 
     
     @Override
@@ -268,6 +289,25 @@ public class ChatActivity extends AppCompatActivity {
         btnSend = findViewById(R.id.btn_send);
         fabScrollBottom = findViewById(R.id.fab_scroll_bottom);
         
+        // 初始化 Skills 自动补全弹窗
+        rvSkills = findViewById(R.id.rv_skills);
+        skillAdapter = new SkillAdapter(skill -> {
+            // 点击补全：替换输入框内容为 "/name "，光标移到末尾继续输入参数
+            etMessage.setText(skill.getCommand() + " ");
+            etMessage.setSelection(etMessage.getText().length());
+            etMessage.requestFocus();
+            hideSkillsPopup();
+        });
+        rvSkills.setLayoutManager(new LinearLayoutManager(this));
+        rvSkills.setAdapter(skillAdapter);
+        // 数据变化后动态限制弹窗高度（RecyclerView 不支持 android:maxHeight）
+        skillAdapter.registerAdapterDataObserver(new RecyclerView.AdapterDataObserver() {
+            @Override
+            public void onChanged() {
+                capSkillsPopupHeight();
+            }
+        });
+        
         if (isInProgress) {
             setButtonStateSending();
         } else {
@@ -329,6 +369,7 @@ public class ChatActivity extends AppCompatActivity {
             @Override
             public void afterTextChanged(android.text.Editable s) {
                 updateButtonAppearance();
+                handleSkillsAutocomplete(s.toString());
             }
         });
         
@@ -376,6 +417,97 @@ public class ChatActivity extends AppCompatActivity {
             }
         };
         initialLoadTimeoutHandler.postDelayed(initialLoadTimeoutRunnable, 20000);
+    }
+    
+    /**
+     * Skills 自动补全：
+     * - 输入以 / 开头且不含空格时显示弹窗（如 "/"、"/cl"）
+     * - 关键词取 / 之后的部分，实时过滤 name/description
+     * - 其他情况隐藏弹窗
+     */
+    private void handleSkillsAutocomplete(String text) {
+        if (rvSkills == null || skillAdapter == null) return;
+        
+        if (text != null && text.startsWith("/") && !text.contains(" ")) {
+            String keyword = text.substring(1);
+            ensureSkillsLoaded();
+            skillAdapter.filter(keyword);
+            rvSkills.setVisibility(View.VISIBLE);
+        } else {
+            hideSkillsPopup();
+        }
+    }
+    
+    /**
+     * 隐藏 Skills 自动补全弹窗
+     */
+    private void hideSkillsPopup() {
+        if (rvSkills != null && rvSkills.getVisibility() == View.VISIBLE) {
+            rvSkills.setVisibility(View.GONE);
+        }
+    }
+    
+    /**
+     * 动态限制 Skills 弹窗高度：
+     * - 条目少时自适应（wrap_content 效果）
+     * - 条目多时限制在约 220dp，内部滚动
+     * RecyclerView 原生不支持 android:maxHeight，需手动处理
+     */
+    private void capSkillsPopupHeight() {
+        if (rvSkills == null) return;
+        rvSkills.post(() -> {
+            ViewGroup.LayoutParams lp = rvSkills.getLayoutParams();
+            int count = (skillAdapter != null) ? skillAdapter.getItemCount() : 0;
+            if (count == 0 || rvSkills.getChildCount() == 0) {
+                lp.height = ViewGroup.LayoutParams.WRAP_CONTENT;
+                rvSkills.setLayoutParams(lp);
+                return;
+            }
+            float density = getResources().getDisplayMetrics().density;
+            int maxPx = (int) (SKILLS_POPUP_MAX_HEIGHT_DP * density);
+            int itemHeight = rvSkills.getChildAt(0).getHeight();
+            int desired = Math.min(count * itemHeight, maxPx);
+            if (lp.height != desired) {
+                lp.height = desired;
+                rvSkills.setLayoutParams(lp);
+            }
+        });
+    }
+    
+    /**
+     * 懒加载 skills 列表（GET /skills）
+     * 缓存有效期 5 分钟，过期后自动刷新
+     */
+    private void ensureSkillsLoaded() {
+        if (skillsLoaded && System.currentTimeMillis() - lastSkillsLoadTime < SKILLS_CACHE_TTL_MS) {
+            return;
+        }
+        if (isSkillsLoading || apiClient == null) return;
+        
+        isSkillsLoading = true;
+        Log.d(TAG, "Loading skills from server...");
+        apiClient.getSkills(new ApiClient.SkillsCallback() {
+            @Override
+            public void onSuccess(List<Skill> skills) {
+                runOnUiThread(() -> {
+                    isSkillsLoading = false;
+                    skillsLoaded = true;
+                    lastSkillsLoadTime = System.currentTimeMillis();
+                    if (skillAdapter != null) {
+                        skillAdapter.setSkills(skills);
+                        Log.d(TAG, "Loaded " + skills.size() + " skills");
+                    }
+                });
+            }
+            
+            @Override
+            public void onError(String error) {
+                runOnUiThread(() -> {
+                    isSkillsLoading = false;
+                    Log.d(TAG, "Skills load failed: " + error);
+                });
+            }
+        });
     }
     
     /**
@@ -896,14 +1028,14 @@ public class ChatActivity extends AppCompatActivity {
                               (tcInfo.length() > 0 ? ", " + tcInfo.toString() : ""));
                         
                         if (messageFingerprints.contains(getMessageFingerprint(msg))) {
-                            Log.d(TAG, "  → SKIP: already exists");
+                            Log.d(TAG, "  -> SKIP: already exists");
                             continue;
                         }
 
                         if (msg.error == null && "user".equals(msg.role) && msg.content != null) {
                             int pendingIndex = findPendingMessageIndex(msg.content);
                             if (pendingIndex >= 0) {
-                                Log.d(TAG, "  → REPLACE pending at " + pendingIndex);
+                                Log.d(TAG, "  -> REPLACE pending at " + pendingIndex);
                                 messages.set(pendingIndex, createMessageFromChatMessage(msg, serverIndex));
                                 pendingMessages.remove(msg.content);
                                 messageFingerprints.add(getMessageFingerprint(msg));
@@ -914,7 +1046,7 @@ public class ChatActivity extends AppCompatActivity {
                         messages.add(createMessageFromChatMessage(msg, serverIndex));
                         String fingerprint = getMessageFingerprint(msg);
                         messageFingerprints.add(fingerprint);
-                        Log.d(TAG, "  → ADD: fingerprint=" + fingerprint);
+                        Log.d(TAG, "  -> ADD: fingerprint=" + fingerprint);
                         addedNew = true;
                     }
                     
@@ -1615,6 +1747,7 @@ public class ChatActivity extends AppCompatActivity {
     private void sendMessage() {
         String content = etMessage.getText().toString().trim();
         if (content.isEmpty()) return;
+        hideSkillsPopup();
         etMessage.setText("");
         
         Message pendingMsg = Message.createPending(content, true);
@@ -1853,3 +1986,4 @@ public class ChatActivity extends AppCompatActivity {
         }
     }
 }
+

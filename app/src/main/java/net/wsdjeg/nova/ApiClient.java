@@ -156,6 +156,15 @@ public class ApiClient {
         void onError(String error);
     }
 
+    /**
+     * 获取 skills 列表的回调接口
+     * 用于 GET /skills API
+     */
+    public interface SkillsCallback {
+        void onSuccess(List<Skill> skills);
+        void onError(String error);
+    }
+
     public ApiClient(SettingsManager settingsManager) {
         this.settingsManager = settingsManager;
         this.overrideBaseUrl = null;
@@ -614,6 +623,83 @@ public class ApiClient {
                 }
             } catch (Exception e) {
                 Log.e(TAG, "getProviders failed", e);
+                new Handler(Looper.getMainLooper()).post(() -> 
+                    callback.onError("Network error: " + e.getMessage()));
+            } finally {
+                if (br != null) {
+                    try { br.close(); } catch (Exception ignored) {}
+                }
+                if (conn != null) {
+                    conn.disconnect();
+                }
+            }
+        }).start();
+    }
+    
+    /**
+     * 获取所有已注册的 skills（slash 命令）
+     * API 端点: GET /skills
+     * 响应格式: [ { "name": "clear", "description": "...", "builtin": true }, ... ]
+     */
+    public void getSkills(SkillsCallback callback) {
+        String baseUrl = getBaseUrl();
+        String apiKey = getApiKey();
+        
+        if (baseUrl.isEmpty() || apiKey.isEmpty()) {
+            callback.onError("Please configure API settings");
+            return;
+        }
+        
+        new Thread(() -> {
+            HttpURLConnection conn = null;
+            BufferedReader br = null;
+            try {
+                URL url = new URL(baseUrl + "/skills");
+                conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("GET");
+                conn.setRequestProperty("X-API-Key", apiKey);
+                conn.setRequestProperty("Connection", "close");
+                conn.setRequestProperty("Accept", "application/json");
+                conn.setConnectTimeout(15000);
+                conn.setReadTimeout(30000);
+                conn.setUseCaches(false);
+                
+                int responseCode = conn.getResponseCode();
+                
+                if (responseCode == 200) {
+                    br = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
+                    StringBuilder response = new StringBuilder();
+                    String line;
+                    while ((line = br.readLine()) != null) {
+                        response.append(line);
+                    }
+                    
+                    JSONArray jsonArray = new JSONArray(response.toString());
+                    List<Skill> skills = new ArrayList<>();
+                    
+                    for (int i = 0; i < jsonArray.length(); i++) {
+                        JSONObject skillObj = jsonArray.getJSONObject(i);
+                        String name = skillObj.optString("name", "");
+                        String description = skillObj.optString("description", "");
+                        boolean builtin = skillObj.optBoolean("builtin", false);
+                        
+                        if (!name.isEmpty()) {
+                            skills.add(new Skill(name, description, builtin));
+                        }
+                    }
+                    
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onSuccess(skills));
+                } else if (responseCode == 401) {
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onError("Unauthorized: Invalid API Key"));
+                } else {
+                    final int code = responseCode;
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onError("Error: " + code));
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "getSkills failed", e);
                 new Handler(Looper.getMainLooper()).post(() -> 
                     callback.onError("Network error: " + e.getMessage()));
             } finally {
@@ -2681,3 +2767,4 @@ public class ApiClient {
         }).start();
     }
 }
+
