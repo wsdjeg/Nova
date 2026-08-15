@@ -83,6 +83,7 @@ all from your phone.
 - Markdown rendering with syntax highlighting, tables, task lists, and strikethrough
 - Separate Markwon instances for user (blue-tinted code) and AI messages
 - Slash commands (`/help`, `/sessions`, `/session`, `/set`, `/clear`, `/title`)
+- Skills autocomplete - type `/` in the input box to browse and pick server-side skills, with live filtering by name / description and 5-minute list caching
 - Long-press message for copy / delete with popup at touch point
 - Text selection dialog with Markdown rendering for long-press content
 - Draft auto-save for unsent messages
@@ -177,6 +178,13 @@ No configuration file is needed - everything is set up inside the app.
 | Delete message | Long-press a message -> **Delete** |
 | Select text | Long-press a message -> **Select text** (renders Markdown) |
 | Slash commands | Type `/help` in the input box for available commands |
+| Autocomplete skills | Type `/` at the start of the input box - a popup lists available skills; keep typing to filter by name / description, tap a row to insert `/skill_name ` |
+
+The skills popup appears when the input starts with `/` and contains no space.
+Full-width slash variants (`／`, `⁄`, `∕`) are normalized automatically, so
+Chinese IME input works with slash commands and skill names too.
+The skill list is fetched from the server (5-minute cache) and shows
+loading / error / empty states inline.
 
 ### Image upload
 
@@ -254,11 +262,12 @@ All requests are authenticated via the `X-API-Key` header.
 | `/session/:id/stop` | POST | Stop AI generation |
 | `/session/:id/clear` | POST | Clear session messages |
 | `/session/:id/retry` | POST | Retry the last message |
-| `/session?id={id}` | GET | HTML preview page |
-| `/messages?session={id}` | GET | Get messages (supports `since` / `limit` / `last`) |
+| `/session?id=glm-5.3_common` | GET | HTML preview page |
+| `/messages?session=glm-5.3_common` | GET | Get messages (supports `since` / `limit` / `last`) |
 | `/` | POST | Send a message |
 | `/providers` | GET | List available providers |
-| `/upload?session={id}&path={dir}` | POST | Upload image to session working directory |
+| `/skills` | GET | List available skills (used for slash autocomplete) |
+| `/upload?session=glm-5.3_common&path={dir}` | POST | Upload image to session working directory |
 | `/session/:id/bridges` | GET / PUT | Get / set bridge (integration) settings for a session |
 | `/weixin/credentials` | GET | Get WeChat login QR code and status |
 | `/weixin/credentials` | DELETE | Disconnect WeChat (clear credentials) |
@@ -289,12 +298,14 @@ Nova/
 │   ├── ChatMessage.java               # Chat message DTO (top-level)
 │   ├── ToolCall.java                  # Tool call DTO (top-level)
 │   ├── Provider.java                  # Provider DTO (top-level)
+│   ├── Skill.java                     # Skill DTO (top-level)
 │   ├── Account.java                   # Account model
 │   ├── WeChatLoginResult.java         # WeChat login result model
 │   ├── QRCodeUtils.java               # QR code generation (ZXing)
 │   ├── SessionAdapter.java            # Session list adapter (swipe, pin)
 │   ├── MessageAdapter.java            # Message adapter (DiffUtil, fingerprints)
 │   ├── AccountAdapter.java            # Account list adapter
+│   ├── SkillAdapter.java              # Skills autocomplete popup adapter
 │   ├── VoskSpeechRecognizer.java      # Offline speech recognition
 │   ├── MarkdownUtils.java             # Markdown preprocessing
 │   ├── InlineCodeSpan.java            # Inline code styling
@@ -303,7 +314,7 @@ Nova/
 │   ├── TimeUtils.java                 # Time formatting
 │   └── NovaApplication.java           # Application entry
 ├── app/src/main/res/
-│   ├── layout/                        # 22 layout XMLs
+│   ├── layout/                        # 24 layout XMLs
 │   ├── menu/                          # 8 menu XMLs
 │   ├── drawable/                      # 38 drawable resources
 │   ├── values/                        # colors, strings, themes
@@ -353,6 +364,7 @@ Nova/
 - [x] Voice input (Vosk + system fallback)
 - [x] Session search
 - [x] Slash commands
+- [x] Skills autocomplete (`/` popup with live filtering)
 - [x] Long-press message for copy / delete
 - [x] Text selection dialog with Markdown rendering
 - [x] Image upload to session working directory
