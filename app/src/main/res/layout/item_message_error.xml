@@ -16,13 +16,5 @@
         android:background="@drawable/error_message_bg"
         android:textColor="@color/error_text_color" />
 
-    <TextView
-        android:id="@+id/timeText"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="3dp"
-        android:textSize="12sp"
-        android:textColor="@color/time_text" />
-
 </LinearLayout>
 
