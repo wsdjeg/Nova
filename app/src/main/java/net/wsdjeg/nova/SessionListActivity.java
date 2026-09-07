@@ -160,6 +160,9 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
         } else if (id == R.id.action_view_log) {
             startActivity(new Intent(this, LogViewerActivity.class));
             return true;
+        } else if (id == R.id.action_server_log) {
+            startActivity(new Intent(this, ServerLogActivity.class));
+            return true;
         } else if (id == R.id.action_about) {
             startActivity(new Intent(this, AboutActivity.class));
             return true;

@@ -87,6 +87,12 @@
             android:exported="false"
             android:label="@string/title_log_viewer" />
 
+        <!-- ServerLogActivity -->
+        <activity
+            android:name=".ServerLogActivity"
+            android:exported="false"
+            android:label="@string/title_server_log" />
+
         <!-- ShareActivity: 接收文本、图片、文件分享 -->
         <activity
             android:name=".ShareActivity"

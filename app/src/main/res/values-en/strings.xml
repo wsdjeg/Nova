@@ -56,6 +56,7 @@
     <string name="title_account_edit">Edit Account</string>
     <string name="title_account_add">Add Account</string>
     <string name="title_log_viewer">Log Viewer</string>
+    <string name="title_server_log">Server Logs</string>
 
     <!-- Menu items -->
     <string name="menu_search">Search</string>
@@ -69,6 +70,7 @@
     <string name="menu_save">Save</string>
     <string name="menu_account_manager">Account Manager</string>
     <string name="menu_view_log">View Logs</string>
+    <string name="menu_server_log">Server Logs</string>
     <string name="menu_about">About</string>
     <string name="menu_import">Import</string>
     <string name="menu_export">Export</string>
@@ -353,6 +355,21 @@
     <string name="log_level_info">I</string>
     <string name="log_level_warn">W</string>
     <string name="log_level_error">E</string>
+
+    <!-- Server log viewer -->
+    <string name="server_log_filter_all">All</string>
+    <string name="server_log_filter_error">Error</string>
+    <string name="server_log_filter_warn">Warn+</string>
+    <string name="server_log_filter_info">Info+</string>
+    <string name="server_log_filter_debug">Debug+</string>
+    <string name="server_log_stats_format">%1$d lines</string>
+    <string name="server_log_empty">No logs</string>
+    <string name="server_log_auto_refresh">Auto refresh</string>
+    <string name="server_log_copy_all">Copy all</string>
+    <string name="server_log_clear_title">Clear server logs</string>
+    <string name="server_log_clear_message">Clear all runtime logs on the server?</string>
+    <string name="server_log_cleared">Server logs cleared</string>
+    <string name="server_log_clear_failed">Clear failed: %s</string>
 
     <!-- Time -->
     <string name="yesterday">Yesterday</string>

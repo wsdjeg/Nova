@@ -56,6 +56,7 @@
     <string name="title_account_edit">编辑账号</string>
     <string name="title_account_add">添加账号</string>
     <string name="title_log_viewer">日志查看器</string>
+    <string name="title_server_log">服务端日志</string>
 
     <!-- Menu items -->
     <string name="menu_search">搜索</string>
@@ -69,6 +70,7 @@
     <string name="menu_save">保存</string>
     <string name="menu_account_manager">账号管理</string>
     <string name="menu_view_log">查看日志</string>
+    <string name="menu_server_log">服务端日志</string>
     <string name="menu_about">关于</string>
     <string name="menu_import">导入</string>
     <string name="menu_export">导出</string>
@@ -353,6 +355,21 @@
     <string name="log_level_info">I</string>
     <string name="log_level_warn">W</string>
     <string name="log_level_error">E</string>
+
+    <!-- Server log viewer -->
+    <string name="server_log_filter_all">全部</string>
+    <string name="server_log_filter_error">错误</string>
+    <string name="server_log_filter_warn">警告+</string>
+    <string name="server_log_filter_info">信息+</string>
+    <string name="server_log_filter_debug">调试+</string>
+    <string name="server_log_stats_format">共 %1$d 条</string>
+    <string name="server_log_empty">暂无日志</string>
+    <string name="server_log_auto_refresh">自动刷新</string>
+    <string name="server_log_copy_all">复制全部</string>
+    <string name="server_log_clear_title">清空服务端日志</string>
+    <string name="server_log_clear_message">确定要清空服务端的所有运行时日志吗？</string>
+    <string name="server_log_cleared">服务端日志已清空</string>
+    <string name="server_log_clear_failed">清空失败: %s</string>
 
     <!-- Time -->
     <string name="yesterday">昨天</string>

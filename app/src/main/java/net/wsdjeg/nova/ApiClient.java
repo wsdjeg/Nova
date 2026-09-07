@@ -165,6 +165,24 @@ public class ApiClient {
         void onError(String error);
     }
 
+    /**
+     * 获取运行时日志的回调接口
+     * 用于 GET /logs API
+     */
+    public interface LogsCallback {
+        void onSuccess(List<String> logs);
+        void onError(String error);
+    }
+
+    /**
+     * 清空运行时日志的回调接口
+     * 用于 DELETE /logs API
+     */
+    public interface ClearLogsCallback {
+        void onSuccess();
+        void onError(String error);
+    }
+
     public ApiClient(SettingsManager settingsManager) {
         this.settingsManager = settingsManager;
         this.overrideBaseUrl = null;
@@ -706,6 +724,157 @@ public class ApiClient {
                 if (br != null) {
                     try { br.close(); } catch (Exception ignored) {}
                 }
+                if (conn != null) {
+                    conn.disconnect();
+                }
+            }
+        }).start();
+    }
+    
+    /**
+     * 获取服务端运行时日志
+     * API 端点: GET /logs
+     * 响应格式: { "logs": ["[ HH:MM:SS:mmm ] [ Level ] [ name ] message", ...], "count": 2 }
+     *
+     * @param level    级别过滤: "error" / "warn" / "info" / "debug"（保留 >= 该级别），null 表示不过滤
+     * @param name     logger 名称子串过滤（如 "chat.nvim"），null 表示不过滤
+     * @param tail     仅返回最后 N 行，<= 0 表示返回全部
+     * @param callback 回调
+     */
+    public void getLogs(String level, String name, int tail, LogsCallback callback) {
+        String baseUrl = getBaseUrl();
+        String apiKey = getApiKey();
+        
+        if (baseUrl.isEmpty() || apiKey.isEmpty()) {
+            callback.onError("Please configure API settings");
+            return;
+        }
+        
+        new Thread(() -> {
+            HttpURLConnection conn = null;
+            BufferedReader br = null;
+            try {
+                StringBuilder urlBuilder = new StringBuilder(baseUrl + "/logs");
+                StringBuilder query = new StringBuilder();
+                if (level != null && !level.isEmpty()) {
+                    query.append("level=").append(URLEncoder.encode(level, "UTF-8"));
+                }
+                if (name != null && !name.isEmpty()) {
+                    if (query.length() > 0) {
+                        query.append("&");
+                    }
+                    query.append("name=").append(URLEncoder.encode(name, "UTF-8"));
+                }
+                if (tail > 0) {
+                    if (query.length() > 0) {
+                        query.append("&");
+                    }
+                    query.append("tail=").append(tail);
+                }
+                if (query.length() > 0) {
+                    urlBuilder.append("?").append(query);
+                }
+                
+                URL url = new URL(urlBuilder.toString());
+                conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("GET");
+                conn.setRequestProperty("X-API-Key", apiKey);
+                conn.setRequestProperty("Connection", "close");
+                conn.setRequestProperty("Accept", "application/json");
+                conn.setConnectTimeout(15000);
+                conn.setReadTimeout(30000);
+                conn.setUseCaches(false);
+                
+                int responseCode = conn.getResponseCode();
+                
+                if (responseCode == 200) {
+                    br = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
+                    StringBuilder response = new StringBuilder();
+                    String line;
+                    while ((line = br.readLine()) != null) {
+                        response.append(line);
+                    }
+                    
+                    JSONObject json = new JSONObject(response.toString());
+                    JSONArray logsArray = json.optJSONArray("logs");
+                    List<String> logs = new ArrayList<>();
+                    if (logsArray != null) {
+                        for (int i = 0; i < logsArray.length(); i++) {
+                            logs.add(logsArray.getString(i));
+                        }
+                    }
+                    
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onSuccess(logs));
+                } else if (responseCode == 400) {
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onError("Bad Request: Invalid level parameter"));
+                } else if (responseCode == 401) {
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onError("Unauthorized: Invalid API Key"));
+                } else {
+                    final int code = responseCode;
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onError("Error: " + code));
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "getLogs failed", e);
+                new Handler(Looper.getMainLooper()).post(() -> 
+                    callback.onError("Network error: " + e.getMessage()));
+            } finally {
+                if (br != null) {
+                    try { br.close(); } catch (Exception ignored) {}
+                }
+                if (conn != null) {
+                    conn.disconnect();
+                }
+            }
+        }).start();
+    }
+    
+    /**
+     * 清空服务端运行时日志
+     * API 端点: DELETE /logs
+     */
+    public void clearLogs(ClearLogsCallback callback) {
+        String baseUrl = getBaseUrl();
+        String apiKey = getApiKey();
+        
+        if (baseUrl.isEmpty() || apiKey.isEmpty()) {
+            callback.onError("Please configure API settings");
+            return;
+        }
+        
+        new Thread(() -> {
+            HttpURLConnection conn = null;
+            try {
+                URL url = new URL(baseUrl + "/logs");
+                conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("DELETE");
+                conn.setRequestProperty("X-API-Key", apiKey);
+                conn.setRequestProperty("Connection", "close");
+                conn.setConnectTimeout(15000);
+                conn.setReadTimeout(30000);
+                conn.setUseCaches(false);
+
+                int responseCode = conn.getResponseCode();
+                
+                if (responseCode == 204 || responseCode == 200) {
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onSuccess());
+                } else if (responseCode == 401) {
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onError("Unauthorized: Invalid API Key"));
+                } else {
+                    final int code = responseCode;
+                    new Handler(Looper.getMainLooper()).post(() -> 
+                        callback.onError("Error: " + code));
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "clearLogs failed", e);
+                new Handler(Looper.getMainLooper()).post(() -> 
+                    callback.onError("Network error: " + e.getMessage()));
+            } finally {
                 if (conn != null) {
                     conn.disconnect();
                 }

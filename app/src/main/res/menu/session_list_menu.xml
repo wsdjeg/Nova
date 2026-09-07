@@ -25,6 +25,9 @@
                 android:id="@+id/action_view_log"
                 android:title="@string/menu_view_log" />
             <item
+                android:id="@+id/action_server_log"
+                android:title="@string/menu_server_log" />
+            <item
                 android:id="@+id/action_about"
                 android:title="@string/menu_about" />
         </menu>
