@@ -181,13 +181,23 @@ public class Session {
         if (usageTotalTokens <= 0) {
             return "";
         }
-        if (usageTotalTokens < 1000) {
-            return String.valueOf(usageTotalTokens);
+        return formatTokens(usageTotalTokens);
+    }
+    
+    /**
+     * 格式化 token 数量为紧凑单位显示（供会话列表和设置页共用）
+     * <1000：原始数字，如 "856"
+     * <1000000：千位缩写，如 "12.3k"
+     * >=1000000：百万位缩写，如 "1.2M"
+     */
+    public static String formatTokens(long tokens) {
+        if (tokens < 1000) {
+            return String.valueOf(tokens);
         }
-        if (usageTotalTokens < 1000000) {
-            return String.format(Locale.US, "%.1fk", usageTotalTokens / 1000.0);
+        if (tokens < 1000000) {
+            return String.format(Locale.US, "%.1fk", tokens / 1000.0);
         }
-        return String.format(Locale.US, "%.1fM", usageTotalTokens / 1000000.0);
+        return String.format(Locale.US, "%.1fM", tokens / 1000000.0);
     }
     
     /**

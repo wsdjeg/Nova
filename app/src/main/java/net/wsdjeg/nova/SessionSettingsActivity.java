@@ -21,7 +21,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -350,6 +349,7 @@ public class SessionSettingsActivity extends AppCompatActivity {
     
     /**
      * 更新 Token 用量显示
+     * 使用与会话列表一致的 k/M 紧凑单位格式
      * 总量为 0 时隐藏（新会话或服务器未返回数据）
      */
     private void updateUsageDisplay(Session session) {
@@ -357,9 +357,9 @@ public class SessionSettingsActivity extends AppCompatActivity {
             tvUsage.setVisibility(View.GONE);
             return;
         }
-        String total = String.format(Locale.getDefault(), "%,d", session.getUsageTotalTokens());
-        String prompt = String.format(Locale.getDefault(), "%,d", session.getUsagePromptTokens());
-        String completion = String.format(Locale.getDefault(), "%,d", session.getUsageCompletionTokens());
+        String total = Session.formatTokens(session.getUsageTotalTokens());
+        String prompt = Session.formatTokens(session.getUsagePromptTokens());
+        String completion = Session.formatTokens(session.getUsageCompletionTokens());
         tvUsage.setText(getString(R.string.token_usage_label, total, prompt, completion));
         tvUsage.setVisibility(View.VISIBLE);
     }
