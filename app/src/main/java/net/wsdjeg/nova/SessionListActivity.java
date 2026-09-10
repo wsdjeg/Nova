@@ -514,6 +514,10 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
                             localSession.setInProgress(serverSession.isInProgress());
                             // 同步 pinned 状态
                             localSession.setPinned(serverSession.isPinned());
+                            // 同步 usage 统计（tokens 消耗）
+                            localSession.setUsageTotalTokens(serverSession.getUsageTotalTokens());
+                            localSession.setUsagePromptTokens(serverSession.getUsagePromptTokens());
+                            localSession.setUsageCompletionTokens(serverSession.getUsageCompletionTokens());
                             sessionManager.addOrUpdateSession(localSession, accountId);
                         }
                     }
