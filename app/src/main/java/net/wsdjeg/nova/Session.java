@@ -1,6 +1,7 @@
 package net.wsdjeg.nova;
 
 import java.util.Date;
+import java.util.Locale;
 
 /**
  * 会话数据模型
@@ -26,6 +27,11 @@ public class Session {
     private boolean inProgress;  // 会话是否正在进行中
     private boolean pinned;      // 是否置顶
     private long clearedAt;      // 清除消息的时间戳（Unix 秒，0 表示未清除）
+    
+    // Token 用量统计（来自 API /sessions 的 usage 字段，累计值）
+    private long usageTotalTokens;      // 总 tokens
+    private long usagePromptTokens;     // 输入 tokens
+    private long usageCompletionTokens; // 输出 tokens
     
     // 分页加载相关：当前已加载的最旧消息索引（索引从 1 开始）
     // firstMessageIndex = 1 表示已加载到第一条消息
@@ -162,6 +168,26 @@ public class Session {
             return "..." + cwd.substring(cwd.length() - 30);
         }
         return cwd;
+    }
+    
+    /**
+     * 获取格式化的 token 用量（紧凑格式，用于会话列表）
+     * 0：空字符串（不显示）
+     * <1000：原始数字，如 "856"
+     * <1000000：千位缩写，如 "12.3k"
+     * >=1000000：百万位缩写，如 "1.2M"
+     */
+    public String getFormattedUsage() {
+        if (usageTotalTokens <= 0) {
+            return "";
+        }
+        if (usageTotalTokens < 1000) {
+            return String.valueOf(usageTotalTokens);
+        }
+        if (usageTotalTokens < 1000000) {
+            return String.format(Locale.US, "%.1fk", usageTotalTokens / 1000.0);
+        }
+        return String.format(Locale.US, "%.1fM", usageTotalTokens / 1000000.0);
     }
     
     /**
@@ -415,6 +441,48 @@ public class Session {
         this.clearedAt = clearedAt;
     }
     
+    /**
+     * 获取总 token 用量
+     */
+    public long getUsageTotalTokens() {
+        return usageTotalTokens;
+    }
+    
+    /**
+     * 设置总 token 用量
+     */
+    public void setUsageTotalTokens(long usageTotalTokens) {
+        this.usageTotalTokens = usageTotalTokens;
+    }
+    
+    /**
+     * 获取输入（prompt）token 用量
+     */
+    public long getUsagePromptTokens() {
+        return usagePromptTokens;
+    }
+    
+    /**
+     * 设置输入（prompt）token 用量
+     */
+    public void setUsagePromptTokens(long usagePromptTokens) {
+        this.usagePromptTokens = usagePromptTokens;
+    }
+    
+    /**
+     * 获取输出（completion）token 用量
+     */
+    public long getUsageCompletionTokens() {
+        return usageCompletionTokens;
+    }
+    
+    /**
+     * 设置输出（completion）token 用量
+     */
+    public void setUsageCompletionTokens(long usageCompletionTokens) {
+        this.usageCompletionTokens = usageCompletionTokens;
+    }
+    
     public int getFirstMessageIndex() {
         return firstMessageIndex;
     }
@@ -437,3 +505,4 @@ public class Session {
         this.draft = draft != null ? draft : "";
     }
 }
+

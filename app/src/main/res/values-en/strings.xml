@@ -246,6 +246,7 @@
     <!-- Session settings -->
     <string name="session_info">Session Info</string>
     <string name="session_id_label">Session ID: %s</string>
+    <string name="token_usage_label">Token Usage: %1$s (prompt %2$s / completion %3$s)</string>
     <string name="session_title">Session Title</string>
     <string name="session_title_hint">Enter session title (optional)</string>
     <string name="cwd">Working Directory (CWD)</string>

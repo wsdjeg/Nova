@@ -431,6 +431,13 @@ public class ApiClient {
                             session.setLastMessageRole(lastMessageRole);
                             session.setMessageCount(messageCount);
                             session.setLastMessageTime(lastMessageTime);
+                            // 解析 token 用量统计
+                            JSONObject usageObj = sessionObj.optJSONObject("usage");
+                            if (usageObj != null) {
+                                session.setUsageTotalTokens(usageObj.optLong("total_tokens", 0));
+                                session.setUsagePromptTokens(usageObj.optLong("prompt_tokens", 0));
+                                session.setUsageCompletionTokens(usageObj.optLong("completion_tokens", 0));
+                            }
                             Log.d(TAG, "Session " + id + " preview: " + session.getPreview() + ", pinned: " + pinned);
                             sessions.add(session);
                         }
@@ -461,7 +468,7 @@ public class ApiClient {
     /**
      * 获取单个会话详情
      * API 端点: GET /sessions/:id
-     * 响应格式: { "id": "xxx", "title": "...", "cwd": "...", "provider": "...", "model": "...", "in_progress": false, "pin": false, "message_count": 5, "last_message": {...} }
+     * 响应格式: { "id": "xxx", "title": "...", "cwd": "...", "provider": "...", "model": "...", "in_progress": false, "pin": false, "message_count": 5, "last_message": {...}, "usage": {...} }
      */
     public void getSession(String sessionId, String accountId, SessionCallback callback) {
         String baseUrl = getBaseUrl();
@@ -544,6 +551,13 @@ public class ApiClient {
                         session.setLastMessageRole(lastMessageRole);
                         session.setMessageCount(messageCount);
                         session.setLastMessageTime(lastMessageTime);
+                        // 解析 token 用量统计
+                        JSONObject usageObj = sessionObj.optJSONObject("usage");
+                        if (usageObj != null) {
+                            session.setUsageTotalTokens(usageObj.optLong("total_tokens", 0));
+                            session.setUsagePromptTokens(usageObj.optLong("prompt_tokens", 0));
+                            session.setUsageCompletionTokens(usageObj.optLong("completion_tokens", 0));
+                        }
                         
                         new Handler(Looper.getMainLooper()).post(() -> 
                             callback.onSuccess(session));
@@ -885,7 +899,7 @@ public class ApiClient {
     /**
      * 创建新会话
      * API 端点: POST /session/new
-     * 响应格式: { "id": "xxx", "cwd": "...", "provider": "...", "model": "...", "pin": false }
+     * 响应格式: { "id": "xxx", "cwd": "...", "provider": "...", "model": "...", "pin": false, "usage": {...} }
      */
     public void createSession(String cwd, String provider, String model, String accountId, CreateSessionCallback callback) {
         String baseUrl = getBaseUrl();
@@ -964,6 +978,13 @@ public class ApiClient {
                     session.setPinned(responsePinned);
                     session.setMessageCount(messageCount);
                     session.setInProgress(inProgress);
+                    // 解析 token 用量统计（新会话全 0，解析保持结构一致）
+                    JSONObject usageObj = jsonResponse.optJSONObject("usage");
+                    if (usageObj != null) {
+                        session.setUsageTotalTokens(usageObj.optLong("total_tokens", 0));
+                        session.setUsagePromptTokens(usageObj.optLong("prompt_tokens", 0));
+                        session.setUsageCompletionTokens(usageObj.optLong("completion_tokens", 0));
+                    }
                     
                     new Handler(Looper.getMainLooper()).post(() -> 
                         callback.onSuccess(session));

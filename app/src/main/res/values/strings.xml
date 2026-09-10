@@ -246,6 +246,7 @@
     <!-- Session settings -->
     <string name="session_info">会话信息</string>
     <string name="session_id_label">会话 ID: %s</string>
+    <string name="token_usage_label">Token 用量: %1$s（输入 %2$s / 输出 %3$s）</string>
     <string name="session_title">会话标题</string>
     <string name="session_title_hint">输入会话标题（可选）</string>
     <string name="cwd">工作目录 (CWD)</string>

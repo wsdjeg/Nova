@@ -48,6 +48,17 @@
                 android:textColor="?android:attr/textColorSecondary"
                 android:layout_marginBottom="8dp" />
             
+            <!-- Token usage (hidden when no usage data) -->
+            <TextView
+                android:id="@+id/tv_usage"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text=""
+                android:textSize="14sp"
+                android:textColor="?android:attr/textColorSecondary"
+                android:layout_marginBottom="8dp"
+                android:visibility="gone" />
+            
             <!-- Title edit -->
             <TextView
                 android:layout_width="match_parent"
@@ -91,7 +102,6 @@
                 android:paddingStart="12dp"
                 android:paddingEnd="12dp"
                 android:background="@android:drawable/edit_text"
-                android:inputType="text"
                 android:layout_marginBottom="16dp"
                 android:importantForAutofill="no" />
             
@@ -113,7 +123,6 @@
                 android:paddingStart="12dp"
                 android:paddingEnd="12dp"
                 android:background="@android:drawable/edit_text"
-                android:inputType="text"
                 android:layout_marginBottom="16dp"
                 android:importantForAutofill="no"
                 android:maxLines="1" />

@@ -58,6 +58,9 @@ public class SessionManager {
                 json.put("firstMessageIndex", session.getFirstMessageIndex());
                 json.put("pinned", session.isPinned());
                 json.put("clearedAt", session.getClearedAt());
+                json.put("usageTotalTokens", session.getUsageTotalTokens());
+                json.put("usagePromptTokens", session.getUsagePromptTokens());
+                json.put("usageCompletionTokens", session.getUsageCompletionTokens());
                 jsonArray.put(json);
             } catch (JSONException e) {
                 e.printStackTrace();
@@ -98,6 +101,9 @@ public class SessionManager {
                 session.setFirstMessageIndex(json.optInt("firstMessageIndex", 0));
                 session.setPinned(json.optBoolean("pinned", false));
                 session.setClearedAt(json.optLong("clearedAt", 0));
+                session.setUsageTotalTokens(json.optLong("usageTotalTokens", 0));
+                session.setUsagePromptTokens(json.optLong("usagePromptTokens", 0));
+                session.setUsageCompletionTokens(json.optLong("usageCompletionTokens", 0));
                 // 加载草稿
                 session.setDraft(getDraft(json.getString("sessionId")));
                 sessions.add(session);
@@ -609,3 +615,4 @@ public class SessionManager {
         prefs.edit().remove(KEY_DRAFTS).apply();
     }
 }
+

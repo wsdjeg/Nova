@@ -20,7 +20,7 @@ import java.util.List;
  * 
  * 布局：
  * 第一行：账号标签 + 置顶图标 + 标题
- * 第二行：provider | model
+ * 第二行：provider | model | token用量
  * 第三行：cwd
  * 右侧：spinner 或 时间（垂直居中）
  */
@@ -94,18 +94,24 @@ public class SessionAdapter extends RecyclerView.Adapter<SessionAdapter.SessionV
         // 第一行：标题
         holder.textTitle.setText(session.getTitle());
         
-        // 第二行：provider | model
+        // 第二行：provider | model | token用量（用量为 0 时不显示）
         String provider = session.getProvider();
         String model = session.getModel();
+        String usage = session.getFormattedUsage();
+        String info = "";
         if (provider != null && !provider.isEmpty() && model != null && !model.isEmpty()) {
-            holder.textProviderModel.setVisibility(View.VISIBLE);
-            holder.textProviderModel.setText(provider + " | " + model);
+            info = provider + " | " + model;
         } else if (provider != null && !provider.isEmpty()) {
-            holder.textProviderModel.setVisibility(View.VISIBLE);
-            holder.textProviderModel.setText(provider);
+            info = provider;
         } else if (model != null && !model.isEmpty()) {
+            info = model;
+        }
+        if (!usage.isEmpty()) {
+            info = info.isEmpty() ? usage : info + " | " + usage;
+        }
+        if (!info.isEmpty()) {
             holder.textProviderModel.setVisibility(View.VISIBLE);
-            holder.textProviderModel.setText(model);
+            holder.textProviderModel.setText(info);
         } else {
             holder.textProviderModel.setVisibility(View.GONE);
         }

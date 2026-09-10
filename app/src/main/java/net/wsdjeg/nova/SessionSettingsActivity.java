@@ -21,11 +21,12 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 /**
  * 会话设置页面
- * 显示当前会话的 title、provider、model、cwd 和上传路径，并允许从服务器获取可用的 provider/model 列表
+ * 显示当前会话的 title、provider、model、cwd、上传路径和 token 用量，并允许从服务器获取可用的 provider/model 列表
  * 支持修改会话配置并调用 API 更新
  */
 public class SessionSettingsActivity extends AppCompatActivity {
@@ -48,6 +49,7 @@ public class SessionSettingsActivity extends AppCompatActivity {
     
     private Toolbar toolbar;
     private TextView tvSessionId;
+    private TextView tvUsage;
     private EditText etTitle;
     private EditText etCwd;
     private EditText etUploadPath;
@@ -132,6 +134,7 @@ public class SessionSettingsActivity extends AppCompatActivity {
         getSupportActionBar().setTitle(R.string.title_session_settings);
         
         tvSessionId = findViewById(R.id.tv_session_id);
+        tvUsage = findViewById(R.id.tv_usage);
         etTitle = findViewById(R.id.et_title);
         etCwd = findViewById(R.id.et_cwd);
         etUploadPath = findViewById(R.id.et_upload_path);
@@ -245,6 +248,10 @@ public class SessionSettingsActivity extends AppCompatActivity {
         etUploadPath.setText(uploadPath != null ? uploadPath : "");
         originalUploadPath = uploadPath != null ? uploadPath : "";
         
+        // 先用本地缓存的会话数据初始化用量显示（服务器数据到达后覆盖）
+        Session localSession = sessionManager.getSession(sessionId);
+        updateUsageDisplay(localSession);
+        
         // 获取账号信息并创建 ApiClient
         Account account = null;
         if (accountId != null && !accountId.isEmpty()) {
@@ -289,6 +296,9 @@ public class SessionSettingsActivity extends AppCompatActivity {
                     etCwd.setText(cwd != null ? cwd : "");
                     etTitle.setText(title != null ? title : "");
                     
+                    // 更新 Token 用量显示（服务器最新数据）
+                    updateUsageDisplay(session);
+                    
                     Log.d(TAG, "Session from server: provider=" + currentProvider + ", model=" + currentModel + ", cwd=" + cwd + ", title=" + title);
                     
                     // 更新本地 SessionManager
@@ -298,6 +308,9 @@ public class SessionSettingsActivity extends AppCompatActivity {
                         localSession.setModel(currentModel);
                         localSession.setCwd(cwd);
                         localSession.setTitle(title);
+                        localSession.setUsageTotalTokens(session.getUsageTotalTokens());
+                        localSession.setUsagePromptTokens(session.getUsagePromptTokens());
+                        localSession.setUsageCompletionTokens(session.getUsageCompletionTokens());
                         sessionManager.updateSession(localSession);
                     }
                     
@@ -325,12 +338,30 @@ public class SessionSettingsActivity extends AppCompatActivity {
                         originalTitle = title;
                         etCwd.setText(cwd != null ? cwd : "");
                         etTitle.setText(title != null ? title : "");
+                        // 用本地缓存的用量数据备用显示
+                        updateUsageDisplay(localSession);
                         loadProviders();
                         loadBridges();
                     }
                 });
             }
         });
+    }
+    
+    /**
+     * 更新 Token 用量显示
+     * 总量为 0 时隐藏（新会话或服务器未返回数据）
+     */
+    private void updateUsageDisplay(Session session) {
+        if (session == null || session.getUsageTotalTokens() <= 0) {
+            tvUsage.setVisibility(View.GONE);
+            return;
+        }
+        String total = String.format(Locale.getDefault(), "%,d", session.getUsageTotalTokens());
+        String prompt = String.format(Locale.getDefault(), "%,d", session.getUsagePromptTokens());
+        String completion = String.format(Locale.getDefault(), "%,d", session.getUsageCompletionTokens());
+        tvUsage.setText(getString(R.string.token_usage_label, total, prompt, completion));
+        tvUsage.setVisibility(View.VISIBLE);
     }
     
     /**
