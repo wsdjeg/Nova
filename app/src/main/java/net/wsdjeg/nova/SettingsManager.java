@@ -32,16 +32,13 @@ public class SettingsManager {
     // 自动分配颜色模式（使用索引 -1 表示自动）
     public static final int AUTO_COLOR_INDEX = -1;
     
-    // 账户标签颜色选项
+    // 账户标签颜色选项（全局设置与账号设置共用，统一为 5 色）
     public static final String[] ACCOUNT_TAG_COLORS = {
         "#FF6B6B",  // 红色
         "#4ECDC4",  // 青色
         "#45B7D1",  // 蓝色
         "#96CEB4",  // 绿色
         "#FFEAA7",  // 黄色
-        "#DDA0DD",  // 紫色
-        "#98D8C8",  // 薄荷绿
-        "#F7DC6F",  // 金色
     };
     
     private SharedPreferences prefs;
@@ -195,7 +192,7 @@ public class SettingsManager {
     
     /**
      * 设置账户标签颜色索引
-     * @param colorIndex 颜色索引 (0-7)，或 AUTO_COLOR_INDEX (-1) 表示自动分配
+     * @param colorIndex 颜色索引 (0-4)，或 AUTO_COLOR_INDEX (-1) 表示自动分配
      */
     public void setAccountTagColorIndex(int colorIndex) {
         prefs.edit()
@@ -205,7 +202,7 @@ public class SettingsManager {
     
     /**
      * 获取账户标签颜色索引
-     * @return 颜色索引 (0-7)，或 AUTO_COLOR_INDEX (-1) 表示自动分配
+     * @return 颜色索引 (0-4)，或 AUTO_COLOR_INDEX (-1) 表示自动分配
      */
     public int getAccountTagColorIndex() {
         return prefs.getInt(KEY_ACCOUNT_TAG_COLOR_INDEX, 2); // 默认蓝色
@@ -303,3 +300,4 @@ public class SettingsManager {
         return session != null && !session.isEmpty();
     }
 }
+
