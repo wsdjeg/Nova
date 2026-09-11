@@ -217,14 +217,16 @@ public class SettingsActivity extends AppCompatActivity {
     
     /**
      * 初始化颜色选择器
+     * 圆点尺寸与 AccountEditActivity 保持一致（36dp / 6dp 间距），
+     * 保证"自动 + 5 色"在任何屏宽下都能完整显示
      */
     private void initColorPicker() {
-        tagColorPicker = new TagColorPicker(this, colorPickerContainer, "A", 40, 8,
+        tagColorPicker = new TagColorPicker(this, colorPickerContainer, "A", 36, 6,
                 this::onTagColorSelected);
     }
     
     /**
-     * 标签颜色选中回调（存储索引语义：-1 = 自动，0-7 = 固定颜色）
+     * 标签颜色选中回调（存储索引语义：-1 = 自动，0-4 = 固定颜色）
      */
     private void onTagColorSelected(int colorIndex) {
         settingsManager.setAccountTagColorIndex(colorIndex);
