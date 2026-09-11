@@ -19,11 +19,11 @@ import androidx.core.content.ContextCompat;
  * 复用，替代两处近乎重复的取色器实现，并统一颜色索引语义：
  *
  *   -1 = 自动（全局设置页）/ 跟随全局（账号编辑页），对应 SettingsManager.AUTO_COLOR_INDEX
- *   0-7 = 固定颜色，对应 SettingsManager.ACCOUNT_TAG_COLORS[0..7]
+ *   0-4 = 固定颜色，对应 SettingsManager.ACCOUNT_TAG_COLORS[0..4]
  */
 public class TagColorPicker {
 
-    /** 颜色选中回调：colorIndex 为 -1（自动/跟随全局）或 0-7 */
+    /** 颜色选中回调：colorIndex 为 -1（自动/跟随全局）或 0-4 */
     public interface OnColorSelectedListener {
         void onColorSelected(int colorIndex);
     }
@@ -36,7 +36,7 @@ public class TagColorPicker {
         Color.parseColor("#F7DC6F")
     };
 
-    private final View[] colorViews; // [0]=自动项, [1..8]=颜色项
+    private final View[] colorViews; // [0]=自动项, [1..5]=颜色项
     private final OnColorSelectedListener listener;
     private int selectedColorIndex = SettingsManager.AUTO_COLOR_INDEX;
 
@@ -48,7 +48,7 @@ public class TagColorPicker {
      * @param autoLabel      自动选项的中央文字（如 "A"），传 null 表示无文字
      * @param circleSizeDp   圆点尺寸（dp）
      * @param circleMarginDp 圆点左右间距（dp）
-     * @param listener       选中回调（存储索引语义：-1 或 0-7），可为 null
+     * @param listener       选中回调（存储索引语义：-1 或 0-4），可为 null
      */
     public TagColorPicker(Context context, LinearLayout container, String autoLabel,
             int circleSizeDp, int circleMarginDp, OnColorSelectedListener listener) {
@@ -103,7 +103,7 @@ public class TagColorPicker {
         return autoView;
     }
 
-    /** 用户点击选中颜色（存储索引：-1 或 0-7），触发回调 */
+    /** 用户点击选中颜色（存储索引：-1 或 0-4），触发回调 */
     private void select(int colorIndex) {
         selectedColorIndex = colorIndex;
         updateSelectionVisuals();
@@ -112,13 +112,13 @@ public class TagColorPicker {
         }
     }
 
-    /** 恢复选中状态（存储索引：-1 或 0-7，非法值归一化为 -1），不触发回调 */
+    /** 恢复选中状态（存储索引：-1 或 0-4，非法值归一化为 -1），不触发回调 */
     public void setSelected(int colorIndex) {
         selectedColorIndex = normalize(colorIndex);
         updateSelectionVisuals();
     }
 
-    /** 当前选中的存储索引（-1 或 0-7） */
+    /** 当前选中的存储索引（-1 或 0-4） */
     public int getSelected() {
         return selectedColorIndex;
     }

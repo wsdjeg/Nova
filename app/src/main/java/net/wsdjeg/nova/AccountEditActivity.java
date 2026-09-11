@@ -73,7 +73,7 @@ public class AccountEditActivity extends AppCompatActivity {
     
     /**
      * 初始化标签颜色取色器
-     * 颜色索引使用存储语义：-1 = 跟随全局设置，0-7 = 固定颜色
+     * 颜色索引使用存储语义：-1 = 跟随全局设置，0-4 = 固定颜色
      * （与 SettingsManager.ACCOUNT_TAG_COLORS 的下标一致）
      */
     private void initColorPicker() {
@@ -160,7 +160,7 @@ public class AccountEditActivity extends AppCompatActivity {
             }
         }
         
-        // 取色器返回的已归一化颜色索引：-1（跟随全局）或 0-7
+        // 取色器返回的已归一化颜色索引：-1（跟随全局）或 0-4
         int colorIndex = tagColorPicker.getSelected();
         
         if (isEditMode) {

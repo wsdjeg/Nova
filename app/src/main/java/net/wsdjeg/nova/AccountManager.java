@@ -91,7 +91,7 @@ public class AccountManager {
             saveAccounts();
         }
 
-        // 一次性迁移：旧版账号颜色索引（1-8）归一化为 0-7
+        // 一次性迁移：旧版账号颜色索引（1-8）归一化为当前调色板索引（0-4）
         // 放在默认账号逻辑之后，避免迁移时的回写丢失 current_account_id
         if (parseOk) {
             migrateLegacyColorIndex();
@@ -101,10 +101,11 @@ public class AccountManager {
     /**
      * 一次性迁移旧版账号颜色索引
      *
-     * 旧版账号编辑页将自定义颜色存为 1-8，而渲染端按
-     * ACCOUNT_TAG_COLORS[0..7] 取色（索引错位，且 8 会被视为未设置颜色）。
-     * 新版统一存储 0-7（-1 = 跟随全局），此处将旧数据 1-8 平移为 0-7，
-     * 使颜色与用户当初在取色器中选中的选项一致。
+     * 旧版账号编辑页将自定义颜色存为 1-8（对应旧 8 色调色板），而渲染端按
+     * ACCOUNT_TAG_COLORS 下标取色（索引错位，且 8 会被视为未设置颜色）。
+     * 新版统一存储 -1（跟随全局）或 0..length-1（length 为当前调色板颜色数），
+     * 此处将旧数据 1..length 平移为 0..length-1，使颜色与用户当初选中的
+     * 选项一致；指向已移除颜色的旧值（超出当前调色板范围）重置为 -1。
      */
     private void migrateLegacyColorIndex() {
         if (prefs.getBoolean(KEY_COLOR_INDEX_MIGRATED, false)) {
@@ -376,7 +377,7 @@ public class AccountManager {
     /**
      * 获取账号的颜色
      * 优先级：账号自己的颜色 > 全局设置
-     * @param account 赗号
+     * @param account 账号
      * @param settingsManager 设置管理器
      * @return 颜色字符串
      */
@@ -401,7 +402,7 @@ public class AccountManager {
      *
      * @param colorIndex 导入文件中的颜色索引
      * @param legacy     true 表示 version < 2 的旧导出格式（自定义颜色存为 1-8）
-     * @return -1（跟随全局）或 0-7
+     * @return -1（跟随全局）或 0-4
      */
     private static int normalizeImportedColorIndex(int colorIndex, boolean legacy) {
         if (legacy && colorIndex >= 1 && colorIndex <= SettingsManager.ACCOUNT_TAG_COLORS.length) {
@@ -420,7 +421,7 @@ public class AccountManager {
     public String toJson() {
         try {
             JSONObject root = new JSONObject();
-            // version 2：colorIndex 语义统一为 -1（跟随全局）或 0-7（固定颜色），
+            // version 2：colorIndex 语义统一为 -1（跟随全局）或 0-4（固定颜色），
             // version 1 的旧导出文件中自定义颜色为 1-8，导入时会做归一化
             root.put("version", 2);
             root.put("exportTime", System.currentTimeMillis());
