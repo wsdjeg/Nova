@@ -1,8 +1,6 @@
 package net.wsdjeg.nova;
 
 import android.content.Intent;
-import android.graphics.Color;
-import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.Menu;
@@ -21,7 +19,6 @@ import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.app.AppCompatDelegate;
 import androidx.appcompat.widget.Toolbar;
-import androidx.core.content.ContextCompat;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -53,8 +50,7 @@ public class SettingsActivity extends AppCompatActivity {
     private AccountManager accountManager;
     private ApiClient apiClient;
     
-    private int selectedColorIndex = 2; // 默认蓝色
-    private View[] colorViews;
+    private TagColorPicker tagColorPicker;
     
     // Provider 和 Model 数据
     private List<Provider> providers;
@@ -223,116 +219,20 @@ public class SettingsActivity extends AppCompatActivity {
      * 初始化颜色选择器
      */
     private void initColorPicker() {
-        int size = (int) (40 * getResources().getDisplayMetrics().density);
-        int margin = (int) (8 * getResources().getDisplayMetrics().density);
-        
-        // 创建9个选项：8个颜色 + 1个自动
-        colorViews = new View[9];
-        
-        // 第一个选项：自动分配
-        View autoView = createAutoColorView(size, margin);
-        colorPickerContainer.addView(autoView);
-        colorViews[0] = autoView;
-        
-        // 后面8个颜色选项
-        for (int i = 0; i < SettingsManager.ACCOUNT_TAG_COLORS.length; i++) {
-            View colorView = new View(this);
-            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(size, size);
-            params.setMargins(margin, 0, margin, 0);
-            colorView.setLayoutParams(params);
-            
-            // 设置圆形背景
-            GradientDrawable drawable = new GradientDrawable();
-            drawable.setShape(GradientDrawable.OVAL);
-            drawable.setColor(Color.parseColor(SettingsManager.ACCOUNT_TAG_COLORS[i]));
-            colorView.setBackground(drawable);
-            
-            final int index = i + 1; // 偏移1，因为第一个是自动
-            colorView.setOnClickListener(v -> selectColor(index));
-            
-            colorPickerContainer.addView(colorView);
-            colorViews[i + 1] = colorView;
-        }
+        tagColorPicker = new TagColorPicker(this, colorPickerContainer, "A", 40, 8,
+                this::onTagColorSelected);
     }
     
     /**
-     * 创建"自动"颜色选项视图
+     * 标签颜色选中回调（存储索引语义：-1 = 自动，0-7 = 固定颜色）
      */
-    private View createAutoColorView(int size, int margin) {
-        android.widget.FrameLayout container = new android.widget.FrameLayout(this);
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(size, size);
-        params.setMargins(margin, 0, margin, 0);
-        container.setLayoutParams(params);
+    private void onTagColorSelected(int colorIndex) {
+        settingsManager.setAccountTagColorIndex(colorIndex);
         
-        // 创建渐变背景（彩虹效果表示自动）
-        GradientDrawable drawable = new GradientDrawable();
-        drawable.setShape(GradientDrawable.OVAL);
-        drawable.setColors(new int[] {
-            Color.parseColor("#FF6B6B"),
-            Color.parseColor("#4ECDC4"),
-            Color.parseColor("#45B7D1"),
-            Color.parseColor("#F7DC6F")
-        });
-        drawable.setGradientType(GradientDrawable.SWEEP_GRADIENT);
-        container.setBackground(drawable);
-        
-        // 添加自动图标（使用文本 "A" 表示）
-        TextView autoText = new TextView(this);
-        autoText.setText("A");
-        autoText.setTextColor(Color.WHITE);
-        autoText.setTextSize(14);
-        autoText.setGravity(android.view.Gravity.CENTER);
-        autoText.setTypeface(null, android.graphics.Typeface.BOLD);
-        
-        android.widget.FrameLayout.LayoutParams textParams = 
-            new android.widget.FrameLayout.LayoutParams(
-                android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
-                android.widget.FrameLayout.LayoutParams.MATCH_PARENT
-            );
-        textParams.gravity = android.view.Gravity.CENTER;
-        autoText.setLayoutParams(textParams);
-        
-        container.addView(autoText);
-        container.setOnClickListener(v -> selectColor(0));
-        
-        return container;
-    }
-    
-    private void selectColor(int index) {
-        selectedColorIndex = index;
-        int storageIndex = (index == 0) ? SettingsManager.AUTO_COLOR_INDEX : index - 1;
-        settingsManager.setAccountTagColorIndex(storageIndex);
-        updateColorSelection();
-        
+        // 通知需要刷新界面
         Intent resultIntent = new Intent();
         resultIntent.putExtra(EXTRA_COLOR_CHANGED, true);
         setResult(RESULT_OK, resultIntent);
-    }
-    
-    private void updateColorSelection() {
-        for (int i = 0; i < colorViews.length; i++) {
-            View view = colorViews[i];
-            GradientDrawable drawable = new GradientDrawable();
-            drawable.setShape(GradientDrawable.OVAL);
-            
-            if (i == 0) {
-                drawable.setColors(new int[] {
-                    Color.parseColor("#FF6B6B"),
-                    Color.parseColor("#4ECDC4"),
-                    Color.parseColor("#45B7D1"),
-                    Color.parseColor("#F7DC6F")
-                });
-                drawable.setGradientType(GradientDrawable.SWEEP_GRADIENT);
-            } else {
-                drawable.setColor(Color.parseColor(SettingsManager.ACCOUNT_TAG_COLORS[i - 1]));
-            }
-            
-            if (i == selectedColorIndex) {
-                drawable.setStroke(4, ContextCompat.getColor(this, R.color.primary));
-            }
-            
-            view.setBackground(drawable);
-        }
     }
 
     private void loadSettings() {
@@ -367,9 +267,7 @@ public class SettingsActivity extends AppCompatActivity {
         isInitializingLanguage = false;
         
         // 加载账户标签颜色设置
-        int storedIndex = settingsManager.getAccountTagColorIndex();
-        selectedColorIndex = (storedIndex == SettingsManager.AUTO_COLOR_INDEX) ? 0 : storedIndex + 1;
-        updateColorSelection();
+        tagColorPicker.setSelected(settingsManager.getAccountTagColorIndex());
         
         // 加载已保存的默认 provider 和 model
         savedProvider = settingsManager.getDefaultProvider();
