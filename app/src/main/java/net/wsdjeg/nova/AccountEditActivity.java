@@ -1,8 +1,6 @@
 package net.wsdjeg.nova;
 
 import android.content.Intent;
-import android.graphics.Color;
-import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.Menu;
@@ -16,7 +14,6 @@ import android.widget.Toast;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
-import androidx.core.content.ContextCompat;
 
 /**
  * 账号编辑界面
@@ -44,8 +41,7 @@ public class AccountEditActivity extends AppCompatActivity {
     private String accountId;  // 如果是编辑模式，保存账号ID
     private boolean isEditMode = false;
     
-    private View[] colorViews;
-    private int selectedColorIndex = -1; // -1 表示默认
+    private TagColorPicker tagColorPicker;
     
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -75,95 +71,15 @@ public class AccountEditActivity extends AppCompatActivity {
         btnDelete = findViewById(R.id.btn_delete);
     }
     
+    /**
+     * 初始化标签颜色取色器
+     * 颜色索引使用存储语义：-1 = 跟随全局设置，0-7 = 固定颜色
+     * （与 SettingsManager.ACCOUNT_TAG_COLORS 的下标一致）
+     */
     private void initColorPicker() {
         LinearLayout container = findViewById(R.id.color_picker_container);
-        
-        int size = (int) (36 * getResources().getDisplayMetrics().density);
-        int margin = (int) (6 * getResources().getDisplayMetrics().density);
-        
-        colorViews = new View[9]; // 0=默认, 1-8=颜色
-        
-        // 创建默认选项（渐变圆形）
-        View autoView = new View(this);
-        LinearLayout.LayoutParams autoParams = new LinearLayout.LayoutParams(size, size);
-        autoParams.setMargins(0, 0, margin, 0);
-        autoView.setLayoutParams(autoParams);
-        autoView.setBackgroundResource(R.drawable.color_circle_0);
-        autoView.setOnClickListener(v -> selectColor(-1));
-        container.addView(autoView);
-        colorViews[0] = autoView;
-        
-        // 创建颜色选项 - 使用 SettingsManager 中定义的颜色
-        String[] colors = SettingsManager.ACCOUNT_TAG_COLORS;
-        
-        for (int i = 0; i < colors.length; i++) {
-            View colorView = new View(this);
-            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(size, size);
-            params.setMargins(0, 0, margin, 0);
-            colorView.setLayoutParams(params);
-            
-            // 创建圆形 drawable
-            GradientDrawable drawable = new GradientDrawable();
-            drawable.setShape(GradientDrawable.OVAL);
-            drawable.setColor(Color.parseColor(colors[i]));
-            colorView.setBackground(drawable);
-            
-            final int colorIndex = i + 1;
-            colorView.setOnClickListener(v -> selectColor(colorIndex));
-            container.addView(colorView);
-            colorViews[i + 1] = colorView;
-        }
-        
-        // 添加选中状态边框
-        updateColorSelection();
-    }
-    
-    private void selectColor(int index) {
-        // 取消之前的选中状态
-        for (View view : colorViews) {
-            view.setSelected(false);
-        }
-        
-        selectedColorIndex = index;
-        
-        // 设置新的选中状态
-        if (index == -1) {
-            colorViews[0].setSelected(true);
-        } else {
-            colorViews[index].setSelected(true);
-        }
-        
-        updateColorSelection();
-    }
-    
-    private void updateColorSelection() {
-        for (int i = 0; i < colorViews.length; i++) {
-            View view = colorViews[i];
-            GradientDrawable drawable = new GradientDrawable();
-            drawable.setShape(GradientDrawable.OVAL);
-            
-            if (i == 0) {
-                // 默认选项使用渐变
-                drawable.setColors(new int[] {
-                    Color.parseColor("#FF6B6B"),
-                    Color.parseColor("#4ECDC4"),
-                    Color.parseColor("#45B7D1"),
-                    Color.parseColor("#F7DC6F")
-                });
-                drawable.setGradientType(GradientDrawable.SWEEP_GRADIENT);
-            } else {
-                // 颜色选项
-                drawable.setColor(Color.parseColor(SettingsManager.ACCOUNT_TAG_COLORS[i - 1]));
-            }
-            
-            // 选中的添加边框
-            int selectedIndex = (selectedColorIndex == -1) ? 0 : selectedColorIndex;
-            if (i == selectedIndex) {
-                drawable.setStroke(4, ContextCompat.getColor(this, R.color.primary));
-            }
-            
-            view.setBackground(drawable);
-        }
+        // 保存时通过 tagColorPicker.getSelected() 取值，无需监听回调
+        tagColorPicker = new TagColorPicker(this, container, null, 36, 6, null);
     }
     
     private void loadAccountData() {
@@ -187,7 +103,7 @@ public class AccountEditActivity extends AppCompatActivity {
                 }
                 
                 etApiKey.setText(account.getApiKey());
-                selectColor(account.getColorIndex());
+                tagColorPicker.setSelected(account.getColorIndex());
                 
                 btnDelete.setVisibility(View.VISIBLE);
             } else {
@@ -205,8 +121,7 @@ public class AccountEditActivity extends AppCompatActivity {
                 
                 etApiKey.setText(intent.getStringExtra(EXTRA_ACCOUNT_API_KEY));
                 
-                int colorIndex = intent.getIntExtra(EXTRA_ACCOUNT_COLOR_INDEX, -1);
-                selectColor(colorIndex);
+                tagColorPicker.setSelected(intent.getIntExtra(EXTRA_ACCOUNT_COLOR_INDEX, -1));
                 
                 btnDelete.setVisibility(View.VISIBLE);
             }
@@ -245,6 +160,9 @@ public class AccountEditActivity extends AppCompatActivity {
             }
         }
         
+        // 取色器返回的已归一化颜色索引：-1（跟随全局）或 0-7
+        int colorIndex = tagColorPicker.getSelected();
+        
         if (isEditMode) {
             // 编辑模式：更新现有账号
             Account account = accountManager.getAccountById(accountId);
@@ -253,7 +171,7 @@ public class AccountEditActivity extends AppCompatActivity {
                 account.setHost(host);
                 account.setPort(port);
                 account.setApiKey(apiKey);
-                account.setColorIndex(selectedColorIndex);
+                account.setColorIndex(colorIndex);
                 accountManager.updateAccount(account);
                 Toast.makeText(this, getString(R.string.account_updated), Toast.LENGTH_SHORT).show();
             } else {
@@ -266,7 +184,7 @@ public class AccountEditActivity extends AppCompatActivity {
             account.setHost(host);
             account.setPort(port);
             account.setApiKey(apiKey);
-            account.setColorIndex(selectedColorIndex);
+            account.setColorIndex(colorIndex);
             accountManager.addAccount(account);
             
             // addAccount 已经会自动处理第一个账号为默认的情况
@@ -362,3 +280,4 @@ public class AccountEditActivity extends AppCompatActivity {
         return super.onOptionsItemSelected(item);
     }
 }
+
