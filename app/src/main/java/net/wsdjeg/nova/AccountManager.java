@@ -23,6 +23,7 @@ public class AccountManager {
     private static final String PREF_NAME = "nova_accounts";
     private static final String KEY_ACCOUNTS = "accounts";
     private static final String KEY_CURRENT_ACCOUNT_ID = "current_account_id";
+    private static final String KEY_COLOR_INDEX_MIGRATED = "color_index_migrated_v1";
 
     private static AccountManager instance;
     private final SharedPreferences prefs;
@@ -48,6 +49,7 @@ public class AccountManager {
         accounts = new ArrayList<>();
         String accountsJson = prefs.getString(KEY_ACCOUNTS, "[]");
 
+        boolean parseOk = true;
         try {
             JSONArray jsonArray = new JSONArray(accountsJson);
             for (int i = 0; i < jsonArray.length(); i++) {
@@ -72,6 +74,7 @@ public class AccountManager {
                 accounts.add(account);
             }
         } catch (JSONException e) {
+            parseOk = false;
             e.printStackTrace();
         }
 
@@ -87,6 +90,42 @@ public class AccountManager {
             currentAccount.setActive(true);
             saveAccounts();
         }
+
+        // 一次性迁移：旧版账号颜色索引（1-8）归一化为 0-7
+        // 放在默认账号逻辑之后，避免迁移时的回写丢失 current_account_id
+        if (parseOk) {
+            migrateLegacyColorIndex();
+        }
+    }
+
+    /**
+     * 一次性迁移旧版账号颜色索引
+     *
+     * 旧版账号编辑页将自定义颜色存为 1-8，而渲染端按
+     * ACCOUNT_TAG_COLORS[0..7] 取色（索引错位，且 8 会被视为未设置颜色）。
+     * 新版统一存储 0-7（-1 = 跟随全局），此处将旧数据 1-8 平移为 0-7，
+     * 使颜色与用户当初在取色器中选中的选项一致。
+     */
+    private void migrateLegacyColorIndex() {
+        if (prefs.getBoolean(KEY_COLOR_INDEX_MIGRATED, false)) {
+            return;
+        }
+        boolean changed = false;
+        for (Account account : accounts) {
+            int legacy = account.getColorIndex();
+            if (legacy >= 1 && legacy <= SettingsManager.ACCOUNT_TAG_COLORS.length) {
+                account.setColorIndex(legacy - 1);
+                changed = true;
+            } else if (legacy > SettingsManager.ACCOUNT_TAG_COLORS.length) {
+                // 异常值（不可能来自旧版取色器），重置为跟随全局
+                account.setColorIndex(SettingsManager.AUTO_COLOR_INDEX);
+                changed = true;
+            }
+        }
+        if (changed) {
+            saveAccounts();
+        }
+        prefs.edit().putBoolean(KEY_COLOR_INDEX_MIGRATED, true).apply();
     }
 
     /**
@@ -337,7 +376,7 @@ public class AccountManager {
     /**
      * 获取账号的颜色
      * 优先级：账号自己的颜色 > 全局设置
-     * @param account 贗号
+     * @param account 赗号
      * @param settingsManager 设置管理器
      * @return 颜色字符串
      */
@@ -358,13 +397,32 @@ public class AccountManager {
     }
 
     /**
+     * 归一化导入数据中的颜色索引
+     *
+     * @param colorIndex 导入文件中的颜色索引
+     * @param legacy     true 表示 version < 2 的旧导出格式（自定义颜色存为 1-8）
+     * @return -1（跟随全局）或 0-7
+     */
+    private static int normalizeImportedColorIndex(int colorIndex, boolean legacy) {
+        if (legacy && colorIndex >= 1 && colorIndex <= SettingsManager.ACCOUNT_TAG_COLORS.length) {
+            return colorIndex - 1;
+        }
+        if (colorIndex >= 0 && colorIndex < SettingsManager.ACCOUNT_TAG_COLORS.length) {
+            return colorIndex;
+        }
+        return SettingsManager.AUTO_COLOR_INDEX;
+    }
+
+    /**
      * 导出所有账号为 JSON 字符串
      * @return JSON 字符串
      */
     public String toJson() {
         try {
             JSONObject root = new JSONObject();
-            root.put("version", 1);
+            // version 2：colorIndex 语义统一为 -1（跟随全局）或 0-7（固定颜色），
+            // version 1 的旧导出文件中自定义颜色为 1-8，导入时会做归一化
+            root.put("version", 2);
             root.put("exportTime", System.currentTimeMillis());
             root.put("appName", "Nova");
             
@@ -404,8 +462,9 @@ public class AccountManager {
     public int importFromJson(String jsonString) throws JSONException {
         JSONObject root = new JSONObject(jsonString);
         
-        // 检查版本
+        // 检查版本（version < 2 的导出文件中 colorIndex 为旧语义 1-8）
         int version = root.optInt("version", 1);
+        boolean legacyColorIndex = version < 2;
         
         JSONArray accountsArray = root.getJSONArray("accounts");
         Account firstImportedAccount = null;
@@ -434,7 +493,8 @@ public class AccountManager {
             account.setApiKey(json.optString("apiKey", ""));
             account.setCreatedAt(json.optLong("createdAt", System.currentTimeMillis()));
             account.setLastUsedAt(json.optLong("lastUsedAt", System.currentTimeMillis()));
-            account.setColorIndex(json.optInt("colorIndex", -1));
+            account.setColorIndex(
+                    normalizeImportedColorIndex(json.optInt("colorIndex", -1), legacyColorIndex));
             
             // 默认账号逻辑：
             // - 有账号时：导入的全部为非默认
@@ -493,6 +553,10 @@ public class AccountManager {
     public int importFromJsonOverride(String jsonString) throws JSONException {
         JSONObject root = new JSONObject(jsonString);
         
+        // 检查版本（version < 2 的导出文件中 colorIndex 为旧语义 1-8）
+        int version = root.optInt("version", 1);
+        boolean legacyColorIndex = version < 2;
+        
         JSONArray accountsArray = root.getJSONArray("accounts");
         Account markedDefaultAccount = null;  // 导入数据中标记为默认的账号
         Account firstImportedAccount = null;
@@ -513,7 +577,8 @@ public class AccountManager {
             account.setApiKey(json.optString("apiKey", ""));
             account.setCreatedAt(json.optLong("createdAt", System.currentTimeMillis()));
             account.setLastUsedAt(json.optLong("lastUsedAt", System.currentTimeMillis()));
-            account.setColorIndex(json.optInt("colorIndex", -1));
+            account.setColorIndex(
+                    normalizeImportedColorIndex(json.optInt("colorIndex", -1), legacyColorIndex));
             
             // 检查导入数据是否有 isDefault 标记
             boolean isMarkedDefault = json.optBoolean("isDefault", false);
@@ -550,3 +615,4 @@ public class AccountManager {
         return importedCount;
     }
 }
+
