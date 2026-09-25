@@ -26,7 +26,7 @@
         android:scrollbars="vertical"
         android:padding="8dp" />
 
-    <!-- New session FAB -->
+    <!-- New session FAB (style matches scroll-to-bottom FAB in ChatActivity) -->
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/fab_new_session"
         android:layout_width="wrap_content"
@@ -35,8 +35,9 @@
         android:layout_alignParentEnd="true"
         android:layout_margin="16dp"
         android:contentDescription="@string/new_session"
-        android:src="@android:drawable/ic_input_add"
-        app:backgroundTint="@color/colorPrimary" />
+        android:src="@drawable/ic_add"
+        app:backgroundTint="@color/fab_background"
+        app:fabSize="mini" />
 
 </RelativeLayout>
 
