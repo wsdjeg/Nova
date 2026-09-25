@@ -2,6 +2,51 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v3.1.0] - 2026-09-25
+
+### feat (新功能)
+- 69f5e60 feat: unify log level filter as single-select threshold chips
+- 3620977 feat: unify account tag color palette to five colors
+- 2e397fc feat: add TagColorPicker shared component for account tag color selection
+- 8affedd feat: display session token usage in session list and session settings
+- c59baf9 feat: add server runtime log viewer based on GET/DELETE /logs API
+- 59173a3 feat: 时间轴重构为消息流中的独立分隔节点
+- 8bed91c feat: rebuild in-app logging system with search, filter and partial copy
+- ba9de99 feat: add skills autocomplete popup when typing / in chat input
+- e3f44ac feat: tool card collapsed view shows 1 line instead of 2
+
+### fix (问题修复)
+- 191617b fix: align tall last message to bottom on session open
+- 9f9aee4 fix: migrate legacy account color index on load and version export data
+- eda1ad9 fix: normalize account tag color index to 0-7 in account edit page
+- 7a1ae70 fix: sync usage fields when updating existing sessions from server
+- ec91bfc fix: 日志页面 Toolbar 溢出菜单弹窗背景色异常
+- fb8012a fix: add missing NonNull import in LogViewerActivity
+- 70a23fe fix: move skills popup to root layout + guard against zero-height lock
+- 0701f84 fix: 输入层即时规范化全部 Unicode 斜杠变体，确保 / 补全必触发
+- 9772528 fix: declare content as final in sendMessage() to fix lambda capture error
+- 42f5e29 fix: normalize full-width slash ／(U+FF0F) to / for skills autocomplete and commands
+- 4ec23ad fix: skills autocomplete popup invisible when data not loaded or load failed
+
+### style (样式调整)
+- 57fc8be style: match new-session FAB with scroll-to-bottom FAB style
+- 8551953 style: use same color circle size on settings and account edit pages
+- 34a63fc style: use compact k/M token units in session settings usage display
+- 23a146f style: tighten skills popup row spacing
+
+### refactor (代码重构)
+- fa204a9 refactor: use shared TagColorPicker in settings page
+- cfd0313 refactor: remove one-shot skills popup debug toast
+
+### docs (文档更新)
+- fedbb82 docs: update color index range comments for five-color palette
+- c791b42 docs: add skills autocomplete to README
+
+### chore (构建/工具)
+- a0bdab4 chore: remove unused color_circle drawables
+- d0321da chore: add uploads/ to .gitignore
+- 1939e8e chore: bump version to 3.1.0-dev
+
 ## [v3.0.0] - 2026-08-08
 
 ### feat (新功能)

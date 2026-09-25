@@ -66,13 +66,15 @@ all from your phone.
 
 ## Features
 
-- Multi-account management with per-account color tags and connection testing
+- Multi-account management with per-account color tags (unified five-color palette) and connection testing
 - Account import / export in JSON for easy migration across devices
 - Session list with search, pin/unpin, swipe actions, and live session count
 - Session settings - edit title, provider, model, cwd, and bridge integrations on the fly
+- Session token usage shown in the session list and session settings (compact k/M units)
 - Paginated history loading with DiffUtil incremental updates
 - Stop and retry AI generation at any time
-- Tool-call and tool-result message cards with collapsible JSON
+- Tool-call and tool-result message cards with collapsible JSON (collapsed view shows one line)
+- Date separators rendered as standalone divider nodes inside the message stream
 - Error messages rendered as distinct cards
 - Clear session messages (smart `cleared_at` sorting)
 - Offline voice input via Vosk with automatic fallback to system speech recognition
@@ -92,7 +94,8 @@ all from your phone.
 - Content fingerprint to skip redundant Markdown re-binding
 - In-app update checker with download and install dialog (supports dev builds via commit hash)
 - Multi-language support (Chinese / English / System)
-- Built-in log viewer for debugging
+- In-app log viewer with search, log-level filter, and partial copy
+- Server runtime log viewer via the `/logs` API
 - Dark / light / system theme modes
 - Material Design UI
 
@@ -163,6 +166,7 @@ No configuration file is needed - everything is set up inside the app.
 | Pin / Unpin | Swipe right to pin, swipe left to unpin (or use session settings) |
 | Delete session | Chat -> menu -> **Delete session** (or long-press in the list) |
 | Clear session | Chat -> menu -> **Clear session** |
+| Token usage | Shown in the session list and in session settings (compact k/M units) |
 
 ### Chat
 
@@ -240,7 +244,7 @@ Nova supports WeChat integration via in-app QR code login.
 | Language | System / English / Chinese |
 | Default provider | Fetched from the server |
 | Default model | Depends on the selected provider |
-| Account tag color | Auto (by account ID) or a fixed color (0-8) |
+| Account tag color | Auto (by account ID) or a fixed color from the unified five-color palette |
 | WeChat login | Connect / disconnect WeChat account |
 
 ## API
@@ -252,7 +256,7 @@ All requests are authenticated via the `X-API-Key` header.
 | -------- | ------ | ----------- |
 | `/sessions` | GET | List all sessions |
 | `/sessions/:id` | GET | Get a single session |
-| `/session/new` | POST | Create a new session |
+| `/session/new` | POST | Create a session |
 | `/session/:id` | DELETE | Delete a session |
 | `/session/:id/title` | PUT | Update session title |
 | `/session/:id/provider` | PUT | Update session provider |
@@ -271,6 +275,7 @@ All requests are authenticated via the `X-API-Key` header.
 | `/session/:id/bridges` | GET / PUT | Get / set bridge (integration) settings for a session |
 | `/weixin/credentials` | GET | Get WeChat login QR code and status |
 | `/weixin/credentials` | DELETE | Disconnect WeChat (clear credentials) |
+| `/logs` | GET / DELETE | Fetch / clear server runtime logs |
 
 ## Project structure
 
@@ -286,7 +291,11 @@ Nova/
 │   ├── AccountManagerActivity.java    # Account list
 │   ├── AccountEditActivity.java       # Account editor
 │   ├── AboutActivity.java             # About + in-app update checker
-│   ├── LogViewerActivity.java         # Log viewer
+│   ├── LogViewerActivity.java         # In-app log viewer (search, level filter, partial copy)
+│   ├── LogAdapter.java                # Log viewer list adapter
+│   ├── NovaLog.java                   # In-app logging system
+│   ├── ServerLogActivity.java         # Server runtime log viewer (/logs API)
+│   ├── ServerLogAdapter.java          # Server runtime log adapter
 │   ├── ShareActivity.java             # Share target (image upload / text send)
 │   ├── WeChatLoginActivity.java       # WeChat QR code login screen
 │   ├── ApiClient.java                 # HTTP client (all API endpoints)
@@ -298,7 +307,7 @@ Nova/
 │   ├── ChatMessage.java               # Chat message DTO (top-level)
 │   ├── ToolCall.java                  # Tool call DTO (top-level)
 │   ├── Provider.java                  # Provider DTO (top-level)
-│   ├── Skill.java                     # Skill DTO (top-level)
+│   ├── Skill.java                    # Skill DTO (top-level)
 │   ├── Account.java                   # Account model
 │   ├── WeChatLoginResult.java         # WeChat login result model
 │   ├── QRCodeUtils.java               # QR code generation (ZXing)
@@ -306,6 +315,7 @@ Nova/
 │   ├── MessageAdapter.java            # Message adapter (DiffUtil, fingerprints)
 │   ├── AccountAdapter.java            # Account list adapter
 │   ├── SkillAdapter.java              # Skills autocomplete popup adapter
+│   ├── TagColorPicker.java            # Shared account tag color picker (five-color palette)
 │   ├── VoskSpeechRecognizer.java      # Offline speech recognition
 │   ├── MarkdownUtils.java             # Markdown preprocessing
 │   ├── InlineCodeSpan.java            # Inline code styling
@@ -314,9 +324,9 @@ Nova/
 │   ├── TimeUtils.java                 # Time formatting
 │   └── NovaApplication.java           # Application entry
 ├── app/src/main/res/
-│   ├── layout/                        # 24 layout XMLs
-│   ├── menu/                          # 8 menu XMLs
-│   ├── drawable/                      # 38 drawable resources
+│   ├── layout/                        # 28 layout XMLs
+│   ├── menu/                          # 9 menu XMLs
+│   ├── drawable/                      # 32 drawable resources
 │   ├── values/                        # colors, strings, themes
 │   ├── values-en/                     # English string resources
 │   ├── values-night/                  # dark theme overrides
@@ -373,7 +383,11 @@ Nova/
 - [x] Bridge (integration) settings
 - [x] In-app update checker
 - [x] Multi-language support (Chinese / English)
-- [x] Log viewer
+- [x] In-app log viewer (search / level filter / partial copy)
+- [x] Server runtime log viewer (/logs API)
+- [x] Session token usage display
+- [x] Date separators in message stream
+- [x] Unified five-color account tag palette
 - [ ] Streaming responses (SSE)
 - [ ] Message search
 - [ ] Enhanced table rendering
@@ -403,4 +417,5 @@ If you encounter any bugs or have suggestions, please file an issue in the
 ## License
 
 Licensed under [GPL-3.0](LICENSE).
+
 
