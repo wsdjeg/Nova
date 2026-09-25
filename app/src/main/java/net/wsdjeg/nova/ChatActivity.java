@@ -179,7 +179,7 @@ public class ChatActivity extends AppCompatActivity {
     
     private boolean userAtBottom = true;
     private boolean isUserScrolling = false;
-    private View.OnLayoutChangeListener bottomAlignWatcher = null;
+    private ViewTreeObserver.OnGlobalLayoutListener bottomAlignWatcher = null;
     private long bottomAlignDeadline = 0L;
     // 键盘状态追踪
     private int lastKeyboardHeight = 0;
@@ -1648,9 +1648,19 @@ public class ChatActivity extends AppCompatActivity {
 
         int lastPosition = itemCount - 1;
 
-        lm.scrollToPositionWithOffset(lastPosition, 0);
-
-        rvMessages.post(() -> alignLastItemToBottom());
+        // 关键：最后一条消息高于屏幕时，scrollToPositionWithOffset(pos, 0) 只会把
+        // 消息“顶部”贴到视口顶部，露出的是消息开头而不是结尾。
+        // - 若最后一项已经布局出来：直接一步算出精确偏移量对齐到底部；
+        // - 否则先跳到最后一项，等布局完成后再由 post / watcher 完成对齐。
+        View lastChild = lm.findViewByPosition(lastPosition);
+        if (lastChild != null) {
+            if (!isLastItemFullyAtBottom()) {
+                alignLastItemToBottom();
+            }
+        } else {
+            lm.scrollToPositionWithOffset(lastPosition, 0);
+            rvMessages.post(this::alignLastItemToBottom);
+        }
 
         installBottomAlignWatcher(600L);
     }
@@ -1661,41 +1671,43 @@ public class ChatActivity extends AppCompatActivity {
         long now = System.currentTimeMillis();
         bottomAlignDeadline = Math.max(bottomAlignDeadline, now + durationMs);
 
-        if (bottomAlignWatcher != null) {
-            return;
+        if (bottomAlignWatcher == null) {
+            // 必须使用 ViewTreeObserver.OnGlobalLayoutListener 而不是 rvMessages 的
+            // OnLayoutChangeListener（后者只在 RecyclerView 自身边框变化时回调）：
+            // “底对齐”错位的真正来源几乎都是 item 内部高度变化（工具调用折叠展开、
+            // Markwon 重新测量、消息内容更新），这些变化不会改变 RV 边框，
+            // 旧监听器在这种情况下永远不触发，导致打开会话后画面停在消息中间。
+            // 全局布局监听在每一轮布局完成后都会回调，可可靠捕获并重新对齐。
+            bottomAlignWatcher = new ViewTreeObserver.OnGlobalLayoutListener() {
+                @Override
+                public void onGlobalLayout() {
+                    if (System.currentTimeMillis() > bottomAlignDeadline) {
+                        uninstallBottomAlignWatcher();
+                        return;
+                    }
+                    if (isUserScrolling) {
+                        uninstallBottomAlignWatcher();
+                        return;
+                    }
+                    if (!userAtBottom) {
+                        uninstallBottomAlignWatcher();
+                        return;
+                    }
+                    if (!isLastItemFullyAtBottom()) {
+                        alignLastItemToBottom();
+                    }
+                }
+            };
+            rvMessages.getViewTreeObserver().addOnGlobalLayoutListener(bottomAlignWatcher);
         }
 
-        bottomAlignWatcher = new View.OnLayoutChangeListener() {
-            @Override
-            public void onLayoutChange(View v, int l, int t, int r, int b,
-                                       int ol, int ot, int or_, int ob) {
-                if (System.currentTimeMillis() > bottomAlignDeadline) {
-                    uninstallBottomAlignWatcher();
-                    return;
-                }
-                if (isUserScrolling) {
-                    uninstallBottomAlignWatcher();
-                    return;
-                }
-                if (!userAtBottom) {
-                    uninstallBottomAlignWatcher();
-                    return;
-                }
-                int newH = b - t;
-                int oldH = ob - ot;
-                if (newH != oldH || !isLastItemFullyAtBottom()) {
-                    alignLastItemToBottom();
-                }
-            }
-        };
-        rvMessages.addOnLayoutChangeListener(bottomAlignWatcher);
-
+        // 每次调用都重置兜底卸载计时，与截止时间保持一致
         rvMessages.postDelayed(this::uninstallBottomAlignWatcher, durationMs + 50);
     }
 
     private void uninstallBottomAlignWatcher() {
         if (bottomAlignWatcher != null && rvMessages != null) {
-            rvMessages.removeOnLayoutChangeListener(bottomAlignWatcher);
+            rvMessages.getViewTreeObserver().removeOnGlobalLayoutListener(bottomAlignWatcher);
         }
         bottomAlignWatcher = null;
     }
@@ -1727,11 +1739,15 @@ public class ChatActivity extends AppCompatActivity {
         if (lastChild != null) {
             int recyclerHeight = rvMessages.getHeight() - rvMessages.getPaddingTop() - rvMessages.getPaddingBottom();
             int itemHeight = lastChild.getHeight();
+            // 最后一条消息高于屏幕时 offset 为负数：负偏移把消息顶部推到
+            // 视口上方，正好露出消息结尾（底对齐）
             int offset = recyclerHeight - itemHeight;
             lm.scrollToPositionWithOffset(pos, offset);
         } else {
+            // 最后一项尚未布局（首次加载数据刚切换）：先跳到最后一项，
+            // 布局完成后再做精确对齐（watcher 也会兜底）
             lm.scrollToPositionWithOffset(pos, 0);
-            rvMessages.post(() -> alignLastItemToBottom());
+            rvMessages.post(this::alignLastItemToBottom);
         }
     }
 
