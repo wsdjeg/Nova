@@ -31,10 +31,8 @@ import java.io.FileWriter;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
-import java.util.Set;
 
 /**
  * 日志查看器
@@ -42,7 +40,7 @@ import java.util.Set;
  * 基于 NovaLog 应用内日志引擎：
  * - 实时刷新（增量追加，不破坏长按文本选择）
  * - 关键字搜索（匹配标签/内容/堆栈，不区分大小写）
- * - V/D/I/W/E 级别筛选 Chip
+ * - 级别阈值筛选 Chip（单选：全部/调试/信息/警告/错误，与服务端日志页一致）
  * - 单条长按局部选择复制 / 点击查看详情并整条复制
  * - 复制筛选结果 / 导出分享 .log 文件 / 一键清空
  */
@@ -58,8 +56,8 @@ public class LogViewerActivity extends AppCompatActivity implements LogAdapter.O
 
     /** 全量日志（内存缓存，与 NovaLog 缓冲区保持同步） */
     private final List<NovaLog.Entry> allEntries = new ArrayList<>();
-    /** 启用的日志级别 */
-    private final Set<Integer> enabledLevels = new HashSet<>();
+    /** 级别阈值：只显示该级别及更高的日志（全部 = VERBOSE） */
+    private int minLevel = NovaLog.VERBOSE;
     /** 搜索关键字 */
     private String query = "";
     /** 最后同步的序号（增量刷新用） */
@@ -136,17 +134,12 @@ public class LogViewerActivity extends AppCompatActivity implements LogAdapter.O
             }
         });
 
-        // 级别筛选 Chip：先读取 XML 初始 checked 状态，再挂监听
-        readChipLevels();
+        // 级别筛选 Chip（单选阈值）：先读取 XML 初始选中项，再挂监听
+        readChipThreshold();
         ChipGroup chipGroup = findViewById(R.id.cg_log_levels);
         chipGroup.setOnCheckedStateChangeListener((group, checkedIds) -> {
-            enabledLevels.clear();
-            for (int id : checkedIds) {
-                int level = chipLevel(id);
-                if (level > 0) {
-                    enabledLevels.add(level);
-                }
-            }
+            // 单选下点击已选中的 Chip 会取消选中，此时按"全部"处理
+            minLevel = checkedIds.isEmpty() ? NovaLog.VERBOSE : chipThreshold(checkedIds.get(0));
             applyFilter();
         });
 
@@ -154,35 +147,28 @@ public class LogViewerActivity extends AppCompatActivity implements LogAdapter.O
         fullRefresh();
     }
 
-    /** 从 XML 初始 checked 状态读取默认级别集合 */
-    private void readChipLevels() {
-        enabledLevels.clear();
+    /** 从 XML 初始选中项读取默认级别阈值 */
+    private void readChipThreshold() {
         ChipGroup chipGroup = findViewById(R.id.cg_log_levels);
-        for (int id : chipGroup.getCheckedChipIds()) {
-            int level = chipLevel(id);
-            if (level > 0) {
-                enabledLevels.add(level);
-            }
-        }
+        List<Integer> checked = chipGroup.getCheckedChipIds();
+        minLevel = checked.isEmpty() ? NovaLog.VERBOSE : chipThreshold(checked.get(0));
     }
 
-    private int chipLevel(int chipId) {
-        if (chipId == R.id.chip_v) {
-            return NovaLog.VERBOSE;
-        }
-        if (chipId == R.id.chip_d) {
-            return NovaLog.DEBUG;
-        }
-        if (chipId == R.id.chip_i) {
-            return NovaLog.INFO;
-        }
-        if (chipId == R.id.chip_w) {
-            return NovaLog.WARN;
-        }
-        if (chipId == R.id.chip_e) {
+    /** Chip ID -> 级别阈值（显示该级别及更高） */
+    private int chipThreshold(int chipId) {
+        if (chipId == R.id.chip_log_filter_error) {
             return NovaLog.ERROR;
         }
-        return 0;
+        if (chipId == R.id.chip_log_filter_warning) {
+            return NovaLog.WARN;
+        }
+        if (chipId == R.id.chip_log_filter_info) {
+            return NovaLog.INFO;
+        }
+        if (chipId == R.id.chip_log_filter_debug) {
+            return NovaLog.DEBUG;
+        }
+        return NovaLog.VERBOSE; // chip_log_filter_all（全部）
     }
 
     @Override
@@ -307,7 +293,7 @@ public class LogViewerActivity extends AppCompatActivity implements LogAdapter.O
     // 筛选
     // ------------------------------------------------------------------
 
-    /** 按当前级别 + 关键字过滤全量数据并刷新列表 */
+    /** 按当前级别阈值 + 关键字过滤全量数据并刷新列表 */
     private void applyFilter() {
         List<NovaLog.Entry> visible = new ArrayList<>(allEntries.size());
         for (NovaLog.Entry e : allEntries) {
@@ -321,7 +307,7 @@ public class LogViewerActivity extends AppCompatActivity implements LogAdapter.O
     }
 
     private boolean matchesFilter(NovaLog.Entry e) {
-        if (!enabledLevels.contains(e.level)) {
+        if (e.level < minLevel) {
             return false;
         }
         if (query.isEmpty()) {

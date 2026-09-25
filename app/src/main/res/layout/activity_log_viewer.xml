@@ -38,7 +38,7 @@
             android:textSize="13sp" />
     </LinearLayout>
 
-    <!-- 级别筛选 -->
+    <!-- 级别筛选（单选阈值，与服务端日志页一致） -->
     <HorizontalScrollView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -52,47 +52,43 @@
             android:layout_height="wrap_content"
             app:chipSpacingHorizontal="4dp"
             app:singleLine="true"
-            app:singleSelection="false">
+            app:singleSelection="true">
 
             <com.google.android.material.chip.Chip
-                android:id="@+id/chip_v"
-                style="@style/Widget.Material3.Chip.Filter"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:checked="false"
-                android:text="@string/log_level_verbose" />
-
-            <com.google.android.material.chip.Chip
-                android:id="@+id/chip_d"
+                android:id="@+id/chip_log_filter_all"
                 style="@style/Widget.Material3.Chip.Filter"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:checked="true"
-                android:text="@string/log_level_debug" />
+                android:text="@string/log_filter_all" />
 
             <com.google.android.material.chip.Chip
-                android:id="@+id/chip_i"
+                android:id="@+id/chip_log_filter_debug"
                 style="@style/Widget.Material3.Chip.Filter"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:checked="true"
-                android:text="@string/log_level_info" />
+                android:text="@string/log_filter_debug" />
 
             <com.google.android.material.chip.Chip
-                android:id="@+id/chip_w"
+                android:id="@+id/chip_log_filter_info"
                 style="@style/Widget.Material3.Chip.Filter"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:checked="true"
-                android:text="@string/log_level_warn" />
+                android:text="@string/log_filter_info" />
 
             <com.google.android.material.chip.Chip
-                android:id="@+id/chip_e"
+                android:id="@+id/chip_log_filter_warning"
                 style="@style/Widget.Material3.Chip.Filter"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:checked="true"
-                android:text="@string/log_level_error" />
+                android:text="@string/log_filter_warning" />
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chip_log_filter_error"
+                style="@style/Widget.Material3.Chip.Filter"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/log_filter_error" />
         </com.google.android.material.chip.ChipGroup>
     </HorizontalScrollView>
 

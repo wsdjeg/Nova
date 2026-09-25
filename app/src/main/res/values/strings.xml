@@ -351,18 +351,13 @@
     <string name="log_detail_title">日志详情</string>
     <string name="log_copy_entry">复制此条</string>
     <string name="log_share_via">分享日志</string>
-    <string name="log_level_verbose">V</string>
-    <string name="log_level_debug">D</string>
-    <string name="log_level_info">I</string>
-    <string name="log_level_warn">W</string>
-    <string name="log_level_error">E</string>
+    <string name="log_filter_all">全部</string>
+    <string name="log_filter_debug">调试</string>
+    <string name="log_filter_info">信息</string>
+    <string name="log_filter_warning">警告</string>
+    <string name="log_filter_error">错误</string>
 
     <!-- Server log viewer -->
-    <string name="server_log_filter_all">全部</string>
-    <string name="server_log_filter_error">错误</string>
-    <string name="server_log_filter_warn">警告+</string>
-    <string name="server_log_filter_info">信息+</string>
-    <string name="server_log_filter_debug">调试+</string>
     <string name="server_log_stats_format">共 %1$d 条</string>
     <string name="server_log_empty">暂无日志</string>
     <string name="server_log_auto_refresh">自动刷新</string>

@@ -132,7 +132,7 @@
     <string name="upload_path_hint">Relative path to session working directory</string>
     <string name="upload_image_short">Upload</string>
     <string name="upload_multiple_title">Upload %d images</string>
-    <string name="upload_multiple_hint">Enter directory path, images keep original filenames</string>
+    <string name="upload_multiple_hint">Enter a directory path, images keep original filenames</string>
     <string name="upload_progress_title">Uploading Images</string>
     <string name="upload_progress_format">Uploading (%1$d/%2$d)</string>
     <string name="upload_batch_success">Successfully uploaded %d images</string>
@@ -351,18 +351,13 @@
     <string name="log_detail_title">Log detail</string>
     <string name="log_copy_entry">Copy this entry</string>
     <string name="log_share_via">Share logs</string>
-    <string name="log_level_verbose">V</string>
-    <string name="log_level_debug">D</string>
-    <string name="log_level_info">I</string>
-    <string name="log_level_warn">W</string>
-    <string name="log_level_error">E</string>
+    <string name="log_filter_all">All</string>
+    <string name="log_filter_debug">Debug</string>
+    <string name="log_filter_info">Info</string>
+    <string name="log_filter_warning">Warning</string>
+    <string name="log_filter_error">Error</string>
 
     <!-- Server log viewer -->
-    <string name="server_log_filter_all">All</string>
-    <string name="server_log_filter_error">Error</string>
-    <string name="server_log_filter_warn">Warn+</string>
-    <string name="server_log_filter_info">Info+</string>
-    <string name="server_log_filter_debug">Debug+</string>
     <string name="server_log_stats_format">%1$d lines</string>
     <string name="server_log_empty">No logs</string>
     <string name="server_log_auto_refresh">Auto refresh</string>
