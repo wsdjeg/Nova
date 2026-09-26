@@ -1,19 +1,6 @@
 package net.wsdjeg.nova;
 
 /**
- * 工具调用参数
- */
-public class ToolCallFunction {
-    public String name;
-    public String arguments; // JSON 字符串
-
-    public ToolCallFunction(String name, String arguments) {
-        this.name = name;
-        this.arguments = arguments;
-    }
-}
-
-/**
  * 工具调用
  */
 public class ToolCall {
@@ -25,19 +12,6 @@ public class ToolCall {
         this.id = id;
         this.type = type;
         this.function = function;
-    }
-}
-
-/**
- * 工具调用状态（用于工具结果消息）
- */
-public class ToolCallState {
-    public String name;
-    public String error;
-
-    public ToolCallState(String name, String error) {
-        this.name = name;
-        this.error = error;
     }
 }
 
