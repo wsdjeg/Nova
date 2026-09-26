@@ -73,7 +73,7 @@ all from your phone.
 - Session token usage shown in the session list and session settings (compact k/M units)
 - Paginated history loading with DiffUtil incremental updates
 - Stop and retry AI generation at any time
-- Tool-call and tool-result message cards with collapsible JSON (collapsed view shows one line)
+- Tool-call and tool-result message cards with collapsible JSON (collapsed view shows one line; expanded height adapts to content, compact 3dp padding and 1.2x line spacing)
 - Date separators rendered as standalone divider nodes inside the message stream
 - Error messages rendered as distinct cards
 - Clear session messages (smart `cleared_at` sorting)
@@ -83,6 +83,7 @@ all from your phone.
 - WeChat login - scan QR code in-app to connect your WeChat account
 - Bridge (integration) settings per session
 - Markdown rendering with syntax highlighting, tables, task lists, and strikethrough
+- Per-line inline code backgrounds drawn via `LineBackgroundSpan` - a 3dp vertical gap keeps adjacent lines visually separate, with precise positioning inside tables, lists, and quote blocks
 - Separate Markwon instances for user (blue-tinted code) and AI messages
 - Slash commands (`/help`, `/sessions`, `/session`, `/set`, `/clear`, `/title`)
 - Skills autocomplete - type `/` in the input box to browse and pick server-side skills, with live filtering by name / description and 5-minute list caching
@@ -92,7 +93,7 @@ all from your phone.
 - Browser session preview
 - Smart scroll - pause auto-refresh while reading, restore position via stable-key anchors
 - Content fingerprint to skip redundant Markdown re-binding
-- In-app update checker with download and install dialog (supports dev builds via commit hash)
+- In-app update checker with download and install dialog (supports dev builds via commit hash; dev builds ignore already-released stable versions)
 - Multi-language support (Chinese / English / System)
 - In-app log viewer with search, log-level filter, and partial copy
 - Server runtime log viewer via the `/logs` API
@@ -318,7 +319,7 @@ Nova/
 │   ├── TagColorPicker.java            # Shared account tag color picker (five-color palette)
 │   ├── VoskSpeechRecognizer.java      # Offline speech recognition
 │   ├── MarkdownUtils.java             # Markdown preprocessing
-│   ├── InlineCodeSpan.java            # Inline code styling
+│   ├── InlineCodeSpan.java            # Inline code styling (per-line backgrounds)
 │   ├── PopupHelper.java               # Popup menu helper
 │   ├── ToolContentScrollView.java     # Scrollable tool-call content
 │   ├── TimeUtils.java                 # Time formatting
@@ -388,6 +389,8 @@ Nova/
 - [x] Session token usage display
 - [x] Date separators in message stream
 - [x] Unified five-color account tag palette
+- [x] Adaptive tool-card height (no fixed 10-line expanded view)
+- [x] Per-line inline code backgrounds (3dp gap, table / list / quote aware)
 - [ ] Streaming responses (SSE)
 - [ ] Message search
 - [ ] Enhanced table rendering
@@ -417,5 +420,4 @@ If you encounter any bugs or have suggestions, please file an issue in the
 ## License
 
 Licensed under [GPL-3.0](LICENSE).
-
 
