@@ -36,6 +36,8 @@ app/src/main/java/net/wsdjeg/nova/
 ├── Message.java                   # Message model
 ├── ChatMessage.java               # Chat message DTO
 ├── ToolCall.java                  # Tool call DTO
+├── ToolCallFunction.java          # Tool call function DTO
+├── ToolCallState.java             # Tool call state DTO
 ├── Provider.java                  # Provider DTO
 ├── Account.java                   # Account model
 ├── WeChatLoginResult.java         # WeChat login result model
@@ -59,6 +61,23 @@ app/src/main/java/net/wsdjeg/nova/
 **Must use `action="overwrite"` to rewrite the entire file.**
 
 Forbidden operations: replace, insert, delete (cause line number misalignment and code corruption).
+
+### Java Source File Organization Rule (Strictly Enforced)
+
+**Each public top-level class/interface MUST live in its own `.java` file, and the file name MUST match the class name exactly.**
+
+- One `.java` file contains at most ONE public top-level class.
+- When promoting a package-private class to `public`, you MUST split it into a separate file **in the same commit**.
+- Project convention: **one class per file** (see `Message.java`, `Session.java`, `Account.java`, `ToolCall.java`, `ToolCallFunction.java`, `ToolCallState.java`).
+- Before creating or modifying a class declaration, verify that file name, class name, and visibility all match.
+
+Violating this rule causes `javac` errors like:
+
+```
+error: class Foo is public, should be declared in a file named Foo.java
+```
+
+> **Lesson learned**: `ToolCallFunction` and `ToolCallState` were once package-private classes inside `ToolCall.java`. Promoting them to `public` without splitting into separate files broke the CI build (fixed in commit `721cf59`). Changing a class's visibility is never a one-line change in Java — always check the file layout.
 
 ### CHANGELOG.md Protection Rule (Strictly Enforced)
 
