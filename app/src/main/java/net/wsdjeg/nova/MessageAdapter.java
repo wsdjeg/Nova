@@ -69,8 +69,8 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
     private static final String TAG = "MessageAdapter";
     private static final int COLLAPSED_LINES = 1;   // 折叠时显示行数
     private static final int EXPANDED_LINES = 10;   // 展开时显示行数
-    private static final float TOOL_TEXT_SIZE_SP = 11f;      // 工具卡片正文字号(sp)
-    private static final float LINE_HEIGHT_FACTOR = 1.2f;   // 行高系数：每行高度 = 字号 × 1.2
+    private static final float BASE_LINE_HEIGHT_SP = 18f;   // 基础每行高度(sp)：11sp文字+行距+内边距
+    private static final float HEIGHT_SCALE_FACTOR = 1.2f; // 固定高度放大系数
 
     /** 相邻消息间隔超过该值（5 分钟）时插入时间节点 */
     private static final long TIME_SEPARATOR_GAP_MS = 5L * 60 * 1000;
@@ -586,9 +586,9 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
      * 计算内容区域的高度（dp）
      */
     private int calculateHeightPx(int lines) {
-        // 每行高度(像素) = 字号 × 1.2 × density
+        // 每行高度(像素) = 基础高度 × 1.2 × density
         float density = context.getResources().getDisplayMetrics().density;
-        float lineSp = TOOL_TEXT_SIZE_SP * LINE_HEIGHT_FACTOR; // 11sp文字 × 1.2 行高系数
+        float lineSp = BASE_LINE_HEIGHT_SP * HEIGHT_SCALE_FACTOR; // 18sp × 1.2 = 21.6sp
         return (int) (lineSp * lines * density);
     }
 
