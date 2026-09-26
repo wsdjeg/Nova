@@ -186,7 +186,8 @@ public class AboutActivity extends AppCompatActivity {
      *
      * 开发版（versionName 含 -dev）：
      *   CI 构建时会在版本号中注入 commit hash（如 3.0-dev-abc1234）。
-     *   GitHub 上只有一个 prerelease 且总是最新的，只需比较 commit hash。
+     *   先检查是否有更新的正式版（如当前 3.1.0-dev 对应的 v3.1.0 已发布），
+     *   有则优先提示升级到正式版；否则比较唯一 prerelease 的 commit hash。
      *   hash 相同 -> 已是最新；hash 不同 -> 有新开发版可更新。
      *
      * 稳定版（versionName 不含 -dev）：
@@ -298,7 +299,26 @@ public class AboutActivity extends AppCompatActivity {
             boolean isDev = currentVersion.contains("-dev");
 
             if (isDev) {
-                // 开发版：只需找到 prerelease，比较 commit hash
+                // 开发版：先检查是否有更新的正式版（如同号正式版已发布）
+                JSONObject latestStable = null;
+                for (int i = 0; i < releases.length(); i++) {
+                    JSONObject release = releases.getJSONObject(i);
+                    if (!release.optBoolean("prerelease", false)) {
+                        latestStable = release;
+                        break;
+                    }
+                }
+                if (latestStable != null) {
+                    String stableVer = extractVersion(latestStable);
+                    // compareVersions 中 -dev 视为低于同号正式版：
+                    // 本地 3.1.0-dev-xxx < 正式版 3.1.0 时，提示升级到正式版
+                    if (compareVersions(stableVer, currentVersion) > 0) {
+                        showReleaseUpdate(latestStable, false);
+                        return;
+                    }
+                }
+
+                // 开发版：找到 prerelease，比较 commit hash
                 JSONObject prerelease = null;
                 for (int i = 0; i < releases.length(); i++) {
                     JSONObject release = releases.getJSONObject(i);
