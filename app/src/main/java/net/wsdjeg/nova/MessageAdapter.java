@@ -647,17 +647,32 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
     }
 
     private void updateContentHeight(ToolCallViewHolder holder, boolean isExpanded) {
+        updateScrollContentHeight(holder.contentScrollV, holder.contentText, isExpanded);
+    }
+
+    /**
+     * 更新工具卡片内容区域高度。
+     * 展开（isExpanded=true）时：
+     * - 内容不超过 EXPANDED_LINES 行：高度自适应内容（WRAP_CONTENT），无需内部滚动
+     * - 内容超过 EXPANDED_LINES 行：固定最大高度，启用内部滚动
+     * 折叠时固定 COLLAPSED_LINES 行高度。
+     */
+    private void updateScrollContentHeight(ToolContentScrollView scrollView, TextView contentText, boolean isExpanded) {
+        if (isExpanded && contentText.getLineCount() <= EXPANDED_LINES) {
+            // 内容较少：展开后按实际内容高度显示，避免卡片出现大片空白
+            scrollView.getLayoutParams().height = ViewGroup.LayoutParams.WRAP_CONTENT;
+            scrollView.setScrollEnabled(false);
+            scrollView.requestLayout();
+            return;
+        }
         int heightPx = calculateHeightPx(isExpanded ? EXPANDED_LINES : COLLAPSED_LINES);
-        holder.contentScrollV.getLayoutParams().height = heightPx;
-        holder.contentScrollV.setScrollEnabled(isExpanded);
-        holder.contentScrollV.requestLayout();
+        scrollView.getLayoutParams().height = heightPx;
+        scrollView.setScrollEnabled(isExpanded);
+        scrollView.requestLayout();
     }
 
     private void updateResultContentHeight(ToolResultViewHolder holder, boolean isExpanded) {
-        int heightPx = calculateHeightPx(isExpanded ? EXPANDED_LINES : COLLAPSED_LINES);
-        holder.contentScrollV.getLayoutParams().height = heightPx;
-        holder.contentScrollV.setScrollEnabled(isExpanded);
-        holder.contentScrollV.requestLayout();
+        updateScrollContentHeight(holder.contentScrollV, holder.contentText, isExpanded);
     }
 
     private void bindToolResultViewHolder(ToolResultViewHolder holder, Message message, String stableKey) {
