@@ -62,6 +62,22 @@ app/src/main/java/net/wsdjeg/nova/
 
 Forbidden operations: replace, insert, delete (cause line number misalignment and code corruption).
 
+### AGENTS.md Reload Rule (Strictly Enforced)
+
+**After ANY modification to AGENTS.md, you MUST immediately execute `@set_prompt ./AGENTS.md` to reload it as the current session's system prompt.**
+
+- Merely updating the file is NOT enough — rule changes take effect in the current session only after `set_prompt` is run.
+- The complete workflow for AGENTS.md changes:
+
+```
+1. Modify AGENTS.md (action="overwrite")
+2. Verify via @read_file
+3. @set_prompt ./AGENTS.md          <- make rules effective NOW
+4. @git_add / @git_commit / @git_push
+```
+
+> **Lesson learned**: The "Java Source File Organization Rule" was written into AGENTS.md (commit `8bccc5d`), but `set_prompt` was not executed, so the new rule did not take effect in the current session until the user pointed it out. Always reload after updating.
+
 ### Java Source File Organization Rule (Strictly Enforced)
 
 **Each public top-level class/interface MUST live in its own `.java` file, and the file name MUST match the class name exactly.**
