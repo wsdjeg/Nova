@@ -110,6 +110,39 @@ public class Session {
     }
     
     /**
+     * 按码点（code point）安全截断字符串前缀。
+     * Java 的 String.length()/substring() 按 UTF-16 code unit 计数，
+     * emoji 等增补平面字符占 2 个 unit（surrogate pair），
+     * 直接 substring 会把代理对从中间劈开，产生孤立代理项导致显示乱码。
+     * 此方法按码点计数并截断，保证不会劈开任何完整字符。
+     * @param s 原字符串
+     * @param maxCodePoints 最多保留的码点数（一个汉字/英文/emoji 均算 1 个码点）
+     * @return 超长时截断并以 "..." 结尾，否则原样返回
+     */
+    private static String truncateByCodePoints(String s, int maxCodePoints) {
+        if (s == null || s.codePointCount(0, s.length()) <= maxCodePoints) {
+            return s;
+        }
+        return s.substring(0, s.offsetByCodePoints(0, maxCodePoints)) + "...";
+    }
+    
+    /**
+     * 按码点安全截断字符串后缀（保留最后 N 个码点）。
+     * 与 truncateByCodePoints 对应，用于从尾部截取的场景，
+     * 同样避免劈开代理对字符导致乱码。
+     * @param s 原字符串
+     * @param maxCodePoints 保留的最后 N 个码点数
+     * @return 超长时以 "..." 开头，否则原样返回
+     */
+    private static String truncateTailByCodePoints(String s, int maxCodePoints) {
+        if (s == null || s.codePointCount(0, s.length()) <= maxCodePoints) {
+            return s;
+        }
+        int startIndex = s.offsetByCodePoints(s.length(), -maxCodePoints);
+        return "..." + s.substring(startIndex);
+    }
+    
+    /**
      * 生成消息预览（只显示 content，截取前50个字符）
      * 用户需求：只显示 content，不需要角色图标
      */
@@ -127,9 +160,8 @@ public class Session {
         }
         // 去除换行符，显示单行预览
         String singleLine = message.replace("\n", " ").trim();
-        if (singleLine.length() > 50) {
-            singleLine = singleLine.substring(0, 50) + "...";
-        }
+        // 按码点截断，避免劈开 emoji 等代理对字符
+        singleLine = truncateByCodePoints(singleLine, 50);
         // 只显示 content，不添加角色图标
         return singleLine;
     }
@@ -163,11 +195,8 @@ public class Session {
         if (cwd == null || cwd.isEmpty()) {
             return "";
         }
-        // 只显示最后 30 个字符
-        if (cwd.length() > 30) {
-            return "..." + cwd.substring(cwd.length() - 30);
-        }
-        return cwd;
+        // 只显示最后 30 个字符（按码点截断，避免劈开代理对字符）
+        return truncateTailByCodePoints(cwd, 30);
     }
     
     /**
@@ -299,19 +328,13 @@ public class Session {
     public String getTitle() {
         // 优先使用服务器返回的 title
         if (title != null && !title.isEmpty()) {
-            // 如果标题太长，截取前30个字符
-            if (title.length() > 30) {
-                return title.substring(0, 30) + "...";
-            }
-            return title;
+            // 如果标题太长，按码点截取前30个字符（避免劈开 emoji 等代理对字符导致乱码）
+            return truncateByCodePoints(title, 30);
         }
         // 备用：使用第一个消息
         if (firstMessage != null && !firstMessage.isEmpty()) {
             String firstLine = firstMessage.split("\n")[0].trim();
-            if (firstLine.length() > 30) {
-                return firstLine.substring(0, 30) + "...";
-            }
-            return firstLine;
+            return truncateByCodePoints(firstLine, 30);
         }
         return NovaApplication.getAppContext().getString(R.string.new_session);
     }
@@ -444,7 +467,7 @@ public class Session {
     }
     
     /**
-     * 设置清除消息时间戳
+     * 设置清除消息时间戳（Unix 秒）
      * @param clearedAt Unix 时间戳（秒），0 表示未清除
      */
     public void setClearedAt(long clearedAt) {
