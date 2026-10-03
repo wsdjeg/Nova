@@ -307,6 +307,56 @@ public class SessionManager {
     }
     
     /**
+     * 清除指定账号的所有本地会话（保留草稿）
+     * 用于连接失败或服务器不可用时清除无效会话，
+     * 服务器恢复后，会话会随刷新自动重新同步
+     * @return 清除的会话数量
+     */
+    public int purgeAccountSessions(String accountId) {
+        List<Session> sessions = loadSessions();
+        List<Session> toRemove = new ArrayList<>();
+        
+        for (Session session : sessions) {
+            if (accountId.equals(session.getAccountId())) {
+                toRemove.add(session);
+                removeInitializedSession(session.getSessionId());
+            }
+        }
+        
+        if (!toRemove.isEmpty()) {
+            sessions.removeAll(toRemove);
+            saveSessions(sessions);
+        }
+        return toRemove.size();
+    }
+    
+    /**
+     * 删除所有不属于有效账号集合的会话（账号已删除时残留的无效会话）
+     * accountId 为空的旧数据不处理（由会话列表归入当前账号）
+     * @param validAccountIds 现存账号 ID 集合
+     * @return 删除的会话数量
+     */
+    public int deleteOrphanSessions(Set<String> validAccountIds) {
+        List<Session> sessions = loadSessions();
+        List<Session> toRemove = new ArrayList<>();
+        
+        for (Session session : sessions) {
+            String accountId = session.getAccountId();
+            if (accountId != null && !accountId.isEmpty() && !validAccountIds.contains(accountId)) {
+                toRemove.add(session);
+                removeInitializedSession(session.getSessionId());
+                clearDraft(session.getSessionId());
+            }
+        }
+        
+        if (!toRemove.isEmpty()) {
+            sessions.removeAll(toRemove);
+            saveSessions(sessions);
+        }
+        return toRemove.size();
+    }
+    
+    /**
      * 更新会话的 in_progress 状态
      */
     public void setSessionInProgress(String sessionId, boolean inProgress) {

@@ -26,12 +26,14 @@ public class AccountManager {
     private static final String KEY_COLOR_INDEX_MIGRATED = "color_index_migrated_v1";
 
     private static AccountManager instance;
+    private final Context appContext;
     private final SharedPreferences prefs;
     private List<Account> accounts;
     private Account currentAccount;
 
     private AccountManager(Context context) {
-        prefs = context.getApplicationContext().getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
+        appContext = context.getApplicationContext();
+        prefs = appContext.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
         loadAccounts();
     }
 
@@ -261,6 +263,10 @@ public class AccountManager {
                 currentAccount = null;
             }
             saveAccounts();
+
+            // 删除该账号关联的所有本地会话（含草稿、初始化标记），
+            // 避免会话列表残留无效会话
+            new SessionManager(appContext).deleteAccountSessions(accountId);
         }
     }
 

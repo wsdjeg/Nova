@@ -27,6 +27,7 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -361,15 +362,35 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
      * 加载全量数据到 allSessions，再通过 applyFilter() 过滤显示
      */
     private void loadSessions() {
+        loadSessions(true);
+    }
+    
+    /**
+     * 从本地加载所有账号的会话列表（聚合视图）
+     * 加载前先清理账号已删除的残留会话，避免显示无效会话
+     * @param showHints 是否显示提示（自动刷新触发时传 false，避免反复弹出提示）
+     */
+    private void loadSessions(boolean showHints) {
         allSessions.clear();
         
         if (!accountManager.hasAccounts()) {
+            // 无任何账号：清理本地残留的无效会话
+            sessionManager.deleteOrphanSessions(new HashSet<>());
             sessions.clear();
             adapter.notifyDataSetChanged();
             updateSubtitle();
-            Toast.makeText(this, getString(R.string.please_add_account), Toast.LENGTH_SHORT).show();
+            if (showHints) {
+                Toast.makeText(this, getString(R.string.please_add_account), Toast.LENGTH_SHORT).show();
+            }
             return;
         }
+        
+        // 清理账号已删除但本地残留的会话
+        Set<String> accountIds = new HashSet<>();
+        for (Account account : accountManager.getAccounts()) {
+            accountIds.add(account.getId());
+        }
+        sessionManager.deleteOrphanSessions(accountIds);
         
         // Load sessions from all accounts
         List<Session> loadedSessions = sessionManager.loadAllSessions();
@@ -388,7 +409,7 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
         allSessions.addAll(loadedSessions);
         applyFilter();
         
-        if (allSessions.isEmpty()) {
+        if (allSessions.isEmpty() && showHints) {
             Toast.makeText(this, getString(R.string.no_sessions_hint), Toast.LENGTH_SHORT).show();
         }
     }
@@ -530,7 +551,7 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
                         }
                     }
                     
-                    loadSessions();
+                    loadSessions(false);
                     
                     if (!isFirstRefreshDone) {
                         isFirstRefreshDone = true;
@@ -544,7 +565,12 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
             @Override
             public void onError(String error) {
                 runOnUiThread(() -> {
-                    // 静默失败，不影响其他账号的刷新
+                    // 连接失败或服务器不可用时，清除该账号本地缓存的无效会话
+                    // （保留草稿；服务器恢复后会话会随刷新自动重新同步）
+                    int purged = sessionManager.purgeAccountSessions(accountId);
+                    if (purged > 0) {
+                        loadSessions(false);
+                    }
                 });
             }
         });
