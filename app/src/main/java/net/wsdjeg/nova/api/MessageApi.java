@@ -7,10 +7,13 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.net.URLEncoder;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import net.wsdjeg.nova.ApiClient.DeleteMessageCallback;
 import net.wsdjeg.nova.ApiClient.MessagesCallback;
+import net.wsdjeg.nova.ApiClient.SearchCallback;
 import net.wsdjeg.nova.ChatMessage;
 import net.wsdjeg.nova.ToolCall;
 import net.wsdjeg.nova.ToolCallFunction;
@@ -23,6 +26,7 @@ import org.json.JSONObject;
  * 包含:
  * - GET /messages?session=:id 获取会话消息
  * - GET /messages?since=&limit=&last= 分页/增量查询
+ * - GET /session/:id/search?q= 会话内搜索
  * - DELETE /session/:id/messages/:index 删除消息
  */
 public class MessageApi {
@@ -326,6 +330,124 @@ public class MessageApi {
 
     public void getMessagesPaginated(String sessionId, int limit, MessagesCallback callback) {
         getMessagesWithOptions(sessionId, -1, limit, false, callback);
+    }
+
+    /**
+     * 会话内搜索消息
+     * API 端点: GET /session/:id/search?q=:query
+     *
+     * 服务端对每条消息的 content / reasoning_content 做
+     * 大小写不敏感的字面量子串匹配，返回匹配消息的 1-based 下标。
+     * 响应格式: {"count": N, "indices": [i1, i2, ...]}
+     *
+     * @param sessionId 会话 ID
+     * @param query     搜索关键词（必填，缺失或为空返回 400）
+     * @param callback  回调，indices 为升序去重后的 1-based 消息下标
+     */
+    public void searchMessages(String sessionId, String query, final SearchCallback callback) {
+        String baseUrl = config.getBaseUrl();
+        String apiKey = config.getApiKey();
+
+        if (baseUrl.isEmpty() || apiKey.isEmpty()) {
+            callback.onError("Please configure API settings");
+            return;
+        }
+
+        if (sessionId == null || sessionId.isEmpty()) {
+            callback.onError("Session ID is required");
+            return;
+        }
+
+        if (query == null || query.trim().isEmpty()) {
+            callback.onError("Search query is required");
+            return;
+        }
+
+        final String finalSessionId = sessionId;
+        final String encodedQuery;
+        try {
+            encodedQuery = URLEncoder.encode(query.trim(), "UTF-8");
+        } catch (java.io.UnsupportedEncodingException e) {
+            // UTF-8 是 JVM 必备字符集，理论上不会到这里
+            callback.onError("Error: " + e.getMessage());
+            return;
+        }
+
+        new Thread(() -> {
+            HttpURLConnection conn = null;
+            BufferedReader br = null;
+            try {
+                URL url = new URL(baseUrl + "/session/" + finalSessionId + "/search?q=" + encodedQuery);
+                conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("GET");
+                conn.setRequestProperty("X-API-Key", apiKey);
+                conn.setRequestProperty("Connection", "close");
+                conn.setRequestProperty("Accept", "application/json");
+                conn.setConnectTimeout(15000);
+                conn.setReadTimeout(30000);
+                conn.setUseCaches(false);
+                conn.setDoInput(true);
+
+                int responseCode = conn.getResponseCode();
+
+                if (responseCode == 200) {
+                    br = new BufferedReader(new InputStreamReader(conn.getInputStream(), "UTF-8"));
+                    StringBuilder response = new StringBuilder();
+                    String line;
+                    while ((line = br.readLine()) != null) {
+                        response.append(line);
+                    }
+
+                    JSONObject json = new JSONObject(response.toString());
+                    JSONArray indicesArray = json.optJSONArray("indices");
+                    List<Integer> indices = new ArrayList<>();
+                    if (indicesArray != null) {
+                        for (int i = 0; i < indicesArray.length(); i++) {
+                            int idx = indicesArray.optInt(i, -1);
+                            if (idx >= 1) {
+                                indices.add(idx);
+                            }
+                        }
+                    }
+                    Collections.sort(indices);
+                    final List<Integer> finalIndices = indices;
+                    new Handler(Looper.getMainLooper()).post(() ->
+                        callback.onSuccess(finalIndices));
+                } else if (responseCode == 400) {
+                    new Handler(Looper.getMainLooper()).post(() ->
+                        callback.onError("Bad Request: Missing search query"));
+                } else if (responseCode == 401) {
+                    new Handler(Looper.getMainLooper()).post(() ->
+                        callback.onError("Unauthorized: Invalid API Key"));
+                } else if (responseCode == 404) {
+                    new Handler(Looper.getMainLooper()).post(() ->
+                        callback.onError("Session not found"));
+                } else {
+                    final int code = responseCode;
+                    new Handler(Looper.getMainLooper()).post(() ->
+                        callback.onError("Error: " + code));
+                }
+            } catch (java.net.SocketException e) {
+                Log.e(TAG, "searchMessages SocketException: " + e.getMessage());
+                new Handler(Looper.getMainLooper()).post(() ->
+                    callback.onError("Connection error: " + e.getMessage()));
+            } catch (java.io.IOException e) {
+                Log.e(TAG, "searchMessages IOException: " + e.getMessage());
+                new Handler(Looper.getMainLooper()).post(() ->
+                    callback.onError("Network error: " + e.getMessage()));
+            } catch (Exception e) {
+                Log.e(TAG, "searchMessages failed", e);
+                new Handler(Looper.getMainLooper()).post(() ->
+                    callback.onError("Error: " + e.getMessage()));
+            } finally {
+                if (br != null) {
+                    try { br.close(); } catch (Exception ignored) {}
+                }
+                if (conn != null) {
+                    conn.disconnect();
+                }
+            }
+        }).start();
     }
 
     /**

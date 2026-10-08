@@ -113,6 +113,15 @@
     <string name="session_deleted">会话已删除</string>
     <string name="delete_failed">删除失败: %s</string>
 
+    <!-- Session search (in-chat message search) -->
+    <string name="search_hint">搜索消息内容</string>
+    <string name="search_close">取消搜索</string>
+    <string name="search_prev">上一个结果</string>
+    <string name="search_next">下一个结果</string>
+    <string name="search_query_empty">请输入搜索内容</string>
+    <string name="search_no_results">未找到匹配消息</string>
+    <string name="search_failed">搜索失败: %s</string>
+
     <!-- Skills autocomplete -->
     <string name="builtin">内置</string>
     <string name="skills_loading">正在加载 skills...</string>
@@ -402,7 +411,7 @@
     <string name="weixin_deleting_credentials">正在清除凭证...</string>
     <string name="weixin_delete_credentials_failed">清除凭证失败: %s</string>
     <string name="weixin_delete_credentials_success">凭证已清除，正在重新登录...</string>
-    <string name="weixin_qr_load_failed">二维码加载失败，请稍后重试</string>
+    <string name="weixin_qr_load_failed">二维码加载失败，请稍后再试</string>
     <string name="weixin_status_unknown">未知状态: %s</string>
     <string name="weixin_poll_error">轮询出错: %s</string>
     <string name="weixin_poll_timeout">轮询超时，请重新开始</string>

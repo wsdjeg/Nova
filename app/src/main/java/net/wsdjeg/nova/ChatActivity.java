@@ -1,5 +1,6 @@
 package net.wsdjeg.nova;
 
+import android.content.Context;
 import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.PorterDuff;
@@ -11,11 +12,14 @@ import android.os.Handler;
 import android.os.Looper;
 import android.speech.RecognizerIntent;
 import android.util.Log;
+import android.view.KeyEvent;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewTreeObserver;
+import android.view.inputmethod.EditorInfo;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageButton;
@@ -33,6 +37,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -203,6 +208,24 @@ public class ChatActivity extends AppCompatActivity {
     private boolean skillsErrorToasted = false;
     private long lastSkillsLoadTime = 0;
 
+    // ==================== 会话内搜索 ====================
+    // 菜单“搜索”打开搜索栏，调用 GET /session/:id/search?q= 获取匹配消息的
+    // 1-based 下标列表，支持“上一个/下一个”在结果间跳转（越界环绕）。
+    private View searchBar;
+    private EditText etSearch;
+    private ImageButton btnSearchClose;
+    private ImageButton btnSearchPrev;
+    private ImageButton btnSearchNext;
+    private TextView tvSearchCount;
+    private final List<Integer> searchResultIndices = new ArrayList<>();
+    private int searchResultCursor = -1;     // 当前结果在 searchResultIndices 中的下标（0-based）
+    private boolean searchPerformed = false; // 是否已执行过搜索（控制计数显示）
+    private boolean searchJumpLoading = false; // 正在为搜索跳转补拉更早的消息
+    private int searchSeq = 0;               // 搜索代数，用于作废过期回调（新搜索/退出/重载会递增）
+
+    // 搜索跳转补拉时，目标上方额外加载的消息数（保证跳转后有上文可见）
+    private static final int SEARCH_LOAD_CONTEXT = 20;
+
     
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -333,6 +356,32 @@ public class ChatActivity extends AppCompatActivity {
             public void onChanged() {
                 capSkillsPopupHeight();
             }
+        });
+        
+        // 初始化会话内搜索
+        searchBar = findViewById(R.id.search_bar);
+        etSearch = findViewById(R.id.et_search);
+        btnSearchClose = findViewById(R.id.btn_search_close);
+        btnSearchPrev = findViewById(R.id.btn_search_prev);
+        btnSearchNext = findViewById(R.id.btn_search_next);
+        tvSearchCount = findViewById(R.id.tv_search_count);
+        btnSearchClose.setOnClickListener(v -> exitSearchMode());
+        btnSearchPrev.setOnClickListener(v -> {
+            if (searchResultIndices.isEmpty()) return;
+            jumpToSearchResult(searchResultCursor - 1); // 越界环绕到最后一个
+        });
+        btnSearchNext.setOnClickListener(v -> {
+            if (searchResultIndices.isEmpty()) return;
+            jumpToSearchResult(searchResultCursor + 1); // 越界环绕到第一个
+        });
+        etSearch.setOnEditorActionListener((v, actionId, event) -> {
+            if (actionId == EditorInfo.IME_ACTION_SEARCH
+                    || (event != null && event.getAction() == KeyEvent.ACTION_DOWN
+                        && event.getKeyCode() == KeyEvent.KEYCODE_ENTER)) {
+                performSearch();
+                return true;
+            }
+            return false;
         });
         
         if (isInProgress) {
@@ -890,6 +939,9 @@ public class ChatActivity extends AppCompatActivity {
         } else if (id == R.id.action_refresh) {
             reloadMessages();
             return true;
+        } else if (id == R.id.action_search) {
+            enterSearchMode();
+            return true;
         } else if (id == R.id.action_upload_image) {
             uploadHelper.pickImage(REQUEST_PICK_IMAGE);
             return true;
@@ -1223,7 +1275,7 @@ public class ChatActivity extends AppCompatActivity {
     }
     
     private void triggerLoadOlder() {
-        if (isLoadingOlder || !canLoadMore()) return;
+        if (isLoadingOlder || searchJumpLoading || !canLoadMore()) return;
         
         isLoadingOlder = true;
                         showLoadMoreHint(getString(R.string.loading_more_hint));
@@ -1554,6 +1606,8 @@ public class ChatActivity extends AppCompatActivity {
     
     private void reloadMessages() {
         isInitialLoadComplete = false;
+        // 消息将整体重载，旧的搜索结果（1-based 下标）不再可信
+        resetSearchResults();
         
         saveScrollPosition();
         
@@ -2014,6 +2068,7 @@ public class ChatActivity extends AppCompatActivity {
                             adapter.notifyDataSetChangedWithUpdate();
                             addSystemMessage(getString(R.string.session_cleared));
                             sessionManager.updateFirstMessageIndex(currentSessionId, 0);
+                            resetSearchResults();
                             Toast.makeText(ChatActivity.this, getString(R.string.session_cleared), Toast.LENGTH_SHORT).show();
                         });
                     }
@@ -2062,6 +2117,243 @@ public class ChatActivity extends AppCompatActivity {
         adapter.notifyDataSetChangedWithUpdate();
     }
     
+    // ==================== 会话内搜索 ====================
+    
+    /**
+     * 进入搜索模式：显示搜索栏并聚焦输入框
+     */
+    private void enterSearchMode() {
+        if (searchBar == null) return;
+        searchBar.setVisibility(View.VISIBLE);
+        updateSearchCounter();
+        etSearch.requestFocus();
+        etSearch.postDelayed(() -> {
+            InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+            if (imm != null) {
+                imm.showSoftInput(etSearch, 0);
+            }
+        }, 100);
+    }
+    
+    /**
+     * 退出搜索模式：隐藏搜索栏，清空输入与结果
+     */
+    private void exitSearchMode() {
+        if (searchBar != null) {
+            searchBar.setVisibility(View.GONE);
+        }
+        if (etSearch != null) {
+            etSearch.setText("");
+            InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+            if (imm != null) {
+                imm.hideSoftInputFromWindow(etSearch.getWindowToken(), 0);
+            }
+        }
+        resetSearchResults();
+    }
+    
+    /**
+     * 清空搜索结果并作废在途请求
+     * 消息删除/清空/整体重载后调用（服务端 1-based 下标已变，旧结果不可信）
+     */
+    private void resetSearchResults() {
+        searchSeq++;
+        searchResultIndices.clear();
+        searchResultCursor = -1;
+        searchPerformed = false;
+        updateSearchCounter();
+    }
+    
+    /**
+     * 执行搜索（GET /session/:id/search?q=）
+     * 成功后跳转到第一个结果，失败 Toast 提示
+     */
+    private void performSearch() {
+        if (etSearch == null || apiClient == null || currentSessionId == null) return;
+        String query = etSearch.getText().toString().trim();
+        if (query.isEmpty()) {
+            Toast.makeText(this, getString(R.string.search_query_empty), Toast.LENGTH_SHORT).show();
+            return;
+        }
+        // 搜索后需要看列表，先收起软键盘
+        InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+        if (imm != null) {
+            imm.hideSoftInputFromWindow(etSearch.getWindowToken(), 0);
+        }
+        final int seq = ++searchSeq;
+        apiClient.searchMessages(currentSessionId, query, new ApiClient.SearchCallback() {
+            @Override
+            public void onSuccess(List<Integer> indices) {
+                runOnUiThread(() -> {
+                    if (seq != searchSeq) return; // 已发起新搜索或退出
+                    searchResultIndices.clear();
+                    searchResultIndices.addAll(indices);
+                    Collections.sort(searchResultIndices);
+                    searchPerformed = true;
+                    searchResultCursor = -1;
+                    updateSearchCounter();
+                    if (searchResultIndices.isEmpty()) {
+                        Toast.makeText(ChatActivity.this,
+                                getString(R.string.search_no_results), Toast.LENGTH_SHORT).show();
+                    } else {
+                        jumpToSearchResult(0);
+                    }
+                });
+            }
+            
+            @Override
+            public void onError(String error) {
+                runOnUiThread(() -> {
+                    if (seq != searchSeq) return;
+                    Toast.makeText(ChatActivity.this,
+                            getString(R.string.search_failed, error), Toast.LENGTH_SHORT).show();
+                });
+            }
+        });
+    }
+    
+    /**
+     * 跳转到第 cursor 个搜索结果（0-based，越界环绕）
+     * - 结果消息早于 currentSince（未加载）：先补拉该区间消息再滚动
+     * - 结果消息比已加载的最新消息还新（增量刷新滞后）：顺手触发一次增量刷新，
+     *   scrollToSearchTarget 更新的锚点会让 restoreScrollPosition 落在目标附近
+     */
+    private void jumpToSearchResult(int cursor) {
+        if (searchResultIndices.isEmpty()) return;
+        if (cursor < 0) cursor = searchResultIndices.size() - 1;
+        if (cursor >= searchResultIndices.size()) cursor = 0;
+        searchResultCursor = cursor;
+        updateSearchCounter();
+        
+        final int targetIndex = searchResultIndices.get(cursor);
+        Log.d(TAG, "Search jump to server index " + targetIndex
+                + " (result " + (cursor + 1) + "/" + searchResultIndices.size() + ")");
+        
+        if (currentSince > 1 && targetIndex < currentSince) {
+            loadOlderForSearchJump(targetIndex);
+        } else {
+            if (targetIndex > processedServerMessageCount) {
+                // 结果比当前已加载的最新消息还新：先补拉增量（异步），
+                // 本次先滚到最接近的可见项，增量到达后锚点会定位到目标
+                refreshMessages();
+            }
+            scrollToSearchTarget(targetIndex);
+        }
+    }
+    
+    /**
+     * 滚动到服务端 1-based 下标对应的消息
+     * 目标消息不可见（如仅含 reasoning_content 被过滤）时定位到最接近的可见项
+     */
+    private void scrollToSearchTarget(int targetIndex) {
+        if (adapter == null || rvMessages == null) return;
+        int pos = adapter.findVisiblePositionByServerIndex(targetIndex);
+        if (pos < 0) return;
+        LinearLayoutManager lm = (LinearLayoutManager) rvMessages.getLayoutManager();
+        if (lm == null) return;
+        // 搜索栏悬浮在列表上方：偏移先让出搜索栏高度，再留约 1/6 屏的上方上下文
+        int offset = rvMessages.getPaddingTop()
+                + (searchBar != null && searchBar.getVisibility() == View.VISIBLE
+                        ? searchBar.getHeight() : 0)
+                + rvMessages.getHeight() / 6;
+        // 程序化跳转视为离开底部：避免后续自动刷新把画面拉回底部
+        userAtBottom = false;
+        // 更新滚动锚点，避免增量刷新后 restoreScrollPosition 跳回旧位置
+        String anchorKey = adapter.getStableKeyAt(pos);
+        if (anchorKey != null) {
+            anchorStableKey = anchorKey;
+            offsetToRestore = offset;
+        }
+        lm.scrollToPositionWithOffset(pos, offset);
+    }
+    
+    /**
+     * 为搜索跳转补拉更早的消息，加载完成后滚动定位
+     * 一次性拉取 [newSince, currentSince-1] 区间（目标上方多留若干条上下文），
+     * 避免逐页（每页 PAGE_SIZE 条）多次往返
+     */
+    private void loadOlderForSearchJump(int targetIndex) {
+        if (searchJumpLoading || isLoadingOlder) {
+            // 已有加载进行中：稍后重试（在途加载完成后由该重试完成跳转）
+            rvMessages.postDelayed(() -> {
+                if (searchResultCursor >= 0 && searchResultCursor < searchResultIndices.size()) {
+                    jumpToSearchResult(searchResultCursor);
+                }
+            }, 400);
+            return;
+        }
+        
+        final int seq = searchSeq;
+        final int newSince = Math.max(1, targetIndex - SEARCH_LOAD_CONTEXT);
+        final int limit = currentSince - newSince; // 覆盖 [newSince, currentSince-1]
+        if (limit <= 0) {
+            scrollToSearchTarget(targetIndex);
+            return;
+        }
+        
+        searchJumpLoading = true;
+        showLoadMoreHint(getString(R.string.loading_more_hint));
+        
+        apiClient.getMessagesWithOptions(currentSessionId, newSince, limit, false,
+                new ApiClient.MessagesCallback() {
+            @Override
+            public void onSuccess(List<ChatMessage> chatMessages) {
+                runOnUiThread(() -> {
+                    searchJumpLoading = false;
+                    hideLoadMoreHint();
+                    if (seq != searchSeq) return; // 搜索已重置/重载，放弃本次跳转
+                    try {
+                        int inserted = 0;
+                        for (int i = chatMessages.size() - 1; i >= 0; i--) {
+                            ChatMessage msg = chatMessages.get(i);
+                            int serverIndex = newSince + msg.rawIndex;
+                            if (!messageFingerprints.contains(getMessageFingerprint(msg))) {
+                                messages.add(0, createMessageFromChatMessage(msg, serverIndex));
+                                messageFingerprints.add(getMessageFingerprint(msg));
+                                inserted++;
+                            }
+                        }
+                        if (inserted > 0) {
+                            currentSince = Math.min(currentSince, newSince);
+                            sessionManager.updateFirstMessageIndex(currentSessionId, currentSince);
+                            adapter.notifyDataSetChangedWithUpdate();
+                        }
+                    } catch (Exception e) {
+                        Log.e(TAG, "Search jump load error", e);
+                    } finally {
+                        rvMessages.post(() -> scrollToSearchTarget(targetIndex));
+                    }
+                });
+            }
+            
+            @Override
+            public void onError(String error) {
+                runOnUiThread(() -> {
+                    searchJumpLoading = false;
+                    hideLoadMoreHint();
+                    if (seq != searchSeq) return;
+                    Toast.makeText(ChatActivity.this,
+                            getString(R.string.load_failed, error), Toast.LENGTH_SHORT).show();
+                });
+            }
+        });
+    }
+    
+    /**
+     * 更新搜索结果计数显示（当前第 n 个 / 共 m 个）
+     * 未执行过搜索时留空；搜索无结果时显示 0/0
+     */
+    private void updateSearchCounter() {
+        if (tvSearchCount == null) return;
+        if (!searchPerformed) {
+            tvSearchCount.setText("");
+            return;
+        }
+        int cur = (searchResultCursor >= 0 && searchResultCursor < searchResultIndices.size())
+                ? searchResultCursor + 1 : 0;
+        tvSearchCount.setText(cur + "/" + searchResultIndices.size());
+    }
+    
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
@@ -2095,6 +2387,16 @@ public class ChatActivity extends AppCompatActivity {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         voiceHelper.handlePermissionResult(requestCode, grantResults,
                 REQUEST_RECORD_AUDIO_PERMISSION, REQUEST_VOICE_INPUT, REQUEST_RECORD_AUDIO_PERMISSION);
+    }
+
+    @Override
+    public void onBackPressed() {
+        // 搜索模式下，返回键先退出搜索而不是关闭页面
+        if (searchBar != null && searchBar.getVisibility() == View.VISIBLE) {
+            exitSearchMode();
+            return;
+        }
+        super.onBackPressed();
     }
 
     @Override

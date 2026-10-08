@@ -17,7 +17,7 @@ import net.wsdjeg.nova.api.WeChatApi;
  * API 客户端（门面）
  * 实现已按功能拆分到 net.wsdjeg.nova.api 子包：
  * - ChatApi           发送消息
- * - MessageApi        消息查询/解析/删除
+ * - MessageApi        消息查询/解析/删除/搜索
  * - SessionApi        会话 CRUD
  * - SessionSettingsApi 会话属性更新
  * - SessionActionApi  stop/clear/retry
@@ -99,6 +99,16 @@ public class ApiClient {
      */
     public interface DeleteMessageCallback {
         void onSuccess();
+        void onError(String error);
+    }
+
+    /**
+     * 会话内搜索的回调接口
+     * 用于 GET /session/:id/search?q= API
+     * indices 为匹配消息的 1-based 下标列表（升序）
+     */
+    public interface SearchCallback {
+        void onSuccess(List<Integer> indices);
         void onError(String error);
     }
 
@@ -271,6 +281,10 @@ public class ApiClient {
 
     public void deleteMessage(String sessionId, int messageIndex, DeleteMessageCallback callback) {
         messageApi.deleteMessage(sessionId, messageIndex, callback);
+    }
+
+    public void searchMessages(String sessionId, String query, SearchCallback callback) {
+        messageApi.searchMessages(sessionId, query, callback);
     }
 
     // ===== SessionApi =====

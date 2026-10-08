@@ -902,6 +902,53 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
     }
 
     /**
+     * 按服务端 1-based 消息索引查找可见项位置
+     *
+     * 优先精确匹配该消息派生的 visibleItem（assistant 消息可能拆分为
+     * content / 多个 tool_call 项，均能通过父消息索引命中）；
+     * 目标消息不可见（如仅含 reasoning_content 被过滤的消息）时，
+     * 回退到服务端索引最接近的可见项。
+     *
+     * 用于会话内搜索跳转定位。
+     *
+     * @param serverIndex 服务端 1-based 消息索引
+     * @return 可见项 position，找不到返回 -1
+     */
+    public int findVisiblePositionByServerIndex(int serverIndex) {
+        if (serverIndex < 1 || visibleItems.isEmpty()) return -1;
+        int nearest = -1;
+        int nearestDist = Integer.MAX_VALUE;
+        for (int i = 0; i < visibleItems.size(); i++) {
+            int idx = getServerIndexFromItem(visibleItems.get(i));
+            if (idx == serverIndex) {
+                return i;
+            }
+            if (idx >= 1) {
+                int dist = Math.abs(idx - serverIndex);
+                if (dist < nearestDist) {
+                    nearestDist = dist;
+                    nearest = i;
+                }
+            }
+        }
+        return nearest;
+    }
+
+    /**
+     * 获取 visibleItem 对应的服务端消息索引
+     * 时间分隔节点不属于任何消息，返回 -1
+     */
+    private static int getServerIndexFromItem(Object item) {
+        if (item instanceof Message) {
+            return ((Message) item).getServerIndex();
+        }
+        if (item instanceof ToolCallItem) {
+            return ((ToolCallItem) item).parentMessage.getServerIndex();
+        }
+        return -1;
+    }
+
+    /**
      * @deprecated 使用 findVisiblePositionByKey 代替。
      *             created 不唯一（同一 assistant 消息拆分为多个 visibleItem 共享一个 created）。
      */
