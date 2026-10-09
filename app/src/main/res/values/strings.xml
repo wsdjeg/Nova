@@ -115,7 +115,6 @@
 
     <!-- Session search (in-chat message search) -->
     <string name="search_hint">搜索消息内容</string>
-    <string name="search_close">取消搜索</string>
     <string name="search_prev">上一个结果</string>
     <string name="search_next">下一个结果</string>
     <string name="search_query_empty">请输入搜索内容</string>

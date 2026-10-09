@@ -209,11 +209,12 @@ public class ChatActivity extends AppCompatActivity {
     private long lastSkillsLoadTime = 0;
 
     // ==================== 会话内搜索 ====================
-    // 菜单“搜索”打开搜索栏，调用 GET /session/:id/search?q= 获取匹配消息的
-    // 1-based 下标列表，支持“上一个/下一个”在结果间跳转（越界环绕）。
+    // 菜单“搜索”进入搜索模式：搜索行合并进顶栏（替换 Toolbar 中的会话信息，
+    // 导航图标变✕取消搜索，隐藏右上角菜单），调用 GET /session/:id/search?q=
+    // 获取匹配消息的 1-based 下标列表，支持“上一个/下一个”跳转（越界环绕）。
+    private View sessionInfoContainer;
     private View searchBar;
     private EditText etSearch;
-    private ImageButton btnSearchClose;
     private ImageButton btnSearchPrev;
     private ImageButton btnSearchNext;
     private TextView tvSearchCount;
@@ -359,13 +360,12 @@ public class ChatActivity extends AppCompatActivity {
         });
         
         // 初始化会话内搜索
+        sessionInfoContainer = findViewById(R.id.session_info_container);
         searchBar = findViewById(R.id.search_bar);
         etSearch = findViewById(R.id.et_search);
-        btnSearchClose = findViewById(R.id.btn_search_close);
         btnSearchPrev = findViewById(R.id.btn_search_prev);
         btnSearchNext = findViewById(R.id.btn_search_next);
         tvSearchCount = findViewById(R.id.tv_search_count);
-        btnSearchClose.setOnClickListener(v -> exitSearchMode());
         btnSearchPrev.setOnClickListener(v -> {
             if (searchResultIndices.isEmpty()) return;
             jumpToSearchResult(searchResultCursor - 1); // 越界环绕到最后一个
@@ -929,6 +929,11 @@ public class ChatActivity extends AppCompatActivity {
     public boolean onOptionsItemSelected(MenuItem item) {
         int id = item.getItemId();
         if (id == android.R.id.home) {
+            // 搜索模式下导航图标是“取消搜索”的 ✕
+            if (searchBar != null && searchBar.getVisibility() == View.VISIBLE) {
+                exitSearchMode();
+                return true;
+            }
             finish();
             return true;
         }
@@ -2120,11 +2125,19 @@ public class ChatActivity extends AppCompatActivity {
     // ==================== 会话内搜索 ====================
     
     /**
-     * 进入搜索模式：显示搜索栏并聚焦输入框
+     * 进入搜索模式：顶栏切换为搜索行（替换会话信息）并聚焦输入框
      */
     private void enterSearchMode() {
-        if (searchBar == null) return;
+        if (searchBar == null || toolbar == null) return;
+        // 搜索行替换 Toolbar 中的会话信息，与顶栏合为一体
+        if (sessionInfoContainer != null) {
+            sessionInfoContainer.setVisibility(View.GONE);
+        }
         searchBar.setVisibility(View.VISIBLE);
+        // 导航图标变为“取消搜索”的 ✕
+        updateToolbarNavigationIcon(R.drawable.ic_close, false);
+        // 隐藏右上角菜单，给输入框和 上一个/下一个 让出空间
+        setOverflowMenuVisible(false);
         updateSearchCounter();
         etSearch.requestFocus();
         etSearch.postDelayed(() -> {
@@ -2136,12 +2149,18 @@ public class ChatActivity extends AppCompatActivity {
     }
     
     /**
-     * 退出搜索模式：隐藏搜索栏，清空输入与结果
+     * 退出搜索模式：恢复顶栏会话信息/返回箭头/菜单，清空输入与结果
      */
     private void exitSearchMode() {
         if (searchBar != null) {
             searchBar.setVisibility(View.GONE);
         }
+        // 恢复会话信息、返回箭头（染白）和右上角菜单
+        if (sessionInfoContainer != null) {
+            sessionInfoContainer.setVisibility(View.VISIBLE);
+        }
+        updateToolbarNavigationIcon(R.drawable.ic_arrow_back, true);
+        setOverflowMenuVisible(true);
         if (etSearch != null) {
             etSearch.setText("");
             InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
@@ -2150,6 +2169,34 @@ public class ChatActivity extends AppCompatActivity {
             }
         }
         resetSearchResults();
+    }
+    
+    /**
+     * 更新 Toolbar 导航图标
+     *
+     * @param iconResId 图标资源
+     * @param whiteTint 是否染白（返回箭头需要；✕ 本身是白色，不重复染）
+     */
+    private void updateToolbarNavigationIcon(int iconResId, boolean whiteTint) {
+        if (toolbar == null) return;
+        Drawable icon = ContextCompat.getDrawable(this, iconResId);
+        if (icon == null) return;
+        if (whiteTint) {
+            icon.mutate().setColorFilter(
+                    ContextCompat.getColor(this, android.R.color.white), PorterDuff.Mode.SRC_IN);
+        }
+        toolbar.setNavigationIcon(icon);
+    }
+    
+    /**
+     * 显示/隐藏右上角溢出菜单（搜索模式下隐藏，退出搜索时恢复）
+     */
+    private void setOverflowMenuVisible(boolean visible) {
+        if (chatMenu == null) return;
+        MenuItem moreItem = chatMenu.findItem(R.id.action_more);
+        if (moreItem != null) {
+            moreItem.setVisible(visible);
+        }
     }
     
     /**
@@ -2251,11 +2298,8 @@ public class ChatActivity extends AppCompatActivity {
         if (pos < 0) return;
         LinearLayoutManager lm = (LinearLayoutManager) rvMessages.getLayoutManager();
         if (lm == null) return;
-        // 搜索栏悬浮在列表上方：偏移先让出搜索栏高度，再留约 1/6 屏的上方上下文
-        int offset = rvMessages.getPaddingTop()
-                + (searchBar != null && searchBar.getVisibility() == View.VISIBLE
-                        ? searchBar.getHeight() : 0)
-                + rvMessages.getHeight() / 6;
+        // 搜索行在 Toolbar 内，列表从 Toolbar 下缘开始：留约 1/6 屏的上方上下文
+        int offset = rvMessages.getPaddingTop() + rvMessages.getHeight() / 6;
         // 程序化跳转视为离开底部：避免后续自动刷新把画面拉回底部
         userAtBottom = false;
         // 更新滚动锚点，避免增量刷新后 restoreScrollPosition 跳回旧位置

@@ -19,14 +19,15 @@
         app:subtitleTextColor="#CCCCCC"
         app:navigationIcon="@drawable/ic_arrow_back"
         app:navigationIconTint="@android:color/white">
-        
-        <!-- Session Info embedded in Toolbar - 3 lines -->
+
+        <!-- Session Info embedded in Toolbar - 3 lines (hidden while searching) -->
         <LinearLayout
+            android:id="@+id/session_info_container"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
             android:layout_marginEnd="16dp">
-            
+
             <!-- Line 1: Session Title (bold, white) -->
             <TextView
                 android:id="@+id/tv_session_title"
@@ -38,7 +39,7 @@
                 android:textStyle="bold"
                 android:maxLines="1"
                 android:ellipsize="end" />
-            
+
             <!-- Line 2: Provider | Model -->
             <TextView
                 android:id="@+id/tv_session_info"
@@ -49,7 +50,7 @@
                 android:textSize="13sp"
                 android:maxLines="1"
                 android:ellipsize="middle" />
-            
+
             <!-- Line 3: Cwd path -->
             <TextView
                 android:id="@+id/tv_session_path"
@@ -60,6 +61,74 @@
                 android:textSize="12sp"
                 android:maxLines="1"
                 android:ellipsize="middle" />
+        </LinearLayout>
+
+        <!-- Search row: merged INTO the toolbar, replaces session info while
+             searching. While visible, ChatActivity switches the navigation
+             icon to ✕ (cancel search) and hides the overflow menu so the
+             input, counter and prev/next buttons own the whole bar. -->
+        <LinearLayout
+            android:id="@+id/search_bar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginEnd="8dp"
+            android:visibility="gone">
+
+            <!-- Search input (IME action search) -->
+            <EditText
+                android:id="@+id/et_search"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginEnd="8dp"
+                android:minHeight="40dp"
+                android:background="@drawable/input_bg"
+                android:hint="@string/search_hint"
+                android:textColor="@color/text_primary"
+                android:textColorHint="@color/text_hint"
+                android:textSize="14sp"
+                android:inputType="text"
+                android:maxLines="1"
+                android:imeOptions="actionSearch"
+                android:paddingStart="10dp"
+                android:paddingEnd="10dp"
+                android:paddingTop="8dp"
+                android:paddingBottom="8dp"
+                android:importantForAutofill="no" />
+
+            <!-- Result counter: current/total -->
+            <TextView
+                android:id="@+id/tv_search_count"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="4dp"
+                android:minWidth="36dp"
+                android:gravity="center"
+                android:textColor="@android:color/white"
+                android:textSize="13sp" />
+
+            <!-- Previous result -->
+            <ImageButton
+                android:id="@+id/btn_search_prev"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:src="@drawable/ic_chevron_up"
+                android:background="?android:attr/selectableItemBackground"
+                android:contentDescription="@string/search_prev"
+                android:scaleType="centerInside" />
+
+            <!-- Next result -->
+            <ImageButton
+                android:id="@+id/btn_search_next"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_marginStart="4dp"
+                android:src="@drawable/ic_chevron_down"
+                android:background="?android:attr/selectableItemBackground"
+                android:contentDescription="@string/search_next"
+                android:scaleType="centerInside" />
         </LinearLayout>
     </androidx.appcompat.widget.Toolbar>
 
@@ -88,92 +157,6 @@
         android:background="@color/success"
         android:visibility="gone"
         android:elevation="4dp" />
-
-    <!-- Message Search Bar (overlay below toolbar, shown when search is active)
-         Root-level floating layer like tv_load_more: showing/hiding it never
-         changes rv_messages height, so no insets churn or scroll compensation.
-         Enter: menu "搜索"; query via IME action; navigate with prev/next;
-         close (X) on the left. -->
-    <LinearLayout
-        android:id="@+id/search_bar"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_below="@id/toolbar"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:background="@color/colorPrimary"
-        android:elevation="8dp"
-        android:paddingStart="4dp"
-        android:paddingEnd="4dp"
-        android:paddingTop="4dp"
-        android:paddingBottom="4dp"
-        android:visibility="gone">
-
-        <!-- Close search (X) -->
-        <ImageButton
-            android:id="@+id/btn_search_close"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:src="@drawable/ic_close"
-            android:background="?android:attr/selectableItemBackground"
-            android:contentDescription="@string/search_close"
-            android:scaleType="centerInside" />
-
-        <!-- Search input (IME action search) -->
-        <EditText
-            android:id="@+id/et_search"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:layout_marginStart="4dp"
-            android:layout_marginEnd="8dp"
-            android:minHeight="40dp"
-            android:background="@drawable/input_bg"
-            android:hint="@string/search_hint"
-            android:textColor="@color/text_primary"
-            android:textColorHint="@color/text_hint"
-            android:textSize="14sp"
-            android:inputType="text"
-            android:maxLines="1"
-            android:imeOptions="actionSearch"
-            android:paddingStart="10dp"
-            android:paddingEnd="10dp"
-            android:paddingTop="8dp"
-            android:paddingBottom="8dp"
-            android:importantForAutofill="no" />
-
-        <!-- Result counter: current/total -->
-        <TextView
-            android:id="@+id/tv_search_count"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginEnd="4dp"
-            android:minWidth="36dp"
-            android:gravity="center"
-            android:textColor="@android:color/white"
-            android:textSize="13sp" />
-
-        <!-- Previous result -->
-        <ImageButton
-            android:id="@+id/btn_search_prev"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:src="@drawable/ic_chevron_up"
-            android:background="?android:attr/selectableItemBackground"
-            android:contentDescription="@string/search_prev"
-            android:scaleType="centerInside" />
-
-        <!-- Next result -->
-        <ImageButton
-            android:id="@+id/btn_search_next"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:layout_marginStart="4dp"
-            android:src="@drawable/ic_chevron_down"
-            android:background="?android:attr/selectableItemBackground"
-            android:contentDescription="@string/search_next"
-            android:scaleType="centerInside" />
-    </LinearLayout>
 
     <!-- Scroll to Bottom FAB -->
     <com.google.android.material.floatingactionbutton.FloatingActionButton
