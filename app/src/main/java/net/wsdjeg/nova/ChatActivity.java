@@ -669,7 +669,9 @@ public class ChatActivity extends AppCompatActivity {
     private Message createMessageFromChatMessage(ChatMessage msg, int serverIndex) {
         Message message;
         
-        if (msg.error != null && !msg.error.isEmpty()) {
+        if (msg.hasNotice()) {
+            message = Message.createNotice(msg.notice, msg.created);
+        } else if (msg.error != null && !msg.error.isEmpty()) {
             message = new Message(msg.error, msg.created);
         } else {
             message = new Message(msg.content, msg.role, msg.created);
@@ -706,7 +708,9 @@ public class ChatActivity extends AppCompatActivity {
             toolCallId = msg.toolCalls.get(0).id != null ? msg.toolCalls.get(0).id : "";
         }
         String content = "";
-        if (msg.error != null && !msg.error.isEmpty()) {
+        if (msg.hasNotice()) {
+            content = "notice:" + msg.notice;
+        } else if (msg.error != null && !msg.error.isEmpty()) {
             content = "error:" + msg.error;
         } else if (msg.content != null) {
             content = msg.content;

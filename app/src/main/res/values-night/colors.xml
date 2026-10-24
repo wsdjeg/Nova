@@ -53,6 +53,10 @@
     <color name="error_bg">#3D1F1F</color>
     <color name="error_text_color">#EF9A9A</color>
 
+    <!-- Notice message (UI-only 提示，中性灰色) -->
+    <color name="notice_bg">#2A2A2A</color>
+    <color name="notice_text_color">#B0B0B0</color>
+
     <!-- Time text -->
     <color name="time_text">#888888</color>
 

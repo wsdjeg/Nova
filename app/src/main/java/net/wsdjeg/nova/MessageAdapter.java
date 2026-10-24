@@ -43,6 +43,7 @@ import java.util.Set;
  * - TYPE_USER: 用户消息（蓝色背景，右侧）
  * - TYPE_BOT: AI 消息（灰色背景，左侧）
  * - TYPE_ERROR: 错误消息（浅红色背景，居中，红色文字）
+ * - TYPE_NOTICE: UI-only 通知消息（灰色背景，居中，中性文字，如 API key 轮换提示）
  * - TYPE_TOOL_CALL: 工具调用请求（assistant 消息中的 tool_calls）
  * - TYPE_TOOL_RESULT: 工具执行结果（role=tool 的消息，简洁显示）
  * - TYPE_TIME_SEPARATOR: 时间轴节点（独立分隔项，不属于任何消息）
@@ -98,6 +99,7 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
     private static final int TYPE_TOOL_CALL = 4;
     private static final int TYPE_TOOL_RESULT = 5;
     private static final int TYPE_TIME_SEPARATOR = 6;
+    private static final int TYPE_NOTICE = 7;
 
     /**
      * 时间轴节点
@@ -266,6 +268,10 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
             return "pending:" + msg.getCreated() + ":" + hash;
         }
 
+        if (msg.isNotice()) {
+            return "notice:" + msg.getServerIndex() + ":" + msg.getCreated();
+        }
+
         if (msg.isError()) {
             return "err:" + msg.getServerIndex() + ":" + msg.getCreated();
         }
@@ -419,6 +425,10 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
         if (a instanceof Message) {
             Message ma = (Message) a;
             Message mb = (Message) b;
+            // notice 消息：比较 notice 文本
+            if (ma.isNotice() || mb.isNotice()) {
+                return safeEq(ma.getNotice(), mb.getNotice());
+            }
             // 错误消息：比较 error 内容
             if (ma.isError() || mb.isError()) {
                 return safeEq(ma.getError(), mb.getError());
@@ -457,6 +467,9 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
 
         if (item instanceof Message) {
             Message msg = (Message) item;
+            if (msg.isNotice()) {
+                return TYPE_NOTICE;
+            }
             if (msg.isError()) {
                 return TYPE_ERROR;
             }
@@ -492,6 +505,11 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
             case TYPE_ERROR:
                 view = LayoutInflater.from(parent.getContext())
                     .inflate(R.layout.item_message_error, parent, false);
+                return new MessageViewHolder(view);
+
+            case TYPE_NOTICE:
+                view = LayoutInflater.from(parent.getContext())
+                    .inflate(R.layout.item_message_notice, parent, false);
                 return new MessageViewHolder(view);
 
             case TYPE_USER:
@@ -555,7 +573,8 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
      *   的画面闪烁与高度抖动。
      */
     private void bindMessageViewHolder(MessageViewHolder holder, Message message, String stableKey) {
-        final String content = message.isError() ? message.getError() : message.getContent();
+        final String content = message.isNotice() ? message.getNotice()
+            : message.isError() ? message.getError() : message.getContent();
         final String contentSafe = content == null ? "" : content;
 
         boolean keyMatch = stableKey != null && stableKey.equals(holder.lastKey);
@@ -564,7 +583,7 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
         boolean shouldSkipText = keyMatch && contentMatch && errorMatch && holder.hasBound;
 
         if (!shouldSkipText) {
-            if (message.isError()) {
+            if (message.isError() || message.isNotice()) {
                 holder.messageText.setText(content);
             } else {
                 Markwon mk = message.isUser() ? userMarkwon : markwon;

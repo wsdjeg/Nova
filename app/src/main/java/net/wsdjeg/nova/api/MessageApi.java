@@ -40,12 +40,14 @@ public class MessageApi {
 
     /**
      * 解析消息 JSON 对象
-     * 支持正常消息（role + content）、错误消息（error）、工具调用（tool_calls）、工具结果（role=tool）
+     * 支持正常消息（role + content）、错误消息（error）、通知消息（notice）、
+     * 工具调用（tool_calls）、工具结果（role=tool）
      */
     private ChatMessage parseMessage(JSONObject msg) {
         String role = msg.optString("role", "");
         String content = msg.optString("content", "");
         String error = msg.optString("error", "");
+        String notice = msg.optString("notice", "");
         long created = msg.optLong("created", System.currentTimeMillis() / 1000);
         String toolCallId = msg.optString("tool_call_id", "");
 
@@ -86,6 +88,11 @@ public class MessageApi {
         // 如果有 error 字段，创建错误消息
         if (!error.isEmpty()) {
             return new ChatMessage(error, created);
+        }
+
+        // 如果有 notice 字段，创建 UI-only 通知消息（无 role，不发送给模型）
+        if (!notice.isEmpty()) {
+            return ChatMessage.createNotice(notice, created);
         }
 
         // 如果是工具结果消息
@@ -455,7 +462,7 @@ public class MessageApi {
      * API 端点: DELETE /session/:id/messages/:index
      *
      * @param sessionId    会话 ID
-     * @param messageIndex  消息在服务端的 1-based 索引
+     * @param messageIndex 消息在服务端的 1-based 索引
      * @param callback     回调
      */
     public void deleteMessage(String sessionId, int messageIndex, DeleteMessageCallback callback) {

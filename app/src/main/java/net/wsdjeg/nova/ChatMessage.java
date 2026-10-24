@@ -4,11 +4,12 @@ import java.util.List;
 
 /**
  * 聊天消息数据模型
- * 包含 role、content、error、created、tool_calls 和 tool_call_state 字段
+ * 包含 role、content、error、notice、created、tool_calls 和 tool_call_state 字段
  * 
  * 消息类型：
  * - 正常消息：有 role 和 content
  * - 错误消息：有 error 字段（无 role 或 role 为空）
+ * - 通知消息：有 notice 字段（UI-only，无 role，如 API key 轮换提示）
  * - 工具调用消息：有 tool_calls（role=assistant）
  * - 工具结果消息：role=tool，有 tool_call_state 和 content
  */
@@ -16,6 +17,7 @@ public class ChatMessage {
     public String role;
     public String content;
     public String error;    // 错误消息字段
+    public String notice;   // UI-only 通知字段（无 role，不发送给模型）
     public long created;
     public List<ToolCall> toolCalls;  // 工具调用（AI 调用工具时）
     public ToolCallState toolCallState;  // 工具状态（工具结果消息）
@@ -26,6 +28,7 @@ public class ChatMessage {
         this.role = role;
         this.content = content;
         this.error = null;
+        this.notice = null;
         this.created = created;
         this.toolCalls = null;
         this.toolCallState = null;
@@ -39,6 +42,7 @@ public class ChatMessage {
         this.role = null;
         this.content = null;
         this.error = error;
+        this.notice = null;
         this.created = created;
         this.toolCalls = null;
         this.toolCallState = null;
@@ -52,6 +56,7 @@ public class ChatMessage {
         this.role = role;
         this.content = content;
         this.error = null;
+        this.notice = null;
         this.created = created;
         this.toolCalls = toolCalls;
         this.toolCallState = null;
@@ -78,10 +83,26 @@ public class ChatMessage {
     }
     
     /**
+     * 创建 UI-only 通知消息（无 role，如 API key 轮换提示）
+     */
+    public static ChatMessage createNotice(String notice, long created) {
+        ChatMessage msg = new ChatMessage(null, null, created);
+        msg.notice = notice;
+        return msg;
+    }
+    
+    /**
      * 是否是错误消息
      */
     public boolean isError() {
         return error != null && !error.isEmpty();
+    }
+    
+    /**
+     * 是否是 UI-only 通知消息
+     */
+    public boolean hasNotice() {
+        return notice != null && !notice.isEmpty();
     }
     
     /**
@@ -107,10 +128,10 @@ public class ChatMessage {
     }
     
     /**
-     * 是否有可显示的内容（content 或 error）
+     * 是否有可显示的内容（content、error 或 notice）
      */
     public boolean hasDisplayableContent() {
-        return (content != null && !content.isEmpty()) || isError();
+        return (content != null && !content.isEmpty()) || isError() || hasNotice();
     }
 }
 

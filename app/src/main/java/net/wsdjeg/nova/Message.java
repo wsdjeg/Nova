@@ -12,20 +12,23 @@ import java.util.List;
  * - assistant: AI 消息（可能包含 tool_calls）
  * - tool: 工具执行结果
  * - error: 错误消息
+ * - notice: UI-only 通知消息（服务端提示，如 API key 轮换，不发送给模型）
  * 
  * 显示过滤规则：
  * - 只显示 content 不为空的消息，或 tool_calls 不为空
  * - tool 消息单独显示
  * - 错误消息特殊显示
+ * - 通知消息居中提示样式显示
  */
 public class Message {
     private String content;
     private boolean isUser;
     private long timestamp;
-    private String role;          // 原始 role: user, assistant, tool, system 等
+    private String role;          // 原始 role: user, assistant, tool, system, notice 等
     private long created;         // 服务器时间戳（秒）
     private boolean isPending;    // 是否是待确认的消息
     private String error;         // 错误信息
+    private String notice;        // UI-only 通知文本（role=notice）
     private int serverIndex = -1; // 服务端 1-indexed 索引（来自 /messages 数组的位置）
     
     // Tool calls 支持
@@ -43,6 +46,7 @@ public class Message {
         this.created = timestamp / 1000;
         this.isPending = false;
         this.error = null;
+        this.notice = null;
         this.toolCalls = null;
         this.toolCallId = null;
         this.toolName = null;
@@ -58,6 +62,7 @@ public class Message {
         this.timestamp = created * 1000;
         this.isPending = false;
         this.error = null;
+        this.notice = null;
         this.toolCalls = null;
         this.toolCallId = null;
         this.toolName = null;
@@ -73,6 +78,7 @@ public class Message {
         this.created = created;
         this.timestamp = created * 1000;
         this.isPending = false;
+        this.notice = null;
         this.toolCalls = null;
         this.toolCallId = null;
         this.toolName = null;
@@ -88,6 +94,7 @@ public class Message {
         this.created = this.timestamp / 1000;
         this.isPending = false;
         this.error = null;
+        this.notice = null;
         this.toolCalls = null;
         this.toolCallId = null;
         this.toolName = null;
@@ -98,6 +105,15 @@ public class Message {
     public static Message createPending(String content, boolean isUser) {
         Message msg = new Message(content, isUser);
         msg.isPending = true;
+        return msg;
+    }
+
+    /**
+     * 创建 UI-only 通知消息（服务端提示，如 API key 轮换，不发送给模型）
+     */
+    public static Message createNotice(String notice, long created) {
+        Message msg = new Message("", "notice", created);
+        msg.notice = notice;
         return msg;
     }
 
@@ -136,7 +152,18 @@ public class Message {
     public boolean isError() {
         return error != null && !error.isEmpty();
     }
-    
+
+    public String getNotice() {
+        return notice;
+    }
+
+    /**
+     * 是否是 UI-only 通知消息
+     */
+    public boolean isNotice() {
+        return "notice".equals(role) && notice != null && !notice.isEmpty();
+    }
+
     public int getServerIndex() {
         return serverIndex;
     }
@@ -233,12 +260,18 @@ public class Message {
      * 是否应该显示在列表中
      * - content 不为空（正常消息）
      * - 或者是错误消息
+     * - 或者是 UI-only 通知消息
      * - 或者是 tool 消息
      * - 或者有 tool_calls（assistant 消息）
      */
     public boolean shouldDisplay() {
         // 错误消息需要显示
         if (isError()) {
+            return true;
+        }
+        
+        // UI-only 通知消息需要显示
+        if (isNotice()) {
             return true;
         }
         
