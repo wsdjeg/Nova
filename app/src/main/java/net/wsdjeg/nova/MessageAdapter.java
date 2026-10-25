@@ -1033,9 +1033,11 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
      * @param messageText 消息内容 TextView（用于"选择文本"功能，null 表示不支持）
      */
     private void showMessageActionPopup(View anchorView, String copyText, Message message, TextView messageText) {
+        // 删除条件：非 pending、有服务端索引即可删除。
+        // 错误消息（server-acked error）同样占用了服务端索引，
+        // 属于会话历史的一部分，允许删除；pending 消息尚未落库不可删。
         boolean canDelete = message != null
             && !message.isPending()
-            && !message.isError()
             && message.getServerIndex() > 0;
 
         List<PopupHelper.PopupItem> items = new ArrayList<>();
