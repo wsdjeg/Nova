@@ -2,6 +2,41 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v3.2.0] - 2026-10-25
+
+### feat (新功能)
+- 356f1b1 feat: add in-session message search with prev/next jump navigation
+- 2f237e7 feat: display UI-only notice messages in chat list
+
+### fix (问题修复)
+- 9247b47 fix: dev version update check ignores released stable version
+- 81748b7 fix: 工具卡片展开后内容不足10行时高度自适应，不再固定10行高度
+- db2de47 fix: 行内代码多行排版背景垂直粘连
+- 721cf59 fix: split ToolCallFunction and ToolCallState into separate files for javac compliance
+- d33e909 fix: 按码点截断会话标题/预览/路径，修复删除确认弹窗中文乱码
+- 734400d fix: handle 409 on POST /session/new with auto-retry
+- 0b8e3f4 fix: refresh session list when accounts deleted or server unreachable
+- 117f467 fix: allow deleting server-acked error messages via long-press menu
+
+### style (样式调整)
+- 6f8dec5 style: tool card line height uses 1.2 font-size factor
+- 14051ed style: tool card fixed height scaled to 1.2x base
+- fc0360a style: reduce tool card content horizontal padding to 3dp
+- 98a91db style: reduce tool card content vertical padding to 3dp
+- 89710de style: tool card fixed height scaled to 1.0x base
+
+### refactor (代码重构)
+- ae04620 refactor: split ApiClient into api subpackage modules (each file under 500 lines)
+- 944e8c8 refactor: merge in-chat search bar into the toolbar
+
+### docs (文档更新)
+- c24a299 docs: update README with tool card height and inline code rendering improvements
+- 8bccc5d docs: add Java one-class-per-file rule to AGENTS.md
+- 4b3964c docs: add AGENTS.md reload rule to development rules
+
+### chore (构建/工具)
+- c1abf5d chore: bump version to 3.2.0-dev
+
 ## [v3.1.0] - 2026-09-25
 
 ### feat (新功能)
@@ -246,7 +281,7 @@ All notable changes to this project will be documented in this file.
 - 131fe2b fix: 修复 ChatActivity 问题，更新 AGENTS.md 推送规范
 - b8f3a75 fix: add missing closing brace in MessageAdapter constructor
 - aefee28 fix: missing closing parenthesis in stopSession method
-- e9e1a76 fix: 恢复 ChatActivity.java 到正确版本并修复 getMessageIdentifier 方法
+- e9e1e76 fix: 恢复 ChatActivity.java 到正确版本并修复 getMessageIdentifier 方法
 - a5bd1af fix: 修复没有 content 的 assistant tool_calls 消息不显示的问题
 - 7c96d9d fix: 修复 ChatActivity 编译错误
 - d15af29 fix: 添加缺失的 tool_result_bg.xml drawable 资源
@@ -364,7 +399,7 @@ All notable changes to this project will be documented in this file.
 - 229397a feat: add long press to copy message content
 - db4e12b feat: redesign app icon with sleek tech-style N letter
 - 7e6db56 feat: redesign Nova app icon with premium futuristic style
-- f205c89 feat: implement WeChat-style session list UI
+- f205f89 feat: implement WeChat-style session list UI
 - a5a03b8 feat: add preview menu to open session in browser
 - 1232893 feat: 实现多账号聚合系统
 - fed846f feat: 改进账号设置颜色选择器布局，一行三个且选中后有明显区别
@@ -395,7 +430,7 @@ All notable changes to this project will be documented in this file.
 - 4895a36 fix: resolve ChatActivity.java compilation errors due to duplicated code blocks
 - 4a3b323 fix: remove unnecessary scrollBy compensation when keyboard closes
 - 42a1f7a fix: remove duplicate orphaned code in loadMessagesPage() that caused syntax errors
-- 3de608b fix: remove duplicate import statement in ChatActivity.java
+- 3de608b fix: remove duplicate import statement in ChatActivity
 - 22908a5 fix: 修复 Bug 2 - 消息池等待状态导致按钮状态错误
 - 9895e93 fix: 修复消息发送相关的两个bug
 - c59c1c1 fix: 修复发送按钮颜色被Material3 tint覆盖的问题
@@ -491,12 +526,12 @@ All notable changes to this project will be documented in this file.
 - c400192 fix: correct brace structure in loadOlderMessages onError callback
 - e42bfba fix: resolve lambda effectively final error in ChatActivity.loadOlderMessages()
 - b48bbef fix: remove duplicate field declarations and fix corrupted code in ChatActivity.java
-- 5825b50 fix: declare missing member variables and fix incomplete isUserAtBottom method in ChatActivity
+- 5825b50 fix: declare missing member variables and fix incomplete isUserAtBottom method in ChatActivity.java
 - 4fe8ee0 fix: repair truncated createSession method declaration in ApiClient.java
 - 07205ce fix: 修复会话标题错误显示为路径的问题
 - e7a1250 fix: 修复消息界面频繁重绘和滚动位置错乱问题
 - fffa63a fix: SessionManager 保存和加载 title 字段
-- cb5e44e fix: 会话标题只在获取会话列表时更新，ChatActivity不再调用getSessions更新标题
+- cb4e44e fix: 会话标题只在获取会话列表时更新，ChatActivity不再调用getSessions更新标题
 - 6ba8e5d fix: 修正消息加载顺序，确保从旧到新正确显示
 - f9100bb fix: 会话标题只从 /sessions API 获取，不再从消息内容推断
 - 8926fdc fix: add missing closing braces in getSessions and getProviders methods
@@ -521,7 +556,7 @@ All notable changes to this project will be documented in this file.
 - e5bd86a fix: 从会话设置返回时刷新顶部会话信息
 - fe5fd3c fix: remove duplicate getMessages method declaration in ApiClient.java
 - d0d88b5 fix: use new SessionManager(this) instead of getInstance(this)
-- 3771285 fix: remove duplicate getProviders method definition in ApiClient
+- 3771285 fix: remove duplicate getProviders method definition in ApiClient.java
 - 26320e9 fix: use correct resource IDs et_provider and et_model in SettingsActivity
 - 5c726b6 fix: 修复 SessionListActivity 重复代码问题，正确处理每个会话的 provider/model
 - 729b8f6 fix: complete catch block lambda in testConnection method
@@ -563,7 +598,7 @@ All notable changes to this project will be documented in this file.
 - c58538b fix: resolve API mismatches in SessionListActivity
 - effd3a9 fix: 添加缺失的颜色和 drawable 资源
 - 9ef5413 fix: 设置会话列表项固定高度为88dp
-- ba15557 fix: 增加会话列表分割线与预览消息之间的间距
+- ba15557 fix: 增大会话列表分割线与预览消息之间的间距
 - 647065d fix: 移除 addOrUpdateSession 中保留旧未读数的错误逻辑
 - b17ebca fix: 修复会话列表未读消息刷新机制问题
 - aed083e fix: correct license from MIT to GPL v3 in About page
@@ -591,7 +626,7 @@ All notable changes to this project will be documented in this file.
 - 150692f fix: 完善多个 UI 组件和布局
 - 4fa34c6 fix: 修复 SessionListActivity 导入语句和添加 Toolbar 支持
 - 7831cb5 fix: 修复 SessionListActivity.java 语法错误
-- af4bdc7 fix: add missing drawable resources and update README
+- afbdcf7 fix: add missing drawable resources and update README
 - 3fa79a1 fix: update CI workflow with fixed debug keystore generation
 - 95416f9 fix: correct duplicate dependencies block in build.gradle
 - 6240e5d fix: exclude duplicate JetBrains annotations from syntax-highlight

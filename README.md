@@ -72,10 +72,12 @@ all from your phone.
 - Session settings - edit title, provider, model, cwd, and bridge integrations on the fly
 - Session token usage shown in the session list and session settings (compact k/M units)
 - Paginated history loading with DiffUtil incremental updates
+- In-session message search - toolbar search box with keyword matching and prev/next jump navigation between matches
 - Stop and retry AI generation at any time
 - Tool-call and tool-result message cards with collapsible JSON (collapsed view shows one line; expanded height adapts to content, compact 3dp padding and 1.2x line spacing)
 - Date separators rendered as standalone divider nodes inside the message stream
 - Error messages rendered as distinct cards
+- UI-only notice messages (server hints such as API key rotation) rendered inline in the chat list, never sent to the model
 - Clear session messages (smart `cleared_at` sorting)
 - Offline voice input via Vosk with automatic fallback to system speech recognition
 - Image upload to session working directory with multi-image batch selection and progress dialog
@@ -87,7 +89,7 @@ all from your phone.
 - Separate Markwon instances for user (blue-tinted code) and AI messages
 - Slash commands (`/help`, `/sessions`, `/session`, `/set`, `/clear`, `/title`)
 - Skills autocomplete - type `/` in the input box to browse and pick server-side skills, with live filtering by name / description and 5-minute list caching
-- Long-press message for copy / delete with popup at touch point
+- Long-press message for copy / delete with popup at touch point (server-acked error messages can be deleted too)
 - Text selection dialog with Markdown rendering for long-press content
 - Draft auto-save for unsent messages
 - Browser session preview
@@ -177,6 +179,7 @@ No configuration file is needed - everything is set up inside the app.
 | Stop generation | Tap the stop button while AI is responding |
 | Retry | Chat -> menu -> **Retry** |
 | Refresh | Chat -> menu -> **Refresh** |
+| Search in chat | Toolbar search box -> type a keyword -> jump between matches with prev / next |
 | Load history | Scroll to the top - earlier messages load automatically |
 | Preview in browser | Chat -> menu -> **Preview** |
 | Copy message | Long-press a message -> **Copy** |
@@ -184,6 +187,10 @@ No configuration file is needed - everything is set up inside the app.
 | Select text | Long-press a message -> **Select text** (renders Markdown) |
 | Slash commands | Type `/help` in the input box for available commands |
 | Autocomplete skills | Type `/` at the start of the input box - a popup lists available skills; keep typing to filter by name / description, tap a row to insert `/skill_name ` |
+
+The toolbar search box searches messages within the current session
+(`GET /session/:id/search?q=`) and offers prev/next buttons to jump
+between matches; the navigation icon turns into a cancel (X) button while searching.
 
 The skills popup appears when the input starts with `/` and contains no space.
 Full-width slash variants (`／`, `⁄`, `∕`) are normalized automatically, so
@@ -267,15 +274,19 @@ All requests are authenticated via the `X-API-Key` header.
 | `/session/:id/stop` | POST | Stop AI generation |
 | `/session/:id/clear` | POST | Clear session messages |
 | `/session/:id/retry` | POST | Retry the last message |
-| `/session?id=glm-5.3_common` | GET | HTML preview page |
-| `/messages?session=glm-5.3_common` | GET | Get messages (supports `since` / `limit` / `last`) |
+| `/session?id={session_id}` | GET | HTML preview page |
+| `/messages?session={session_id}` | GET | Get messages (supports `since` / `limit` / `last`) |
+| `/session/:id/messages/:index` | DELETE | Delete a single message |
+| `/session/:id/search?q={query}` | GET | Search messages within a session |
 | `/` | POST | Send a message |
 | `/providers` | GET | List available providers |
 | `/skills` | GET | List available skills (used for slash autocomplete) |
-| `/upload?session=glm-5.3_common&path={dir}` | POST | Upload image to session working directory |
-| `/session/:id/bridges` | GET / PUT | Get / set bridge (integration) settings for a session |
-| `/weixin/credentials` | GET | Get WeChat login QR code and status |
-| `/weixin/credentials` | DELETE | Disconnect WeChat (clear credentials) |
+| `/session/:id/upload?path={dir}` | POST | Upload an image to the session working directory |
+| `/session/:id/upload-dir` | GET / PUT | Get / set the upload directory |
+| `/session/:id/bridge` | GET | List integrations bound to a session |
+| `/session/:id/bridge/:platform` | PUT / DELETE | Bind / unbind an integration |
+| `/weixin/login/status` | GET | Poll WeChat QR login status (first call starts the login flow) |
+| `/weixin/credentials` | POST / DELETE | Write / clear WeChat credentials |
 | `/logs` | GET / DELETE | Fetch / clear server runtime logs |
 
 ## Project structure
@@ -284,7 +295,7 @@ All requests are authenticated via the `X-API-Key` header.
 Nova/
 ├── app/src/main/java/net/wsdjeg/nova/
 │   ├── SessionListActivity.java       # Session list (launcher, search, swipe actions)
-│   ├── ChatActivity.java              # Chat screen
+│   ├── ChatActivity.java              # Chat screen (in-session search, skills popup)
 │   ├── ChatUploadHelper.java          # Image upload helper (batch upload, progress)
 │   ├── ChatVoiceHelper.java           # Voice recognition helper (Vosk + system fallback)
 │   ├── SessionSettingsActivity.java   # Session settings (title / provider / model / cwd / bridge)
@@ -299,7 +310,19 @@ Nova/
 │   ├── ServerLogAdapter.java          # Server runtime log adapter
 │   ├── ShareActivity.java             # Share target (image upload / text send)
 │   ├── WeChatLoginActivity.java       # WeChat QR code login screen
-│   ├── ApiClient.java                 # HTTP client (all API endpoints)
+│   ├── api/                           # HTTP API modules (split from ApiClient, each under 500 lines)
+│   │   ├── ApiConfig.java             # Per-account base URL / API key holder
+│   │   ├── BridgeApi.java             # Bridge / integration endpoints
+│   │   ├── ChatApi.java               # Send message (POST /)
+│   │   ├── MessageApi.java            # Message fetch, pagination, delete, in-session search
+│   │   ├── ProviderApi.java           # Provider / skill list endpoints
+│   │   ├── ServerApi.java             # Server logs, connection test, HTML preview
+│   │   ├── SessionActionApi.java      # Stop / clear / retry session actions
+│   │   ├── SessionApi.java            # Session list / create / delete / detail
+│   │   ├── SessionSettingsApi.java    # Title / provider / model / cwd / pin updates
+│   │   ├── UploadApi.java             # Image upload + upload directory settings
+│   │   └── WeChatApi.java             # WeChat login status / credentials
+│   ├── ApiClient.java                 # HTTP API facade (delegates to api/ modules)
 │   ├── SessionManager.java            # Session persistence & drafts
 │   ├── AccountManager.java            # Account persistence & import/export
 │   ├── SettingsManager.java           # Settings & theme management
@@ -307,8 +330,10 @@ Nova/
 │   ├── Message.java                   # Message model
 │   ├── ChatMessage.java               # Chat message DTO (top-level)
 │   ├── ToolCall.java                  # Tool call DTO (top-level)
+│   ├── ToolCallFunction.java          # Tool call function DTO (top-level)
+│   ├── ToolCallState.java             # Tool call state DTO (top-level)
 │   ├── Provider.java                  # Provider DTO (top-level)
-│   ├── Skill.java                    # Skill DTO (top-level)
+│   ├── Skill.java                     # Skill DTO (top-level)
 │   ├── Account.java                   # Account model
 │   ├── WeChatLoginResult.java         # WeChat login result model
 │   ├── QRCodeUtils.java               # QR code generation (ZXing)
@@ -374,6 +399,7 @@ Nova/
 - [x] Smart scroll (pause while reading)
 - [x] Voice input (Vosk + system fallback)
 - [x] Session search
+- [x] In-session message search (toolbar search, prev/next jump)
 - [x] Slash commands
 - [x] Skills autocomplete (`/` popup with live filtering)
 - [x] Long-press message for copy / delete
@@ -391,8 +417,8 @@ Nova/
 - [x] Unified five-color account tag palette
 - [x] Adaptive tool-card height (no fixed 10-line expanded view)
 - [x] Per-line inline code backgrounds (3dp gap, table / list / quote aware)
+- [x] UI-only notice messages in the chat list
 - [ ] Streaming responses (SSE)
-- [ ] Message search
 - [ ] Enhanced table rendering
 
 ## Contributing
