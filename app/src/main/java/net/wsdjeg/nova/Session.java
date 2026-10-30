@@ -32,6 +32,7 @@ public class Session {
     private long usageTotalTokens;      // 总 tokens
     private long usagePromptTokens;     // 输入 tokens
     private long usageCompletionTokens; // 输出 tokens
+    private long usageCachedTokens;     // 缓存命中 tokens（provider 前缀缓存）
     
     // 分页加载相关：当前已加载的最旧消息索引（索引从 1 开始）
     // firstMessageIndex = 1 表示已加载到第一条消息
@@ -514,6 +515,20 @@ public class Session {
      */
     public void setUsageCompletionTokens(long usageCompletionTokens) {
         this.usageCompletionTokens = usageCompletionTokens;
+    }
+    
+    /**
+     * 获取缓存命中 token 用量（provider 前缀缓存）
+     */
+    public long getUsageCachedTokens() {
+        return usageCachedTokens;
+    }
+    
+    /**
+     * 设置缓存命中 token 用量（provider 前缀缓存）
+     */
+    public void setUsageCachedTokens(long usageCachedTokens) {
+        this.usageCachedTokens = usageCachedTokens;
     }
     
     public int getFirstMessageIndex() {

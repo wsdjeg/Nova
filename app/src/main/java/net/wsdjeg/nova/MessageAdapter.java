@@ -441,6 +441,10 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
             }
             // pending 状态变化也算内容变化
             if (ma.isPending() != mb.isPending()) return false;
+            // token 用量变化（on_complete 标记延迟归属后替换对象）也算内容变化
+            MessageUsage ua = ma.getUsage();
+            MessageUsage ub = mb.getUsage();
+            if (ua == null ? ub != null : !ua.sameAs(ub)) return false;
             // 普通消息：比较 content
             return safeEq(ma.getContent(), mb.getContent());
         }
@@ -597,9 +601,36 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
             holder.hasBound = true;
         }
 
+        // 绑定 token 用量徽标（assistant 消息，来自消息 usage 或 on_complete 标记归属）
+        if (holder.usageText != null) {
+            MessageUsage usage = message.isAssistant() ? message.getUsage() : null;
+            if (usage != null) {
+                holder.usageText.setText(formatUsageBadge(usage));
+                holder.usageText.setVisibility(View.VISIBLE);
+            } else {
+                holder.usageText.setVisibility(View.GONE);
+            }
+        }
+
         final String copyText = contentSafe;
         setupLongPressMenu(holder.messageText, copyText, message, holder.messageText);
         setupLongPressMenu(holder.itemView, copyText, message, holder.messageText);
+    }
+
+    /**
+     * 格式化 token 用量徽标
+     * 紧凑符号格式：↑输入 ↓输出，有缓存命中时追加 ⚡命中率
+     * 例："↑1.2k ↓356 ⚡45%"
+     */
+    private static String formatUsageBadge(MessageUsage usage) {
+        StringBuilder sb = new StringBuilder("↑");
+        sb.append(Session.formatTokens(usage.promptTokens));
+        sb.append(" ↓").append(Session.formatTokens(usage.completionTokens));
+        int cachePct = usage.cacheHitPercent();
+        if (cachePct > 0) {
+            sb.append(" ⚡").append(cachePct).append("%");
+        }
+        return sb.toString();
     }
     /**
      * 计算内容区域的高度（dp）
@@ -1133,6 +1164,8 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
      */
     static class MessageViewHolder extends RecyclerView.ViewHolder {
         TextView messageText;
+        // 该次请求的 token 用量徽标（仅 item_message_bot 布局有此 id，其他布局为 null）
+        TextView usageText;
         // 内容指纹（仅在 onBind 中读写，UI 线程，无需同步）
         String lastKey;
         String lastContent;
@@ -1142,6 +1175,7 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
         MessageViewHolder(View itemView) {
             super(itemView);
             messageText = itemView.findViewById(R.id.messageText);
+            usageText = itemView.findViewById(R.id.usageText);
         }
     }
 

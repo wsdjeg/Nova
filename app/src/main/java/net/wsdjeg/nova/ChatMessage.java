@@ -12,6 +12,7 @@ import java.util.List;
  * - 通知消息：有 notice 字段（UI-only，无 role，如 API key 轮换提示）
  * - 工具调用消息：有 tool_calls（role=assistant）
  * - 工具结果消息：role=tool，有 tool_call_state 和 content
+ * - 完成标记：onComplete=true（UI-only，无 role，携带该次 LLM 请求的 usage）
  */
 public class ChatMessage {
     public String role;
@@ -23,6 +24,8 @@ public class ChatMessage {
     public ToolCallState toolCallState;  // 工具状态（工具结果消息）
     public String toolCallId;  // tool 消息引用的 tool_call.id（顶层 tool_call_id）
     public int rawIndex = -1;  // 在 API 原始响应中的位置（0-based），用于计算正确的 serverIndex
+    public boolean onComplete;  // on_complete 标记（UI-only，服务端在每次 LLM 请求完成后追加）
+    public MessageUsage usage;  // 消息级 token 用量（来自消息自带 usage 或 on_complete 标记归属）
     
     public ChatMessage(String role, String content, long created) {
         this.role = role;
@@ -33,6 +36,8 @@ public class ChatMessage {
         this.toolCalls = null;
         this.toolCallState = null;
         this.toolCallId = null;
+        this.onComplete = false;
+        this.usage = null;
     }
     
     /**
@@ -47,6 +52,8 @@ public class ChatMessage {
         this.toolCalls = null;
         this.toolCallState = null;
         this.toolCallId = null;
+        this.onComplete = false;
+        this.usage = null;
     }
     
     /**
@@ -61,6 +68,8 @@ public class ChatMessage {
         this.toolCalls = toolCalls;
         this.toolCallState = null;
         this.toolCallId = null;
+        this.onComplete = false;
+        this.usage = null;
     }
     
     /**
@@ -92,6 +101,16 @@ public class ChatMessage {
     }
     
     /**
+     * 创建 on_complete 标记消息（UI-only，无 role，携带该次请求的 usage）
+     */
+    public static ChatMessage createOnComplete(long created, MessageUsage usage) {
+        ChatMessage msg = new ChatMessage(null, null, created);
+        msg.onComplete = true;
+        msg.usage = usage;
+        return msg;
+    }
+    
+    /**
      * 是否是错误消息
      */
     public boolean isError() {
@@ -103,6 +122,13 @@ public class ChatMessage {
      */
     public boolean hasNotice() {
         return notice != null && !notice.isEmpty();
+    }
+    
+    /**
+     * 是否是 on_complete 标记（每次 LLM 请求完成后服务端追加，携带该次请求的 usage）
+     */
+    public boolean isOnComplete() {
+        return onComplete;
     }
     
     /**

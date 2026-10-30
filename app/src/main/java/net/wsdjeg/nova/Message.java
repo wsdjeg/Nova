@@ -37,6 +37,9 @@ public class Message {
     private String toolName;                     // tool 消息的工具名称
     private String toolError;                    // tool 消息的错误信息
 
+    // 消息级 token 用量（assistant 消息，来自消息自带 usage 或 on_complete 标记归属）
+    private MessageUsage usage;
+
     // 使用指定时间戳的构造方法
     public Message(String content, boolean isUser, long timestamp) {
         this.content = content;
@@ -51,6 +54,7 @@ public class Message {
         this.toolCallId = null;
         this.toolName = null;
         this.toolError = null;
+        this.usage = null;
     }
 
     // 完整构造方法（包含 role 和 created）
@@ -67,6 +71,7 @@ public class Message {
         this.toolCallId = null;
         this.toolName = null;
         this.toolError = null;
+        this.usage = null;
     }
 
     // 错误消息构造方法
@@ -83,6 +88,7 @@ public class Message {
         this.toolCallId = null;
         this.toolName = null;
         this.toolError = null;
+        this.usage = null;
     }
 
     // 使用当前时间的构造方法（用于用户刚发送的消息）
@@ -99,6 +105,7 @@ public class Message {
         this.toolCallId = null;
         this.toolName = null;
         this.toolError = null;
+        this.usage = null;
     }
 
     // 创建 pending 消息的静态方法
@@ -254,6 +261,42 @@ public class Message {
      */
     public boolean hasToolError() {
         return toolError != null && !toolError.isEmpty();
+    }
+
+    /**
+     * 获取消息级 token 用量
+     */
+    public MessageUsage getUsage() {
+        return usage;
+    }
+
+    /**
+     * 设置消息级 token 用量
+     */
+    public void setUsage(MessageUsage usage) {
+        this.usage = usage;
+    }
+
+    /**
+     * 创建当前消息的浅拷贝并设置 token 用量
+     *
+     * 用于 on_complete 标记延迟归属 usage 后替换原消息对象：
+     * MessageAdapter 的 DiffUtil 通过对象内容比较刷新视图，
+     * 原地修改无法触发内容变化检测，必须替换为新对象。
+     */
+    public Message copyWithUsage(MessageUsage usage) {
+        Message copy = new Message(this.content, this.role, this.created);
+        copy.timestamp = this.timestamp;
+        copy.isPending = this.isPending;
+        copy.error = this.error;
+        copy.notice = this.notice;
+        copy.serverIndex = this.serverIndex;
+        copy.toolCalls = this.toolCalls;
+        copy.toolCallId = this.toolCallId;
+        copy.toolName = this.toolName;
+        copy.toolError = this.toolError;
+        copy.usage = usage;
+        return copy;
     }
 
     /**

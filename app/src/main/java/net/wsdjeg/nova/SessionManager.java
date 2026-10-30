@@ -61,6 +61,7 @@ public class SessionManager {
                 json.put("usageTotalTokens", session.getUsageTotalTokens());
                 json.put("usagePromptTokens", session.getUsagePromptTokens());
                 json.put("usageCompletionTokens", session.getUsageCompletionTokens());
+                json.put("usageCachedTokens", session.getUsageCachedTokens());
                 jsonArray.put(json);
             } catch (JSONException e) {
                 e.printStackTrace();
@@ -104,6 +105,7 @@ public class SessionManager {
                 session.setUsageTotalTokens(json.optLong("usageTotalTokens", 0));
                 session.setUsagePromptTokens(json.optLong("usagePromptTokens", 0));
                 session.setUsageCompletionTokens(json.optLong("usageCompletionTokens", 0));
+                session.setUsageCachedTokens(json.optLong("usageCachedTokens", 0));
                 // 加载草稿
                 session.setDraft(getDraft(json.getString("sessionId")));
                 sessions.add(session);

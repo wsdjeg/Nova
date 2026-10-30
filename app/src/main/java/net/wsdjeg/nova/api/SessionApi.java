@@ -138,6 +138,7 @@ public class SessionApi {
                                 session.setUsageTotalTokens(usageObj.optLong("total_tokens", 0));
                                 session.setUsagePromptTokens(usageObj.optLong("prompt_tokens", 0));
                                 session.setUsageCompletionTokens(usageObj.optLong("completion_tokens", 0));
+                                session.setUsageCachedTokens(usageObj.optLong("cached_tokens", 0));
                             }
                             Log.d(TAG, "Session " + id + " preview: " + session.getPreview() + ", pinned: " + pinned);
                             sessions.add(session);
@@ -258,6 +259,7 @@ public class SessionApi {
                             session.setUsageTotalTokens(usageObj.optLong("total_tokens", 0));
                             session.setUsagePromptTokens(usageObj.optLong("prompt_tokens", 0));
                             session.setUsageCompletionTokens(usageObj.optLong("completion_tokens", 0));
+                            session.setUsageCachedTokens(usageObj.optLong("cached_tokens", 0));
                         }
 
                         new Handler(Looper.getMainLooper()).post(() ->
@@ -419,6 +421,7 @@ public class SessionApi {
                     session.setUsageTotalTokens(usageObj.optLong("total_tokens", 0));
                     session.setUsagePromptTokens(usageObj.optLong("prompt_tokens", 0));
                     session.setUsageCompletionTokens(usageObj.optLong("completion_tokens", 0));
+                    session.setUsageCachedTokens(usageObj.optLong("cached_tokens", 0));
                 }
 
                 return CreateResult.success(session);

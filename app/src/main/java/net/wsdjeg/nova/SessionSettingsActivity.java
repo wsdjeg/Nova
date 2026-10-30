@@ -310,6 +310,7 @@ public class SessionSettingsActivity extends AppCompatActivity {
                         localSession.setUsageTotalTokens(session.getUsageTotalTokens());
                         localSession.setUsagePromptTokens(session.getUsagePromptTokens());
                         localSession.setUsageCompletionTokens(session.getUsageCompletionTokens());
+                        localSession.setUsageCachedTokens(session.getUsageCachedTokens());
                         sessionManager.updateSession(localSession);
                     }
                     
@@ -351,6 +352,7 @@ public class SessionSettingsActivity extends AppCompatActivity {
      * 更新 Token 用量显示
      * 使用与会话列表一致的 k/M 紧凑单位格式
      * 总量为 0 时隐藏（新会话或服务器未返回数据）
+     * 缓存命中 > 0 时附加显示（provider 前缀缓存）
      */
     private void updateUsageDisplay(Session session) {
         if (session == null || session.getUsageTotalTokens() <= 0) {
@@ -360,7 +362,12 @@ public class SessionSettingsActivity extends AppCompatActivity {
         String total = Session.formatTokens(session.getUsageTotalTokens());
         String prompt = Session.formatTokens(session.getUsagePromptTokens());
         String completion = Session.formatTokens(session.getUsageCompletionTokens());
-        tvUsage.setText(getString(R.string.token_usage_label, total, prompt, completion));
+        if (session.getUsageCachedTokens() > 0) {
+            String cached = Session.formatTokens(session.getUsageCachedTokens());
+            tvUsage.setText(getString(R.string.token_usage_label_with_cache, total, prompt, completion, cached));
+        } else {
+            tvUsage.setText(getString(R.string.token_usage_label, total, prompt, completion));
+        }
         tvUsage.setVisibility(View.VISIBLE);
     }
     

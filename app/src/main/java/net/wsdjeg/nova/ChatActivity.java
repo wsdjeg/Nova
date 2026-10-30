@@ -140,6 +140,7 @@ public class ChatActivity extends AppCompatActivity {
     private String currentSessionTitle;
     private String currentProvider;
     private String currentModel;
+    private long usageTotalTokens = 0;  // 会话累计 token 用量（工具栏显示，来自 GET /sessions/{id}）
     private String accountId;
     private Account currentAccount;
     
@@ -675,6 +676,7 @@ public class ChatActivity extends AppCompatActivity {
             message = new Message(msg.error, msg.created);
         } else {
             message = new Message(msg.content, msg.role, msg.created);
+            message.setUsage(msg.usage);
             
             if (msg.toolCalls != null && !msg.toolCalls.isEmpty()) {
                 message.setToolCalls(msg.toolCalls);
@@ -703,6 +705,10 @@ public class ChatActivity extends AppCompatActivity {
     }
     
     private String getMessageFingerprint(ChatMessage msg) {
+        // on_complete 标记：按 rawIndex 区分（同秒完成的多次请求共享 created）
+        if (msg.isOnComplete()) {
+            return msg.created + ":on_complete::" + msg.rawIndex;
+        }
         String toolCallId = "";
         if (msg.toolCalls != null && !msg.toolCalls.isEmpty()) {
             toolCallId = msg.toolCalls.get(0).id != null ? msg.toolCalls.get(0).id : "";
@@ -971,33 +977,53 @@ public class ChatActivity extends AppCompatActivity {
     }
 
     private void updateSessionInfo(String intentProvider, String intentModel, String intentCwd) {
+        // 先取本地会话的累计用量（服务器数据到达后由刷新逻辑覆盖）
+        Session localSession = sessionManager.getSession(currentSessionId);
+        if (localSession != null) {
+            usageTotalTokens = localSession.getUsageTotalTokens();
+        }
+        
         if (intentProvider != null && !intentProvider.isEmpty() && 
             intentModel != null && !intentModel.isEmpty()) {
             currentProvider = intentProvider;
             currentModel = intentModel;
-            tvSessionInfo.setText(intentProvider + " | " + intentModel);
+            tvSessionInfo.setText(buildSessionInfoText());
             tvSessionPath.setText("cwd: " + (intentCwd != null ? intentCwd : ""));
             return;
         }
         
-        Session session = sessionManager.getSession(currentSessionId);
-        if (session != null) {
-            currentProvider = session.getProvider();
-            currentModel = session.getModel();
-            tvSessionInfo.setText(currentProvider + " | " + currentModel);
-            tvSessionPath.setText("cwd: " + (session.getCwd() != null ? session.getCwd() : ""));
+        if (localSession != null) {
+            currentProvider = localSession.getProvider();
+            currentModel = localSession.getModel();
+            tvSessionInfo.setText(buildSessionInfoText());
+            tvSessionPath.setText("cwd: " + (localSession.getCwd() != null ? localSession.getCwd() : ""));
         }
+    }
+    
+    /**
+     * 构建工具栏会话信息文本：provider | model · 累计 token 用量
+     * 用量为 0（新会话）时省略用量部分
+     */
+    private String buildSessionInfoText() {
+        String provider = currentProvider != null ? currentProvider : "";
+        String model = currentModel != null ? currentModel : "";
+        String info = provider + " | " + model;
+        if (usageTotalTokens > 0) {
+            info += " · " + Session.formatTokens(usageTotalTokens);
+        }
+        return info;
     }
     
     private void updateSessionInfoDisplay() {
         if (currentProvider != null && currentModel != null) {
-            tvSessionInfo.setText(currentProvider + " | " + currentModel);
+            tvSessionInfo.setText(buildSessionInfoText());
         } else {
             Session session = sessionManager.getSession(currentSessionId);
             if (session != null) {
                 currentProvider = session.getProvider();
                 currentModel = session.getModel();
-                tvSessionInfo.setText(currentProvider + " | " + currentModel);
+                usageTotalTokens = session.getUsageTotalTokens();
+                tvSessionInfo.setText(buildSessionInfoText());
                 tvSessionPath.setText("cwd: " + (session.getCwd() != null ? session.getCwd() : ""));
             }
         }
@@ -1016,7 +1042,7 @@ public class ChatActivity extends AppCompatActivity {
         }
         
         if (currentProvider != null && currentModel != null) {
-            tvSessionInfo.setText(currentProvider + " | " + currentModel);
+            tvSessionInfo.setText(buildSessionInfoText());
         }
         if (cwd != null) {
             tvSessionPath.setText("cwd: " + cwd);
@@ -1038,6 +1064,38 @@ public class ChatActivity extends AppCompatActivity {
             }
             sessionManager.updateSession(session);
         }
+    }
+    
+    /**
+     * 将 on_complete 标记携带的 usage 归属到它对应的 assistant 消息。
+     *
+     * 服务端在每次 LLM 请求完成后追加 {on_complete=true, usage=...} 标记，
+     * 紧跟在该次请求产出的 assistant 消息之后，因此按"服务端索引恰好小 1"
+     * 的邻接规则定位目标消息。
+     *
+     * 原地修改无法触发 MessageAdapter 的 DiffUtil 内容变化检测，
+     * 必须替换为携带 usage 的新对象（Message.copyWithUsage）。
+     *
+     * @param usage             标记携带的该次请求用量
+     * @param markerServerIndex 标记的服务端 1-based 索引
+     * @return true 如果 usage 成功归属到一条 assistant 消息
+     */
+    private boolean attachRoundUsage(MessageUsage usage, int markerServerIndex) {
+        if (usage == null || messages.isEmpty()) {
+            return false;
+        }
+        for (int i = messages.size() - 1; i >= 0; i--) {
+            Message m = messages.get(i);
+            if (m.getServerIndex() == markerServerIndex - 1 && m.isAssistant()) {
+                if (m.getUsage() == null) {
+                    messages.set(i, m.copyWithUsage(usage));
+                    return true;
+                }
+                // 已有 usage（同批已归属或消息自带），无需替换
+                return false;
+            }
+        }
+        return false;
     }
     
     private void startAutoRefresh() {
@@ -1111,10 +1169,27 @@ public class ChatActivity extends AppCompatActivity {
                             currentModel = serverModel;
                             sessionInfoUpdated = true;
                         }
+                        // 同步累计 token 用量（工具栏徽标 + 本地缓存持久化）
+                        if (session.getUsageTotalTokens() != localSession.getUsageTotalTokens()) {
+                            localSession.setUsageTotalTokens(session.getUsageTotalTokens());
+                            localSession.setUsagePromptTokens(session.getUsagePromptTokens());
+                            localSession.setUsageCompletionTokens(session.getUsageCompletionTokens());
+                            localSession.setUsageCachedTokens(session.getUsageCachedTokens());
+                            usageTotalTokens = session.getUsageTotalTokens();
+                            sessionInfoUpdated = true;
+                        }
                         if (sessionInfoUpdated) {
                             sessionManager.updateSession(localSession);
                             if (currentProvider != null && currentModel != null) {
-                                tvSessionInfo.setText(currentProvider + " | " + currentModel);
+                                tvSessionInfo.setText(buildSessionInfoText());
+                            }
+                        }
+                    } else {
+                        // 本地无缓存：仅更新工具栏
+                        if (session.getUsageTotalTokens() != usageTotalTokens) {
+                            usageTotalTokens = session.getUsageTotalTokens();
+                            if (currentProvider != null && currentModel != null) {
+                                tvSessionInfo.setText(buildSessionInfoText());
                             }
                         }
                     }
@@ -1173,6 +1248,15 @@ public class ChatActivity extends AppCompatActivity {
                     for (int i = 0; i < chatMessages.size(); i++) {
                         ChatMessage msg = chatMessages.get(i);
                         int serverIndex = sinceIndex + msg.rawIndex;
+                        
+                        // on_complete 标记：不加入显示列表，将 usage 归属到前一条 assistant 消息
+                        if (msg.isOnComplete()) {
+                            if (attachRoundUsage(msg.usage, serverIndex)) {
+                                addedNew = true;
+                            }
+                            messageFingerprints.add(getMessageFingerprint(msg));
+                            continue;
+                        }
                         
                         boolean hasToolCalls = msg.toolCalls != null && !msg.toolCalls.isEmpty();
                         boolean isTool = "tool".equals(msg.role);
@@ -1392,6 +1476,12 @@ public class ChatActivity extends AppCompatActivity {
                         for (int i = 0; i < chatMessages.size(); i++) {
                             ChatMessage msg = chatMessages.get(i);
                             int serverIndex = since + msg.rawIndex;
+                            // on_complete 标记：不显示，将 usage 归属到前一条 assistant 消息
+                            if (msg.isOnComplete()) {
+                                attachRoundUsage(msg.usage, serverIndex);
+                                messageFingerprints.add(getMessageFingerprint(msg));
+                                continue;
+                            }
                             messages.add(createMessageFromChatMessage(msg, serverIndex));
                             messageFingerprints.add(getMessageFingerprint(msg));
                         }
@@ -1469,6 +1559,17 @@ public class ChatActivity extends AppCompatActivity {
                     for (int i = chatMessages.size() - 1; i >= 0; i--) {
                         ChatMessage msg = chatMessages.get(i);
                         int serverIndex = newSince + msg.rawIndex;
+                        // on_complete 标记：不显示，usage 归属到批次内前一条 assistant 消息
+                        // （逆序处理时该消息在下一轮循环才被加入，故直接写入批内对象）
+                        if (msg.isOnComplete()) {
+                            if (i > 0 && msg.usage != null
+                                    && "assistant".equals(chatMessages.get(i - 1).role)
+                                    && chatMessages.get(i - 1).usage == null) {
+                                chatMessages.get(i - 1).usage = msg.usage;
+                            }
+                            messageFingerprints.add(getMessageFingerprint(msg));
+                            continue;
+                        }
                         if (!messageFingerprints.contains(getMessageFingerprint(msg))) {
                             Message message = createMessageFromChatMessage(msg, serverIndex);
                             messages.add(0, message);
@@ -1860,9 +1961,19 @@ public class ChatActivity extends AppCompatActivity {
                                 updated = true;
                             }
                             
+                            // 同步累计 token 用量（工具栏徽标 + 本地缓存持久化）
+                            if (serverSession.getUsageTotalTokens() != localSession.getUsageTotalTokens()) {
+                                localSession.setUsageTotalTokens(serverSession.getUsageTotalTokens());
+                                localSession.setUsagePromptTokens(serverSession.getUsagePromptTokens());
+                                localSession.setUsageCompletionTokens(serverSession.getUsageCompletionTokens());
+                                localSession.setUsageCachedTokens(serverSession.getUsageCachedTokens());
+                                usageTotalTokens = serverSession.getUsageTotalTokens();
+                                updated = true;
+                            }
+                            
                             if (updated) {
                                 sessionManager.updateSession(localSession);
-                                tvSessionInfo.setText(currentProvider + " | " + currentModel);
+                                tvSessionInfo.setText(buildSessionInfoText());
                             }
                         }
                     } catch (Exception e) {
@@ -2355,6 +2466,17 @@ public class ChatActivity extends AppCompatActivity {
                         for (int i = chatMessages.size() - 1; i >= 0; i--) {
                             ChatMessage msg = chatMessages.get(i);
                             int serverIndex = newSince + msg.rawIndex;
+                            // on_complete 标记：不显示，usage 归属到批次内前一条 assistant 消息
+                            // （逆序处理时该消息在下一轮循环才被加入，故直接写入批内对象）
+                            if (msg.isOnComplete()) {
+                                if (i > 0 && msg.usage != null
+                                        && "assistant".equals(chatMessages.get(i - 1).role)
+                                        && chatMessages.get(i - 1).usage == null) {
+                                    chatMessages.get(i - 1).usage = msg.usage;
+                                }
+                                messageFingerprints.add(getMessageFingerprint(msg));
+                                continue;
+                            }
                             if (!messageFingerprints.contains(getMessageFingerprint(msg))) {
                                 messages.add(0, createMessageFromChatMessage(msg, serverIndex));
                                 messageFingerprints.add(getMessageFingerprint(msg));

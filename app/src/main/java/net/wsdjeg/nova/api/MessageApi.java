@@ -15,6 +15,7 @@ import net.wsdjeg.nova.ApiClient.DeleteMessageCallback;
 import net.wsdjeg.nova.ApiClient.MessagesCallback;
 import net.wsdjeg.nova.ApiClient.SearchCallback;
 import net.wsdjeg.nova.ChatMessage;
+import net.wsdjeg.nova.MessageUsage;
 import net.wsdjeg.nova.ToolCall;
 import net.wsdjeg.nova.ToolCallFunction;
 import net.wsdjeg.nova.ToolCallState;
@@ -41,7 +42,7 @@ public class MessageApi {
     /**
      * 解析消息 JSON 对象
      * 支持正常消息（role + content）、错误消息（error）、通知消息（notice）、
-     * 工具调用（tool_calls）、工具结果（role=tool）
+     * 工具调用（tool_calls）、工具结果（role=tool）、on_complete 标记（携带该次请求的 usage）
      */
     private ChatMessage parseMessage(JSONObject msg) {
         String role = msg.optString("role", "");
@@ -50,6 +51,14 @@ public class MessageApi {
         String notice = msg.optString("notice", "");
         long created = msg.optLong("created", System.currentTimeMillis() / 1000);
         String toolCallId = msg.optString("tool_call_id", "");
+
+        // 解析消息级 usage（provider 原始形状，含缓存字段归一化）
+        MessageUsage usage = MessageUsage.fromJson(msg.optJSONObject("usage"));
+
+        // on_complete 标记：UI-only，无 role/content，携带该次 LLM 请求的 usage
+        if (msg.optBoolean("on_complete", false)) {
+            return ChatMessage.createOnComplete(created, usage);
+        }
 
         // 解析 tool_calls
         List<ToolCall> toolCalls = null;
@@ -104,7 +113,9 @@ public class MessageApi {
         // 如果有工具调用
         if (toolCalls != null && !toolCalls.isEmpty()) {
             Log.d(TAG, "parseMessage: creating ChatMessage with toolCalls, role=" + role + ", content=" + (content.isEmpty() ? "(empty)" : content.substring(0, Math.min(50, content.length()))));
-            return new ChatMessage(role, content, created, toolCalls);
+            ChatMessage cm = new ChatMessage(role, content, created, toolCalls);
+            cm.usage = usage;
+            return cm;
         }
 
         // 否则创建正常消息
@@ -113,12 +124,35 @@ public class MessageApi {
             if (!toolCallId.isEmpty()) {
                 cm.toolCallId = toolCallId;
             }
+            cm.usage = usage;
             return cm;
         }
 
         // 无可显示内容，返回 null
         Log.d(TAG, "parseMessage: returning null for role=" + role + ", content empty=" + content.isEmpty() + ", toolCalls=" + (toolCalls == null ? "null" : toolCalls.size()));
         return null;
+    }
+
+    /**
+     * 解析消息数组为 ChatMessage 列表
+     * on_complete 标记（携带该次请求的 usage）保留在列表中：
+     * - 其 rawIndex 使 ChatActivity 的 processedServerMessageCount 正确推进
+     * - ChatActivity 将其 usage 归属到前一条 assistant 消息（按服务端索引邻接规则）
+     */
+    private List<ChatMessage> parseMessageList(JSONArray jsonArray) throws Exception {
+        List<ChatMessage> messages = new ArrayList<>();
+        for (int i = 0; i < jsonArray.length(); i++) {
+            JSONObject msg = jsonArray.getJSONObject(i);
+            ChatMessage chatMsg = parseMessage(msg);
+            if (chatMsg != null) {
+                chatMsg.rawIndex = i;
+                if (chatMsg.hasDisplayableContent() || chatMsg.hasToolCalls()
+                        || chatMsg.isToolResult() || chatMsg.isOnComplete()) {
+                    messages.add(chatMsg);
+                }
+            }
+        }
+        return messages;
     }
 
     public void getMessages(String sessionId, MessagesCallback callback) {
@@ -166,18 +200,7 @@ public class MessageApi {
                     }
 
                     JSONArray jsonArray = new JSONArray(response.toString());
-                    List<ChatMessage> messages = new ArrayList<>();
-
-                    for (int i = 0; i < jsonArray.length(); i++) {
-                        JSONObject msg = jsonArray.getJSONObject(i);
-                        ChatMessage chatMsg = parseMessage(msg);
-                        if (chatMsg != null) {
-                            chatMsg.rawIndex = i;
-                            if (chatMsg.hasDisplayableContent() || chatMsg.hasToolCalls() || chatMsg.isToolResult()) {
-                                messages.add(chatMsg);
-                            }
-                        }
-                    }
+                    List<ChatMessage> messages = parseMessageList(jsonArray);
 
                     new Handler(Looper.getMainLooper()).post(() ->
                         callback.onSuccess(messages));
@@ -275,18 +298,7 @@ public class MessageApi {
                     }
 
                     JSONArray jsonArray = new JSONArray(response.toString());
-                    List<ChatMessage> messages = new ArrayList<>();
-
-                    for (int i = 0; i < jsonArray.length(); i++) {
-                        JSONObject msg = jsonArray.getJSONObject(i);
-                        ChatMessage chatMsg = parseMessage(msg);
-                        if (chatMsg != null) {
-                            chatMsg.rawIndex = i;
-                            if (chatMsg.hasDisplayableContent() || chatMsg.hasToolCalls() || chatMsg.isToolResult()) {
-                                messages.add(chatMsg);
-                            }
-                        }
-                    }
+                    List<ChatMessage> messages = parseMessageList(jsonArray);
 
                     new Handler(Looper.getMainLooper()).post(() ->
                         callback.onSuccess(messages));

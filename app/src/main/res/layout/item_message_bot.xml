@@ -28,5 +28,17 @@
 
     </androidx.cardview.widget.CardView>
 
+    <!-- 该次请求的 token 用量徽标（↑输入 ↓输出 ⚡缓存命中率），无 usage 时隐藏 -->
+    <TextView
+        android:id="@+id/usageText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="12dp"
+        android:layout_marginTop="2dp"
+        android:textSize="10sp"
+        android:textColor="@color/text_secondary"
+        android:maxLines="1"
+        android:visibility="gone" />
+
 </LinearLayout>
 
