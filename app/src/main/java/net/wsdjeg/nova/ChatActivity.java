@@ -140,7 +140,9 @@ public class ChatActivity extends AppCompatActivity {
     private String currentSessionTitle;
     private String currentProvider;
     private String currentModel;
-    private long usageTotalTokens = 0;  // 会话累计 token 用量（工具栏显示，来自 GET /sessions/{id}）
+    private long usageTotalTokens = 0;   // 会话累计 token 用量（工具栏显示，来自 GET /sessions/{id}）
+    private long usagePromptTokens = 0;  // 累计输入 tokens（缓存命中率计算）
+    private long usageCachedTokens = 0;  // 累计缓存命中 tokens（缓存命中率计算）
     private String accountId;
     private Account currentAccount;
     
@@ -981,6 +983,8 @@ public class ChatActivity extends AppCompatActivity {
         Session localSession = sessionManager.getSession(currentSessionId);
         if (localSession != null) {
             usageTotalTokens = localSession.getUsageTotalTokens();
+            usagePromptTokens = localSession.getUsagePromptTokens();
+            usageCachedTokens = localSession.getUsageCachedTokens();
         }
         
         if (intentProvider != null && !intentProvider.isEmpty() && 
@@ -1001,8 +1005,8 @@ public class ChatActivity extends AppCompatActivity {
     }
     
     /**
-     * 构建工具栏会话信息文本：provider | model · 累计 token 用量
-     * 用量为 0（新会话）时省略用量部分
+     * 构建工具栏会话信息文本：provider | model · 累计 token 用量 ⚡缓存命中率
+     * 用量为 0（新会话）时省略用量部分；无缓存数据时省略 ⚡ 部分
      */
     private String buildSessionInfoText() {
         String provider = currentProvider != null ? currentProvider : "";
@@ -1010,6 +1014,10 @@ public class ChatActivity extends AppCompatActivity {
         String info = provider + " | " + model;
         if (usageTotalTokens > 0) {
             info += " · " + Session.formatTokens(usageTotalTokens);
+            int cachePct = Session.cacheHitPercent(usagePromptTokens, usageCachedTokens);
+            if (cachePct > 0) {
+                info += " ⚡" + cachePct + "%";
+            }
         }
         return info;
     }
@@ -1023,6 +1031,8 @@ public class ChatActivity extends AppCompatActivity {
                 currentProvider = session.getProvider();
                 currentModel = session.getModel();
                 usageTotalTokens = session.getUsageTotalTokens();
+                usagePromptTokens = session.getUsagePromptTokens();
+                usageCachedTokens = session.getUsageCachedTokens();
                 tvSessionInfo.setText(buildSessionInfoText());
                 tvSessionPath.setText("cwd: " + (session.getCwd() != null ? session.getCwd() : ""));
             }
@@ -1176,6 +1186,8 @@ public class ChatActivity extends AppCompatActivity {
                             localSession.setUsageCompletionTokens(session.getUsageCompletionTokens());
                             localSession.setUsageCachedTokens(session.getUsageCachedTokens());
                             usageTotalTokens = session.getUsageTotalTokens();
+                            usagePromptTokens = session.getUsagePromptTokens();
+                            usageCachedTokens = session.getUsageCachedTokens();
                             sessionInfoUpdated = true;
                         }
                         if (sessionInfoUpdated) {
@@ -1188,6 +1200,8 @@ public class ChatActivity extends AppCompatActivity {
                         // 本地无缓存：仅更新工具栏
                         if (session.getUsageTotalTokens() != usageTotalTokens) {
                             usageTotalTokens = session.getUsageTotalTokens();
+                            usagePromptTokens = session.getUsagePromptTokens();
+                            usageCachedTokens = session.getUsageCachedTokens();
                             if (currentProvider != null && currentModel != null) {
                                 tvSessionInfo.setText(buildSessionInfoText());
                             }
@@ -1968,6 +1982,8 @@ public class ChatActivity extends AppCompatActivity {
                                 localSession.setUsageCompletionTokens(serverSession.getUsageCompletionTokens());
                                 localSession.setUsageCachedTokens(serverSession.getUsageCachedTokens());
                                 usageTotalTokens = serverSession.getUsageTotalTokens();
+                                usagePromptTokens = serverSession.getUsagePromptTokens();
+                                usageCachedTokens = serverSession.getUsageCachedTokens();
                                 updated = true;
                             }
                             

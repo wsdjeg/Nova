@@ -31,14 +31,7 @@ public class MessageUsage {
      * 缓存命中率（cached / prompt，0~100 整数），prompt 为 0 时返回 0
      */
     public int cacheHitPercent() {
-        if (promptTokens <= 0 || cachedTokens <= 0) {
-            return 0;
-        }
-        long pct = cachedTokens * 100 / promptTokens;
-        if (pct > 100) {
-            pct = 100;
-        }
-        return (int) pct;
+        return Session.cacheHitPercent(promptTokens, cachedTokens);
     }
 
     /**

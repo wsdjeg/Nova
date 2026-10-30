@@ -364,7 +364,8 @@ public class SessionSettingsActivity extends AppCompatActivity {
         String completion = Session.formatTokens(session.getUsageCompletionTokens());
         if (session.getUsageCachedTokens() > 0) {
             String cached = Session.formatTokens(session.getUsageCachedTokens());
-            tvUsage.setText(getString(R.string.token_usage_label_with_cache, total, prompt, completion, cached));
+            String cachePct = session.getUsageCacheHitPercent() + "%";
+            tvUsage.setText(getString(R.string.token_usage_label_with_cache, total, prompt, completion, cached, cachePct));
         } else {
             tvUsage.setText(getString(R.string.token_usage_label, total, prompt, completion));
         }

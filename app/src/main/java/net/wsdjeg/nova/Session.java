@@ -531,6 +531,27 @@ public class Session {
         this.usageCachedTokens = usageCachedTokens;
     }
     
+    /**
+     * 计算缓存命中率（cached / prompt，0~100 整数），prompt 为 0 或无缓存时返回 0
+     */
+    public static int cacheHitPercent(long promptTokens, long cachedTokens) {
+        if (promptTokens <= 0 || cachedTokens <= 0) {
+            return 0;
+        }
+        long pct = cachedTokens * 100 / promptTokens;
+        if (pct > 100) {
+            pct = 100;
+        }
+        return (int) pct;
+    }
+    
+    /**
+     * 获取会话累计缓存命中率（0~100 整数，无数据时为 0）
+     */
+    public int getUsageCacheHitPercent() {
+        return cacheHitPercent(usagePromptTokens, usageCachedTokens);
+    }
+    
     public int getFirstMessageIndex() {
         return firstMessageIndex;
     }
