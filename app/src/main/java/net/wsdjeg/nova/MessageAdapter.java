@@ -47,6 +47,8 @@ import java.util.Set;
  * - TYPE_TOOL_CALL: 工具调用请求（assistant 消息中的 tool_calls）
  * - TYPE_TOOL_RESULT: 工具执行结果（role=tool 的消息，简洁显示）
  * - TYPE_TIME_SEPARATOR: 时间轴节点（独立分隔项，不属于任何消息）
+ * - TYPE_ROUND_USAGE: 单次 LLM 请求 token 用量徽标（assistant 消息带 tool_calls 时，
+ *   显示在该消息 tool_call 列表之后，保证每一轮请求的 ↑输入 ↓输出 ⚡缓存命中率都可见）
  *
  * 时间轴规则：
  * - 时间是消息流中的独立节点，不在每条消息下方显示时间
@@ -77,7 +79,7 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
     private static final long TIME_SEPARATOR_GAP_MS = 5L * 60 * 1000;
 
     private List<Message> messages;
-    private List<Object> visibleItems;  // 可以是 Message / ToolCallItem / TimeSeparatorItem
+    private List<Object> visibleItems;  // 可以是 Message / ToolCallItem / TimeSeparatorItem / RoundUsageItem
     private List<String> visibleKeys;   // 与 visibleItems 一一对应的 stableKey
     private Map<String, Integer> keyToPosition;  // O(1) 查找位置
     private Markwon markwon;
@@ -100,6 +102,7 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
     private static final int TYPE_TOOL_RESULT = 5;
     private static final int TYPE_TIME_SEPARATOR = 6;
     private static final int TYPE_NOTICE = 7;
+    private static final int TYPE_ROUND_USAGE = 8;
 
     /**
      * 时间轴节点
@@ -114,6 +117,26 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
 
         public String getDisplayText() {
             return TimeUtils.formatTimelineTime(timestamp);
+        }
+    }
+
+    /**
+     * 单次 LLM 请求的 token 用量徽标显示项
+     *
+     * assistant 消息携带 tool_calls 时会被拆分为 content / 多个 tool_call
+     * 可见项；该次请求的 usage 徽标固定显示在整个 tool_call 列表之后，
+     * 标记该轮请求的 token 消耗（↑输入 ↓输出 ⚡缓存命中率）。
+     * usage 由 on_complete 标记延迟归属，归属前不生成该显示项。
+     */
+    public static class RoundUsageItem {
+        public final Message parentMessage;
+
+        public RoundUsageItem(Message parentMessage) {
+            this.parentMessage = parentMessage;
+        }
+
+        public MessageUsage getUsage() {
+            return parentMessage.getUsage();
         }
     }
 
@@ -250,6 +273,16 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
             return "ts:" + ((TimeSeparatorItem) item).timestamp;
         }
 
+        if (item instanceof RoundUsageItem) {
+            Message parent = ((RoundUsageItem) item).parentMessage;
+            if (parent.getServerIndex() > 0) {
+                return "msg:" + parent.getServerIndex() + ":usage";
+            }
+            // 兜底：服务端索引缺失时用 created + 内容 hash
+            int hash = parent.getContent() != null ? parent.getContent().hashCode() : 0;
+            return "usage:" + parent.getCreated() + ":" + hash;
+        }
+
         if (item instanceof ToolCallItem) {
             ToolCallItem tc = (ToolCallItem) item;
             String tcId = tc.toolCall != null ? tc.toolCall.id : null;
@@ -300,6 +333,9 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
         if (item instanceof TimeSeparatorItem) {
             return ((TimeSeparatorItem) item).timestamp;
         }
+        if (item instanceof RoundUsageItem) {
+            return ((RoundUsageItem) item).parentMessage.getTimestamp();
+        }
         if (item instanceof ToolCallItem) {
             return ((ToolCallItem) item).getCreated() * 1000;
         }
@@ -315,7 +351,7 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
      * 时间节点插入规则：
      * - 第一条可见消息之前始终插入一个时间节点
      * - 当前项与上一项间隔超过 TIME_SEPARATOR_GAP_MS 时，先插入时间节点再添加当前项
-     * - 同一 assistant 消息拆分出的 content / tool_calls 共享时间戳，不会互相插入节点
+     * - 同一 assistant 消息拆分出的 content / tool_calls / usage 徽标共享时间戳，不会互相插入节点
      */
     private void buildVisibleItemsInto(List<Object> outItems, List<String> outKeys) {
         outItems.clear();
@@ -348,6 +384,13 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
                     lastItemTs = maybeInsertTimeSeparator(outItems, outKeys, usedKeys,
                         item.getCreated() * 1000, lastItemTs);
                     addItemWithKey(outItems, outKeys, usedKeys, item);
+                }
+                // 该轮请求的 token 用量徽标：固定显示在 tool_call 列表之后，
+                // 保证带工具调用的请求轮次也能看到 ↑输入 ↓输出 ⚡缓存命中率
+                if (msg.getUsage() != null) {
+                    lastItemTs = maybeInsertTimeSeparator(outItems, outKeys, usedKeys,
+                        msg.getTimestamp(), lastItemTs);
+                    addItemWithKey(outItems, outKeys, usedKeys, new RoundUsageItem(msg));
                 }
                 continue;
             }
@@ -415,6 +458,12 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
                 && safeEq(ta.getDisplayText(), tb.getDisplayText());
         }
 
+        if (a instanceof RoundUsageItem) {
+            MessageUsage ua = ((RoundUsageItem) a).getUsage();
+            MessageUsage ub = ((RoundUsageItem) b).getUsage();
+            return ua == null ? ub == null : ua.sameAs(ub);
+        }
+
         if (a instanceof ToolCallItem) {
             ToolCallItem ta = (ToolCallItem) a;
             ToolCallItem tb = (ToolCallItem) b;
@@ -465,6 +514,10 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
             return TYPE_TIME_SEPARATOR;
         }
 
+        if (item instanceof RoundUsageItem) {
+            return TYPE_ROUND_USAGE;
+        }
+
         if (item instanceof ToolCallItem) {
             return TYPE_TOOL_CALL;
         }
@@ -506,6 +559,11 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
                     .inflate(R.layout.item_time_separator, parent, false);
                 return new TimeSeparatorViewHolder(view);
 
+            case TYPE_ROUND_USAGE:
+                view = LayoutInflater.from(parent.getContext())
+                    .inflate(R.layout.item_round_usage, parent, false);
+                return new RoundUsageViewHolder(view);
+
             case TYPE_ERROR:
                 view = LayoutInflater.from(parent.getContext())
                     .inflate(R.layout.item_message_error, parent, false);
@@ -545,6 +603,8 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
 
         if (holder instanceof TimeSeparatorViewHolder) {
             bindTimeSeparatorViewHolder((TimeSeparatorViewHolder) holder, (TimeSeparatorItem) item);
+        } else if (holder instanceof RoundUsageViewHolder) {
+            bindRoundUsageViewHolder((RoundUsageViewHolder) holder, (RoundUsageItem) item);
         } else if (holder instanceof ToolCallViewHolder) {
             ToolCallItem toolCallItem = (ToolCallItem) item;
             bindToolCallViewHolder((ToolCallViewHolder) holder, toolCallItem, key);
@@ -559,10 +619,21 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
 
     /**
      * 绑定时间轴节点
-     * 时间是消息流中的独立分隔节点，不属于任何一条消息
+     * 时间是消息流中的独立分隔节点，不属于任何一条消息气泡
      */
     private void bindTimeSeparatorViewHolder(TimeSeparatorViewHolder holder, TimeSeparatorItem item) {
         holder.timeText.setText(item.getDisplayText());
+    }
+
+    /**
+     * 绑定单次请求 token 用量徽标
+     * 显示在 assistant 消息 tool_call 列表之后，标记该轮请求的 token 消耗
+     */
+    private void bindRoundUsageViewHolder(RoundUsageViewHolder holder, RoundUsageItem item) {
+        MessageUsage usage = item.getUsage();
+        if (usage != null) {
+            holder.usageText.setText(formatUsageBadge(usage));
+        }
     }
 
     /**
@@ -601,9 +672,11 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
             holder.hasBound = true;
         }
 
-        // 绑定 token 用量徽标（assistant 消息，来自消息 usage 或 on_complete 标记归属）
+        // 绑定 token 用量徽标（仅 content 型 assistant 消息；
+        // 带 tool_calls 的消息用量由 RoundUsageItem 显示在 tool_call 列表之后）
         if (holder.usageText != null) {
-            MessageUsage usage = message.isAssistant() ? message.getUsage() : null;
+            MessageUsage usage = message.isAssistant() && !message.hasToolCalls()
+                ? message.getUsage() : null;
             if (usage != null) {
                 holder.usageText.setText(formatUsageBadge(usage));
                 holder.usageText.setVisibility(View.VISIBLE);
@@ -955,7 +1028,7 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
      * 按服务端 1-based 消息索引查找可见项位置
      *
      * 优先精确匹配该消息派生的 visibleItem（assistant 消息可能拆分为
-     * content / 多个 tool_call 项，均能通过父消息索引命中）；
+     * content / 多个 tool_call / usage 徽标项，均能通过父消息索引命中）；
      * 目标消息不可见（如仅含 reasoning_content 被过滤的消息）时，
      * 回退到服务端索引最接近的可见项。
      *
@@ -994,6 +1067,9 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
         }
         if (item instanceof ToolCallItem) {
             return ((ToolCallItem) item).parentMessage.getServerIndex();
+        }
+        if (item instanceof RoundUsageItem) {
+            return ((RoundUsageItem) item).parentMessage.getServerIndex();
         }
         return -1;
     }
@@ -1148,6 +1224,19 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
         TimeSeparatorViewHolder(View itemView) {
             super(itemView);
             timeText = itemView.findViewById(R.id.timeSeparatorText);
+        }
+    }
+
+    /**
+     * 单次请求 token 用量徽标 ViewHolder
+     * 显示在 assistant 消息 tool_call 列表之后
+     */
+    static class RoundUsageViewHolder extends RecyclerView.ViewHolder {
+        TextView usageText;
+
+        RoundUsageViewHolder(View itemView) {
+            super(itemView);
+            usageText = itemView.findViewById(R.id.usageText);
         }
     }
 

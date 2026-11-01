@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 单次 LLM 请求 token 用量徽标（↑输入 ↓输出 ⚡缓存命中率）
+     显示在 assistant 消息 tool_call 列表之后，标记该轮请求的 token 消耗 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:paddingStart="6dp"
+    android:paddingEnd="6dp"
+    android:paddingBottom="2dp"
+    android:gravity="start">
+
+    <TextView
+        android:id="@+id/usageText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="12dp"
+        android:layout_marginTop="2dp"
+        android:textSize="10sp"
+        android:textColor="@color/text_secondary"
+        android:maxLines="1" />
+
+</LinearLayout>
+
