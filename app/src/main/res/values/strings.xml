@@ -273,7 +273,6 @@
     <string name="please_select_provider">请选择 Provider</string>
     <string name="please_select_model">请选择 Model</string>
     <string name="models_loading">正在加载模型列表...</string>
-    <string name="models_loading_wait">模型列表加载中，请稍候</string>
     <string name="config_unchanged">配置未改变</string>
     <string name="saving">正在保存...</string>
     <string name="settings_saved">设置已保存</string>

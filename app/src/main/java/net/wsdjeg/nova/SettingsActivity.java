@@ -33,6 +33,9 @@ import java.util.Map;
  * 模型列表延迟加载：chat.nvim 服务端的模型列表为异步加载，首次请求 GET /providers 时
  * 部分 provider 的 models 为空数组。选中此类 provider 时，model 下拉框显示占位项并
  * 静默轮询拉取，模型就绪后自动填充（不重置用户当前的选择）。
+ *
+ * 占位项下仍可保存：此时 model 留空，等同"服务端默认"。新建会话时 chat.nvim 会在
+ * 设置 provider 后自动选用第一个可用模型，并在创建响应中回传实际 model。
  */
 public class SettingsActivity extends AppCompatActivity {
     
@@ -639,12 +642,10 @@ public class SettingsActivity extends AppCompatActivity {
         
         if (selectedModelIndex >= 0 && selectedModelIndex < currentModels.size()) {
             String selectedModel = currentModels.get(selectedModelIndex);
-            // 占位项（模型列表延迟加载中）不可保存
-            if (getString(R.string.models_loading).equals(selectedModel)) {
-                Toast.makeText(this, getString(R.string.models_loading_wait), Toast.LENGTH_SHORT).show();
-                return;
-            }
-            if (!getEmptyOption().equals(selectedModel)) {
+            // 占位项（模型列表延迟加载中）不视为用户指定：
+            // model 留空，新建会话时由服务端自动选择第一个可用模型
+            if (!getEmptyOption().equals(selectedModel)
+                    && !getString(R.string.models_loading).equals(selectedModel)) {
                 model = selectedModel;
             }
         }

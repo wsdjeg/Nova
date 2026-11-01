@@ -33,6 +33,10 @@ import java.util.Map;
  * 模型列表延迟加载：chat.nvim 服务端的模型列表为异步加载，首次请求 GET /providers 时
  * 部分 provider 的 models 为空数组。选中此类 provider 时，model 下拉框显示占位项并
  * 静默轮询拉取，模型就绪后自动填充（不重置用户当前的选择）。
+ *
+ * 占位项下仍可保存：chat.nvim 的 HTTP API 支持在设置 provider 时省略 model，
+ * 由服务端自动选用第一个可用模型。因此占位项不再拦截保存，而是仅提交 provider，
+ * 保存成功后回读会话取得服务端实际选定的 model。
  */
 public class SessionSettingsActivity extends AppCompatActivity {
     
@@ -676,13 +680,13 @@ public class SessionSettingsActivity extends AppCompatActivity {
         }
         
         String newProvider = providerNames.get(selectedProviderIndex);
-        String newModel = currentModels.get(selectedModelIndex);
+        String selectedModelName = currentModels.get(selectedModelIndex);
         
-        // 占位项（模型列表延迟加载中）不可保存
-        if (getString(R.string.models_loading).equals(newModel)) {
-            Toast.makeText(this, getString(R.string.models_loading_wait), Toast.LENGTH_SHORT).show();
-            return;
-        }
+        // 占位项表示服务端的模型列表尚未就绪（异步加载中）：
+        // 此时不指定 model，仅提交 provider，由服务端自动选择第一个可用模型。
+        // 保存成功后再回读会话，取得服务端实际选定的 model。
+        boolean modelAutoSelect = getString(R.string.models_loading).equals(selectedModelName);
+        String newModel = modelAutoSelect ? "" : selectedModelName;
         
         String newCwd = etCwd.getText().toString().trim();
         String newTitle = etTitle.getText().toString().trim();
@@ -722,7 +726,8 @@ public class SessionSettingsActivity extends AppCompatActivity {
         progressBar.setVisibility(View.VISIBLE);
         tvStatus.setText(getString(R.string.saving));
         
-        Log.d(TAG, "Saving session settings: provider=" + newProvider + ", model=" + newModel + ", cwd=" + newCwd + ", title=" + newTitle);
+        Log.d(TAG, "Saving session settings: provider=" + newProvider + ", model=" + newModel
+                + ", modelAutoSelect=" + modelAutoSelect + ", cwd=" + newCwd + ", title=" + newTitle);
         
         // 使用计数器跟踪多个 API 调用的完成状态
         final int[] pendingCalls = new int[1];
@@ -734,13 +739,14 @@ public class SessionSettingsActivity extends AppCompatActivity {
         
         if (apiCallsNeeded == 0) {
             // 没有需要调用的 API，直接保存到本地
-            finishSave(newProvider, newModel, newCwd, newTitle, newUploadPath);
+            completeSave(newProvider, newModel, modelAutoSelect, newCwd, newTitle, newUploadPath);
             return;
         }
         
         pendingCalls[0] = apiCallsNeeded;
         
         // 更新 provider 和 model（这两个使用同一个 API 调用）
+        // newModel 为空时 updateSession 只提交 provider，交由服务端自动选择模型
         if (providerChanged || modelChanged) {
             apiClient.updateSession(sessionId, newProvider, newModel, new ApiClient.UpdateSessionCallback() {
                 @Override
@@ -748,7 +754,7 @@ public class SessionSettingsActivity extends AppCompatActivity {
                     runOnUiThread(() -> {
                         pendingCalls[0]--;
                         if (pendingCalls[0] == 0 && !hasError[0]) {
-                            finishSave(newProvider, newModel, newCwd, newTitle, newUploadPath);
+                            completeSave(newProvider, newModel, modelAutoSelect, newCwd, newTitle, newUploadPath);
                         }
                     });
                 }
@@ -760,7 +766,7 @@ public class SessionSettingsActivity extends AppCompatActivity {
                         // 如果 API 不支持，允许继续（后续会保存到本地）
                         if (error.contains("PATCH") || error.contains("not supported") || error.contains("404")) {
                             if (pendingCalls[0] == 0) {
-                                finishSave(newProvider, newModel, newCwd, newTitle, newUploadPath);
+                                completeSave(newProvider, newModel, modelAutoSelect, newCwd, newTitle, newUploadPath);
                             }
                         } else {
                             hasError[0] = true;
@@ -782,7 +788,7 @@ public class SessionSettingsActivity extends AppCompatActivity {
                     runOnUiThread(() -> {
                         pendingCalls[0]--;
                         if (pendingCalls[0] == 0 && !hasError[0]) {
-                            finishSave(newProvider, newModel, newCwd, newTitle, newUploadPath);
+                            completeSave(newProvider, newModel, modelAutoSelect, newCwd, newTitle, newUploadPath);
                         }
                     });
                 }
@@ -794,7 +800,7 @@ public class SessionSettingsActivity extends AppCompatActivity {
                         // 如果 API 不支持，允许继续（后续会保存到本地）
                         if (error.contains("404") || error.contains("not supported")) {
                             if (pendingCalls[0] == 0) {
-                                finishSave(newProvider, newModel, newCwd, newTitle, newUploadPath);
+                                completeSave(newProvider, newModel, modelAutoSelect, newCwd, newTitle, newUploadPath);
                             }
                         } else {
                             hasError[0] = true;
@@ -816,7 +822,7 @@ public class SessionSettingsActivity extends AppCompatActivity {
                     runOnUiThread(() -> {
                         pendingCalls[0]--;
                         if (pendingCalls[0] == 0 && !hasError[0]) {
-                            finishSave(newProvider, newModel, newCwd, newTitle, newUploadPath);
+                            completeSave(newProvider, newModel, modelAutoSelect, newCwd, newTitle, newUploadPath);
                         }
                     });
                 }
@@ -828,7 +834,7 @@ public class SessionSettingsActivity extends AppCompatActivity {
                         // 如果 API 不支持，允许继续（后续会保存到本地）
                         if (error.contains("404") || error.contains("not supported")) {
                             if (pendingCalls[0] == 0) {
-                                finishSave(newProvider, newModel, newCwd, newTitle, newUploadPath);
+                                completeSave(newProvider, newModel, modelAutoSelect, newCwd, newTitle, newUploadPath);
                             }
                         } else {
                             hasError[0] = true;
@@ -841,6 +847,46 @@ public class SessionSettingsActivity extends AppCompatActivity {
                 }
             });
         }
+    }
+    
+    /**
+     * 收尾保存：若本次保存未指定 model（占位项），先回读会话取得服务端自动选定的 model，
+     * 再写入本地并返回给调用者。回读失败时降级为传空 model，不阻断保存流程。
+     */
+    private void completeSave(final String newProvider, final String newModel, boolean modelAutoSelect,
+                              final String newCwd, final String newTitle, final String newUploadPath) {
+        if (!modelAutoSelect || apiClient == null) {
+            finishSave(newProvider, newModel, newCwd, newTitle, newUploadPath);
+            return;
+        }
+        
+        tvStatus.setText(getString(R.string.saving));
+        
+        apiClient.getSession(sessionId, accountId, new ApiClient.SessionCallback() {
+            @Override
+            public void onSuccess(Session session) {
+                runOnUiThread(() -> {
+                    String resolvedModel = session.getModel();
+                    String resolvedProvider = session.getProvider();
+                    if (resolvedModel == null || resolvedModel.isEmpty()) {
+                        resolvedModel = newModel;
+                    }
+                    if (resolvedProvider == null || resolvedProvider.isEmpty()) {
+                        resolvedProvider = newProvider;
+                    }
+                    Log.d(TAG, "Auto-selected model from server: " + resolvedModel);
+                    finishSave(resolvedProvider, resolvedModel, newCwd, newTitle, newUploadPath);
+                });
+            }
+            
+            @Override
+            public void onError(String error) {
+                runOnUiThread(() -> {
+                    Log.w(TAG, "Failed to resolve auto-selected model: " + error);
+                    finishSave(newProvider, newModel, newCwd, newTitle, newUploadPath);
+                });
+            }
+        });
     }
     
     /**

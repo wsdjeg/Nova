@@ -265,7 +265,6 @@
     <string name="please_select_provider">Please select a Provider</string>
     <string name="please_select_model">Please select a Model</string>
     <string name="models_loading">Loading model list...</string>
-    <string name="models_loading_wait">Model list is still loading, please wait</string>
     <string name="config_unchanged">Configuration unchanged</string>
     <string name="saving">Saving...</string>
     <string name="settings_saved">Settings saved</string>
