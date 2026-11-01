@@ -2,6 +2,8 @@ package net.wsdjeg.nova;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -27,6 +29,10 @@ import java.util.Map;
  * 会话设置页面
  * 显示当前会话的 title、provider、model、cwd、上传路径和 token 用量，并允许从服务器获取可用的 provider/model 列表
  * 支持修改会话配置并调用 API 更新
+ *
+ * 模型列表延迟加载：chat.nvim 服务端的模型列表为异步加载，首次请求 GET /providers 时
+ * 部分 provider 的 models 为空数组。选中此类 provider 时，model 下拉框显示占位项并
+ * 静默轮询拉取，模型就绪后自动填充（不重置用户当前的选择）。
  */
 public class SessionSettingsActivity extends AppCompatActivity {
     
@@ -98,6 +104,12 @@ public class SessionSettingsActivity extends AppCompatActivity {
     private int selectedProviderIndex = -1;
     private int selectedModelIndex = -1;
     
+    // 模型列表延迟加载轮询（见类注释）
+    private static final int MODELS_MAX_RETRY = 10;
+    private static final long MODELS_RETRY_INTERVAL_MS = 2000L;
+    private final Handler modelsRetryHandler = new Handler(Looper.getMainLooper());
+    private int modelsRetryCount = 0;
+    
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -124,6 +136,12 @@ public class SessionSettingsActivity extends AppCompatActivity {
         
         initViews();
         loadSessionInfo();
+    }
+    
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        cancelModelsRetry();
     }
     
     private void initViews() {
@@ -486,37 +504,142 @@ public class SessionSettingsActivity extends AppCompatActivity {
      * 更新 Model Spinner
      * @param providerName provider 名称
      * @param selectModel 要选择的 model，如果为 null 则选择第一个
+     *
+     * 服务端模型列表为延迟加载：首次请求 /providers 时部分 provider 的 models 为空数组。
+     * 列表为空时显示占位项并静默轮询拉取，模型就绪后自动填充。
      */
     private void updateModelSpinner(String providerName, String selectModel) {
+        // 取消进行中的模型轮询（用户可能已切换 provider）
+        cancelModelsRetry();
+        
         List<String> models = providerModelsMap.get(providerName);
         currentModels.clear();
         if (models != null) {
             currentModels.addAll(models);
         }
+        
+        if (currentModels.isEmpty()) {
+            if (selectModel != null && !selectModel.isEmpty()) {
+                // 列表为空但有已保存的 model，先显示它，同时后台拉取完整列表
+                currentModels.add(selectModel);
+                modelAdapter.notifyDataSetChanged();
+                spinnerModel.setSelection(0);
+                selectedModelIndex = 0;
+                scheduleModelsRetry(providerName, MODELS_RETRY_INTERVAL_MS);
+            } else {
+                // 模型列表延迟加载中：显示占位项并立即轮询
+                currentModels.add(getString(R.string.models_loading));
+                modelAdapter.notifyDataSetChanged();
+                spinnerModel.setSelection(0);
+                selectedModelIndex = 0;
+                scheduleModelsRetry(providerName, 0);
+            }
+            return;
+        }
+        
         modelAdapter.notifyDataSetChanged();
         
         // 选择指定的 model 或第一个
-        if (currentModels.size() > 0) {
-            if (selectModel != null && !selectModel.isEmpty()) {
-                int modelIndex = currentModels.indexOf(selectModel);
-                if (modelIndex >= 0) {
-                    spinnerModel.setSelection(modelIndex);
-                    selectedModelIndex = modelIndex;
-                    Log.d(TAG, "Model spinner set to index " + modelIndex + ": " + selectModel);
-                } else {
-                    // 如果找不到指定的 model，添加到列表并选择
-                    currentModels.add(0, selectModel);
-                    modelAdapter.notifyDataSetChanged();
-                    spinnerModel.setSelection(0);
-                    selectedModelIndex = 0;
-                    Log.d(TAG, "Model not found in list, added and set to index 0: " + selectModel);
-                }
+        if (selectModel != null && !selectModel.isEmpty()) {
+            int modelIndex = currentModels.indexOf(selectModel);
+            if (modelIndex >= 0) {
+                spinnerModel.setSelection(modelIndex);
+                selectedModelIndex = modelIndex;
+                Log.d(TAG, "Model spinner set to index " + modelIndex + ": " + selectModel);
             } else {
+                // 如果找不到指定的 model，添加到列表并选择
+                currentModels.add(0, selectModel);
+                modelAdapter.notifyDataSetChanged();
                 spinnerModel.setSelection(0);
                 selectedModelIndex = 0;
-                Log.d(TAG, "Model spinner set to first (selectModel is null)");
+                Log.d(TAG, "Model not found in list, added and set to index 0: " + selectModel);
             }
+        } else {
+            spinnerModel.setSelection(0);
+            selectedModelIndex = 0;
+            Log.d(TAG, "Model spinner set to first (selectModel is null)");
         }
+    }
+    
+    /**
+     * 静默重新拉取 providers，只合并各 provider 的 models 数据，不重置用户当前的选择
+     * 用于服务端模型列表延迟加载的场景
+     */
+    private void fetchModelsSilently(final String providerName) {
+        if (apiClient == null) {
+            return;
+        }
+        apiClient.getProviders(new ApiClient.ProvidersCallback() {
+            @Override
+            public void onSuccess(List<Provider> providersList) {
+                runOnUiThread(() -> {
+                    if (isFinishing() || isDestroyed()) {
+                        return;
+                    }
+                    boolean hasModels = false;
+                    for (Provider p : providersList) {
+                        if (p.models != null && !p.models.isEmpty()) {
+                            providerModelsMap.put(p.name, p.models);
+                            if (providerName != null && providerName.equals(p.name)) {
+                                hasModels = true;
+                            }
+                        }
+                    }
+                    if (!hasModels) {
+                        // 模型仍未就绪，继续轮询
+                        scheduleModelsRetry(providerName, MODELS_RETRY_INTERVAL_MS);
+                        return;
+                    }
+                    modelsRetryCount = 0;
+                    // 仅当轮询目标仍是当前选中的 provider 时刷新，避免覆盖用户已切换的选择
+                    if (selectedProviderIndex >= 0 && selectedProviderIndex < providerNames.size()
+                            && providerName.equals(providerNames.get(selectedProviderIndex))) {
+                        String preserveModel = null;
+                        if (selectedModelIndex >= 0 && selectedModelIndex < currentModels.size()) {
+                            String m = currentModels.get(selectedModelIndex);
+                            if (!getString(R.string.models_loading).equals(m)) {
+                                preserveModel = m;
+                            }
+                        }
+                        updateModelSpinner(providerName, preserveModel);
+                        Log.d(TAG, "Models loaded for provider: " + providerName);
+                    }
+                });
+            }
+            
+            @Override
+            public void onError(String error) {
+                runOnUiThread(() -> {
+                    if (isFinishing() || isDestroyed()) {
+                        return;
+                    }
+                    // 网络错误时静默继续轮询
+                    scheduleModelsRetry(providerName, MODELS_RETRY_INTERVAL_MS);
+                });
+            }
+        });
+    }
+    
+    private void scheduleModelsRetry(final String providerName, long delayMs) {
+        if (apiClient == null || isFinishing() || isDestroyed()) {
+            return;
+        }
+        if (modelsRetryCount >= MODELS_MAX_RETRY) {
+            Log.d(TAG, "Models retry exhausted for provider: " + providerName);
+            return;
+        }
+        modelsRetryCount++;
+        modelsRetryHandler.postDelayed(() -> {
+            if (isFinishing() || isDestroyed()) {
+                return;
+            }
+            fetchModelsSilently(providerName);
+        }, delayMs);
+    }
+    
+    private void cancelModelsRetry() {
+        modelsRetryHandler.removeCallbacksAndMessages(null);
+        modelsRetryCount = 0;
     }
     
     @Override
@@ -554,6 +677,13 @@ public class SessionSettingsActivity extends AppCompatActivity {
         
         String newProvider = providerNames.get(selectedProviderIndex);
         String newModel = currentModels.get(selectedModelIndex);
+        
+        // 占位项（模型列表延迟加载中）不可保存
+        if (getString(R.string.models_loading).equals(newModel)) {
+            Toast.makeText(this, getString(R.string.models_loading_wait), Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
         String newCwd = etCwd.getText().toString().trim();
         String newTitle = etTitle.getText().toString().trim();
         String newUploadPath = etUploadPath.getText().toString().trim();

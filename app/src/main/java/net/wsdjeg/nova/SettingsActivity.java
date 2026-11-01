@@ -2,6 +2,8 @@ package net.wsdjeg.nova;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -25,6 +27,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * 应用设置页面（新建会话默认 provider/model、外观、语言等）
+ *
+ * 模型列表延迟加载：chat.nvim 服务端的模型列表为异步加载，首次请求 GET /providers 时
+ * 部分 provider 的 models 为空数组。选中此类 provider 时，model 下拉框显示占位项并
+ * 静默轮询拉取，模型就绪后自动填充（不重置用户当前的选择）。
+ */
 public class SettingsActivity extends AppCompatActivity {
     
     private static final String TAG = "SettingsActivity";
@@ -71,6 +80,12 @@ public class SettingsActivity extends AppCompatActivity {
     private String savedProvider;
     private String savedModel;
     
+    // 模型列表延迟加载轮询（见类注释）
+    private static final int MODELS_MAX_RETRY = 10;
+    private static final long MODELS_RETRY_INTERVAL_MS = 2000L;
+    private final Handler modelsRetryHandler = new Handler(Looper.getMainLooper());
+    private int modelsRetryCount = 0;
+    
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -86,6 +101,12 @@ public class SettingsActivity extends AppCompatActivity {
         
         initViews();
         loadSettings();
+    }
+    
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        cancelModelsRetry();
     }
     
     private void initViews() {
@@ -178,6 +199,7 @@ public class SettingsActivity extends AppCompatActivity {
                         String selectedProvider = providerNames.get(position);
                         // 如果选的是"留空"选项，model 也重置为"留空"
                         if (getEmptyOption().equals(selectedProvider)) {
+                            cancelModelsRetry();
                             currentModels.clear();
                             currentModels.add(getEmptyOption());
                             modelAdapter.notifyDataSetChanged();
@@ -428,8 +450,14 @@ public class SettingsActivity extends AppCompatActivity {
      * 更新 Model Spinner
      * @param providerName provider 名称（可能是 getEmptyOption()）
      * @param selectModel 要选择的 model，如果为 null 则选择第一个
+     *
+     * 服务端模型列表为延迟加载：首次请求 /providers 时部分 provider 的 models 为空数组。
+     * 列表为空时显示占位项并静默轮询拉取，模型就绪后自动填充。
      */
     private void updateModelSpinner(String providerName, String selectModel) {
+        // 取消进行中的模型轮询（用户可能已切换 provider）
+        cancelModelsRetry();
+        
         currentModels.clear();
         
         // 添加"留空"选项
@@ -440,7 +468,26 @@ public class SettingsActivity extends AppCompatActivity {
             if (models != null) {
                 currentModels.addAll(models);
             }
+            
+            // 除"留空"外没有任何模型：模型列表延迟加载中，显示占位项并轮询
+            if (currentModels.size() == 1) {
+                currentModels.add(getString(R.string.models_loading));
+                modelAdapter.notifyDataSetChanged();
+                if (selectModel != null && !selectModel.isEmpty()) {
+                    // 已保存的 model 排在占位项之后，优先选中它
+                    currentModels.add(selectModel);
+                    modelAdapter.notifyDataSetChanged();
+                    spinnerModel.setSelection(2);
+                    selectedModelIndex = 2;
+                } else {
+                    spinnerModel.setSelection(0);
+                    selectedModelIndex = 0;
+                }
+                scheduleModelsRetry(providerName, 0);
+                return;
+            }
         }
+        
         modelAdapter.notifyDataSetChanged();
         
         // 选择指定的 model 或第一个
@@ -460,6 +507,88 @@ public class SettingsActivity extends AppCompatActivity {
             spinnerModel.setSelection(0);
             selectedModelIndex = 0;
         }
+    }
+    
+    /**
+     * 静默重新拉取 providers，只合并各 provider 的 models 数据，不重置用户当前的选择
+     * 用于服务端模型列表延迟加载的场景
+     */
+    private void fetchModelsSilently(final String providerName) {
+        if (apiClient == null) {
+            return;
+        }
+        apiClient.getProviders(new ApiClient.ProvidersCallback() {
+            @Override
+            public void onSuccess(List<Provider> providersList) {
+                runOnUiThread(() -> {
+                    if (isFinishing() || isDestroyed()) {
+                        return;
+                    }
+                    boolean hasModels = false;
+                    for (Provider p : providersList) {
+                        if (p.models != null && !p.models.isEmpty()) {
+                            providerModelsMap.put(p.name, p.models);
+                            if (providerName != null && providerName.equals(p.name)) {
+                                hasModels = true;
+                            }
+                        }
+                    }
+                    if (!hasModels) {
+                        // 模型仍未就绪，继续轮询
+                        scheduleModelsRetry(providerName, MODELS_RETRY_INTERVAL_MS);
+                        return;
+                    }
+                    modelsRetryCount = 0;
+                    // 仅当轮询目标仍是当前选中的 provider 时刷新，避免覆盖用户已切换的选择
+                    if (selectedProviderIndex >= 0 && selectedProviderIndex < providerNames.size()
+                            && providerName.equals(providerNames.get(selectedProviderIndex))) {
+                        String preserveModel = null;
+                        if (selectedModelIndex >= 0 && selectedModelIndex < currentModels.size()) {
+                            String m = currentModels.get(selectedModelIndex);
+                            if (!getEmptyOption().equals(m)
+                                    && !getString(R.string.models_loading).equals(m)) {
+                                preserveModel = m;
+                            }
+                        }
+                        updateModelSpinner(providerName, preserveModel);
+                        Log.d(TAG, "Models loaded for provider: " + providerName);
+                    }
+                });
+            }
+            
+            @Override
+            public void onError(String error) {
+                runOnUiThread(() -> {
+                    if (isFinishing() || isDestroyed()) {
+                        return;
+                    }
+                    // 网络错误时静默继续轮询
+                    scheduleModelsRetry(providerName, MODELS_RETRY_INTERVAL_MS);
+                });
+            }
+        });
+    }
+    
+    private void scheduleModelsRetry(final String providerName, long delayMs) {
+        if (apiClient == null || isFinishing() || isDestroyed()) {
+            return;
+        }
+        if (modelsRetryCount >= MODELS_MAX_RETRY) {
+            Log.d(TAG, "Models retry exhausted for provider: " + providerName);
+            return;
+        }
+        modelsRetryCount++;
+        modelsRetryHandler.postDelayed(() -> {
+            if (isFinishing() || isDestroyed()) {
+                return;
+            }
+            fetchModelsSilently(providerName);
+        }, delayMs);
+    }
+    
+    private void cancelModelsRetry() {
+        modelsRetryHandler.removeCallbacksAndMessages(null);
+        modelsRetryCount = 0;
     }
     
     private void applyTheme(int themeMode) {
@@ -510,6 +639,11 @@ public class SettingsActivity extends AppCompatActivity {
         
         if (selectedModelIndex >= 0 && selectedModelIndex < currentModels.size()) {
             String selectedModel = currentModels.get(selectedModelIndex);
+            // 占位项（模型列表延迟加载中）不可保存
+            if (getString(R.string.models_loading).equals(selectedModel)) {
+                Toast.makeText(this, getString(R.string.models_loading_wait), Toast.LENGTH_SHORT).show();
+                return;
+            }
             if (!getEmptyOption().equals(selectedModel)) {
                 model = selectedModel;
             }
