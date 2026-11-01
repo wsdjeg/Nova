@@ -11,6 +11,7 @@ import net.wsdjeg.nova.api.SessionActionApi;
 import net.wsdjeg.nova.api.SessionApi;
 import net.wsdjeg.nova.api.SessionSettingsApi;
 import net.wsdjeg.nova.api.UploadApi;
+import net.wsdjeg.nova.api.UsageStatsApi;
 import net.wsdjeg.nova.api.WeChatApi;
 
 /**
@@ -24,6 +25,7 @@ import net.wsdjeg.nova.api.WeChatApi;
  * - UploadApi         文件上传
  * - ProviderApi       providers/skills
  * - ServerApi         日志/连接测试/预览
+ * - UsageStatsApi     用量统计查询/清空
  * - WeChatApi         微信登录
  * - BridgeApi         集成桥接
  *
@@ -39,6 +41,7 @@ public class ApiClient {
     private final UploadApi uploadApi;
     private final ProviderApi providerApi;
     private final ServerApi serverApi;
+    private final UsageStatsApi usageStatsApi;
     private final WeChatApi weChatApi;
     private final BridgeApi bridgeApi;
     private String sessionId;
@@ -207,6 +210,24 @@ public class ApiClient {
         void onError(String error);
     }
 
+    /**
+     * 获取用量统计的回调接口
+     * 用于 GET /usage-stats API
+     */
+    public interface UsageStatsCallback {
+        void onSuccess(UsageStats stats);
+        void onError(String error);
+    }
+
+    /**
+     * 清空用量统计的回调接口
+     * 用于 DELETE /usage-stats API
+     */
+    public interface ClearUsageStatsCallback {
+        void onSuccess();
+        void onError(String error);
+    }
+
     public ApiClient(SettingsManager settingsManager) {
         this.config = new ApiConfig(settingsManager);
         this.chatApi = new ChatApi(config);
@@ -217,6 +238,7 @@ public class ApiClient {
         this.uploadApi = new UploadApi(config);
         this.providerApi = new ProviderApi(config);
         this.serverApi = new ServerApi(config);
+        this.usageStatsApi = new UsageStatsApi(config);
         this.weChatApi = new WeChatApi(config);
         this.bridgeApi = new BridgeApi(config);
     }
@@ -231,6 +253,7 @@ public class ApiClient {
         this.uploadApi = new UploadApi(config);
         this.providerApi = new ProviderApi(config);
         this.serverApi = new ServerApi(config);
+        this.usageStatsApi = new UsageStatsApi(config);
         this.weChatApi = new WeChatApi(config);
         this.bridgeApi = new BridgeApi(config);
     }
@@ -396,6 +419,24 @@ public class ApiClient {
 
     public void getSessionPreview(String sessionId, ApiCallback callback) {
         serverApi.getSessionPreview(sessionId, callback);
+    }
+
+    // ===== UsageStatsApi =====
+
+    /**
+     * 获取用量统计
+     * @param hours 最近 N 小时窗口（<= 0 表示忽略，优先级高于 days）
+     * @param days  最近 N 天窗口（<= 0 表示忽略）
+     */
+    public void getUsageStats(int hours, int days, UsageStatsCallback callback) {
+        usageStatsApi.getUsageStats(hours, days, callback);
+    }
+
+    /**
+     * 清空全部用量统计（total/hourly/daily 三层）
+     */
+    public void clearUsageStats(ClearUsageStatsCallback callback) {
+        usageStatsApi.clearUsageStats(callback);
     }
 
     // ===== WeChatApi =====

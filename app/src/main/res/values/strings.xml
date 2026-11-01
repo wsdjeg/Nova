@@ -57,6 +57,7 @@
     <string name="title_account_add">添加账号</string>
     <string name="title_log_viewer">日志查看器</string>
     <string name="title_server_log">服务端日志</string>
+    <string name="title_usage_stats">用量统计</string>
 
     <!-- Menu items -->
     <string name="menu_search">搜索</string>
@@ -71,6 +72,7 @@
     <string name="menu_account_manager">账号管理</string>
     <string name="menu_view_log">查看日志</string>
     <string name="menu_server_log">服务端日志</string>
+    <string name="menu_usage_stats">用量统计</string>
     <string name="menu_about">关于</string>
     <string name="menu_import">导入</string>
     <string name="menu_export">导出</string>
@@ -375,6 +377,23 @@
     <string name="server_log_clear_message">确定要清空服务端的所有运行时日志吗？</string>
     <string name="server_log_cleared">服务端日志已清空</string>
     <string name="server_log_clear_failed">清空失败: %s</string>
+
+    <!-- Usage stats -->
+    <string name="usage_window_total">全部</string>
+    <string name="usage_window_24h">最近 24 小时</string>
+    <string name="usage_window_7d">最近 7 天</string>
+    <string name="usage_window_30d">最近 30 天</string>
+    <string name="usage_filter_all">全部</string>
+    <string name="usage_requests_format">请求数: %d</string>
+    <string name="usage_tokens_format">总 %1$s · 输入 %2$s · 输出 %3$s</string>
+    <string name="usage_cached_format">缓存命中 %1$s ⚡%2$s</string>
+    <string name="usage_empty">暂无统计数据</string>
+    <string name="usage_summary_format">%1$s · %2$d 项 · 请求 %3$s · Token %4$s</string>
+    <string name="usage_summary_empty">%s · 暂无统计数据</string>
+    <string name="usage_clear_title">清空用量统计</string>
+    <string name="usage_clear_message">确定要清空服务端的所有用量统计吗？此操作不可恢复。</string>
+    <string name="usage_cleared">用量统计已清空</string>
+    <string name="usage_clear_failed">清空失败: %s</string>
 
     <!-- Time -->
     <string name="yesterday">昨天</string>

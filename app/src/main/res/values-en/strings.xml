@@ -57,6 +57,7 @@
     <string name="title_account_add">Add Account</string>
     <string name="title_log_viewer">Log Viewer</string>
     <string name="title_server_log">Server Logs</string>
+    <string name="title_usage_stats">Usage Stats</string>
 
     <!-- Menu items -->
     <string name="menu_search">Search</string>
@@ -71,6 +72,7 @@
     <string name="menu_account_manager">Account Manager</string>
     <string name="menu_view_log">View Logs</string>
     <string name="menu_server_log">Server Logs</string>
+    <string name="menu_usage_stats">Usage Stats</string>
     <string name="menu_about">About</string>
     <string name="menu_import">Import</string>
     <string name="menu_export">Export</string>
@@ -367,6 +369,23 @@
     <string name="server_log_clear_message">Clear all runtime logs on the server?</string>
     <string name="server_log_cleared">Server logs cleared</string>
     <string name="server_log_clear_failed">Clear failed: %s</string>
+
+    <!-- Usage stats -->
+    <string name="usage_window_total">All time</string>
+    <string name="usage_window_24h">Last 24 hours</string>
+    <string name="usage_window_7d">Last 7 days</string>
+    <string name="usage_window_30d">Last 30 days</string>
+    <string name="usage_filter_all">All</string>
+    <string name="usage_requests_format">Requests: %d</string>
+    <string name="usage_tokens_format">Total %1$s · prompt %2$s · completion %3$s</string>
+    <string name="usage_cached_format">Cached %1$s ⚡%2$s</string>
+    <string name="usage_empty">No usage data</string>
+    <string name="usage_summary_format">%1$s · %2$d items · requests %3$s · tokens %4$s</string>
+    <string name="usage_summary_empty">%s · no usage data</string>
+    <string name="usage_clear_title">Clear usage stats</string>
+    <string name="usage_clear_message">Clear all usage statistics on the server? This cannot be undone.</string>
+    <string name="usage_cleared">Usage statistics cleared</string>
+    <string name="usage_clear_failed">Clear failed: %s</string>
 
     <!-- Time -->
     <string name="yesterday">Yesterday</string>

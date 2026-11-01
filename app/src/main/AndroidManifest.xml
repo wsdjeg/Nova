@@ -93,6 +93,12 @@
             android:exported="false"
             android:label="@string/title_server_log" />
 
+        <!-- UsageStatsActivity -->
+        <activity
+            android:name=".UsageStatsActivity"
+            android:exported="false"
+            android:label="@string/title_usage_stats" />
+
         <!-- ShareActivity: 接收文本、图片、文件分享 -->
         <activity
             android:name=".ShareActivity"

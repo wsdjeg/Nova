@@ -22,6 +22,9 @@
                 android:id="@+id/action_settings"
                 android:title="@string/menu_settings" />
             <item
+                android:id="@+id/action_usage_stats"
+                android:title="@string/menu_usage_stats" />
+            <item
                 android:id="@+id/action_view_log"
                 android:title="@string/menu_view_log" />
             <item
