@@ -70,6 +70,7 @@ all from your phone.
 - Account import / export in JSON for easy migration across devices
 - Session list with search, pin/unpin, swipe actions, and live session count
 - Session settings - edit title, provider, model, cwd, and bridge integrations on the fly
+- Automatic model selection - choosing a provider without a model lets the server pick that provider's first available model, so a session can be configured even while the model list is still loading
 - Session token usage shown in the session list and session settings (compact k/M units)
 - Paginated history loading with DiffUtil incremental updates
 - In-session message search - toolbar search box with keyword matching and prev/next jump navigation between matches
@@ -171,6 +172,12 @@ No configuration file is needed - everything is set up inside the app.
 | Clear session | Chat -> menu -> **Clear session** |
 | Token usage | Shown in the session list and in session settings (compact k/M units) |
 
+Selecting a provider in session settings resets the model list to that provider's models.
+If the provider's model list has not finished loading on the server yet, the model field
+shows a loading placeholder - saving is still allowed, and the server picks the provider's
+first available model for you. The resolved model is read back afterwards, so the session
+info always shows the model actually in use.
+
 ### Chat
 
 | Action | How |
@@ -251,7 +258,7 @@ Nova supports WeChat integration via in-app QR code login.
 | Theme | System / Light / Dark |
 | Language | System / English / Chinese |
 | Default provider | Fetched from the server |
-| Default model | Depends on the selected provider |
+| Default model | Depends on the selected provider; leave it empty (or keep the loading placeholder) to let the server auto-select the first available model |
 | Account tag color | Auto (by account ID) or a fixed color from the unified five-color palette |
 | WeChat login | Connect / disconnect WeChat account |
 
@@ -264,10 +271,10 @@ All requests are authenticated via the `X-API-Key` header.
 | -------- | ------ | ----------- |
 | `/sessions` | GET | List all sessions |
 | `/sessions/:id` | GET | Get a single session |
-| `/session/new` | POST | Create a session |
+| `/session/new` | POST | Create a session (omit `model` to auto-select the first available model) |
 | `/session/:id` | DELETE | Delete a session |
 | `/session/:id/title` | PUT | Update session title |
-| `/session/:id/provider` | PUT | Update session provider |
+| `/session/:id/provider` | PUT | Update session provider (omit `model` to auto-select the first available model) |
 | `/session/:id/model` | PUT | Update session model |
 | `/session/:id/cwd` | PUT | Update session working directory |
 | `/session/:id/pin` | PUT | Pin / unpin a session |
@@ -288,6 +295,12 @@ All requests are authenticated via the `X-API-Key` header.
 | `/weixin/login/status` | GET | Poll WeChat QR login status (first call starts the login flow) |
 | `/weixin/credentials` | POST / DELETE | Write / clear WeChat credentials |
 | `/logs` | GET / DELETE | Fetch / clear server runtime logs |
+
+Both `PUT /session/:id/provider` and `POST /session/new` accept an optional `model`.
+When it is omitted, the server selects the provider's first available model and reports
+the resolved value back in the response. Nova relies on this to configure a session
+whose provider still has an empty model list (the list is loaded asynchronously on the
+server), then reads the session back to display the model actually in use.
 
 ## Project structure
 
@@ -408,6 +421,7 @@ Nova/
 - [x] Share from other apps (images / text)
 - [x] WeChat login (in-app QR code)
 - [x] Bridge (integration) settings
+- [x] Auto model selection when a provider is set without a model
 - [x] In-app update checker
 - [x] Multi-language support (Chinese / English)
 - [x] In-app log viewer (search / level filter / partial copy)
