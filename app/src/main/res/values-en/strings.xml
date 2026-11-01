@@ -179,6 +179,16 @@
 
     <!-- Session list -->
     <string name="search_session_hint">Search session titles</string>
+
+    <!-- In-chat message search -->
+    <string name="search_hint">Search messages</string>
+    <string name="search_cancel">Cancel search</string>
+    <string name="search_prev">Previous result</string>
+    <string name="search_next">Next result</string>
+    <string name="search_query_empty">Please enter a search term</string>
+    <string name="search_no_results">No matching messages</string>
+    <string name="search_failed">Search failed: %s</string>
+
     <string name="no_sessions_hint">No sessions, tap + to create a new one</string>
     <string name="creating_session">Creating new session...</string>
     <string name="session_created">New session created: %s</string>

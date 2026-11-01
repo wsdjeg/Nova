@@ -213,10 +213,11 @@ public class ChatActivity extends AppCompatActivity {
 
     // ==================== 会话内搜索 ====================
     // 菜单“搜索”进入搜索模式：搜索行合并进顶栏（替换 Toolbar 中的会话信息，
-    // 导航图标变✕取消搜索，隐藏右上角菜单），调用 GET /session/:id/search?q=
+    // 隐藏 Toolbar 导航图标与右上角菜单），调用 GET /session/:id/search?q=
     // 获取匹配消息的 1-based 下标列表，支持“上一个/下一个”跳转（越界环绕）。
     private View sessionInfoContainer;
     private View searchBar;
+    private ImageButton btnSearchClose;
     private EditText etSearch;
     private ImageButton btnSearchPrev;
     private ImageButton btnSearchNext;
@@ -365,10 +366,12 @@ public class ChatActivity extends AppCompatActivity {
         // 初始化会话内搜索
         sessionInfoContainer = findViewById(R.id.session_info_container);
         searchBar = findViewById(R.id.search_bar);
+        btnSearchClose = findViewById(R.id.btn_search_close);
         etSearch = findViewById(R.id.et_search);
         btnSearchPrev = findViewById(R.id.btn_search_prev);
         btnSearchNext = findViewById(R.id.btn_search_next);
         tvSearchCount = findViewById(R.id.tv_search_count);
+        btnSearchClose.setOnClickListener(v -> exitSearchMode());
         btnSearchPrev.setOnClickListener(v -> {
             if (searchResultIndices.isEmpty()) return;
             jumpToSearchResult(searchResultCursor - 1); // 越界环绕到最后一个
@@ -2257,6 +2260,10 @@ public class ChatActivity extends AppCompatActivity {
     
     /**
      * 进入搜索模式：顶栏切换为搜索行（替换会话信息）并聚焦输入框
+     *
+     * 空间分配：左侧取消 ✕ 占 1 个单元(40dp)，中间搜索框吃掉剩余全部宽度，
+     * 右侧上一个/下一个各占 1 个单元。因此需要隐藏 Toolbar 自带的导航图标，
+     * 否则它会和搜索行左侧的 ✕ 抢位置、压缩搜索框。
      */
     private void enterSearchMode() {
         if (searchBar == null || toolbar == null) return;
@@ -2265,9 +2272,9 @@ public class ChatActivity extends AppCompatActivity {
             sessionInfoContainer.setVisibility(View.GONE);
         }
         searchBar.setVisibility(View.VISIBLE);
-        // 导航图标变为“取消搜索”的 ✕
-        updateToolbarNavigationIcon(R.drawable.ic_close, false);
-        // 隐藏右上角菜单，给输入框和 上一个/下一个 让出空间
+        // 取消职责交给搜索行左侧的 ✕，顶栏导航图标隐藏以让出宽度
+        hideToolbarNavigationIcon();
+        // 隐藏右上角菜单，把整条顶栏交给搜索行
         setOverflowMenuVisible(false);
         updateSearchCounter();
         etSearch.requestFocus();
@@ -2300,6 +2307,17 @@ public class ChatActivity extends AppCompatActivity {
             }
         }
         resetSearchResults();
+    }
+    
+    /**
+     * 隐藏 Toolbar 导航图标
+     *
+     * 搜索模式下顶栏左侧由搜索行的 ✕ 接管，置空导航图标后 Toolbar 不再为它
+     * 预留 contentInsetStartWithNavigation，搜索行可以从最左侧开始排布。
+     */
+    private void hideToolbarNavigationIcon() {
+        if (toolbar == null) return;
+        toolbar.setNavigationIcon(null);
     }
     
     /**
