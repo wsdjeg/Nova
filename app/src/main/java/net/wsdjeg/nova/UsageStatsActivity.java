@@ -10,6 +10,7 @@ import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
@@ -31,6 +32,7 @@ import java.util.Map;
  * - DELETE /usage-stats: 清空全部统计
  *
  * 功能:
+ * - 账号筛选: 每台服务器的统计数据互相独立，切换账号即切换数据源
  * - 时间窗口 Chip: 全部 / 最近 24 小时 / 最近 7 天 / 最近 30 天
  * - Provider / Model 下拉筛选
  * - 统计概要（记录条数 + 汇总请求与 tokens）
@@ -47,8 +49,13 @@ public class UsageStatsActivity extends AppCompatActivity {
     /** Spinner "全部" 选项的哨兵值（真实 provider/model 名不会是 "*"） */
     private static final String ALL = "*";
 
+    /** 旋转屏幕后恢复所选账号的 key */
+    private static final String STATE_ACCOUNT_ID = "state_usage_account_id";
+
+    private AccountManager accountManager;
     private ApiClient apiClient;
 
+    private Spinner spAccount;
     private Spinner spProvider;
     private Spinner spModel;
     private TextView tvSummary;
@@ -56,10 +63,15 @@ public class UsageStatsActivity extends AppCompatActivity {
     private RecyclerView rvRecords;
     private UsageStatsAdapter adapter;
 
+    private ArrayAdapter<String> accountAdapter;
     private ArrayAdapter<String> providerAdapter;
     private ArrayAdapter<String> modelAdapter;
 
+    /** 可用于统计查询的账号（URL 与 API Key 均非空） */
+    private final List<Account> usageAccounts = new ArrayList<>();
+
     /** Spinner 选项列表（首项为本地化的"全部"标签） */
+    private final List<String> accountLabels = new ArrayList<>();
     private final List<String> providerNames = new ArrayList<>();
     private final List<String> modelNames = new ArrayList<>();
 
@@ -71,6 +83,7 @@ public class UsageStatsActivity extends AppCompatActivity {
     /** 最近一次成功拉取的完整数据（本地筛选，切换 provider/model 不重复请求） */
     private UsageStats lastStats;
 
+    private boolean suppressAccountListener = false;
     private boolean suppressProviderListener = false;
     private boolean suppressModelListener = false;
     private boolean loading = false;
@@ -87,25 +100,48 @@ public class UsageStatsActivity extends AppCompatActivity {
             getSupportActionBar().setTitle(R.string.title_usage_stats);
         }
 
-        AccountManager accountManager = AccountManager.getInstance(this);
-        Account account = accountManager.getCurrentAccount();
-        if (account == null) {
-            account = accountManager.getDefaultAccount();
-        }
-        if (account == null
-                || account.getUrl() == null || account.getUrl().isEmpty()
-                || account.getApiKey() == null || account.getApiKey().isEmpty()) {
-            Toast.makeText(this, R.string.please_add_account, Toast.LENGTH_SHORT).show();
+        accountManager = AccountManager.getInstance(this);
+        collectUsageAccounts();
+
+        if (usageAccounts.isEmpty()) {
+            // 没有任何配置完整的账号，无法查询统计
+            if (accountManager.hasAccounts()) {
+                Toast.makeText(this, R.string.account_config_incomplete, Toast.LENGTH_SHORT).show();
+            } else {
+                Toast.makeText(this, R.string.please_add_account, Toast.LENGTH_SHORT).show();
+            }
             finish();
             return;
         }
-        apiClient = new ApiClient(account.getUrl(), account.getApiKey());
 
         initViews();
-        refresh();
+
+        String preferredId = savedInstanceState != null
+                ? savedInstanceState.getString(STATE_ACCOUNT_ID) : null;
+        if (preferredId == null && accountManager.getCurrentAccount() != null) {
+            preferredId = accountManager.getCurrentAccount().getId();
+        }
+
+        int initialIndex = indexOfAccountId(preferredId);
+        suppressAccountListener = true;
+        spAccount.setSelection(initialIndex);
+        suppressAccountListener = false;
+
+        activateAccount(usageAccounts.get(initialIndex));
+    }
+
+    @Override
+    protected void onSaveInstanceState(@NonNull Bundle outState) {
+        super.onSaveInstanceState(outState);
+        if (spAccount != null && spAccount.getSelectedItemPosition() >= 0
+                && spAccount.getSelectedItemPosition() < usageAccounts.size()) {
+            outState.putString(STATE_ACCOUNT_ID,
+                    usageAccounts.get(spAccount.getSelectedItemPosition()).getId());
+        }
     }
 
     private void initViews() {
+        spAccount = findViewById(R.id.sp_usage_account);
         spProvider = findViewById(R.id.sp_usage_provider);
         spModel = findViewById(R.id.sp_usage_model);
         tvSummary = findViewById(R.id.tv_usage_summary);
@@ -115,6 +151,12 @@ public class UsageStatsActivity extends AppCompatActivity {
         adapter = new UsageStatsAdapter();
         rvRecords.setLayoutManager(new LinearLayoutManager(this));
         rvRecords.setAdapter(adapter);
+
+        // Account Spinner
+        accountAdapter = new ArrayAdapter<>(this,
+                android.R.layout.simple_spinner_item, accountLabels);
+        accountAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spAccount.setAdapter(accountAdapter);
 
         // Provider Spinner
         providerAdapter = new ArrayAdapter<>(this,
@@ -127,6 +169,21 @@ public class UsageStatsActivity extends AppCompatActivity {
                 android.R.layout.simple_spinner_item, modelNames);
         modelAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spModel.setAdapter(modelAdapter);
+
+        // Account 选择监听：切换服务器后重新拉取
+        spAccount.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                if (suppressAccountListener || position < 0 || position >= usageAccounts.size()) {
+                    return;
+                }
+                activateAccount(usageAccounts.get(position));
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {
+            }
+        });
 
         // Provider 选择监听
         spProvider.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
@@ -180,6 +237,67 @@ public class UsageStatsActivity extends AppCompatActivity {
                 refresh();
             }
         });
+    }
+
+    // ------------------------------------------------------------------
+    // 账号切换
+    // ------------------------------------------------------------------
+
+    /** 收集配置完整（URL 与 API Key 均非空）的账号，用于账号筛选 Spinner */
+    private void collectUsageAccounts() {
+        usageAccounts.clear();
+        accountLabels.clear();
+        for (Account account : accountManager.getAccounts()) {
+            if (account.getUrl() == null || account.getUrl().isEmpty()) {
+                continue;
+            }
+            if (account.getApiKey() == null || account.getApiKey().isEmpty()) {
+                continue;
+            }
+            usageAccounts.add(account);
+            // 默认账号追加标记，便于区分同名账号
+            String label = account.getDisplayName();
+            if (account.isDefault()) {
+                label = label + " · " + getString(R.string.default_account);
+            }
+            accountLabels.add(label);
+        }
+    }
+
+    /** 根据账号 ID 找到 Spinner 下标，找不到时返回 0 */
+    private int indexOfAccountId(String accountId) {
+        if (accountId != null) {
+            for (int i = 0; i < usageAccounts.size(); i++) {
+                if (accountId.equals(usageAccounts.get(i).getId())) {
+                    return i;
+                }
+            }
+        }
+        return 0;
+    }
+
+    /** 切换到指定账号：重建 ApiClient、重置筛选状态并重新拉取数据 */
+    private void activateAccount(Account account) {
+        apiClient = new ApiClient(account.getUrl(), account.getApiKey());
+
+        // 切换数据源后旧的筛选结果不再有效，全部重置
+        lastStats = null;
+        currentProvider = ALL;
+        currentModel = ALL;
+
+        suppressProviderListener = true;
+        providerNames.clear();
+        providerNames.add(getString(R.string.usage_filter_all));
+        providerAdapter.notifyDataSetChanged();
+        spProvider.setSelection(0);
+        suppressProviderListener = false;
+
+        updateModelSpinner(null, null);
+
+        adapter.setData(new ArrayList<>());
+        tvEmpty.setVisibility(View.GONE);
+
+        refresh();
     }
 
     // ------------------------------------------------------------------
