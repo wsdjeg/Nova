@@ -48,6 +48,7 @@ all from your phone.
     - [Account management](#account-management)
     - [Session management](#session-management)
     - [Chat](#chat)
+    - [Usage stats](#usage-stats)
     - [Image upload](#image-upload)
     - [Share](#share)
     - [Voice input](#voice-input)
@@ -71,7 +72,9 @@ all from your phone.
 - Session list with search, pin/unpin, swipe actions, and live session count
 - Session settings - edit title, provider, model, cwd, and bridge integrations on the fly
 - Automatic model selection - choosing a provider without a model lets the server pick that provider's first available model, so a session can be configured even while the model list is still loading
-- Session token usage shown in the session list and session settings (compact k/M units)
+- Session-level token usage shown in the session list, the chat toolbar, and session settings (compact k/M units, plus cache hit ratio)
+- Per-request token usage badge after each assistant reply (`↑in ↓out ⚡cache%`), including rounds that used tool calls
+- Usage stats viewer - server-side totals grouped by provider / model, filterable by time window (all / 24h / 7d / 30d) and by provider / model, with a cache hit ratio per entry
 - Paginated history loading with DiffUtil incremental updates
 - In-session message search - toolbar search box with keyword matching and prev/next jump navigation between matches
 - Stop and retry AI generation at any time
@@ -170,7 +173,8 @@ No configuration file is needed - everything is set up inside the app.
 | Pin / Unpin | Swipe right to pin, swipe left to unpin (or use session settings) |
 | Delete session | Chat -> menu -> **Delete session** (or long-press in the list) |
 | Clear session | Chat -> menu -> **Clear session** |
-| Token usage | Shown in the session list and in session settings (compact k/M units) |
+| Token usage | Shown in the session list, the chat toolbar, and session settings (compact k/M units) |
+| Usage stats | Session list -> menu -> **Usage stats** |
 
 Selecting a provider in session settings resets the model list to that provider's models.
 If the provider's model list has not finished loading on the server yet, the model field
@@ -204,6 +208,31 @@ Full-width slash variants (`／`, `⁄`, `∕`) are normalized automatically, so
 Chinese IME input works with slash commands and skill names too.
 The skill list is fetched from the server (5-minute cache) and shows
 loading / error / empty states inline.
+
+Each assistant reply carries a compact token badge showing that request's
+consumption (`↑prompt ↓completion`, plus `⚡cache%` when the provider served part
+of the prompt from its prefix cache). For rounds that used tool calls, the badge
+is rendered after the tool-call list so every LLM request in the round is accounted for.
+
+### Usage stats
+
+Session list -> menu -> **Usage stats** opens a server-side usage dashboard
+(`GET /usage-stats`). The server keeps three aggregation layers (total / hourly /
+daily), and the viewer picks the right one for the selected time window.
+
+| Control | Effect |
+| ------- | ------ |
+| Window chips | All / last 24 hours / last 7 days / last 30 days |
+| Provider spinner | Restrict to one provider, or keep **All** |
+| Model spinner | Restrict to one model; options follow the selected provider |
+| Refresh | Re-fetch the current window from the server |
+| Clear | `DELETE /usage-stats` - wipes every layer after a confirmation dialog |
+
+Each row shows the request count, total / prompt / completion tokens, and the
+cache hit ratio (`cached_tokens / prompt_tokens`). The summary line aggregates
+the currently filtered rows. Filtering is applied locally on the fetched data,
+so switching provider or model does not hit the network again - only changing
+the time window does.
 
 ### Image upload
 
@@ -288,6 +317,8 @@ All requests are authenticated via the `X-API-Key` header.
 | `/` | POST | Send a message |
 | `/providers` | GET | List available providers |
 | `/skills` | GET | List available skills (used for slash autocomplete) |
+| `/usage-stats` | GET | Usage totals per provider / model (supports `hours` / `days` windows) |
+| `/usage-stats` | DELETE | Clear all usage stats (total / hourly / daily layers) |
 | `/session/:id/upload?path={dir}` | POST | Upload an image to the session working directory |
 | `/session/:id/upload-dir` | GET / PUT | Get / set the upload directory |
 | `/session/:id/bridge` | GET | List integrations bound to a session |
@@ -308,7 +339,7 @@ server), then reads the session back to display the model actually in use.
 Nova/
 ├── app/src/main/java/net/wsdjeg/nova/
 │   ├── SessionListActivity.java       # Session list (launcher, search, swipe actions)
-│   ├── ChatActivity.java              # Chat screen (in-session search, skills popup)
+│   ├── ChatActivity.java              # Chat screen (in-session search, skills popup, token usage)
 │   ├── ChatUploadHelper.java          # Image upload helper (batch upload, progress)
 │   ├── ChatVoiceHelper.java           # Voice recognition helper (Vosk + system fallback)
 │   ├── SessionSettingsActivity.java   # Session settings (title / provider / model / cwd / bridge)
@@ -321,6 +352,8 @@ Nova/
 │   ├── NovaLog.java                   # In-app logging system
 │   ├── ServerLogActivity.java         # Server runtime log viewer (/logs API)
 │   ├── ServerLogAdapter.java          # Server runtime log adapter
+│   ├── UsageStatsActivity.java        # Usage stats viewer (window / provider / model filters)
+│   ├── UsageStatsAdapter.java         # Usage stats list adapter
 │   ├── ShareActivity.java             # Share target (image upload / text send)
 │   ├── WeChatLoginActivity.java       # WeChat QR code login screen
 │   ├── api/                           # HTTP API modules (split from ApiClient, each under 500 lines)
@@ -334,6 +367,7 @@ Nova/
 │   │   ├── SessionApi.java            # Session list / create / delete / detail
 │   │   ├── SessionSettingsApi.java    # Title / provider / model / cwd / pin updates
 │   │   ├── UploadApi.java             # Image upload + upload directory settings
+│   │   ├── UsageStatsApi.java         # Usage stats query / clear
 │   │   └── WeChatApi.java             # WeChat login status / credentials
 │   ├── ApiClient.java                 # HTTP API facade (delegates to api/ modules)
 │   ├── SessionManager.java            # Session persistence & drafts
@@ -342,16 +376,19 @@ Nova/
 │   ├── Session.java                   # Session model
 │   ├── Message.java                   # Message model
 │   ├── ChatMessage.java               # Chat message DTO (top-level)
+│   ├── MessageUsage.java              # Per-request token usage model
 │   ├── ToolCall.java                  # Tool call DTO (top-level)
 │   ├── ToolCallFunction.java          # Tool call function DTO (top-level)
 │   ├── ToolCallState.java             # Tool call state DTO (top-level)
 │   ├── Provider.java                  # Provider DTO (top-level)
 │   ├── Skill.java                     # Skill DTO (top-level)
+│   ├── UsageStats.java                # Usage stats aggregate model (provider -> model -> record)
+│   ├── UsageRecord.java               # Single provider / model usage record
 │   ├── Account.java                   # Account model
 │   ├── WeChatLoginResult.java         # WeChat login result model
 │   ├── QRCodeUtils.java               # QR code generation (ZXing)
 │   ├── SessionAdapter.java            # Session list adapter (swipe, pin)
-│   ├── MessageAdapter.java            # Message adapter (DiffUtil, fingerprints)
+│   ├── MessageAdapter.java            # Message adapter (DiffUtil, fingerprints, usage badges)
 │   ├── AccountAdapter.java            # Account list adapter
 │   ├── SkillAdapter.java              # Skills autocomplete popup adapter
 │   ├── TagColorPicker.java            # Shared account tag color picker (five-color palette)
@@ -363,9 +400,9 @@ Nova/
 │   ├── TimeUtils.java                 # Time formatting
 │   └── NovaApplication.java           # Application entry
 ├── app/src/main/res/
-│   ├── layout/                        # 28 layout XMLs
-│   ├── menu/                          # 9 menu XMLs
-│   ├── drawable/                      # 32 drawable resources
+│   ├── layout/                        # 32 layout XMLs
+│   ├── menu/                          # 10 menu XMLs
+│   ├── drawable/                      # 37 drawable resources
 │   ├── values/                        # colors, strings, themes
 │   ├── values-en/                     # English string resources
 │   ├── values-night/                  # dark theme overrides
@@ -426,7 +463,9 @@ Nova/
 - [x] Multi-language support (Chinese / English)
 - [x] In-app log viewer (search / level filter / partial copy)
 - [x] Server runtime log viewer (/logs API)
-- [x] Session token usage display
+- [x] Session-level token usage display (session list / chat toolbar / session settings)
+- [x] Per-request token usage badge (including tool-call rounds)
+- [x] Usage stats viewer (time window + provider / model filter, clear stats)
 - [x] Date separators in message stream
 - [x] Unified five-color account tag palette
 - [x] Adaptive tool-card height (no fixed 10-line expanded view)
