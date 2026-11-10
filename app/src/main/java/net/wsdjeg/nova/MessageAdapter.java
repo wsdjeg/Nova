@@ -3,6 +3,7 @@ package net.wsdjeg.nova;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
+import android.text.StaticLayout;
 import android.text.method.ArrowKeyMovementMethod;
 import android.text.method.LinkMovementMethod;
 import android.util.Log;
@@ -706,13 +707,24 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
         return sb.toString();
     }
     /**
-     * 计算内容区域的高度（dp）
+     * 计算内容区域显示 lines 行所需的高度（像素）
+     *
+     * 用 TextView 实际字体行高 + 上下内边距计算，避免固定 18sp 估算
+     * 与真实行高不一致导致折叠后那一行被裁切。
      */
-    private int calculateHeightPx(int lines) {
-        // 每行高度(像素) = 基础高度 × 1.0 × density
+    private int calculateHeightPx(TextView contentText, int lines) {
+        int lineHeight;
+        if (contentText != null) {
+            android.graphics.Paint.FontMetricsInt fm = contentText.getPaint().getFontMetricsInt();
+            lineHeight = fm.descent - fm.ascent;
+            int padding = contentText.getCompoundPaddingTop() + contentText.getCompoundPaddingBottom();
+            if (lineHeight > 0) {
+                return lineHeight * lines + padding;
+            }
+        }
+        // 兜底：按基础每行高度保守估算
         float density = context.getResources().getDisplayMetrics().density;
-        float lineSp = BASE_LINE_HEIGHT_SP * HEIGHT_SCALE_FACTOR; // 18sp × 1.0 = 18sp
-        return (int) (lineSp * lines * density);
+        return (int) (BASE_LINE_HEIGHT_SP * HEIGHT_SCALE_FACTOR * lines * density);
     }
 
     private void bindToolCallViewHolder(ToolCallViewHolder holder, ToolCallItem item, String stableKey) {
@@ -734,35 +746,21 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
             }
             holder.contentText.setVisibility(View.VISIBLE);
 
-            holder.contentText.post(() -> {
-                int lineCount = holder.contentText.getLineCount();
-                if (lineCount > COLLAPSED_LINES) {
-                    holder.expandHint.setVisibility(View.VISIBLE);
-                    boolean isExpanded = expandedToolCalls.contains(stableKey);
-                    updateContentHeight(holder, isExpanded);
-                    holder.expandHint.setText(isExpanded ? context.getString(R.string.collapse) : context.getString(R.string.expand));
-                } else {
-                    holder.expandHint.setVisibility(View.GONE);
-                    holder.contentScrollV.setScrollEnabled(false);
-                    holder.contentScrollV.getLayoutParams().height = ViewGroup.LayoutParams.WRAP_CONTENT;
-                }
-            });
+            holder.contentText.post(() -> applyFoldState(holder.contentScrollV, holder.contentText,
+                holder.expandHint, expandedToolCalls.contains(stableKey)));
         } else {
             holder.contentText.setVisibility(View.GONE);
             holder.expandHint.setVisibility(View.GONE);
         }
 
         View.OnClickListener toggleListener = v -> {
-            boolean isExpanded = expandedToolCalls.contains(stableKey);
-            if (isExpanded) {
+            if (expandedToolCalls.contains(stableKey)) {
                 expandedToolCalls.remove(stableKey);
-                updateContentHeight(holder, false);
-                holder.expandHint.setText(context.getString(R.string.expand));
             } else {
                 expandedToolCalls.add(stableKey);
-                updateContentHeight(holder, true);
-                holder.expandHint.setText(context.getString(R.string.collapse));
             }
+            applyFoldState(holder.contentScrollV, holder.contentText, holder.expandHint,
+                expandedToolCalls.contains(stableKey));
         };
         holder.expandHint.setOnClickListener(toggleListener);
 
@@ -770,33 +768,72 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
         setupLongPressMenu(holder.itemView, toolCallCopyText, item.parentMessage, null);
     }
 
-    private void updateContentHeight(ToolCallViewHolder holder, boolean isExpanded) {
-        updateScrollContentHeight(holder.contentScrollV, holder.contentText, isExpanded);
+    /**
+     * 计算内容按卡片可用宽度折行后的真实可视行数。
+     *
+     * 内容 TextView 位于 HorizontalScrollView 内，横向测量为 UNSPECIFIED，
+     * 此时 TextView 自身不做折行，getLineCount() 对一条超长单行永远返回 1，
+     * 导致“单行超长内容不显示折叠按钮、卡片被撑得很大”。
+     * 这里用 StaticLayout 在 maxWidth 约束下重新排版，得到折行后的真实行数，
+     * 显式换行与自动折行都能正确计数。
+     */
+    private int measureVisualLineCount(TextView contentText) {
+        CharSequence text = contentText.getText();
+        if (text == null || text.length() == 0) {
+            return 0;
+        }
+        int available = contentText.getMaxWidth();
+        int horizontalPadding = contentText.getCompoundPaddingLeft()
+            + contentText.getCompoundPaddingRight();
+        if (available <= 0 || available >= Integer.MAX_VALUE / 2) {
+            // 未设置 maxWidth：退化为当前布局宽度
+            available = contentText.getWidth();
+        }
+        available -= horizontalPadding;
+        if (available <= 0) {
+            return Math.max(1, contentText.getLineCount());
+        }
+        StaticLayout layout = StaticLayout.Builder
+            .obtain(text, 0, text.length(), contentText.getPaint(), available)
+            .setIncludePad(false)
+            .setLineSpacing(0f, 1f)
+            .build();
+        return Math.max(1, layout.getLineCount());
     }
 
     /**
-     * 更新工具卡片内容区域高度。
-     * 展开（isExpanded=true）时：
-     * - 内容不超过 EXPANDED_LINES 行：高度自适应内容（WRAP_CONTENT），无需内部滚动
-     * - 内容超过 EXPANDED_LINES 行：固定最大高度，启用内部滚动
-     * 折叠时固定 COLLAPSED_LINES 行高度。
+     * 应用工具卡片（工具调用 / 工具结果）的折叠状态。
+     *
+     * - 行数超过 COLLAPSED_LINES（含折行产生的额外行）：显示折叠按钮
+     * - 折叠：固定 COLLAPSED_LINES（1 行）高度，关闭内部滚动
+     * - 展开且行数不超过 EXPANDED_LINES：高度自适应内容，避免卡片出现大片空白
+     * - 展开且行数超过 EXPANDED_LINES：固定最大高度并启用内部滚动
      */
-    private void updateScrollContentHeight(ToolContentScrollView scrollView, TextView contentText, boolean isExpanded) {
-        if (isExpanded && contentText.getLineCount() <= EXPANDED_LINES) {
-            // 内容较少：展开后按实际内容高度显示，避免卡片出现大片空白
-            scrollView.getLayoutParams().height = ViewGroup.LayoutParams.WRAP_CONTENT;
-            scrollView.setScrollEnabled(false);
-            scrollView.requestLayout();
+    private void applyFoldState(ToolContentScrollView scrollView, TextView contentText,
+                                TextView expandHint, boolean isExpanded) {
+        int lineCount = measureVisualLineCount(contentText);
+        boolean foldable = lineCount > COLLAPSED_LINES;
+        expandHint.setVisibility(foldable ? View.VISIBLE : View.GONE);
+        expandHint.setText(isExpanded ? context.getString(R.string.collapse)
+                                      : context.getString(R.string.expand));
+
+        if (!foldable || (isExpanded && lineCount <= EXPANDED_LINES)) {
+            setScrollViewHeight(scrollView, ViewGroup.LayoutParams.WRAP_CONTENT, false);
             return;
         }
-        int heightPx = calculateHeightPx(isExpanded ? EXPANDED_LINES : COLLAPSED_LINES);
-        scrollView.getLayoutParams().height = heightPx;
-        scrollView.setScrollEnabled(isExpanded);
-        scrollView.requestLayout();
+        int heightPx = calculateHeightPx(contentText, isExpanded ? EXPANDED_LINES : COLLAPSED_LINES);
+        setScrollViewHeight(scrollView, heightPx, isExpanded);
+        if (!isExpanded) {
+            // 折叠后必须回到首行，否则会停留在展开时的滚动位置
+            scrollView.scrollTo(0, 0);
+        }
     }
 
-    private void updateResultContentHeight(ToolResultViewHolder holder, boolean isExpanded) {
-        updateScrollContentHeight(holder.contentScrollV, holder.contentText, isExpanded);
+    private void setScrollViewHeight(ToolContentScrollView scrollView, int heightPx,
+                                     boolean scrollEnabled) {
+        scrollView.getLayoutParams().height = heightPx;
+        scrollView.setScrollEnabled(scrollEnabled);
+        scrollView.requestLayout();
     }
 
     private void bindToolResultViewHolder(ToolResultViewHolder holder, Message message, String stableKey) {
@@ -817,35 +854,21 @@ public class MessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
             holder.contentText.setText(content);
             holder.contentText.setVisibility(View.VISIBLE);
 
-            holder.contentText.post(() -> {
-                int lineCount = holder.contentText.getLineCount();
-                if (lineCount > COLLAPSED_LINES) {
-                    holder.expandHint.setVisibility(View.VISIBLE);
-                    boolean isExpanded = expandedToolResults.contains(stableKey);
-                    updateResultContentHeight(holder, isExpanded);
-                    holder.expandHint.setText(isExpanded ? context.getString(R.string.collapse) : context.getString(R.string.expand));
-                } else {
-                    holder.expandHint.setVisibility(View.GONE);
-                    holder.contentScrollV.setScrollEnabled(false);
-                    holder.contentScrollV.getLayoutParams().height = ViewGroup.LayoutParams.WRAP_CONTENT;
-                }
-            });
+            holder.contentText.post(() -> applyFoldState(holder.contentScrollV, holder.contentText,
+                holder.expandHint, expandedToolResults.contains(stableKey)));
         } else {
             holder.contentText.setVisibility(View.GONE);
             holder.expandHint.setVisibility(View.GONE);
         }
 
         View.OnClickListener toggleListener = v -> {
-            boolean isExpanded = expandedToolResults.contains(stableKey);
-            if (isExpanded) {
+            if (expandedToolResults.contains(stableKey)) {
                 expandedToolResults.remove(stableKey);
-                updateResultContentHeight(holder, false);
-                holder.expandHint.setText(context.getString(R.string.expand));
             } else {
                 expandedToolResults.add(stableKey);
-                updateResultContentHeight(holder, true);
-                holder.expandHint.setText(context.getString(R.string.collapse));
             }
+            applyFoldState(holder.contentScrollV, holder.contentText, holder.expandHint,
+                expandedToolResults.contains(stableKey));
         };
         holder.expandHint.setOnClickListener(toggleListener);
 
