@@ -209,6 +209,20 @@ Chinese IME input works with slash commands and skill names too.
 The skill list is fetched from the server (5-minute cache) and shows
 loading / error / empty states inline.
 
+Input starting with `/` is sent as a skill command and **never appended to the
+message list**:
+
+- No optimistic (pending) bubble is inserted. The server dispatches `/name` as
+  a skill and stores no user message with that text, so a pending bubble could
+  never be replaced by a server message - it would stay on screen forever.
+- The send button does not switch to the stop state: a skill runs on the server
+  queue without an LLM request, so there is nothing to cancel.
+- Content-type skills (`/help`, unknown-command hints) still show up: the server
+  appends an assistant message, which the 3-second auto refresh picks up.
+- State-type skills (`/title`, `/model`, `/provider`, `/cwd`, `/pin`, `/retry`)
+  stay completely silent - their state change is reflected in the toolbar
+  (title / provider / model / cwd / message count) by the same auto refresh.
+
 Each assistant reply carries a compact token badge showing that request's
 consumption (`↑prompt ↓completion`, plus `⚡cache%` when the provider served part
 of the prompt from its prefix cache). For rounds that used tool calls, the badge

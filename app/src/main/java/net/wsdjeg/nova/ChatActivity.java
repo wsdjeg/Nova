@@ -74,6 +74,9 @@ import java.util.Set;
  * - 发送消息时添加 pending 消息（临时显示）
  * - 服务端返回后，用正式消息替换 pending 消息
  * - 避免重复消息问题
+ * - 例外：以 / 开头的 skill 命令不插入 pending 气泡。服务端把 /name 当作
+ *   skill 调用，不会落库一条同内容的 user 消息，pending 气泡永远无法被替换；
+ *   内容型 skill 的回执由增量刷新正常追加，状态型 skill 完全静默。
  * 
  * 键盘处理机制：
  * - 键盘弹出/关闭时，RecyclerView 高度变化
@@ -2063,6 +2066,13 @@ public class ChatActivity extends AppCompatActivity {
         // 注意声明为 final：后续 lambda 回调需要引用该变量
         final String content = normalizeSlashVariants(raw);
         if (content.isEmpty()) return;
+        
+        // 斜杠命令（skill）：不进入消息列表
+        if (content.startsWith("/")) {
+            sendSkillCommand(content);
+            return;
+        }
+        
         hideSkillsPopup();
         etMessage.setText("");
         
@@ -2101,6 +2111,46 @@ public class ChatActivity extends AppCompatActivity {
                     isInProgress = false;
                     Toast.makeText(ChatActivity.this, getString(R.string.send_failed, error), Toast.LENGTH_SHORT).show();
                 });
+            }
+        });
+    }
+    
+    /**
+     * 发送斜杠命令（skill）。
+     *
+     * 命令本身不进入消息列表：
+     * - 不插入 pending 气泡。服务端把 /name 当作 skill 调用，不会落库一条
+     *   同内容的 user 消息，pending 气泡永远等不到"被服务端消息替换"的时刻，
+     *   只会永久留在列表里（既污染界面，也会被误认为已发送的对话内容）。
+     * - 不切换到"生成中"按钮状态。skill 由服务端排队处理后立即返回，不产生
+     *   LLM 生成；把按钮显示成"停止"会让用户以为可以取消一个并不存在的请求。
+     *
+     * 回执由后续刷新取得，分两种：
+     * - 内容型 skill（/help、未知命令提示等）：服务端追加一条 assistant 消息，
+     *   自动刷新（3s）按服务端消息数变化拉取并显示；
+     * - 状态型 skill（/title、/model、/provider、/cwd、/pin、/retry 等）：
+     *   服务端完全静默（回执只走本地弹窗），这里也就什么都不显示，状态变化
+     *   由自动刷新同步到工具栏（标题 / provider / model / cwd / 消息数）。
+     *
+     * 另外主动刷新一次：服务端消息数可能在这一轮里就已经变了（如 /clear 使
+     * 消息数下降），不必等下一次轮询。
+     *
+     * @param content 已规范化的命令文本，以 "/" 开头
+     */
+    private void sendSkillCommand(final String content) {
+        hideSkillsPopup();
+        etMessage.setText("");
+        
+        apiClient.sendMessage(currentSessionId, content, new ApiClient.MessageCallback() {
+            @Override
+            public void onSuccess() {
+                runOnUiThread(() -> refreshMessages());
+            }
+            
+            @Override
+            public void onError(String error) {
+                runOnUiThread(() -> Toast.makeText(ChatActivity.this,
+                        getString(R.string.send_failed, error), Toast.LENGTH_SHORT).show());
             }
         });
     }
