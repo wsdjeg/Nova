@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- About page -->
+    <string name="about_tagline">An Android AI companion for chat.nvim.</string>
+    <string name="about_intro">Nova is an AI chat client for Android that connects you to chat.nvim anytime, anywhere — chat with your AI assistant, get programming help, documentation lookup, and smart tool services.</string>
+
+    <!-- Build info -->
+    <string name="about_version_format">Version: %1$s</string>
+    <string name="about_build_format">Build: %1$s · %2$s</string>
+    <string name="about_build_date_only">Build: %1$s</string>
+    <string name="about_build_date_unknown">unknown</string>
+    <string name="about_build_info_copied">Build info copied</string>
+    <string name="about_copy_info">Nova %1$s\n%2$s</string>
+
+    <!-- Project links -->
+    <string name="about_links_title">Project Links</string>
+    <string name="about_link_github_subtitle">Source code and contributions</string>
+    <string name="about_link_chat_nvim_subtitle">Project docs and introduction</string>
+    <string name="about_link_changelog_title">Changelog</string>
+    <string name="about_link_changelog_subtitle">View version changes</string>
+    <string name="about_link_issues_title">Issues</string>
+    <string name="about_link_issues_subtitle">Report bugs or request features</string>
+    <string name="about_link_check_update_subtitle">Get the latest version</string>
+
+    <!-- Footer -->
+    <string name="about_copyright">© 2026 wsdjeg</string>
+    <string name="about_license">Licensed under GPL-3.0</string>
+</resources>
+

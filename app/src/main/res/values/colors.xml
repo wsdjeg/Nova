@@ -89,7 +89,9 @@
     <!-- Link color -->
     <color name="link_color">#1976D2</color>
 
-    <!-- Divider for about page -->
+    <!-- About page -->
+    <color name="about_page_bg">#FAFAFC</color>
+    <color name="about_card_bg">#FFFFFF</color>
     <color name="about_divider">#E0E0E0</color>
 
     <!-- Popup menu colors -->

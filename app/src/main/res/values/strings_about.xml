@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- About page -->
+    <string name="about_tagline">An Android AI companion for chat.nvim.</string>
+    <string name="about_intro">Nova 是一款面向 Android 的 AI 聊天客户端，让您随时随地连接 chat.nvim，与 AI 助手交流，获取编程帮助、文档查询及智能工具服务。</string>
+
+    <!-- Build info -->
+    <string name="about_version_format">Version：%1$s</string>
+    <string name="about_build_format">Build：%1$s · %2$s</string>
+    <string name="about_build_date_only">Build：%1$s</string>
+    <string name="about_build_date_unknown">未知</string>
+    <string name="about_build_info_copied">已复制构建信息</string>
+    <string name="about_copy_info">Nova %1$s\n%2$s</string>
+
+    <!-- Project links -->
+    <string name="about_links_title">项目链接</string>
+    <string name="about_link_github_subtitle">源代码与项目贡献</string>
+    <string name="about_link_chat_nvim_subtitle">项目文档与介绍</string>
+    <string name="about_link_changelog_title">更新日志</string>
+    <string name="about_link_changelog_subtitle">查看版本更新内容</string>
+    <string name="about_link_issues_title">问题反馈</string>
+    <string name="about_link_issues_subtitle">提交 Bug 或功能建议</string>
+    <string name="about_link_check_update_subtitle">获取最新版本</string>
+
+    <!-- Footer -->
+    <string name="about_copyright">© 2026 wsdjeg</string>
+    <string name="about_license">Licensed under GPL-3.0</string>
+</resources>
+

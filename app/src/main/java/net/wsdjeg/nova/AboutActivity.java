@@ -2,6 +2,9 @@ package net.wsdjeg.nova;
 
 import android.app.AlertDialog;
 import android.app.ProgressDialog;
+import android.content.ClipData;
+import android.content.ClipboardManager;
+import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageInfo;
@@ -14,6 +17,8 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -67,6 +72,11 @@ public class AboutActivity extends AppCompatActivity {
     private static final String GITHUB_URL = "https://github.com/wsdjeg/Nova";
     // chat.nvim 官网
     private static final String CHAT_NVIM_URL = "https://nvim.chat";
+    // 更新日志
+    private static final String CHANGELOG_URL =
+            "https://github.com/wsdjeg/Nova/blob/master/CHANGELOG.md";
+    // 问题反馈（GitHub Issues）
+    private static final String ISSUES_URL = "https://github.com/wsdjeg/Nova/issues";
     // SharedPreferences 用于 ETag 缓存，减少 API 调用次数（避免 403 速率限制）
     private static final String PREFS_NAME = "nova_update_cache";
     private static final String KEY_ETAG_RELEASES = "etag_releases";
@@ -80,6 +90,7 @@ public class AboutActivity extends AppCompatActivity {
     private ProgressBar downloadProgressBar;
     private TextView downloadProgressText;
     private Call downloadCall;
+    private String buildInfoText;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -138,16 +149,64 @@ public class AboutActivity extends AppCompatActivity {
 
     private void setVersionText() {
         TextView tvVersion = findViewById(R.id.tv_version);
+        TextView tvBuild = findViewById(R.id.tv_build);
+
+        String version;
+        String buildLabel;
+
         try {
             PackageInfo pInfo = getPackageManager().getPackageInfo(getPackageName(), 0);
-            String version = pInfo.versionName;
-            // 显示 APK 构建日期（文件修改时间近似为安装时间）
-            long installTime = new File(pInfo.applicationInfo.sourceDir).lastModified();
+            version = (pInfo.versionName != null) ? pInfo.versionName : "unknown";
+
+            // APK 文件修改时间近似为构建时间
+            long buildTime = new File(pInfo.applicationInfo.sourceDir).lastModified();
             SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
-            tvVersion.setText("Version " + version + " (" + sdf.format(new Date(installTime)) + ")");
+            String buildDate = sdf.format(new Date(buildTime));
+
+            // 开发版版本号形如 3.3.0-dev-300ee6d：
+            // Version 行只显示 3.3.0-dev，commit hash 归入 Build 行
+            String commit = extractDevCommitHash(version);
+            if (commit != null) {
+                int idx = version.indexOf("-dev-");
+                if (idx >= 0) {
+                    version = version.substring(0, idx + 4);
+                }
+                buildLabel = getString(R.string.about_build_format, commit, buildDate);
+            } else {
+                // 稳定版或本地未注入 hash 的开发版：只展示构建日期
+                buildLabel = getString(R.string.about_build_date_only, buildDate);
+            }
         } catch (PackageManager.NameNotFoundException e) {
-            tvVersion.setText("Version 1.0.0");
+            version = "1.0.0";
+            buildLabel = getString(R.string.about_build_date_only,
+                    getString(R.string.about_build_date_unknown));
         }
+
+        tvVersion.setText(getString(R.string.about_version_format, version));
+        tvBuild.setText(buildLabel);
+
+        buildInfoText = getString(R.string.about_copy_info, version, buildLabel);
+
+        View versionInfo = findViewById(R.id.version_info);
+        versionInfo.setOnClickListener(v -> copyBuildInfo());
+        versionInfo.setOnLongClickListener(v -> {
+            copyBuildInfo();
+            return true;
+        });
+    }
+
+    /**
+     * 复制完整构建信息到剪贴板。
+     */
+    private void copyBuildInfo() {
+        if (buildInfoText == null) return;
+        ClipboardManager clipboard =
+                (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+        if (clipboard == null) return;
+        clipboard.setPrimaryClip(
+                ClipData.newPlainText(getString(R.string.app_name), buildInfoText));
+        Toast.makeText(this, getString(R.string.about_build_info_copied),
+                Toast.LENGTH_SHORT).show();
     }
 
     private String getCurrentVersion() {
@@ -162,11 +221,36 @@ public class AboutActivity extends AppCompatActivity {
     // ── 链接 ──────────────────────────────────────────────────────
 
     private void setupLinks() {
-        TextView tvGithub = findViewById(R.id.tv_github);
-        tvGithub.setOnClickListener(v -> openUrl(GITHUB_URL));
+        addLinkRow(R.string.github_repo, R.string.about_link_github_subtitle,
+                R.drawable.ic_about_github, () -> openUrl(GITHUB_URL));
+        addLinkRow(R.string.chat_nvim_site, R.string.about_link_chat_nvim_subtitle,
+                R.drawable.ic_about_globe, () -> openUrl(CHAT_NVIM_URL));
+        addLinkRow(R.string.about_link_changelog_title, R.string.about_link_changelog_subtitle,
+                R.drawable.ic_about_history, () -> openUrl(CHANGELOG_URL));
+        addLinkRow(R.string.about_link_issues_title, R.string.about_link_issues_subtitle,
+                R.drawable.ic_about_bug, () -> openUrl(ISSUES_URL));
+    }
 
-        TextView tvChatNvim = findViewById(R.id.tv_chat_nvim);
-        tvChatNvim.setOnClickListener(v -> openUrl(CHAT_NVIM_URL));
+    /**
+     * 往项目链接卡片中追加一个设置样式的列表项。
+     * 每一项都是整行可点击，并自动处理首行分隔线。
+     */
+    private void addLinkRow(int titleRes, int subtitleRes, int iconRes, Runnable action) {
+        LinearLayout container = findViewById(R.id.layout_links);
+        View row = LayoutInflater.from(this)
+                .inflate(R.layout.item_about_link, container, false);
+
+        TextView tvTitle = row.findViewById(R.id.tv_link_title);
+        TextView tvSubtitle = row.findViewById(R.id.tv_link_subtitle);
+        ImageView ivIcon = row.findViewById(R.id.iv_link_icon);
+
+        tvTitle.setText(titleRes);
+        tvSubtitle.setText(subtitleRes);
+        ivIcon.setImageResource(iconRes);
+        row.findViewById(R.id.link_divider).setVisibility(
+                container.getChildCount() == 0 ? View.GONE : View.VISIBLE);
+        row.setOnClickListener(v -> action.run());
+        container.addView(row);
     }
 
     private void openUrl(String url) {
@@ -177,8 +261,8 @@ public class AboutActivity extends AppCompatActivity {
     // ── 检查更新 ──────────────────────────────────────────────────
 
     private void setupCheckUpdate() {
-        TextView tvCheckUpdate = findViewById(R.id.tv_check_update);
-        tvCheckUpdate.setOnClickListener(v -> checkForUpdates());
+        addLinkRow(R.string.check_update, R.string.about_link_check_update_subtitle,
+                R.drawable.ic_about_refresh, this::checkForUpdates);
     }
 
     /**

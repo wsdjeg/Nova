@@ -70,8 +70,10 @@
     <!-- Link color -->
     <color name="link_color">#64B5F6</color>
 
-    <!-- Divider for about page -->
-    <color name="about_divider">#3D3D3D</color>
+    <!-- About page -->
+    <color name="about_page_bg">#121318</color>
+    <color name="about_card_bg">#1C1D22</color>
+    <color name="about_divider">#2E3036</color>
 
     <!-- Popup menu colors -->
     <color name="popup_bg">#2D2D2D</color>
