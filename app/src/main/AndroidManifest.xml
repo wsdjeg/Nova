@@ -99,6 +99,12 @@
             android:exported="false"
             android:label="@string/title_usage_stats" />
 
+        <!-- TrashActivity: session recycle bin (list / restore / purge) -->
+        <activity
+            android:name=".TrashActivity"
+            android:exported="false"
+            android:label="@string/title_trash" />
+
         <!-- ShareActivity: 接收文本、图片、文件分享 -->
         <activity
             android:name=".ShareActivity"

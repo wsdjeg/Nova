@@ -161,6 +161,10 @@ public class SessionListActivity extends AppCompatActivity implements SessionAda
         } else if (id == R.id.action_usage_stats) {
             startActivity(new Intent(this, UsageStatsActivity.class));
             return true;
+        } else if (id == R.id.action_trash) {
+            // 回收站：列出所有账号被删除的会话快照，可恢复或永久清除
+            startActivity(new Intent(this, TrashActivity.class));
+            return true;
         } else if (id == R.id.action_view_log) {
             startActivity(new Intent(this, LogViewerActivity.class));
             return true;

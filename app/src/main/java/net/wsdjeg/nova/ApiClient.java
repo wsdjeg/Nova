@@ -10,6 +10,7 @@ import net.wsdjeg.nova.api.ServerApi;
 import net.wsdjeg.nova.api.SessionActionApi;
 import net.wsdjeg.nova.api.SessionApi;
 import net.wsdjeg.nova.api.SessionSettingsApi;
+import net.wsdjeg.nova.api.TrashApi;
 import net.wsdjeg.nova.api.UploadApi;
 import net.wsdjeg.nova.api.UsageStatsApi;
 import net.wsdjeg.nova.api.WeChatApi;
@@ -26,6 +27,7 @@ import net.wsdjeg.nova.api.WeChatApi;
  * - ProviderApi       providers/skills
  * - ServerApi         日志/连接测试/预览
  * - UsageStatsApi     用量统计查询/清空
+ * - TrashApi          会话回收站（列表/恢复/永久清除）
  * - WeChatApi         微信登录
  * - BridgeApi         集成桥接
  *
@@ -42,6 +44,7 @@ public class ApiClient {
     private final ProviderApi providerApi;
     private final ServerApi serverApi;
     private final UsageStatsApi usageStatsApi;
+    private final TrashApi trashApi;
     private final WeChatApi weChatApi;
     private final BridgeApi bridgeApi;
     private String sessionId;
@@ -157,6 +160,40 @@ public class ApiClient {
     }
 
     /**
+     * 回收站列表的回调接口
+     * 用于 GET /trash API（响应为裸数组，与 GET /sessions 同形状）
+     */
+    public interface TrashCallback {
+        void onSuccess(List<TrashEntry> entries);
+        void onError(String error);
+    }
+
+    /**
+     * 恢复回收站条目的回调接口
+     * 用于 POST /trash/{target}/restore API
+     *
+     * 成功时返回服务端给出的会话 ID（响应体 {"id": "..."}）。
+     * 失败时 httpCode 为服务端状态码，语义见 TrashApi：
+     * 404 回收站中不存在该条目，409 同名会话已存在（服务端拒绝覆盖），
+     * 400 文件存在但内容不可用；网络异常时为 TrashApi.NETWORK_ERROR。
+     */
+    public interface TrashRestoreCallback {
+        void onSuccess(String sessionId);
+        void onError(int httpCode, String error);
+    }
+
+    /**
+     * 永久删除回收站条目的回调接口
+     * 用于 DELETE /trash/{target} API
+     *
+     * 失败时 httpCode 语义同 {@link TrashRestoreCallback}。
+     */
+    public interface TrashPurgeCallback {
+        void onSuccess();
+        void onError(int httpCode, String error);
+    }
+
+    /**
      * 微信凭证写入的回调接口
      * 用于 POST /weixin/credentials API
      */
@@ -239,6 +276,7 @@ public class ApiClient {
         this.providerApi = new ProviderApi(config);
         this.serverApi = new ServerApi(config);
         this.usageStatsApi = new UsageStatsApi(config);
+        this.trashApi = new TrashApi(config);
         this.weChatApi = new WeChatApi(config);
         this.bridgeApi = new BridgeApi(config);
     }
@@ -254,6 +292,7 @@ public class ApiClient {
         this.providerApi = new ProviderApi(config);
         this.serverApi = new ServerApi(config);
         this.usageStatsApi = new UsageStatsApi(config);
+        this.trashApi = new TrashApi(config);
         this.weChatApi = new WeChatApi(config);
         this.bridgeApi = new BridgeApi(config);
     }
@@ -394,6 +433,36 @@ public class ApiClient {
      */
     public static void getProviders(String serverUrl, String apiKey, ProvidersCallback callback) {
         ProviderApi.getProviders(serverUrl, apiKey, callback);
+    }
+
+    // ===== TrashApi =====
+
+    /**
+     * 列出回收站条目
+     * API 端点: GET /trash
+     */
+    public void listTrash(TrashCallback callback) {
+        trashApi.listTrash(callback);
+    }
+
+    /**
+     * 恢复回收站条目
+     * API 端点: POST /trash/{target}/restore
+     *
+     * @param target 会话 ID 或回收站文件名（优先使用文件名，见 TrashEntry#getTarget()）
+     */
+    public void restoreTrash(String target, TrashRestoreCallback callback) {
+        trashApi.restoreTrash(target, callback);
+    }
+
+    /**
+     * 永久清除回收站条目
+     * API 端点: DELETE /trash/{target}
+     *
+     * @param target 会话 ID 或回收站文件名
+     */
+    public void purgeTrash(String target, TrashPurgeCallback callback) {
+        trashApi.purgeTrash(target, callback);
     }
 
     // ===== ServerApi =====

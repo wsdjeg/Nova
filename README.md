@@ -47,6 +47,7 @@ all from your phone.
 - [Usage](#usage)
     - [Account management](#account-management)
     - [Session management](#session-management)
+    - [Session trash](#session-trash)
     - [Chat](#chat)
     - [Usage stats](#usage-stats)
     - [Image upload](#image-upload)
@@ -70,6 +71,7 @@ all from your phone.
 - Multi-account management with per-account color tags (unified five-color palette) and connection testing
 - Account import / export in JSON for easy migration across devices
 - Session list with search, pin/unpin, swipe actions, and live session count
+- Session trash - deleted sessions land in the server-side recycle bin; browse it across all accounts, restore a snapshot, or purge it permanently
 - Session settings - edit title, provider, model, cwd, and bridge integrations on the fly
 - Automatic model selection - choosing a provider without a model lets the server pick that provider's first available model, so a session can be configured even while the model list is still loading
 - Session-level token usage shown in the session list, the chat toolbar, and session settings (compact k/M units, plus cache hit ratio)
@@ -181,6 +183,34 @@ If the provider's model list has not finished loading on the server yet, the mod
 shows a loading placeholder - saving is still allowed, and the server picks the provider's
 first available model for you. The resolved model is read back afterwards, so the session
 info always shows the model actually in use.
+
+### Session trash
+
+Deleting a session moves it to the server-side recycle bin
+(`GET /trash`), so an accidental delete is recoverable.
+
+| Action | How |
+| ------ | --- |
+| Browse trash | Session list -> menu -> **Trash** |
+| Restore snapshot | Tap the restore button on a row (or open the row and choose **Restore**) |
+| Delete permanently | Tap the delete button on a row -> confirm |
+| Refresh | Trash -> menu -> **Refresh** |
+
+The recycler is part of the chat.nvim server: each server keeps its own
+`trash` directory, and Nova aggregates all configured accounts into one list
+(each row carries the account tag of the server it belongs to). Restoring a
+snapshot writes the session back into the server side cache and loads it into
+memory, so it reappears in `GET /sessions` right away - the server deliberately
+does not open an editor window, because the request usually comes from a remote
+client. Use `/restore <id>` inside Neovim to jump into it locally.
+
+The same session can be deleted more than once, which leaves several snapshots
+behind (`<id>.json`, `<id>~1.json`, …). All of them share one session id, so
+Nova addresses each entry by its **file name** instead: the `~1` marker is
+shown next to the title, and the full file name is listed in the entry dialog.
+Error mapping follows the server: `404` the entry is gone, `409` a live session
+with the same id already exists and the server refuses to overwrite it, `400`
+the snapshot file exists but its content is unusable.
 
 ### Chat
 
@@ -333,6 +363,9 @@ All requests are authenticated via the `X-API-Key` header.
 | `/skills` | GET | List available skills (used for slash autocomplete) |
 | `/usage-stats` | GET | Usage totals per provider / model (supports `hours` / `days` windows) |
 | `/usage-stats` | DELETE | Clear all usage stats (total / hourly / daily layers) |
+| `/trash` | GET | List deleted-session snapshots (bare array, same shape as `/sessions`) |
+| `/trash/:target/restore` | POST | Restore a snapshot (`:target` = session id or trash file name) |
+| `/trash/:target` | DELETE | Purge a snapshot permanently |
 | `/session/:id/upload?path={dir}` | POST | Upload an image to the session working directory |
 | `/session/:id/upload-dir` | GET / PUT | Get / set the upload directory |
 | `/session/:id/bridge` | GET | List integrations bound to a session |
@@ -368,6 +401,9 @@ Nova/
 │   ├── ServerLogAdapter.java          # Server runtime log adapter
 │   ├── UsageStatsActivity.java        # Usage stats viewer (window / provider / model filters)
 │   ├── UsageStatsAdapter.java         # Usage stats list adapter
+│   ├── TrashActivity.java             # Session trash (cross-account list, restore / purge)
+│   ├── TrashAdapter.java              # Trash list adapter (snapshot label, account tag)
+│   ├── TrashEntry.java                # Trash snapshot model (addressed by file name)
 │   ├── ShareActivity.java             # Share target (image upload / text send)
 │   ├── WeChatLoginActivity.java       # WeChat QR code login screen
 │   ├── api/                           # HTTP API modules (split from ApiClient, each under 500 lines)
@@ -380,6 +416,7 @@ Nova/
 │   │   ├── SessionActionApi.java      # Stop / clear / retry session actions
 │   │   ├── SessionApi.java            # Session list / create / delete / detail
 │   │   ├── SessionSettingsApi.java    # Title / provider / model / cwd / pin updates
+│   │   ├── TrashApi.java              # Session trash (list / restore / purge)
 │   │   ├── UploadApi.java             # Image upload + upload directory settings
 │   │   ├── UsageStatsApi.java         # Usage stats query / clear
 │   │   └── WeChatApi.java             # WeChat login status / credentials
@@ -480,6 +517,7 @@ Nova/
 - [x] Session-level token usage display (session list / chat toolbar / session settings)
 - [x] Per-request token usage badge (including tool-call rounds)
 - [x] Usage stats viewer (time window + provider / model filter, clear stats)
+- [x] Session trash (cross-account list, restore / purge snapshots by file name)
 - [x] Date separators in message stream
 - [x] Unified five-color account tag palette
 - [x] Adaptive tool-card height (no fixed 10-line expanded view)

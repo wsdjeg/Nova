@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 快照标记背景 - 同一会话被删除多次时的 ~N 标签 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="@color/trash_snapshot_bg" />
+    <corners android:radius="10dp" />
+</shape>
+

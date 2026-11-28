@@ -81,5 +81,9 @@
 
     <!-- User message code block (on blue background) -->
     <color name="user_code_block_bg">#0277BD</color>
+
+    <!-- Trash (session recycle bin) -->
+    <color name="trash_snapshot_bg">#3D2A18</color>
+    <color name="trash_snapshot_text">#FFB74D</color>
 </resources>
 

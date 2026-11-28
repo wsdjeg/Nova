@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Trash (session recycle bin) -->
+    <string name="title_trash">回收站</string>
+    <string name="trash_menu">回收站</string>
+    <string name="trash_empty">回收站是空的</string>
+    <string name="trash_loading">正在加载回收站...</string>
+    <string name="trash_count_format">共 %d 项</string>
+    <string name="trash_restore">恢复</string>
+    <string name="trash_purge">永久删除</string>
+    <string name="trash_meta_format">%1$s · %2$d 条消息</string>
+    <string name="trash_message_count">%d 条消息</string>
+    <string name="trash_deleted_never">删除时间未知</string>
+
+    <!-- Restore -->
+    <string name="trash_restoring">正在恢复...</string>
+    <string name="trash_restored">已恢复会话: %s</string>
+    <string name="trash_restored_unknown_id">已恢复会话</string>
+    <string name="trash_restore_failed">恢复失败: %s</string>
+    <string name="trash_restore_conflict">同名会话已存在，服务端未覆盖原会话</string>
+    <string name="trash_restore_not_found">回收站中已不存在该条目</string>
+    <string name="trash_restore_unusable">快照文件存在但内容不可用，无法恢复</string>
+
+    <!-- Purge -->
+    <string name="trash_purge_title">永久删除快照</string>
+    <string name="trash_purge_message">确定要永久删除「%1$s」这份快照吗？\n\n此操作不可恢复，恢复不了被删除的对话内容。</string>
+    <string name="trash_purging">正在永久删除...</string>
+    <string name="trash_purged">已永久删除</string>
+    <string name="trash_purge_failed">永久删除失败: %s</string>
+    <string name="trash_purge_not_found">回收站中已不存在该条目</string>
+
+    <!-- Detail / actions -->
+    <string name="trash_detail_file">文件名: %s</string>
+    <string name="trash_detail_session_id">会话 ID: %s</string>
+    <string name="trash_detail_deleted_at">删除时间: %s</string>
+    <string name="trash_detail_messages">消息条数: %d</string>
+    <string name="trash_detail_account">账号: %s</string>
+    <string name="trash_detail_preview">内容预览:\n%s</string>
+    <string name="trash_detail_preview_empty">（无内容预览）</string>
+
+    <!-- Aggregated loading -->
+    <string name="trash_no_account">请先添加账号</string>
+    <string name="trash_refresh">刷新</string>
+    <string name="trash_load_failed">加载回收站失败: %s</string>
+    <string name="trash_load_partial">部分账号加载失败: %s</string>
+</resources>
+

@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Trash (session recycle bin) -->
+    <string name="title_trash">Trash</string>
+    <string name="trash_menu">Trash</string>
+    <string name="trash_empty">Trash is empty</string>
+    <string name="trash_loading">Loading trash...</string>
+    <string name="trash_count_format">%d items</string>
+    <string name="trash_restore">Restore</string>
+    <string name="trash_purge">Delete permanently</string>
+    <string name="trash_meta_format">%1$s · %2$d messages</string>
+    <string name="trash_message_count">%d messages</string>
+    <string name="trash_deleted_never">Deleted time unknown</string>
+
+    <!-- Restore -->
+    <string name="trash_restoring">Restoring...</string>
+    <string name="trash_restored">Session restored: %s</string>
+    <string name="trash_restored_unknown_id">Session restored</string>
+    <string name="trash_restore_failed">Restore failed: %s</string>
+    <string name="trash_restore_conflict">A session with the same id already exists; the server refused to overwrite it</string>
+    <string name="trash_restore_not_found">This entry is no longer in the trash</string>
+    <string name="trash_restore_unusable">The snapshot file exists but its content is unusable</string>
+
+    <!-- Purge -->
+    <string name="trash_purge_title">Delete snapshot permanently</string>
+    <string name="trash_purge_message">Permanently delete the snapshot \"%1$s\"?\n\nThis cannot be undone - the conversation cannot be recovered afterwards.</string>
+    <string name="trash_purging">Deleting permanently...</string>
+    <string name="trash_purged">Deleted permanently</string>
+    <string name="trash_purge_failed">Delete failed: %s</string>
+    <string name="trash_purge_not_found">This entry is no longer in the trash</string>
+
+    <!-- Detail / actions -->
+    <string name="trash_detail_file">File: %s</string>
+    <string name="trash_detail_session_id">Session id: %s</string>
+    <string name="trash_detail_deleted_at">Deleted at: %s</string>
+    <string name="trash_detail_messages">Messages: %d</string>
+    <string name="trash_detail_account">Account: %s</string>
+    <string name="trash_detail_preview">Preview:\n%s</string>
+    <string name="trash_detail_preview_empty">(no preview)</string>
+
+    <!-- Aggregated loading -->
+    <string name="trash_no_account">Please add an account first</string>
+    <string name="trash_refresh">Refresh</string>
+    <string name="trash_load_failed">Failed to load trash: %s</string>
+    <string name="trash_load_partial">Some accounts failed to load: %s</string>
+</resources>
+

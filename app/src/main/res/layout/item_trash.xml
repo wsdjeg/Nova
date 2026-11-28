@@ -1,0 +1,153 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:minHeight="72dp"
+    android:paddingStart="12dp"
+    android:paddingEnd="4dp"
+    android:paddingTop="12dp"
+    android:paddingBottom="12dp"
+    android:background="?attr/selectableItemBackground">
+
+    <!--
+    布局说明：
+
+    第一行：徽标组（账号标签 + 快照标记）+ 标题
+    第二行：消息预览（最多两行，空快照时隐藏）
+    第三行：删除时间 + 消息条数
+    右侧：恢复 / 永久删除两个按钮，整行等高居中
+
+    徽标组刻意用独立的 LinearLayout：
+    账号标签（跨账号聚合归属）与快照标记（同一会话的第二份及以后的快照）
+    都可能隐藏，把它们包进一个可整体 GONE 的容器后，标题的起始约束
+    只需锚定容器 end。否则标题锚在某个可隐藏的 TextView 上，
+    ConstraintLayout 的 goneMargin 会让标题与另一个仍可见的徽标重叠。
+
+    恢复 / 永久删除的寻址参数是回收站文件名（见 TrashEntry#getTarget()），
+    同一会话的多份快照 id 相同，只有文件名能区分。
+    -->
+
+    <!-- 右侧操作区 -->
+    <LinearLayout
+        android:id="@+id/trashActions"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <ImageButton
+            android:id="@+id/btnTrashRestore"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/trash_restore"
+            android:scaleType="centerInside"
+            android:src="@drawable/ic_trash_restore"
+            android:tint="@color/primary" />
+
+        <ImageButton
+            android:id="@+id/btnTrashPurge"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/trash_purge"
+            android:scaleType="centerInside"
+            android:src="@drawable/ic_trash_delete"
+            android:tint="@color/error" />
+    </LinearLayout>
+
+    <!-- 徽标组：账号标签 + 快照标记（两者都隐藏时整组 GONE） -->
+    <LinearLayout
+        android:id="@+id/trashBadges"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:visibility="gone"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="@id/textTrashTitle"
+        app:layout_constraintBottom_toBottomOf="@id/textTrashTitle">
+
+        <!-- 账号标签 -->
+        <TextView
+            android:id="@+id/textTrashAccount"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@drawable/account_tag_bg"
+            android:paddingStart="6dp"
+            android:paddingEnd="6dp"
+            android:paddingTop="2dp"
+            android:paddingBottom="2dp"
+            android:textColor="@color/account_tag_text"
+            android:textSize="10sp"
+            android:textStyle="bold"
+            android:visibility="gone" />
+
+        <!-- 快照标记（同一会话被删除多次时区分 id.json / id~1.json） -->
+        <TextView
+            android:id="@+id/textTrashSnapshot"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6dp"
+            android:background="@drawable/trash_snapshot_bg"
+            android:paddingStart="6dp"
+            android:paddingEnd="6dp"
+            android:paddingTop="2dp"
+            android:paddingBottom="2dp"
+            android:textColor="@color/trash_snapshot_text"
+            android:textSize="10sp"
+            android:textStyle="bold"
+            android:visibility="gone" />
+    </LinearLayout>
+
+    <!-- 第一行：标题 -->
+    <TextView
+        android:id="@+id/textTrashTitle"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:textColor="@color/text_primary"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        app:layout_constraintEnd_toStartOf="@id/trashActions"
+        app:layout_constraintStart_toEndOf="@id/trashBadges"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_goneMarginStart="0dp" />
+
+    <!-- 第二行：消息预览（空快照时隐藏，第三行随之上移） -->
+    <TextView
+        android:id="@+id/textTrashPreview"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:ellipsize="end"
+        android:maxLines="2"
+        android:textColor="@color/text_secondary"
+        android:textSize="12sp"
+        android:visibility="gone"
+        app:layout_constraintEnd_toStartOf="@id/trashActions"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/textTrashTitle" />
+
+    <!-- 第三行：删除时间 + 消息条数 -->
+    <TextView
+        android:id="@+id/textTrashMeta"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:textColor="@color/text_hint"
+        android:textSize="11sp"
+        app:layout_constraintEnd_toStartOf="@id/trashActions"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/textTrashPreview" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>
+
