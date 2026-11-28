@@ -391,7 +391,8 @@
     <string name="usage_tokens_format">Total %1$s · prompt %2$s · completion %3$s</string>
     <string name="usage_cached_format">Cached %1$s ⚡%2$s</string>
     <string name="usage_empty">No usage data</string>
-    <string name="usage_summary_format">%1$s · %2$d items · requests %3$s · tokens %4$s</string>
+    <string name="usage_summary_format">%1$s · %2$d items · requests %3$s · tokens %4$s · prompt %5$s · completion %6$s · cached %7$s</string>
+    <string name="usage_summary_format_no_cache">%1$s · %2$d items · requests %3$s · tokens %4$s · prompt %5$s · completion %6$s</string>
     <string name="usage_summary_empty">%s · no usage data</string>
     <string name="usage_clear_title">Clear usage stats</string>
     <string name="usage_clear_message">Clear all usage statistics on the server? This cannot be undone.</string>

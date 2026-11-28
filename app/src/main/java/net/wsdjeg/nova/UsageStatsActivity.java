@@ -402,6 +402,9 @@ public class UsageStatsActivity extends AppCompatActivity {
         List<UsageStatsAdapter.Entry> entries = new ArrayList<>();
         long totalRequests = 0;
         long totalTokens = 0;
+        long totalPrompt = 0;
+        long totalCompletion = 0;
+        long totalCached = 0;
 
         if (lastStats != null) {
             for (Map.Entry<String, Map<String, UsageRecord>> providerEntry
@@ -423,6 +426,9 @@ public class UsageStatsActivity extends AppCompatActivity {
                     entries.add(new UsageStatsAdapter.Entry(title, provider, model, record));
                     totalRequests += record.getRequests();
                     totalTokens += record.getTotalTokens();
+                    totalPrompt += record.getPromptTokens();
+                    totalCompletion += record.getCompletionTokens();
+                    totalCached += record.getCachedTokens();
                 }
             }
         }
@@ -433,12 +439,29 @@ public class UsageStatsActivity extends AppCompatActivity {
         String windowLabel = windowLabel(currentWindow);
         if (entries.isEmpty()) {
             tvSummary.setText(getString(R.string.usage_summary_empty, windowLabel));
-        } else {
+            return;
+        }
+
+        // 概要行汇总当前筛选后的全部记录：请求数、总 tokens，并拆分输入 / 输出。
+        // 总量直接用服务端 total_tokens 的累加值（= prompt + completion），
+        // 而不是把输入输出再相加一遍，避免与服务器口径不一致时出现对不上的数字。
+        String requests = Session.formatTokens(totalRequests);
+        String total = Session.formatTokens(totalTokens);
+        String prompt = Session.formatTokens(totalPrompt);
+        String completion = Session.formatTokens(totalCompletion);
+
+        // 缓存比例只算 prompt 中被 provider 前缀缓存服务的那部分。
+        // cached 为 0（例如该 provider 不使用前缀缓存）时省略缓存段，
+        // 避免在概要行里出现 "⚡0%" 这种没有信息量的噪声。
+        if (totalCached > 0) {
+            String cacheHit = Session.cacheHitPercent(totalPrompt, totalCached) + "%";
             tvSummary.setText(getString(R.string.usage_summary_format,
-                    windowLabel,
-                    entries.size(),
-                    Session.formatTokens(totalRequests),
-                    Session.formatTokens(totalTokens)));
+                    windowLabel, entries.size(), requests, total,
+                    prompt, completion, cacheHit));
+        } else {
+            tvSummary.setText(getString(R.string.usage_summary_format_no_cache,
+                    windowLabel, entries.size(), requests, total,
+                    prompt, completion));
         }
     }
 

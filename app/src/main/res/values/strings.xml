@@ -390,7 +390,8 @@
     <string name="usage_tokens_format">总 %1$s · 输入 %2$s · 输出 %3$s</string>
     <string name="usage_cached_format">缓存命中 %1$s ⚡%2$s</string>
     <string name="usage_empty">暂无统计数据</string>
-    <string name="usage_summary_format">%1$s · %2$d 项 · 请求 %3$s · Token %4$s</string>
+    <string name="usage_summary_format">%1$s · %2$d 项 · 请求 %3$s · Token %4$s · 输入 %5$s · 输出 %6$s · 缓存 %7$s</string>
+    <string name="usage_summary_format_no_cache">%1$s · %2$d 项 · 请求 %3$s · Token %4$s · 输入 %5$s · 输出 %6$s</string>
     <string name="usage_summary_empty">%s · 暂无统计数据</string>
     <string name="usage_clear_title">清空用量统计</string>
     <string name="usage_clear_message">确定要清空服务端的所有用量统计吗？此操作不可恢复。</string>
